@@ -177,16 +177,28 @@ pub async fn join_cluster_by_req(
     Ok(JoinClusterReply {})
 }
 
-/// Handle a leave request from a node that is shutting down.
-/// Must be called on the Leader — removes the node from membership of all shards.
+/// Permanently remove a node from the cluster (scale-in).
+///
+/// Must be called on the Leader. This is a deliberate operational action, NOT
+/// something a node does when it merely restarts — a restarting node keeps its
+/// membership and recovers on its own.
+///
+/// Safety: validated up front across ALL shards before any mutation, so we never
+/// remove the node from some shards and then bail, leaving shards inconsistent.
+///   - Idempotent: if the node is in no shard's membership, succeed (no-op).
+///   - Quorum guard: refuse if removing the node would drop a shard below 3
+///     voters (3→2 is allowed; 2→1 / 1→0 are refused — a 2-node group has no
+///     fault tolerance and losing one more loses quorum).
 pub async fn leave_cluster_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     req: &LeaveClusterRequest,
 ) -> Result<LeaveClusterReply, MetaServiceError> {
     let node_id = req.node_id;
 
+    // Phase 1: validate every shard before touching any.
+    let mut present_in_any = false;
     for (machine, raft_node) in raft_manager.all_shards() {
-        let current_members: Vec<u64> = raft_node
+        let voters: Vec<u64> = raft_node
             .metrics()
             .borrow()
             .membership_config
@@ -194,17 +206,39 @@ pub async fn leave_cluster_by_req(
             .voter_ids()
             .collect();
 
-        let new_members: Vec<u64> = current_members
-            .into_iter()
+        if !voters.contains(&node_id) {
+            continue;
+        }
+        present_in_any = true;
+
+        if voters.len() <= 2 {
+            return Err(MetaServiceError::CommonError(format!(
+                "[{}] refuse to remove node {}: only {} voters, removing one would break quorum (need >= 3 voters to safely remove one)",
+                machine, node_id, voters.len()
+            )));
+        }
+    }
+
+    if !present_in_any {
+        tracing::info!(
+            "Node {} is not a member of any shard, nothing to remove",
+            node_id
+        );
+        return Ok(LeaveClusterReply {});
+    }
+
+    // Phase 2: all shards validated — now apply the removal.
+    for (machine, raft_node) in raft_manager.all_shards() {
+        let new_members: Vec<u64> = raft_node
+            .metrics()
+            .borrow()
+            .membership_config
+            .membership()
+            .voter_ids()
             .filter(|&id| id != node_id)
             .collect();
 
         if new_members.is_empty() {
-            tracing::info!(
-                "[{}] Node {} is the last member, skipping leave",
-                machine,
-                node_id
-            );
             continue;
         }
 

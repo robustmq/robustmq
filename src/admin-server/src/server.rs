@@ -27,6 +27,7 @@ use crate::{
         connector::{connector_create, connector_delete, connector_detail, connector_list},
         health::{health_cluster, health_node, health_ready},
         message::{read_message, send_message},
+        node::node_leave,
         schema::{
             schema_bind_create, schema_bind_delete, schema_bind_list, schema_create, schema_delete,
             schema_list,
@@ -145,6 +146,8 @@ impl AdminServer {
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, get(cluster_config_get))
+            // node
+            .route(CLUSTER_NODE_LEAVE_PATH, post(node_leave))
             // tenant
             .route(TENANT_LIST_PATH, get(tenant_list))
             .route(TENANT_CREATE_PATH, post(tenant_create))

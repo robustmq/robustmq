@@ -18,15 +18,15 @@ use common_base::tools::{get_local_ip, now_second};
 use common_config::broker::broker_config;
 use common_config::config::BrokerConfig;
 use grpc_clients::meta::common::call::{
-    cluster_status, delete_resource_config, get_resource_config, heartbeat, kv_set, node_list,
-    register_node, set_resource_config, unregister_node,
+    cluster_status, delete_resource_config, get_resource_config, heartbeat, kv_set, leave_cluster,
+    node_list, register_node, set_resource_config, unregister_node,
 };
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::extend::{KafkaNodeExtend, MqttNodeExtend, NatsNodeExtend, NodeExtend};
 use metadata_struct::meta::node::BrokerNode;
 use protocol::meta::meta_service_common::{
     ClusterStatusRequest, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
-    NodeListRequest, RegisterNodeRequest, SetRequest, SetResourceConfigRequest,
+    LeaveClusterRequest, NodeListRequest, RegisterNodeRequest, SetRequest, SetResourceConfigRequest,
     UnRegisterNodeRequest,
 };
 use std::sync::Arc;
@@ -71,6 +71,16 @@ impl ClusterStorage {
         }
 
         Ok(node_list)
+    }
+
+    /// Permanently remove a node from the Raft cluster (scale-in). The meta
+    /// Leader removes it from every shard's membership; quorum safety is enforced
+    /// on the meta side. Intended for a node that is already stopped/retired.
+    pub async fn leave_cluster(&self, node_id: u64) -> Result<(), CommonError> {
+        let conf = broker_config();
+        let request = LeaveClusterRequest { node_id };
+        leave_cluster(&self.client_pool, &conf.get_meta_service_addr(), request).await?;
+        Ok(())
     }
 
     pub async fn register_node(

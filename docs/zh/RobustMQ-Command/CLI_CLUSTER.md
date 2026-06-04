@@ -12,6 +12,8 @@ robust-ctl cluster [--server <addr>] [--output table|json] <subcommand>
 - `healthy`：查看健康状态
 - `config get`：获取集群配置
 - `config set`：设置动态配置
+- `tenant`：租户管理（list / create / delete）
+- `node leave`：永久移除节点（缩容）
 
 ## 3. 详细命令
 
@@ -170,6 +172,37 @@ robust-ctl cluster tenant delete -n <TENANT_NAME>
 
 ```bash
 robust-ctl cluster tenant delete -n business-a
+```
+
+---
+
+### 3.6 node leave
+
+将节点从 Raft 集群中**永久移除**（缩容/退役）。这与节点临时下线不同——临时下线无需此命令，节点重启会自动恢复。
+
+**前提**：先停止目标节点进程，再执行本命令；默认拒绝移除仍在线的节点（用 `-f` 强制）。移除后若要再加入，必须先清空该节点的数据目录。Quorum 保护：投票成员 ≤ 2 时拒绝移除（至少 3 个成员才能移除一个）。
+
+语法：
+
+```bash
+robust-ctl cluster node leave -n <NODE_ID> [-f]
+```
+
+参数：
+
+| 参数 | 简写 | 必填 | 说明 |
+|------|------|------|------|
+| `--node-id` | `-n` | 是 | 要移除的节点 ID（≥1） |
+| `--force` | `-f` | 否 | 即使节点仍在线也强制移除，默认 `false` |
+
+示例：
+
+```bash
+# 先停掉节点 3 的进程，再移除
+robust-ctl cluster node leave -n 3
+
+# 强制移除（节点仍在线时）
+robust-ctl cluster node leave -n 3 -f
 ```
 
 ---

@@ -44,6 +44,10 @@ pub enum ClusterActionType {
     DeleteTenant {
         tenant_name: String,
     },
+    LeaveNode {
+        node_id: u64,
+        force: bool,
+    },
 }
 
 pub struct ClusterCommand {}
@@ -80,6 +84,9 @@ impl ClusterCommand {
             }
             ClusterActionType::DeleteTenant { tenant_name } => {
                 self.delete_tenant(params, tenant_name).await;
+            }
+            ClusterActionType::LeaveNode { node_id, force } => {
+                self.leave_node(params, node_id, force).await;
             }
         }
     }
@@ -332,6 +339,18 @@ impl ClusterCommand {
             Ok(_) => println!("Deleted successfully!"),
             Err(e) => {
                 println!("Delete tenant exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn leave_node(&self, params: ClusterCliCommandParam, node_id: u64, force: bool) {
+        let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
+        let request = admin_server::cluster::node::LeaveClusterNodeReq { node_id, force };
+        match admin_client.node_leave(&request).await {
+            Ok(msg) => println!("{}", msg),
+            Err(e) => {
+                println!("Node leave exception");
                 error_info(e.to_string());
             }
         }

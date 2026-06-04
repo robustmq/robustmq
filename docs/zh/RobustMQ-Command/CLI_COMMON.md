@@ -2,7 +2,7 @@
 
 `robust-ctl` 是 RobustMQ 的管理 CLI，当前按三大域组织：
 
-- `cluster`：集群状态、健康检查、集群配置
+- `cluster`：集群状态、健康检查、集群配置、租户管理、节点管理（移除/缩容）
 - `mqtt`：MQTT 管理面能力（用户、ACL、黑名单、连接器、Schema、订阅等）
 - `engine`：存储引擎能力（shard/segment/offset）
 

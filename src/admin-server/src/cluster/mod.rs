@@ -29,6 +29,7 @@ pub mod config;
 pub mod connector;
 pub mod health;
 pub mod message;
+pub mod node;
 pub mod offset;
 pub mod schema;
 pub mod share_group;

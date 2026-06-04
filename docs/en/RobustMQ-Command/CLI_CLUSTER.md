@@ -110,6 +110,31 @@ Example:
 robust-ctl cluster tenant delete -n business-a
 ```
 
+### 5) node leave
+
+Permanently remove a node from the Raft cluster (scale-in / decommission). This is different from a node going temporarily offline — a temporary outage needs no command; a restarting node recovers automatically.
+
+**Prerequisites**: stop the target node's process first, then run this; a still-alive node is refused by default (use `-f` to force). After removal, wipe the node's data directory before it can rejoin. Quorum guard: removal is refused when a group has ≤ 2 voters (at least 3 members are required to remove one).
+
+```bash
+robust-ctl cluster node leave -n <NODE_ID> [-f]
+```
+
+| Flag | Short | Required | Description |
+|------|-------|----------|-------------|
+| `--node-id` | `-n` | Yes | ID of the node to remove (≥ 1) |
+| `--force` | `-f` | No | Remove even if the node is still alive, default `false` |
+
+Example:
+
+```bash
+# Stop node 3's process first, then remove it
+robust-ctl cluster node leave -n 3
+
+# Force-remove (while the node is still alive)
+robust-ctl cluster node leave -n 3 -f
+```
+
 ## Notes
 
 - Tenants provide logical isolation within a single cluster. Suitable for serving multiple business units or multiple environments (dev / staging / prod) from one deployment.

@@ -176,6 +176,36 @@ pub enum ClusterAction {
     Healthy,
     Config(ClusterConfigArgs),
     Tenant(TenantArgs),
+    Node(NodeArgs),
+}
+
+// node
+#[derive(clap::Args, Debug)]
+#[command(author = "RobustMQ", about = "Node management: leave (permanent scale-in)", long_about = None)]
+#[command(next_line_help = true)]
+pub struct NodeArgs {
+    #[command(subcommand)]
+    pub action: NodeActionType,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum NodeActionType {
+    #[command(author = "RobustMQ", about = "Permanently remove a node from the cluster (stop its process first)", long_about = None)]
+    Leave(LeaveNodeArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(next_line_help = true)]
+pub struct LeaveNodeArgs {
+    #[arg(short = 'n', long, required = true, help = "Node ID to remove")]
+    pub node_id: u64,
+    #[arg(
+        short = 'f',
+        long,
+        default_value_t = false,
+        help = "Remove even if the node is still alive (default: refuse)"
+    )]
+    pub force: bool,
 }
 
 // tenant
@@ -390,6 +420,12 @@ pub async fn handle_cluster(args: ClusterArgs) {
             },
             TenantActionType::Delete(arg) => ClusterActionType::DeleteTenant {
                 tenant_name: arg.tenant_name,
+            },
+        },
+        ClusterAction::Node(node_args) => match node_args.action {
+            NodeActionType::Leave(arg) => ClusterActionType::LeaveNode {
+                node_id: arg.node_id,
+                force: arg.force,
             },
         },
     };

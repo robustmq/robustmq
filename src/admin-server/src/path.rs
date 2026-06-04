@@ -32,6 +32,9 @@ pub const CLUSTER_INFO: &str = "/info";
 pub const CLUSTER_CONFIG_SET_PATH: &str = "/cluster/config/set";
 pub const CLUSTER_CONFIG_GET_PATH: &str = "/cluster/config/get";
 
+// Cluster Node management
+pub const CLUSTER_NODE_LEAVE_PATH: &str = "/cluster/node/leave";
+
 // Cluster Topic API paths
 pub const CLUSTER_TOPIC_LIST_PATH: &str = "/cluster/topic/list";
 pub const CLUSTER_TOPIC_DETAIL_PATH: &str = "/cluster/topic/detail";

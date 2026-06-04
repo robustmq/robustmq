@@ -2,7 +2,7 @@
 
 `robust-ctl` is organized into 3 domains:
 
-- `cluster`: cluster status and configuration
+- `cluster`: cluster status, health, configuration, tenant management, and node management (remove / scale-in)
 - `mqtt`: MQTT management APIs
 - `engine`: storage engine APIs (shard/segment/offset)
 

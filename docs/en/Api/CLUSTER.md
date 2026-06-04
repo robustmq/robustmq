@@ -480,6 +480,58 @@ GET /api/cluster/config/get?broker_id=2
 
 ---
 
+## Cluster Node Management
+
+### 4. Permanently Remove a Node (Scale-In)
+
+- **Endpoint**: `POST /api/cluster/node/leave`
+- **Description**: Permanently removes a node from every Raft group's membership, for **deliberate scale-in / decommissioning**. This is different from a node going temporarily offline (restart, crash) — a temporary outage must **not** call this endpoint; a restarting node recovers on its own and needs no re-join.
+
+- **Important prerequisites & constraints**:
+  1. **Stop the process first, then call**: Stop the target node's process before calling. By default, if the target is still alive (still in the broker node list) the request is refused, to avoid orphaning a running node. Pass `force: true` to override.
+  2. **Quorum guard**: To keep a majority available, removal is refused when a Raft group has ≤ 2 voters (i.e. at least 3 members are required to remove one; 3→2 is allowed, 2→1 and 1→0 are refused). Enforced on the Meta side.
+  3. **Wipe data after removal**: A removed node must have its data directory deleted (`rm -rf <data_path>`) before it can rejoin; otherwise it tries to recover with stale membership and conflicts.
+  4. **Idempotent**: If the node is in no group's membership, the call succeeds as a no-op.
+
+- **Request parameters**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `node_id` | u64 | Yes | ID of the node to remove (≥ 1) |
+| `force` | bool | No | Remove even if the node is still alive, default `false` (a live node is refused) |
+
+- **Request example**:
+```bash
+# Stop node 3's process first, then remove it
+POST /api/cluster/node/leave
+Content-Type: application/json
+
+{ "node_id": 3 }
+
+# Force-remove (while the node is still alive)
+{ "node_id": 3, "force": true }
+```
+
+- **Response example (success)**:
+```json
+{
+  "code": 0,
+  "data": "Node 3 removed from the cluster. Wipe its data directory before rejoining as a new node.",
+  "error": null
+}
+```
+
+- **Response example (refused by quorum guard)**:
+```json
+{
+  "code": 1,
+  "data": null,
+  "error": "[metadata_0] refuse to remove node 2: only 2 voters, removing one would break quorum (need >= 3 voters to safely remove one)"
+}
+```
+
+---
+
 ## BrokerConfig Field Reference
 
 ### Base Configuration

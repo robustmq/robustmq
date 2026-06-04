@@ -480,6 +480,58 @@ GET /api/cluster/config/get?broker_id=2
 
 ---
 
+## 集群节点管理
+
+### 4. 永久移除节点（缩容）
+
+- **接口**: `POST /api/cluster/node/leave`
+- **描述**: 将一个节点从所有 Raft Group 的成员配置（membership）中永久移除，用于**主动缩容/退役**。这与节点临时下线（重启、崩溃）不同——临时下线**不应**调用本接口，节点重启后会自动恢复，无需重新加入。
+
+- **重要前提与约束**:
+  1. **先停进程，再调用**：必须先停止目标节点的进程，再调用本接口。默认情况下，若目标节点仍在线（仍在 broker 节点列表中），接口会拒绝执行，以免把一个还在运行的节点变成"孤儿"。如确需强制移除，传 `force: true`。
+  2. **Quorum 保护**：为保证多数派可用，当某个 Raft Group 的投票成员（voter）数 ≤ 2 时拒绝移除（即至少 3 个成员才允许移除一个；3→2 允许，2→1、1→0 拒绝）。该保护在 Meta 服务端强制执行。
+  3. **移除后必须清理数据**：被移除的节点若要再次加入，必须先删除其数据目录（`rm -rf <data_path>`），否则它会带着过时的成员配置尝试恢复，导致冲突。
+  4. **幂等**：若该节点本就不在任何 Group 的成员配置中，接口直接返回成功（无操作）。
+
+- **请求参数**:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `node_id` | u64 | 是 | 要移除的节点 ID（≥1） |
+| `force` | bool | 否 | 即使节点仍在线也强制移除，默认 `false`（拒绝移除在线节点） |
+
+- **请求示例**:
+```bash
+# 先停止节点 3 的进程，再移除
+POST /api/cluster/node/leave
+Content-Type: application/json
+
+{ "node_id": 3 }
+
+# 强制移除（节点仍在线时）
+{ "node_id": 3, "force": true }
+```
+
+- **响应示例（成功）**:
+```json
+{
+  "code": 0,
+  "data": "Node 3 removed from the cluster. Wipe its data directory before rejoining as a new node.",
+  "error": null
+}
+```
+
+- **响应示例（被 quorum 保护拒绝）**:
+```json
+{
+  "code": 1,
+  "data": null,
+  "error": "[metadata_0] refuse to remove node 2: only 2 voters, removing one would break quorum (need >= 3 voters to safely remove one)"
+}
+```
+
+---
+
 ## 返回值字段说明
 
 ### BrokerConfig 各部分说明
