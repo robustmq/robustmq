@@ -185,6 +185,7 @@ impl StorageEngineHandler {
             &self.client_connection_manager,
             shard,
             records,
+            1,
         )
         .await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;

@@ -17,9 +17,9 @@ use crate::isr::leader_epoch::LeaderEpochCache;
 use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
+use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::protocol::{FetchErrorCode, FetchReqBody, FetchRespBody, FetchShardReq};
-use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -43,7 +43,6 @@ pub struct SegmentFetchState {
     pub max_bytes: u64,
     pub cache: LeaderEpochCache,
 }
-
 
 pub type SegmentMap = Arc<DashMap<(String, u32), SegmentFetchState>>;
 

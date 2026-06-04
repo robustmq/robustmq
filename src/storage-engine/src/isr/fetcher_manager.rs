@@ -259,7 +259,10 @@ mod tests {
             st.set_role(ReplicaRole::LeaderActive);
             st.set_leader_epoch(1);
             if !records.is_empty() {
-                engine.append_at(shard, 0, 0, records.clone()).await.unwrap();
+                engine
+                    .append_at(shard, 0, 0, records.clone())
+                    .await
+                    .unwrap();
             }
         }
         InProcLeader { engine }

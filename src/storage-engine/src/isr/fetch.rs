@@ -15,6 +15,7 @@
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::isr::hw::advance_hw;
 use crate::isr::log::ReplicaLog;
 use crate::isr::state::ReplicaRole;
 use common_base::tools::now_second;
@@ -145,12 +146,12 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         .unwrap_or(0);
     resp.leader_leo = leo;
     resp.leader_log_start = log_start;
-    resp.leader_hw = cache_manager
-        .get_offset_state(&req.shard_name)
-        .map(|s| s.high_watermark_offset)
-        .unwrap_or(0);
 
     if req.fetch_offset < log_start || req.fetch_offset > leo {
+        resp.leader_hw = cache_manager
+            .get_offset_state(&req.shard_name)
+            .map(|s| s.high_watermark_offset)
+            .unwrap_or(0);
         resp.error_code = FetchErrorCode::OffsetOutOfRange.as_u32();
         return resp;
     }
@@ -163,9 +164,28 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         leo,
         now_second(),
     ) {
+        resp.leader_hw = cache_manager
+            .get_offset_state(&req.shard_name)
+            .map(|s| s.high_watermark_offset)
+            .unwrap_or(0);
         resp.error_code = FetchErrorCode::StaleBrokerEpoch.as_u32();
         return resp;
     }
+
+    resp.leader_hw = match cache_manager.get_active_segment(&req.shard_name) {
+        Some(segment) => advance_hw(
+            cache_manager,
+            &req.shard_name,
+            req.segment_seq,
+            &segment.isr,
+            segment.leader,
+            leo,
+        ),
+        None => cache_manager
+            .get_offset_state(&req.shard_name)
+            .map(|s| s.high_watermark_offset)
+            .unwrap_or(0),
+    };
 
     match log
         .read_from(

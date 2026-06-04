@@ -29,6 +29,7 @@ pub fn build_write_req(shard_name: String, messages: Vec<Vec<u8>>) -> WriteReq {
         body: WriteReqBody {
             shard_name,
             messages,
+            acks: 1,
         },
     }
 }

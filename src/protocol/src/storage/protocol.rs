@@ -123,6 +123,7 @@ impl RespHeader {
 pub struct WriteReqBody {
     pub shard_name: String,
     pub messages: Vec<Vec<u8>>,
+    pub acks: i8,
 }
 
 impl WriteReqBody {
@@ -130,6 +131,7 @@ impl WriteReqBody {
         Self {
             shard_name,
             messages,
+            acks: 1,
         }
     }
 

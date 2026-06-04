@@ -15,7 +15,9 @@
 pub mod fetch;
 pub mod fetcher;
 pub mod fetcher_manager;
+pub mod hw;
 pub mod leader_epoch;
 pub mod log;
+pub mod role;
 pub mod startup;
 pub mod state;

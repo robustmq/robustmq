@@ -24,15 +24,19 @@ use crate::{
         write::{WriteChannelDataRecord, WriteManager},
         SegmentIdentity,
     },
+    isr::hw::{advance_hw, wait_for_hw},
 };
 use common_base::utils::serialize::serialize;
 use common_config::{broker::broker_config, storage::StorageType};
+
+const ACKS_ALL: i8 = -1;
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn batch_write(
     write_manager: &Arc<WriteManager>,
     cache_manager: &Arc<StorageCacheManager>,
@@ -41,6 +45,7 @@ pub async fn batch_write(
     client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
     records: &[AdapterWriteRecord],
+    acks: i8,
 ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
@@ -55,39 +60,62 @@ pub async fn batch_write(
 
     let conf = broker_config();
 
-    let offsets = if conf.broker_id == active_segment.leader {
-        match shard.config.storage_type {
-            StorageType::EngineMemory => {
-                write_memory_to_local(memory_storage_engine, shard_name, records).await?
-            }
-            StorageType::EngineRocksDB => {
-                write_rocksdb_to_local(rocksdb_storage_engine, shard_name, records).await?
-            }
-            StorageType::EngineSegment => {
-                write_segment_to_local(
-                    write_manager,
-                    shard_name,
-                    active_segment.segment_seq,
-                    records,
-                )
-                .await?
-            }
-            _ => {
-                return Err(StorageEngineError::CommonErrorStr(format!(
-                    "Unsupported storage type {:?} for shard {} when writing data",
-                    shard.config.storage_type, shard_name
-                )))
-            }
-        }
-    } else {
-        write_data_to_remote(
+    if conf.broker_id != active_segment.leader {
+        return write_data_to_remote(
             client_connection_manager,
             active_segment.leader,
             shard_name,
             records,
         )
-        .await?
+        .await;
+    }
+
+    let offsets = match shard.config.storage_type {
+        StorageType::EngineMemory => {
+            write_memory_to_local(memory_storage_engine, shard_name, records).await?
+        }
+        StorageType::EngineRocksDB => {
+            write_rocksdb_to_local(rocksdb_storage_engine, shard_name, records).await?
+        }
+        StorageType::EngineSegment => {
+            write_segment_to_local(
+                write_manager,
+                shard_name,
+                active_segment.segment_seq,
+                records,
+            )
+            .await?
+        }
+        _ => {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Unsupported storage type {:?} for shard {} when writing data",
+                shard.config.storage_type, shard_name
+            )))
+        }
     };
+
+    let leader_leo = cache_manager
+        .get_offset_state(shard_name)
+        .map(|s| s.latest_offset)
+        .unwrap_or(0);
+    advance_hw(
+        cache_manager,
+        shard_name,
+        active_segment.segment_seq,
+        &active_segment.isr,
+        active_segment.leader,
+        leader_leo,
+    );
+
+    if acks == ACKS_ALL {
+        let max_wait_ms = conf.storage_runtime.replica_fetch_max_wait_ms.max(1);
+        if !wait_for_hw(cache_manager, shard_name, leader_leo, max_wait_ms).await {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "acks=all timed out waiting for HW to reach {leader_leo} on shard {shard_name}"
+            )));
+        }
+    }
+
     Ok(offsets)
 }
 
@@ -170,4 +198,116 @@ async fn write_segment_to_local(
     }
 
     Ok(resp.offsets)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commitlog::offset::CommitLogOffset;
+    use crate::core::test_tool::test_init_segment;
+    use bytes::Bytes;
+    use grpc_clients::pool::ClientPool;
+    use std::time::Duration;
+    use tokio::sync::broadcast;
+
+    struct Env {
+        write_manager: Arc<WriteManager>,
+        cache_manager: Arc<StorageCacheManager>,
+        memory: Arc<MemoryStorageEngine>,
+        rocksdb: Arc<RocksDBStorageEngine>,
+        client: Arc<ClientConnectionManager>,
+        shard: String,
+    }
+
+    async fn env() -> Env {
+        let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
+            test_init_segment(StorageType::EngineMemory).await;
+        let offset = CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        offset
+            .save_earliest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+        offset
+            .save_latest_offset(&segment_iden.shard_name, 0)
+            .unwrap();
+        cache_manager.save_offset_state(
+            segment_iden.shard_name.clone(),
+            crate::core::shard::ShardOffsetState::default(),
+        );
+        cache_manager.get_or_create_segment_replica(&segment_iden.shard_name, 0);
+
+        let client_pool = Arc::new(ClientPool::new(100));
+        let write_manager = Arc::new(WriteManager::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            client_pool,
+            3,
+        ));
+        let (stop, _) = broadcast::channel(2);
+        write_manager.start(stop);
+        let memory = Arc::new(MemoryStorageEngine::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            Default::default(),
+        ));
+        let rocksdb = Arc::new(RocksDBStorageEngine::new(
+            cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
+        let client = Arc::new(ClientConnectionManager::new(cache_manager.clone(), 8));
+        Env {
+            write_manager,
+            cache_manager,
+            memory,
+            rocksdb,
+            client,
+            shard: segment_iden.shard_name,
+        }
+    }
+
+    fn records(n: usize) -> Vec<AdapterWriteRecord> {
+        (0..n)
+            .map(|i| AdapterWriteRecord::new("s".to_string(), Bytes::from(format!("v{i}"))))
+            .collect()
+    }
+
+    async fn write(e: &Env, acks: i8) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
+        batch_write(
+            &e.write_manager,
+            &e.cache_manager,
+            &e.memory,
+            &e.rocksdb,
+            &e.client,
+            &e.shard,
+            &records(3),
+            acks,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn acks_all_single_leader_commits_immediately() {
+        let e = env().await;
+        let rows = write(&e, -1).await.unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(
+            e.cache_manager
+                .get_offset_state(&e.shard)
+                .unwrap()
+                .high_watermark_offset,
+            3
+        );
+    }
+
+    #[tokio::test]
+    async fn acks_all_times_out_when_follower_lags() {
+        let e = env().await;
+        if let Some(mut seg) = e.cache_manager.get_active_segment(&e.shard) {
+            seg.isr = vec![1, 2];
+            e.cache_manager.set_segment(&seg);
+        }
+        let err = tokio::time::timeout(Duration::from_secs(5), write(&e, -1))
+            .await
+            .unwrap();
+        assert!(err.is_err());
+    }
 }

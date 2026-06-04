@@ -54,6 +54,11 @@ impl EngineSegment {
         matches!(self.status, SegmentStatus::Write | SegmentStatus::PreSealUp)
     }
 
+    pub fn is_replica(&self) -> bool {
+        let broker_id = common_config::broker::broker_config().broker_id;
+        self.replicas.iter().any(|r| r.node_id == broker_id)
+    }
+
     pub fn get_fold(&self, node_id: u64) -> Option<String> {
         for rep in self.replicas.clone() {
             if rep.node_id == node_id {

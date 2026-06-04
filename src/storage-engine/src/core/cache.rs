@@ -320,4 +320,21 @@ impl StorageCacheManager {
             state.earliest_offset = offset;
         }
     }
+
+    pub fn update_high_watermark_offset(&self, shard_name: &str, offset: u64) -> bool {
+        if let Some(mut state) = self.shard_offset_state.get_mut(shard_name) {
+            if offset > state.high_watermark_offset {
+                state.high_watermark_offset = offset;
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn hw_watcher(&self, shard_name: &str) -> watch::Sender<u64> {
+        self.hw_watchers
+            .entry(shard_name.to_string())
+            .or_insert_with(|| watch::channel(0).0)
+            .clone()
+    }
 }

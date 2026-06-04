@@ -19,6 +19,7 @@ use crate::{
     filesegment::{
         segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
     },
+    isr::role::apply_leader_and_isr,
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::segment::EngineSegment;
@@ -134,6 +135,7 @@ async fn parse_segment(
             if conf.broker_id == segment.leader {
                 cache_manager.add_leader_segment(&segment_iden);
             }
+            apply_leader_and_isr(cache_manager, rocksdb_engine_handler, &segment).await?;
 
             if shard.config.storage_type == StorageType::EngineSegment {
                 let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
@@ -162,6 +164,7 @@ async fn parse_segment(
             } else {
                 cache_manager.remove_leader_segment(&segment_iden);
             }
+            apply_leader_and_isr(cache_manager, rocksdb_engine_handler, &segment).await?;
         }
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;

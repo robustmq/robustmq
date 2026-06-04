@@ -43,6 +43,7 @@ fn params_validator(
 }
 
 /// the entry point for handling write requests
+#[allow(clippy::too_many_arguments)]
 pub async fn write_data_req(
     cache_manager: &Arc<StorageCacheManager>,
     write_manager: &Arc<WriteManager>,
@@ -51,6 +52,7 @@ pub async fn write_data_req(
     client_connection_manager: &Arc<ClientConnectionManager>,
     shard_name: &str,
     messages: &[Vec<u8>],
+    acks: i8,
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     if messages.is_empty() {
         return Ok(Vec::new());
@@ -73,6 +75,7 @@ pub async fn write_data_req(
         client_connection_manager,
         shard_name,
         &record_list,
+        acks,
     )
     .await?;
 
@@ -296,6 +299,7 @@ mod tests {
             &client_connection_manager,
             &segment_iden.shard_name,
             &messages,
+            1,
         )
         .await
         .unwrap();

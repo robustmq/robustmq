@@ -89,6 +89,7 @@ impl Command for StorageEngineHandlerCommand {
 
         match pack {
             StorageEnginePacket::WriteReq(request) => {
+                let acks = request.body.acks;
                 let messages = request.body.messages;
 
                 let (resp_body, error) = match write_data_req(
@@ -99,6 +100,7 @@ impl Command for StorageEngineHandlerCommand {
                     &self.client_connection_manager,
                     &request.body.shard_name,
                     &messages,
+                    acks,
                 )
                 .await
                 {

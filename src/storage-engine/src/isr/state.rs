@@ -15,6 +15,7 @@
 use dashmap::DashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::RwLock;
+use tokio::sync::Mutex as AsyncMutex;
 
 /// Local runtime role of a segment (authoritative leader/epoch is in meta).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,6 +44,7 @@ pub struct SegmentReplicaState {
     leader_epoch: AtomicU32,
     segment_epoch: AtomicU32,
     role: RwLock<ReplicaRole>,
+    state_lock: AsyncMutex<()>,
     pub follower_progress: DashMap<u64, FollowerProgress>,
 }
 
@@ -54,8 +56,13 @@ impl SegmentReplicaState {
             leader_epoch: AtomicU32::new(0),
             segment_epoch: AtomicU32::new(0),
             role: RwLock::new(ReplicaRole::Initializing),
+            state_lock: AsyncMutex::new(()),
             follower_progress: DashMap::new(),
         }
+    }
+
+    pub async fn lock_state(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.state_lock.lock().await
     }
 
     pub fn role(&self) -> ReplicaRole {
@@ -82,9 +89,6 @@ impl SegmentReplicaState {
         self.segment_epoch.store(epoch, Ordering::SeqCst);
     }
 
-    /// Record a follower's fetch progress. First contact seeds `last_caught_up_ts`
-    /// to `now` so a catching-up new follower isn't seen as massively lagging.
-    /// Returns `false` if the follower's broker_epoch is stale (caller fences it).
     pub fn update_follower_progress(
         &self,
         replica_id: u64,
@@ -113,6 +117,26 @@ impl SegmentReplicaState {
             progress.last_caught_up_ts = now;
         }
         true
+    }
+
+    pub fn reset_follower_progress(&self) {
+        self.follower_progress.clear();
+    }
+
+    pub fn committable_hw(&self, isr: &[u64], leader_id: u64, leader_leo: u64) -> u64 {
+        let mut hw = leader_leo;
+        for replica_id in isr {
+            if *replica_id == leader_id {
+                continue;
+            }
+            let leo = self
+                .follower_progress
+                .get(replica_id)
+                .map(|p| p.leo)
+                .unwrap_or(0);
+            hw = hw.min(leo);
+        }
+        hw
     }
 }
 
@@ -146,5 +170,18 @@ mod tests {
             },
         );
         assert_eq!(seg.follower_progress.get(&2).unwrap().leo, 10);
+    }
+
+    #[test]
+    fn committable_hw_is_min_across_isr() {
+        let seg = SegmentReplicaState::new("s".to_string(), 0);
+        assert_eq!(seg.committable_hw(&[1], 1, 100), 100);
+
+        seg.update_follower_progress(2, 1, 1, 80, 100, 0);
+        assert_eq!(seg.committable_hw(&[1, 2], 1, 100), 80);
+        assert_eq!(seg.committable_hw(&[1, 2, 3], 1, 100), 0);
+
+        seg.reset_follower_progress();
+        assert_eq!(seg.committable_hw(&[1, 2], 1, 100), 0);
     }
 }
