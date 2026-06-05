@@ -252,6 +252,10 @@ mod tests {
         commit_offset
             .save_latest_offset(&segment_iden.shard_name, 0)
             .unwrap();
+        cache_manager.save_offset_state(
+            segment_iden.shard_name.clone(),
+            crate::core::shard::ShardOffsetState::default(),
+        );
 
         let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();
         assert_eq!(shard_info.config.storage_type, engine_storage_type);
