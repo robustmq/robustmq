@@ -808,6 +808,16 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Get segment detail with per-replica state
+    pub async fn get_segment_detail<T, R>(&self, request: &T) -> Result<R, HttpClientError>
+    where
+        T: Serialize,
+        R: for<'de> Deserialize<'de>,
+    {
+        self.post(&api_path(STORAGE_ENGINE_SEGMENT_DETAIL_PATH), request)
+            .await
+    }
+
     /// Get offset by timestamp
     pub async fn get_offset_by_timestamp<T, R>(&self, request: &T) -> Result<R, HttpClientError>
     where

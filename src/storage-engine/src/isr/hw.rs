@@ -16,6 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
+use tracing::warn;
 
 pub fn advance_hw(
     cache_manager: &Arc<StorageCacheManager>,
@@ -44,7 +45,10 @@ pub async fn wait_for_hw(
     let current = cache_manager
         .get_offset_state(shard)
         .map(|s| s.high_watermark_offset)
-        .unwrap_or(0);
+        .unwrap_or_else(|| {
+            warn!("offset state not found for shard {shard}, treating HW as 0");
+            0
+        });
     if current >= target_offset {
         return true;
     }

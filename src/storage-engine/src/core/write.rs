@@ -118,7 +118,12 @@ pub async fn batch_write(
     let leader_leo = cache_manager
         .get_offset_state(shard_name)
         .map(|s| s.latest_offset)
-        .unwrap_or(0);
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "offset state not found for shard {shard_name}, shard may not be initialized"
+            ))
+        })?;
+
     advance_hw(
         cache_manager,
         shard_name,

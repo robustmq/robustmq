@@ -90,6 +90,8 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | Shard | `POST` | `/api/storage-engine/shard/create` | 创建 Shard |
 | Shard | `POST` | `/api/storage-engine/shard/delete` | 删除 Shard |
 | Segment | `POST` | `/api/storage-engine/segment/list` | Segment 列表查询 |
+| Segment | `POST` | `/api/storage-engine/segment/detail` | Segment 详情查询（含多副本状态） |
+| Segment | `POST` | `/api/storage-engine/segment/replica-state` | 获取本节点副本状态（内部接口） |
 
 ### 通用接口
 
@@ -333,6 +335,127 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 - 通过 `last_log_index` 和 `last_applied.index` 检查日志同步状态
 - 通过 `heartbeat` 监控集群节点的活跃状态
 - 通过 `membership_config` 了解集群成员配置
+
+---
+
+## 存储引擎接口
+
+### Segment 详情查询
+- **接口**: `POST /api/storage-engine/segment/detail`
+- **描述**: 查询指定 Segment 的详细信息，包括基本元数据和所有副本节点的实时状态（HW、LEO、角色等）。本节点数据直接从本地缓存读取，其他副本节点通过内部 HTTP 转发获取。
+- **请求参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `shard_name` | `string` | 是 | Shard 名称 |
+| `segment_seq` | `u32` | 是 | Segment 序号 |
+
+- **请求示例**:
+```json
+{
+  "shard_name": "my-shard",
+  "segment_seq": 0
+}
+```
+
+- **响应示例**:
+```json
+{
+  "code": 0,
+  "data": {
+    "segment": {
+      "shard_name": "my-shard",
+      "segment_seq": 0,
+      "leader": 1,
+      "replicas": [{"node_id": 1}, {"node_id": 2}],
+      "isr": [1, 2],
+      "config": {}
+    },
+    "segment_meta": null,
+    "replicas": [
+      {
+        "node_id": 1,
+        "is_leader": true,
+        "in_isr": true,
+        "role": "LeaderActive",
+        "leader_epoch": 1,
+        "segment_epoch": 0,
+        "leo": 100,
+        "high_watermark": 98,
+        "log_start_offset": 0,
+        "follower_progress": [
+          {
+            "node_id": 2,
+            "leo": 98,
+            "last_known_leader_epoch": 1,
+            "last_fetch_ts": 1749100000,
+            "last_caught_up_ts": 1749099990
+          }
+        ],
+        "available": true,
+        "error": null
+      },
+      {
+        "node_id": 2,
+        "is_leader": false,
+        "in_isr": true,
+        "role": "Follower",
+        "leader_epoch": 1,
+        "segment_epoch": 0,
+        "leo": 98,
+        "high_watermark": 98,
+        "log_start_offset": 0,
+        "follower_progress": [],
+        "available": true,
+        "error": null
+      }
+    ]
+  }
+}
+```
+
+**响应字段说明**:
+
+`segment` 字段为 Segment 基本信息；`segment_meta` 为元数据（可为 null）；`replicas` 为各副本节点状态列表。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `node_id` | `u64` | 副本所在节点 ID |
+| `is_leader` | `bool` | 是否为当前 Leader |
+| `in_isr` | `bool` | 是否在 ISR 列表中 |
+| `role` | `string` | 副本角色：`LeaderActive`、`Follower`、`Unknown` 等 |
+| `leader_epoch` | `u32` | Leader Epoch，每次 Leader 切换自增 |
+| `segment_epoch` | `u32` | Segment Epoch |
+| `leo` | `u64` | Log End Offset，该副本已写入的最新偏移量 |
+| `high_watermark` | `u64` | 高水位，所有 ISR 副本均已同步的最大偏移量 |
+| `log_start_offset` | `u64` | 日志起始偏移量 |
+| `follower_progress` | `array` | Follower 同步进度列表（仅 Leader 节点有数据） |
+| `available` | `bool` | 节点是否可访问 |
+| `error` | `string/null` | 访问失败时的错误信息 |
+
+`follower_progress` 字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `node_id` | `u64` | Follower 节点 ID |
+| `leo` | `u64` | Follower 已同步的 LEO |
+| `last_known_leader_epoch` | `u32` | Follower 最后已知的 Leader Epoch |
+| `last_fetch_ts` | `u64` | 最后一次 Fetch 请求时间戳（毫秒） |
+| `last_caught_up_ts` | `u64` | 最后一次追上 Leader 的时间戳（毫秒） |
+
+---
+
+### 获取本节点副本状态（内部接口）
+- **接口**: `POST /api/storage-engine/segment/replica-state`
+- **描述**: 内部接口，由 `segment/detail` 通过 HTTP 转发调用，返回当前节点对指定 Segment 的本地副本状态。外部不建议直接调用。
+- **请求参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `shard_name` | `string` | 是 | Shard 名称 |
+| `segment_seq` | `u32` | 是 | Segment 序号 |
+
+- **响应**: 同 `replicas` 数组中的单个元素结构（`SegmentReplicaStateResp`）。
 
 ---
 

@@ -90,6 +90,8 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 | Shard | `POST` | `/api/storage-engine/shard/create` | Create shard |
 | Shard | `POST` | `/api/storage-engine/shard/delete` | Delete shard |
 | Segment | `POST` | `/api/storage-engine/segment/list` | List segments |
+| Segment | `POST` | `/api/storage-engine/segment/detail` | Get segment detail (with per-replica state) |
+| Segment | `POST` | `/api/storage-engine/segment/replica-state` | Get local node replica state (internal) |
 
 ### Common APIs
 
@@ -333,6 +335,127 @@ The `meta` field contains the Raft consensus state information of the Meta clust
 - Monitor log synchronization status via `last_log_index` and `last_applied.index`
 - Monitor cluster node activity through `heartbeat`
 - Understand cluster membership configuration via `membership_config`
+
+---
+
+## Storage Engine APIs
+
+### Get Segment Detail
+- **Endpoint**: `POST /api/storage-engine/segment/detail`
+- **Description**: Returns detailed information for a specific segment, including basic metadata and real-time state from all replica nodes (HW, LEO, role, etc.). The local node's data is read directly from cache; remote replicas are fetched via internal HTTP forwarding.
+- **Request Parameters**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `shard_name` | `string` | Yes | Shard name |
+| `segment_seq` | `u32` | Yes | Segment sequence number |
+
+- **Request Example**:
+```json
+{
+  "shard_name": "my-shard",
+  "segment_seq": 0
+}
+```
+
+- **Response Example**:
+```json
+{
+  "code": 0,
+  "data": {
+    "segment": {
+      "shard_name": "my-shard",
+      "segment_seq": 0,
+      "leader": 1,
+      "replicas": [{"node_id": 1}, {"node_id": 2}],
+      "isr": [1, 2],
+      "config": {}
+    },
+    "segment_meta": null,
+    "replicas": [
+      {
+        "node_id": 1,
+        "is_leader": true,
+        "in_isr": true,
+        "role": "LeaderActive",
+        "leader_epoch": 1,
+        "segment_epoch": 0,
+        "leo": 100,
+        "high_watermark": 98,
+        "log_start_offset": 0,
+        "follower_progress": [
+          {
+            "node_id": 2,
+            "leo": 98,
+            "last_known_leader_epoch": 1,
+            "last_fetch_ts": 1749100000,
+            "last_caught_up_ts": 1749099990
+          }
+        ],
+        "available": true,
+        "error": null
+      },
+      {
+        "node_id": 2,
+        "is_leader": false,
+        "in_isr": true,
+        "role": "Follower",
+        "leader_epoch": 1,
+        "segment_epoch": 0,
+        "leo": 98,
+        "high_watermark": 98,
+        "log_start_offset": 0,
+        "follower_progress": [],
+        "available": true,
+        "error": null
+      }
+    ]
+  }
+}
+```
+
+**Response Fields**:
+
+`segment` contains the segment's basic information; `segment_meta` is optional metadata; `replicas` is the list of per-node replica states.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `node_id` | `u64` | Node ID hosting this replica |
+| `is_leader` | `bool` | Whether this replica is the current Leader |
+| `in_isr` | `bool` | Whether this replica is in the ISR list |
+| `role` | `string` | Replica role: `LeaderActive`, `Follower`, `Unknown`, etc. |
+| `leader_epoch` | `u32` | Leader epoch, incremented on each leader change |
+| `segment_epoch` | `u32` | Segment epoch |
+| `leo` | `u64` | Log End Offset — the latest offset written on this replica |
+| `high_watermark` | `u64` | High watermark — the highest offset replicated to all ISR members |
+| `log_start_offset` | `u64` | Earliest available offset in the log |
+| `follower_progress` | `array` | Follower sync progress list (only populated on Leader nodes) |
+| `available` | `bool` | Whether the node was reachable |
+| `error` | `string/null` | Error message if the node was unreachable |
+
+`follower_progress` fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `node_id` | `u64` | Follower node ID |
+| `leo` | `u64` | LEO the follower has synced up to |
+| `last_known_leader_epoch` | `u32` | Last leader epoch known to this follower |
+| `last_fetch_ts` | `u64` | Timestamp of the last fetch request (milliseconds) |
+| `last_caught_up_ts` | `u64` | Timestamp when the follower last caught up to the leader (milliseconds) |
+
+---
+
+### Get Local Node Replica State (Internal)
+- **Endpoint**: `POST /api/storage-engine/segment/replica-state`
+- **Description**: Internal endpoint called by `segment/detail` via HTTP forwarding. Returns the local node's replica state for a given segment. Not intended for direct external use.
+- **Request Parameters**:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `shard_name` | `string` | Yes | Shard name |
+| `segment_seq` | `u32` | Yes | Segment sequence number |
+
+- **Response**: Single `SegmentReplicaStateResp` object — same structure as one element in the `replicas` array of `segment/detail`.
 
 ---
 

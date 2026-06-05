@@ -29,7 +29,6 @@ RobustMQ wants to invite you to sign your name for us — this signature will al
 @jamesfeng2009
 @CsongSY
 @wanliofficial
-@yw897
 
 ## How to Sign Your Name
 

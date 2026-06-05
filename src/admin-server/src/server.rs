@@ -16,7 +16,7 @@ use crate::auth::{auth_middleware, auth_router};
 use crate::cluster::index;
 use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
 use crate::debug::pprof_flamegraph;
-use crate::engine::segment::segment_list;
+use crate::engine::segment::{segment_detail, segment_list, segment_replica_state};
 use crate::engine::shard::{shard_create, shard_delete, shard_list};
 use crate::mcp::mcp_route;
 use crate::{
@@ -164,6 +164,11 @@ impl AdminServer {
             .route(STORAGE_ENGINE_SHARD_DELETE_PATH, post(shard_delete))
             // segment
             .route(STORAGE_ENGINE_SEGMENT_LIST_PATH, post(segment_list))
+            .route(STORAGE_ENGINE_SEGMENT_DETAIL_PATH, post(segment_detail))
+            .route(
+                STORAGE_ENGINE_SEGMENT_REPLICA_STATE_PATH,
+                post(segment_replica_state),
+            )
     }
 
     fn cluster_resource_route(&self) -> Router<Arc<HttpState>> {
