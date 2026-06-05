@@ -131,6 +131,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
     }
     if req.current_leader_epoch > leader_epoch {
         resp.error_code = FetchErrorCode::UnknownLeaderEpoch.as_u32();
+        cache_manager.mark_reconcile_needed(&req.shard_name, req.segment_seq, 1);
         return resp;
     }
 

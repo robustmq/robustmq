@@ -38,7 +38,7 @@
   5. 推进 `local_leo`
   - 注意:`LeaderEpochCache.assign` **不在写入路径做**,而是在 leader 上任时一次性完成(见 I11、§8.1 case 1)。写入路径只做**兜底校验** `LeaderEpochCache.latest_epoch() == self.leader_epoch`,不匹配即 InternalError(正常路径永不触发,详见 §5.2 step 6)。
 - **(I5) Committed 定义**:HW(High Watermark)是 **shard 维度**(对齐 memory/rocksdb 物理本质和现有 `ShardOffsetState.high_watermark_offset`)。一条记录 `offset < shard.HW` 即 committed。HW 由 active segment 的 leader 单方计算,见 I6。
-- **(I6) HW 计算与单调性**:`new_hw_candidate = min(LEO over eligible_isr_members of active segment)`,实际推进时强制 `shard.HW = max(current_shard.HW, new_hw_candidate)`,**同一 broker 实例视角下 HW 永不倒退**。HW 推进时只计入 ISR 中 `last_known_leader_epoch == self.leader_epoch` 的 follower(leader 自己 LEO 直接用 `shard.local_leo`)。**边缘 case**:若 `|ISR| > 1` 但**除 leader 外的所有 follower 都 epoch 陈旧**,`new_hw_candidate = current_shard.HW`(即不推进),避免 leader 自己 LEO 把还没复制完的数据假装成 committed(详细伪代码见 §5.3)。
+- **(I6) HW 计算与单调性**:`new_hw_candidate = min(leader_LEO, 已有 follower_progress 记录的 ISR 成员 LEO)`,未在 follower_progress 中的 ISR 成员被跳过(不约束 HW)——新加入 ISR 时已经追上,因此 `last_caught_up_ts` 在 `lag_time_max_ms` 内才进 ISR,此后第一次 fetch 才建 progress 记录。实际推进时强制 `shard.HW = max(current_shard.HW, new_hw_candidate)`,**同一 broker 实例视角下 HW 永不倒退**。leader failover 后新 leader reset_follower_progress,旧进度清空,在 follower 重新 fetch 并建立记录之前 HW 由 leader 单独决定(leader 作为单 ISR 成员)。(详细伪代码见 §5.3)
   > 注:leader 切换时,**全局**视角下 HW 数字可以瞬间变小(新 leader 继承 follower 期本地 HW,该值滞后于旧 leader 一个 RTT)。但 **committed 数据本身不丢失**(`offset < 旧 HW` 的所有 record 都在新 leader 上;Kafka 同行为)。"HW 单调"约束的是单个 broker 实例,不是跨 leader 切换。
 - **(I7) HW 推进只由 fetch 触发**:follower 通过 fetch_offset 隐式上报 LEO,active segment leader 收到 fetch 时推进 shard.HW。写入路径不直接推 HW。
 - **(I8) Committed 数据永不丢失**:任何已 committed(`offset < shard.HW`)的数据在任何故障后必须在新 leader 上保留。这是 ISR 协议的核心承诺。
@@ -425,9 +425,9 @@ pub struct FollowerProgress {
 
 其余转换:
 - `LeaderInitializing → LeaderActive`:LeaderEpochCache 持久化完成
-- `FollowerInitializing → FollowerActive`:`OffsetsForLeaderEpoch` + truncate 完成
+- `FollowerInitializing → FollowerActive`:`OffsetsForLeaderEpoch` + truncate 完成。**当前实现**：role.rs 的 follower 分支直接启动 fetcher 并转 FollowerActive（未先做 OffsetsForLeaderEpoch truncation）。truncation 在首次 fetch 收到 FencedLeaderEpoch 时由 `truncate_after_fence` 完成——功能等效，但晚一轮 fetch，严格来说违反 I9 的"启动 fetcher 前先截断"要求。
 - `LeaderActive → LeaderDemoting`:收到通知自己不再是 leader,进入卸任收尾
-- `LeaderDemoting → FollowerInitializing`:取消所有 inflight 写入、唤醒 acks=all 等待者返 NotLeaderForPartition 后(见 §5.6)
+- `LeaderDemoting → FollowerInitializing`:取消所有 inflight 写入、唤醒 acks=all 等待者返 NotLeaderForPartition 后(见 §5.6)。**当前实现**:LeaderDemoting 态存在但主动唤醒未实现,acks=all 等待者靠超时(`replica_fetch_max_wait_ms`)返错。
 
 **leader 连任简化路径**(leader 不变、leader_epoch 不变,仅 ISR / segment_epoch 变化):
 - 保持 `LeaderActive`,只更新 `isr_cache / segment_epoch`,**不**重新 assign LeaderEpochCache,**不**取消 inflight 写入(见 §8.1 case 1 注解)
@@ -516,8 +516,9 @@ pub trait ReplicaLog: Send + Sync {
         segment_seq: u32,
     ) -> Result<u64, StorageEngineError>;
 
-    /// 截断到指定 offset(含),用于 follower 在 leader 切换时丢弃未提交日志。
-    /// 先降 LEO 再删记录(WAL 按写入顺序 replay,崩溃后 LEO 不会越过 log 末尾)。
+    /// 截断到指定 offset(含,inclusive),LEO 设为 offset+1(exclusive)。
+    /// 用于 follower 在 leader 切换时丢弃未提交日志。
+    /// 先降 LEO 再删记录(崩溃后 LEO 不会越过 log 末尾)。
     async fn truncate_to(
         &self,
         shard: &str,
@@ -1805,9 +1806,9 @@ message OffsetsForLeaderEpochResponse {
 
 memory 引擎 follower 重启后,本地 LeaderEpochCache 必然为空。处理:
 1. follower 报告 `follower_leader_epoch=0`(表示无历史)
-2. leader 返回 `end_offset = leader_log_start`(让 follower 从头拉)
-3. follower 不用 truncate(本地本来就是空的)
-4. fetch_offset = leader_log_start
+2. leader 的 `end_offset_for(epoch=0)` 逻辑：若 `follower_epoch(0) > cache.latest_epoch`，返回 `end_offset_epoch=-1, end_offset=leader_leo`。**实现注**：代码返回 `leader_leo`（当前写入位置），follower 执行 clear 后从头 fetch 直到追上 leader_leo——等价于全量重拉，功能正确。文档此前写 `leader_log_start` 不精确，实际代码用 `leader_leo`。
+3. follower 收到 `end_offset_epoch<0` → clear 本地 + clear cache
+4. fetch_offset = 0（从头拉）
 
 → memory 引擎下 follower 重启 = 全量重拉。这是引擎特性,不是 ISR 协议缺陷。
 
@@ -1909,7 +1910,7 @@ message QueryReplicaStateResp {
 
 **不是直接写 raft**(broker 没有 raft handle)。流程:
 
-```
+```text
 broker leader 想做 ISR shrink/expand:
   1. broker 通过 grpc-clients 调 meta-service 的 grpc API(新增 UpdateSegmentIsr RPC)
   2. meta-service grpc handler 接收
@@ -1980,7 +1981,7 @@ message ReconcileReply {
 
 ### 11.3 模块布局
 
-```
+```text
 src/protocol/src/storage/codec.rs              // 扩展 StorageEnginePacket(M6)
 src/protocol/src/meta/storage.proto            // 新增 UpdateSegmentIsr RPC(M8)
 src/protocol/src/meta/common.proto             // RegisterNodeReply 加 broker_epoch(D5)

@@ -23,6 +23,7 @@ service BrokerService {
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
   rpc GetShardSegmentDeleteStatus(GetShardSegmentDeleteStatusRequest) returns (GetShardSegmentDeleteStatusReply) {}
   rpc SendNatsShareGroupMessage(SendNatsShareGroupMessageRequest) returns (SendNatsShareGroupMessageReply) {}
+  rpc QueryReplicaLeo(QueryReplicaLeoRequest) returns (QueryReplicaLeoReply) {}
 }
 
 message UpdateCacheRequest {
@@ -120,4 +121,16 @@ enum BrokerUpdateCacheActionType {
   Create = 0;
   Update = 1;
   Delete = 2;
+}
+
+message QueryReplicaLeoRequest {
+  string shard_name = 1;
+  uint32 segment_seq = 2;
+}
+
+message QueryReplicaLeoReply {
+  uint64 segment_leo = 1;
+  uint32 latest_leader_epoch = 2;
+  uint64 log_start_offset = 3;
+  bool available = 4;
 }

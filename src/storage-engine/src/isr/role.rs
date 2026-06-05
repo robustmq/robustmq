@@ -36,6 +36,16 @@ pub async fn apply_leader_and_isr(
     let state = cache_manager.get_or_create_segment_replica(shard, segment_seq);
     let _guard = state.lock_state().await;
 
+    let local_leader_epoch = state.leader_epoch();
+    let local_segment_epoch = state.segment_epoch();
+    if segment.leader_epoch < local_leader_epoch
+        || (segment.leader_epoch == local_leader_epoch
+            && segment.segment_epoch < local_segment_epoch)
+    {
+        return Ok(state.role());
+    }
+    let leader_epoch_changed = segment.leader_epoch > local_leader_epoch;
+
     if !segment.is_replica() {
         state.set_role(ReplicaRole::Initializing);
         fetcher_manager.remove_segment(shard, segment_seq);
@@ -43,6 +53,7 @@ pub async fn apply_leader_and_isr(
     }
 
     if segment.leader == broker_id {
+        let prev_role = state.role();
         state.set_role(ReplicaRole::LeaderInitializing);
         fetcher_manager.remove_segment(shard, segment_seq);
 
@@ -50,23 +61,39 @@ pub async fn apply_leader_and_isr(
             .get_offset_state(shard)
             .map(|s| s.latest_offset)
             .unwrap_or(0);
-        let mut epoch_cache =
-            LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
-        epoch_cache.assign(segment.leader_epoch, leo)?;
+        let assign = (|| {
+            let mut epoch_cache =
+                LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
+            epoch_cache.assign(segment.leader_epoch, leo)
+        })();
+        if let Err(e) = assign {
+            state.set_role(prev_role);
+            return Err(e);
+        }
 
-        state.reset_follower_progress();
+        if leader_epoch_changed {
+            state.reset_follower_progress();
+        }
         state.set_leader_epoch(segment.leader_epoch);
         state.set_segment_epoch(segment.segment_epoch);
         state.set_role(ReplicaRole::LeaderActive);
         Ok(ReplicaRole::LeaderActive)
     } else {
+        let prev_role = state.role();
         state.set_role(ReplicaRole::FollowerInitializing);
-        state.set_leader_epoch(segment.leader_epoch);
-        state.set_segment_epoch(segment.segment_epoch);
-        state.set_role(ReplicaRole::FollowerActive);
 
         let max_bytes = broker_config().storage_runtime.max_segment_size as u64;
-        let cache = LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
+        let cache = match LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)
+        {
+            Ok(c) => c,
+            Err(e) => {
+                state.set_role(prev_role);
+                return Err(e);
+            }
+        };
+
+        state.set_leader_epoch(segment.leader_epoch);
+        state.set_segment_epoch(segment.segment_epoch);
         fetcher_manager.remove_segment(shard, segment_seq);
         fetcher_manager.assign_segment(SegmentFetchState {
             shard: shard.clone(),
@@ -76,6 +103,7 @@ pub async fn apply_leader_and_isr(
             max_bytes,
             cache,
         });
+        state.set_role(ReplicaRole::FollowerActive);
         Ok(ReplicaRole::FollowerActive)
     }
 }
@@ -168,5 +196,22 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(role, ReplicaRole::Initializing);
+    }
+
+    #[tokio::test]
+    async fn stale_leader_epoch_is_ignored() {
+        let engine = test_build_memory_engine();
+        let cm = engine.cache_manager.clone();
+        let db = rocksdb_engine::test::test_rocksdb_instance();
+        let mgr = manager(&cm, &db);
+
+        apply_leader_and_isr(&cm, &db, &mgr, &segment(2, &[1, 2], 5))
+            .await
+            .unwrap();
+        let role = apply_leader_and_isr(&cm, &db, &mgr, &segment(1, &[1, 2], 3))
+            .await
+            .unwrap();
+        assert_eq!(role, ReplicaRole::FollowerActive);
+        assert_eq!(cm.get_segment_replica("s", 0).unwrap().leader_epoch(), 5);
     }
 }

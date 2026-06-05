@@ -60,6 +60,10 @@ pub struct StorageCacheManager {
 
     // ISR per-shard HW watcher (wakes acks=all waiters; wired in T11)
     pub hw_watchers: DashMap<String, watch::Sender<u64>>,
+
+    // Segments that need an immediate reconcile (set by fetch handler on UnknownLeaderEpoch).
+    // Value is the timestamp (seconds) of the last trigger, used for rate-limiting.
+    pub reconcile_needed: DashMap<(String, u32), u64>,
 }
 
 impl StorageCacheManager {
@@ -84,7 +88,29 @@ impl StorageCacheManager {
             shard_offset_state,
             segment_replica_states: DashMap::with_capacity(8),
             hw_watchers: DashMap::with_capacity(8),
+            reconcile_needed: DashMap::with_capacity(8),
         }
+    }
+
+    pub fn mark_reconcile_needed(&self, shard: &str, segment_seq: u32, min_interval_sec: u64) {
+        let now = now_second();
+        let key = (shard.to_string(), segment_seq);
+        let mut entry = self.reconcile_needed.entry(key).or_insert(0);
+        if now.saturating_sub(*entry) >= min_interval_sec {
+            *entry = now;
+        }
+    }
+
+    pub fn take_reconcile_needed(&self) -> Vec<(String, u32)> {
+        let keys: Vec<_> = self
+            .reconcile_needed
+            .iter()
+            .map(|e| e.key().clone())
+            .collect();
+        for k in &keys {
+            self.reconcile_needed.remove(k);
+        }
+        keys
     }
 
     // ISR segment replica state

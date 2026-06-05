@@ -104,7 +104,6 @@ impl LeaderEpochCache {
     pub fn truncate_from_end_by_epoch(
         &mut self,
         target_epoch: u32,
-        _end_offset: u64,
     ) -> Result<(), StorageEngineError> {
         let removed: Vec<_> = self
             .entries
@@ -207,7 +206,7 @@ mod tests {
         assert_eq!(c.latest_epoch(), 2);
 
         c.assign(3, 10).unwrap();
-        c.truncate_from_end_by_epoch(1, 5).unwrap();
+        c.truncate_from_end_by_epoch(1).unwrap();
         assert_eq!(c.latest_epoch(), 1);
         assert_eq!(c.end_offset_for(1), None);
 

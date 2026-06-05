@@ -129,12 +129,9 @@ impl SegmentReplicaState {
             if *replica_id == leader_id {
                 continue;
             }
-            let leo = self
-                .follower_progress
-                .get(replica_id)
-                .map(|p| p.leo)
-                .unwrap_or(0);
-            hw = hw.min(leo);
+            if let Some(p) = self.follower_progress.get(replica_id) {
+                hw = hw.min(p.leo);
+            }
         }
         hw
     }
@@ -179,9 +176,9 @@ mod tests {
 
         seg.update_follower_progress(2, 1, 1, 80, 100, 0);
         assert_eq!(seg.committable_hw(&[1, 2], 1, 100), 80);
-        assert_eq!(seg.committable_hw(&[1, 2, 3], 1, 100), 0);
+        assert_eq!(seg.committable_hw(&[1, 2, 3], 1, 100), 80);
 
         seg.reset_follower_progress();
-        assert_eq!(seg.committable_hw(&[1, 2], 1, 100), 0);
+        assert_eq!(seg.committable_hw(&[1, 2], 1, 100), 100);
     }
 }

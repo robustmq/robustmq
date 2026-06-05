@@ -20,6 +20,7 @@ use crate::core::error::get_journal_server_code;
 use crate::filesegment::write::WriteManager;
 use crate::handler::data::{read_data_req, write_data_req};
 use crate::isr::fetch::{handle_fetch, FetchEngines};
+use crate::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch;
 use async_trait::async_trait;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -27,7 +28,8 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    ApiKey, FetchResp, ReadRespBody, RespHeader, StorageEngineNetworkError, WriteRespBody,
+    ApiKey, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody, RespHeader,
+    StorageEngineNetworkError, WriteRespBody,
 };
 use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -90,7 +92,35 @@ impl Command for StorageEngineHandlerCommand {
         match pack {
             StorageEnginePacket::WriteReq(request) => {
                 let acks = request.body.acks;
+                let current_leader_epoch = request.body.current_leader_epoch;
                 let messages = request.body.messages;
+
+                if current_leader_epoch > 0 {
+                    if let Some(seg) = self
+                        .cache_manager
+                        .get_active_segment(&request.body.shard_name)
+                    {
+                        if seg.leader_epoch != current_leader_epoch {
+                            let resp = protocol::storage::protocol::WriteResp {
+                                header: protocol::storage::protocol::RespHeader::with_error(
+                                    ApiKey::Write,
+                                    StorageEngineNetworkError {
+                                        code: "FencedLeaderEpoch".to_string(),
+                                        error: format!(
+                                            "FencedLeaderEpoch: request epoch {} != leader epoch {}",
+                                            current_leader_epoch, seg.leader_epoch
+                                        ),
+                                    },
+                                ),
+                                body: WriteRespBody::default(),
+                            };
+                            return Some(ResponsePackage::new(
+                                tcp_connection.connection_id,
+                                RobustMQPacket::StorageEngine(StorageEnginePacket::WriteResp(resp)),
+                            ));
+                        }
+                    }
+                }
 
                 let (resp_body, error) = match write_data_req(
                     &self.cache_manager,
@@ -178,6 +208,29 @@ impl Command for StorageEngineHandlerCommand {
                 let response = ResponsePackage::new(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::FetchResp(resp)),
+                );
+                return Some(response);
+            }
+
+            StorageEnginePacket::OffsetsForLeaderEpochReq(request) => {
+                let engines = FetchEngines {
+                    memory: self.memory_storage_engine.clone(),
+                    rocksdb: self.rocksdb_storage_engine.clone(),
+                };
+                let body = handle_offsets_for_leader_epoch(
+                    &engines,
+                    &self.cache_manager,
+                    &self.rocksdb_engine_handler,
+                    &request.body,
+                )
+                .await;
+                let resp = OffsetsForLeaderEpochResp::new(body);
+
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::OffsetsForLeaderEpochResp(
+                        resp,
+                    )),
                 );
                 return Some(response);
             }

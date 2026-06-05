@@ -18,7 +18,8 @@ use protocol::meta::meta_service_journal::{
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
     ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
-    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
+    UpdateSegmentIsrReply, UpdateSegmentIsrRequest, UpdateStartTimeBySegmentMetaReply,
+    UpdateStartTimeBySegmentMetaRequest,
 };
 use tonic::Streaming;
 
@@ -89,4 +90,10 @@ generate_storage_engine_service_call!(
     UpdateStartTimeBySegmentMetaRequest,
     UpdateStartTimeBySegmentMetaReply,
     UpdateSegmentMeta
+);
+generate_storage_engine_service_call!(
+    update_segment_isr,
+    UpdateSegmentIsrRequest,
+    UpdateSegmentIsrReply,
+    UpdateSegmentIsr
 );

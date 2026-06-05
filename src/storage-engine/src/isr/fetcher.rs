@@ -19,12 +19,15 @@ use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
-use protocol::storage::protocol::{FetchErrorCode, FetchReqBody, FetchRespBody, FetchShardReq};
+use protocol::storage::protocol::{
+    FetchErrorCode, FetchReqBody, FetchRespBody, FetchShardReq, OffsetsForLeaderEpochReqBody,
+    OffsetsForLeaderEpochRespBody,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tracing::warn;
+use tracing::{info, warn};
 
 #[async_trait]
 pub trait FetchTransport: Send + Sync {
@@ -33,6 +36,12 @@ pub trait FetchTransport: Send + Sync {
         leader_node_id: u64,
         req: FetchReqBody,
     ) -> Result<FetchRespBody, StorageEngineError>;
+
+    async fn offsets_for_leader_epoch(
+        &self,
+        leader_node_id: u64,
+        req: OffsetsForLeaderEpochReqBody,
+    ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError>;
 }
 
 #[async_trait]
@@ -43,6 +52,14 @@ impl FetchTransport for Arc<dyn FetchTransport> {
         req: FetchReqBody,
     ) -> Result<FetchRespBody, StorageEngineError> {
         (**self).fetch(leader_node_id, req).await
+    }
+
+    async fn offsets_for_leader_epoch(
+        &self,
+        leader_node_id: u64,
+        req: OffsetsForLeaderEpochReqBody,
+    ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+        (**self).offsets_for_leader_epoch(leader_node_id, req).await
     }
 }
 
@@ -57,14 +74,20 @@ pub struct SegmentFetchState {
 
 pub type SegmentMap = Arc<DashMap<(String, u32), SegmentFetchState>>;
 
-pub struct ReplicaFetcherThread<T: FetchTransport, L: ReplicaLog> {
+#[derive(Clone)]
+pub struct ReplicaFetcherThread<
+    T: FetchTransport + Clone + 'static,
+    L: ReplicaLog + Clone + 'static,
+> {
     transport: T,
     log: L,
     broker_cache: Arc<NodeCacheManager>,
     segments: SegmentMap,
 }
 
-impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
+impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
+    ReplicaFetcherThread<T, L>
+{
     pub fn new(
         transport: T,
         log: L,
@@ -79,29 +102,28 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
         }
     }
 
-    pub async fn run(&mut self, mut stop: broadcast::Receiver<bool>) {
+    pub async fn run(&self, mut stop: broadcast::Receiver<bool>) {
         loop {
-            let progressed = tokio::select! {
+            let backoff_ms = self
+                .broker_cache
+                .get_cluster_config()
+                .storage_runtime
+                .replica_fetch_backoff_ms;
+
+            tokio::select! {
                 biased;
                 _ = stop.recv() => return,
-                p = self.fetch_round() => p,
-            };
-            if !progressed {
-                let backoff = Duration::from_millis(
-                    self.broker_cache
-                        .get_cluster_config()
-                        .storage_runtime
-                        .replica_fetch_backoff_ms,
-                );
-                tokio::select! {
-                    _ = tokio::time::sleep(backoff) => {}
-                    _ = stop.recv() => return,
-                }
+                _ = async {
+                    let progressed = self.fetch_round().await;
+                    if !progressed {
+                        tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                    }
+                } => {}
             }
         }
     }
 
-    pub async fn fetch_round(&mut self) -> bool {
+    pub async fn fetch_round(&self) -> bool {
         let mut by_leader: HashMap<u64, Vec<FetchShardReq>> = HashMap::new();
         for entry in self.segments.iter() {
             let state = entry.value();
@@ -133,8 +155,11 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
         let min_bytes = config.storage_runtime.replica_fetch_min_bytes;
         let max_wait_ms = config.storage_runtime.replica_fetch_max_wait_ms;
 
-        let mut progressed = false;
+        // Fan out one task per leader: each task fetches and applies independently.
+        // Wait for all tasks before the next round to avoid unbounded task growth.
+        let mut join_set = tokio::task::JoinSet::new();
         for (leader, shards) in by_leader {
+            let worker = self.clone();
             let req = FetchReqBody {
                 replica_id,
                 replica_broker_epoch,
@@ -142,26 +167,37 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
                 max_wait_ms,
                 shards,
             };
-            let resp = match self.transport.fetch(leader, req).await {
-                Ok(r) => r,
-                Err(e) => {
-                    warn!("fetcher fetch to leader {}: {}", leader, e);
-                    continue;
+            join_set.spawn(async move {
+                let resp = match worker.transport.fetch(leader, req).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        warn!("fetcher fetch to leader {}: {}", leader, e);
+                        return false;
+                    }
+                };
+                let mut progressed = false;
+                for shard_resp in resp.shards {
+                    match worker.apply_shard_resp(shard_resp).await {
+                        Ok(true) => progressed = true,
+                        Ok(false) => {}
+                        Err(e) => warn!("fetcher apply: {}", e),
+                    }
                 }
-            };
-            for shard_resp in resp.shards {
-                match self.apply_shard_resp(shard_resp).await {
-                    Ok(true) => progressed = true,
-                    Ok(false) => {}
-                    Err(e) => warn!("fetcher apply: {}", e),
-                }
+                progressed
+            });
+        }
+
+        let mut progressed = false;
+        while let Some(result) = join_set.join_next().await {
+            if result.unwrap_or(false) {
+                progressed = true;
             }
         }
         progressed
     }
 
     async fn apply_shard_resp(
-        &mut self,
+        &self,
         resp: protocol::storage::protocol::FetchShardResp,
     ) -> Result<bool, StorageEngineError> {
         let key = (resp.shard_name.clone(), resp.segment_seq);
@@ -174,31 +210,124 @@ impl<T: FetchTransport, L: ReplicaLog> ReplicaFetcherThread<T, L> {
 
         if resp.error_code == FetchErrorCode::OffsetOutOfRange.as_u32() {
             if fetch_offset < resp.leader_log_start {
+                // Follower is too far behind (log compacted on leader): wipe and re-pull from scratch.
                 self.log.clear(shard, segment_seq).await?;
                 if let Some(mut state) = self.segments.get_mut(&key) {
                     state.cache.clear()?;
                 }
+            } else {
+                // fetch_offset > leader LEO: follower is ahead of leader, truncate to align.
+                self.truncate_after_fence(&key).await?;
             }
+            return Ok(false);
+        }
+        if resp.error_code == FetchErrorCode::FencedLeaderEpoch.as_u32() {
+            self.truncate_after_fence(&key).await?;
             return Ok(false);
         }
         if resp.error_code != FetchErrorCode::None.as_u32() {
             return Ok(false);
         }
 
-        if let Some(mut state) = self.segments.get_mut(&key) {
-            if resp.leader_epoch > state.cache.latest_epoch() {
-                state.cache.assign(resp.leader_epoch, fetch_offset)?;
-            }
-        }
-
         let records = decode_records(&resp.records)?;
         let applied = records.len();
         if applied > 0 {
-            self.log
+            match self
+                .log
                 .append_at(shard, segment_seq, fetch_offset, records)
-                .await?;
+                .await
+            {
+                Ok(()) => {
+                    // Update epoch cache only after a successful append.
+                    if let Some(mut state) = self.segments.get_mut(&key) {
+                        if resp.leader_epoch > state.cache.latest_epoch() {
+                            state.cache.assign(resp.leader_epoch, fetch_offset)?;
+                        }
+                    }
+                }
+                Err(StorageEngineError::OutOfOrder(..)) => {
+                    self.truncate_after_fence(&key).await?;
+                    return Ok(false);
+                }
+                Err(e) => return Err(e),
+            }
         }
         Ok(applied > 0)
+    }
+
+    async fn truncate_after_fence(&self, key: &(String, u32)) -> Result<(), StorageEngineError> {
+        let (leader_node_id, current_leader_epoch, follower_leader_epoch) = {
+            let Some(state) = self.segments.get(key) else {
+                return Ok(());
+            };
+            (
+                state.leader_node_id,
+                state.current_leader_epoch,
+                state.cache.latest_epoch(),
+            )
+        };
+        let (shard, segment_seq) = (key.0.as_str(), key.1);
+
+        let config = self.broker_cache.get_cluster_config();
+        let req = OffsetsForLeaderEpochReqBody {
+            shard_name: shard.to_string(),
+            segment_seq,
+            replica_id: config.broker_id,
+            replica_broker_epoch: self.broker_cache.get_broker_epoch(),
+            current_leader_epoch,
+            follower_leader_epoch,
+        };
+
+        let resp = self
+            .transport
+            .offsets_for_leader_epoch(leader_node_id, req)
+            .await?;
+        if resp.error_code != FetchErrorCode::None.as_u32() {
+            warn!(
+                "truncate_after_fence {}/{}: OffsetsForLeaderEpoch returned error_code={}, skipping truncation",
+                shard, segment_seq, resp.error_code
+            );
+            return Ok(());
+        }
+
+        if resp.end_offset_epoch < 0 {
+            self.log.clear(shard, segment_seq).await?;
+            if let Some(mut state) = self.segments.get_mut(key) {
+                state.cache.clear()?;
+                if resp.current_leader_epoch > 0 {
+                    state.current_leader_epoch = resp.current_leader_epoch;
+                }
+            }
+            return Ok(());
+        }
+
+        let local_leo = self.log.latest_offset(shard, segment_seq)?;
+        if local_leo > resp.end_offset {
+            warn!(
+                "truncate {}/{}: local_leo={} > leader_end_offset={}, truncating diverged data",
+                shard, segment_seq, local_leo, resp.end_offset
+            );
+            match resp.end_offset.checked_sub(1) {
+                Some(keep_to) => self.log.truncate_to(shard, segment_seq, keep_to).await?,
+                None => self.log.clear(shard, segment_seq).await?,
+            }
+        }
+        if let Some(mut state) = self.segments.get_mut(key) {
+            state
+                .cache
+                .truncate_from_end_by_epoch(resp.end_offset_epoch as u32)?;
+            if resp.current_leader_epoch > 0 {
+                let old_epoch = state.current_leader_epoch;
+                state.current_leader_epoch = resp.current_leader_epoch;
+                if old_epoch != resp.current_leader_epoch {
+                    info!(
+                        "truncate_after_fence {}/{}: leader_epoch {} -> {}",
+                        shard, segment_seq, old_epoch, resp.current_leader_epoch
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -238,6 +367,7 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
     struct InProcLeader {
         engine: Arc<MemoryStorageEngine>,
     }
@@ -263,6 +393,26 @@ mod tests {
                 );
             }
             Ok(FetchRespBody { shards })
+        }
+
+        async fn offsets_for_leader_epoch(
+            &self,
+            _leader_node_id: u64,
+            req: protocol::storage::protocol::OffsetsForLeaderEpochReqBody,
+        ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+            let engines = crate::isr::fetch::FetchEngines {
+                memory: self.engine.clone(),
+                rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
+            };
+            Ok(
+                crate::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch(
+                    &engines,
+                    &self.engine.cache_manager,
+                    &rocksdb_engine::test::test_rocksdb_instance(),
+                    &req,
+                )
+                .await,
+            )
         }
     }
 
@@ -325,7 +475,7 @@ mod tests {
         ])
         .await;
         let follower = test_build_memory_engine();
-        let (mut th, segments) = thread(leader, follower);
+        let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
         add(&segments, seg_state("s2", 7));
         add(&segments, seg_state("s3", 7));
@@ -343,7 +493,7 @@ mod tests {
             leader_with_shards(&[("s1", vec![record(0, "a"), record(1, "b"), record(2, "c")])])
                 .await;
         let follower = test_build_memory_engine();
-        let (mut th, segments) = thread(leader, follower);
+        let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
 
         let (stop_tx, stop_rx) = broadcast::channel(1);
@@ -362,7 +512,7 @@ mod tests {
         let leader =
             leader_with_shards(&[("s1", vec![record(0, "a")]), ("s2", vec![record(0, "b")])]).await;
         let follower = test_build_memory_engine();
-        let (mut th, segments) = thread(leader, follower);
+        let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
         add(&segments, seg_state("s2", 7));
         segments.remove(&("s2".to_string(), 0));
@@ -371,6 +521,94 @@ mod tests {
         th.fetch_round().await;
         assert_eq!(th.log.latest_offset("s1", 0).unwrap(), 1);
         assert_eq!(th.log.latest_offset("s2", 0).unwrap(), 0);
+    }
+
+    #[derive(Clone)]
+    struct FencingLeader {
+        end_offset: u64,
+    }
+
+    #[async_trait]
+    impl FetchTransport for FencingLeader {
+        async fn fetch(
+            &self,
+            _leader_node_id: u64,
+            req: FetchReqBody,
+        ) -> Result<FetchRespBody, StorageEngineError> {
+            let shards = req
+                .shards
+                .iter()
+                .map(|s| protocol::storage::protocol::FetchShardResp {
+                    shard_name: s.shard_name.clone(),
+                    segment_seq: s.segment_seq,
+                    error_code: FetchErrorCode::FencedLeaderEpoch.as_u32(),
+                    ..Default::default()
+                })
+                .collect();
+            Ok(FetchRespBody { shards })
+        }
+
+        async fn offsets_for_leader_epoch(
+            &self,
+            _leader_node_id: u64,
+            _req: OffsetsForLeaderEpochReqBody,
+        ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+            Ok(OffsetsForLeaderEpochRespBody {
+                end_offset_epoch: 1,
+                end_offset: self.end_offset,
+                error_code: FetchErrorCode::None.as_u32(),
+                current_leader_epoch: 2,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn fenced_follower_truncates_diverged_tail() {
+        let follower = test_build_memory_engine();
+        follower
+            .append_at(
+                "s",
+                0,
+                0,
+                vec![
+                    record(0, "a"),
+                    record(1, "b"),
+                    record(2, "c"),
+                    record(3, "x"),
+                    record(4, "y"),
+                ],
+            )
+            .await
+            .unwrap();
+        assert_eq!(follower.latest_offset("s", 0).unwrap(), 5);
+
+        let broker_cache = follower.cache_manager.broker_cache.clone();
+        broker_cache.set_broker_epoch(1);
+        let segments: SegmentMap = Arc::new(DashMap::new());
+        let th = ReplicaFetcherThread::new(
+            FencingLeader { end_offset: 3 },
+            follower,
+            broker_cache,
+            segments.clone(),
+        );
+
+        let mut follower_cache = LeaderEpochCache::load(test_rocksdb_instance(), "s", 0).unwrap();
+        follower_cache.assign(1, 0).unwrap();
+        add(
+            &segments,
+            SegmentFetchState {
+                shard: "s".to_string(),
+                segment_seq: 0,
+                leader_node_id: 7,
+                current_leader_epoch: 1,
+                max_bytes: 1024 * 1024,
+                cache: follower_cache,
+            },
+        );
+
+        th.fetch_round().await;
+
+        assert_eq!(th.log.latest_offset("s", 0).unwrap(), 3);
     }
 
     #[test]

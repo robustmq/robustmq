@@ -15,9 +15,9 @@
 use common_base::error::common::CommonError;
 use protocol::broker::broker::{
     GetQosDataByClientIdReply, GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
-    GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, UpdateCacheReply,
-    UpdateCacheRequest,
+    GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply, QueryReplicaLeoRequest,
+    SendLastWillMessageReply, SendLastWillMessageRequest, SendNatsShareGroupMessageReply,
+    SendNatsShareGroupMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 
 use crate::pool::ClientPool;
@@ -56,4 +56,10 @@ generate_broker_call!(
     broker_send_nats_share_group_message,
     SendNatsShareGroupMessageRequest,
     SendNatsShareGroupMessageReply
+);
+
+generate_broker_call!(
+    broker_query_replica_leo,
+    QueryReplicaLeoRequest,
+    QueryReplicaLeoReply
 );

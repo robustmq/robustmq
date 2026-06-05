@@ -30,6 +30,7 @@ pub fn build_write_req(shard_name: String, messages: Vec<Vec<u8>>) -> WriteReq {
             shard_name,
             messages,
             acks: 1,
+            current_leader_epoch: 0,
         },
     }
 }

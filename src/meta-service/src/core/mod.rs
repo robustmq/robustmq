@@ -20,6 +20,7 @@ pub mod controller;
 pub mod error;
 pub mod group_leader;
 pub mod heartbeat;
+pub mod isr_recovery;
 pub mod leader_switch;
 pub mod log;
 pub mod notify;

@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
+use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::isr::leader_epoch::LeaderEpochCache;
+use crate::isr::log::ReplicaLog;
+use common_config::storage::StorageType;
+use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::sync::Arc;
+use tracing::warn;
 
 pub fn recover_leader_epoch_cache(
     cache: &mut LeaderEpochCache,
@@ -27,6 +35,91 @@ pub fn recover_leader_epoch_cache(
 
 pub fn recover_hw(persisted_hw: u64, local_leo: u64) -> u64 {
     persisted_hw.min(local_leo)
+}
+
+pub async fn recover_local_segments(
+    cache_manager: &Arc<StorageCacheManager>,
+    memory: &Arc<MemoryStorageEngine>,
+    rocksdb: &Arc<RocksDBStorageEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+) {
+    let segments: Vec<(String, u32)> = cache_manager
+        .shards
+        .iter()
+        .filter_map(|s| {
+            let st = s.config.storage_type;
+            if st == StorageType::EngineMemory || st == StorageType::EngineRocksDB {
+                Some((s.shard_name.clone(), st))
+            } else {
+                None
+            }
+        })
+        .flat_map(|(shard, _)| {
+            cache_manager
+                .get_segments_list_by_shard(&shard)
+                .into_iter()
+                .map(move |seg| (shard.clone(), seg.segment_seq))
+        })
+        .collect();
+
+    for (shard, segment_seq) in segments {
+        if let Err(e) = recover_one_segment(
+            cache_manager,
+            memory,
+            rocksdb,
+            rocksdb_engine_handler,
+            &shard,
+            segment_seq,
+        )
+        .await
+        {
+            warn!(
+                "recover segment {}/{} on startup: {}",
+                shard, segment_seq, e
+            );
+        }
+    }
+}
+
+async fn recover_one_segment(
+    cache_manager: &Arc<StorageCacheManager>,
+    memory: &Arc<MemoryStorageEngine>,
+    rocksdb: &Arc<RocksDBStorageEngine>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard: &str,
+    segment_seq: u32,
+) -> Result<(), StorageEngineError> {
+    let state = cache_manager.get_or_create_segment_replica(shard, segment_seq);
+    let _guard = state.lock_state().await;
+    let is_rocksdb = cache_manager
+        .shards
+        .get(shard)
+        .map(|s| s.config.storage_type == StorageType::EngineRocksDB)
+        .unwrap_or(false);
+
+    let (leo, log_start) = if is_rocksdb {
+        (
+            rocksdb.latest_offset(shard, segment_seq)?,
+            rocksdb.log_start_offset(shard, segment_seq).unwrap_or(0),
+        )
+    } else {
+        (
+            memory.latest_offset(shard, segment_seq)?,
+            memory.log_start_offset(shard, segment_seq).unwrap_or(0),
+        )
+    };
+
+    let mut cache = LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
+    recover_leader_epoch_cache(&mut cache, leo, log_start)?;
+
+    let persisted_hw = cache_manager
+        .get_offset_state(shard)
+        .map(|s| s.high_watermark_offset)
+        .unwrap_or(0);
+    let hw = recover_hw(persisted_hw, leo);
+    cache_manager.update_high_watermark_offset(shard, hw);
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -57,5 +150,55 @@ mod tests {
     fn hw_clamped_to_leo() {
         assert_eq!(recover_hw(8, 5), 5);
         assert_eq!(recover_hw(3, 5), 3);
+    }
+
+    #[tokio::test]
+    async fn recover_local_segments_trims_phantom_epoch() {
+        use crate::core::test_tool::{test_build_memory_engine, test_build_rocksdb_engine};
+        use bytes::Bytes;
+        use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+
+        let memory = Arc::new(test_build_memory_engine());
+        let cm = memory.cache_manager.clone();
+        let db = test_rocksdb_instance();
+        cm.set_shard(EngineShard {
+            shard_name: "s".to_string(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineMemory,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        cm.set_segment(&metadata_struct::storage::segment::EngineSegment {
+            shard_name: "s".to_string(),
+            segment_seq: 0,
+            ..Default::default()
+        });
+
+        let recs: Vec<_> = (0..3u64)
+            .map(|o| StorageRecord {
+                metadata: StorageRecordMetadata {
+                    offset: o,
+                    ..Default::default()
+                },
+                protocol_data: None,
+                data: Bytes::from("v"),
+            })
+            .collect();
+        memory.append_at("s", 0, 0, recs).await.unwrap();
+        assert_eq!(memory.latest_offset("s", 0).unwrap(), 3);
+
+        {
+            let mut c = LeaderEpochCache::load(db.clone(), "s", 0).unwrap();
+            c.assign(1, 0).unwrap();
+            c.assign(2, 9).unwrap();
+        }
+
+        let rocksdb = Arc::new(test_build_rocksdb_engine());
+        recover_local_segments(&cm, &memory, &rocksdb, &db).await;
+
+        let c = LeaderEpochCache::load(db, "s", 0).unwrap();
+        assert_eq!(c.latest_epoch(), 1);
     }
 }

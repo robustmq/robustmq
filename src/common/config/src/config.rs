@@ -38,12 +38,14 @@ use super::default::{
     default_schema_log_level, default_schema_strategy, default_session_expiry_interval,
     default_slow_subscribe_delay_type, default_slow_subscribe_record_time,
     default_storage_expire_scan_task_num, default_storage_io_thread_num,
-    default_storage_max_segment_size, default_storage_num_replica_fetchers,
+    default_storage_isr_maintain_interval_ms, default_storage_max_segment_size,
+    default_storage_metadata_reconcile_interval_ms, default_storage_num_replica_fetchers,
     default_storage_offset_enable_cache, default_storage_replica_fetch_backoff_ms,
     default_storage_replica_fetch_max_wait_ms, default_storage_replica_fetch_min_bytes,
-    default_storage_tcp_port, default_system_monitor_cpu_watermark,
-    default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
-    default_tls_cert, default_tls_key, default_topic_alias_max,
+    default_storage_replica_lag_time_max_ms, default_storage_tcp_port,
+    default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
+    default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
+    default_topic_alias_max,
 };
 use crate::common::default_log;
 use crate::common::Log;
@@ -431,10 +433,16 @@ pub struct MetaRuntime {
     pub data_raft_group_num: u32,
     #[serde(default = "default_group_offset_expire_sec")]
     pub group_offset_expire_sec: u64,
+    #[serde(default = "default_unavailable_recovery_wait_ms")]
+    pub unavailable_recovery_wait_ms: u64,
 }
 
 fn default_raft_sharded_group_num() -> u32 {
     1
+}
+
+fn default_unavailable_recovery_wait_ms() -> u64 {
+    5000
 }
 
 fn default_group_offset_expire_sec() -> u64 {
@@ -715,6 +723,12 @@ pub struct StorageRuntime {
     pub replica_fetch_max_wait_ms: u64,
     #[serde(default = "default_storage_replica_fetch_backoff_ms")]
     pub replica_fetch_backoff_ms: u64,
+    #[serde(default = "default_storage_replica_lag_time_max_ms")]
+    pub replica_lag_time_max_ms: u64,
+    #[serde(default = "default_storage_metadata_reconcile_interval_ms")]
+    pub metadata_reconcile_interval_ms: u64,
+    #[serde(default = "default_storage_isr_maintain_interval_ms")]
+    pub isr_maintain_interval_ms: u64,
     #[serde(default = "default_network")]
     pub network: Network,
 }

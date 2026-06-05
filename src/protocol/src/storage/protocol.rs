@@ -26,6 +26,7 @@ pub enum ApiKey {
     Read,
     Write,
     Fetch,
+    OffsetsForLeaderEpoch,
 }
 
 impl Default for ApiKey {
@@ -124,6 +125,7 @@ pub struct WriteReqBody {
     pub shard_name: String,
     pub messages: Vec<Vec<u8>>,
     pub acks: i8,
+    pub current_leader_epoch: u32,
 }
 
 impl WriteReqBody {
@@ -132,6 +134,7 @@ impl WriteReqBody {
             shard_name,
             messages,
             acks: 1,
+            current_leader_epoch: 0,
         }
     }
 
@@ -586,6 +589,98 @@ pub enum FetchErrorCode {
 impl FetchErrorCode {
     pub fn as_u32(self) -> u32 {
         self as u32
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct OffsetsForLeaderEpochReqBody {
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub replica_id: u64,
+    pub replica_broker_epoch: u64,
+    pub current_leader_epoch: u32,
+    pub follower_leader_epoch: u32,
+}
+
+impl OffsetsForLeaderEpochReqBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, PartialEq)]
+pub struct OffsetsForLeaderEpochReq {
+    pub header: ReqHeader,
+    pub body: OffsetsForLeaderEpochReqBody,
+}
+
+impl OffsetsForLeaderEpochReq {
+    pub fn new(body: OffsetsForLeaderEpochReqBody) -> Self {
+        Self {
+            header: ReqHeader::new(ApiKey::OffsetsForLeaderEpoch),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct OffsetsForLeaderEpochRespBody {
+    pub end_offset_epoch: i32,
+    pub end_offset: u64,
+    pub error_code: u32,
+    pub current_leader_epoch: u32,
+}
+
+impl OffsetsForLeaderEpochRespBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct OffsetsForLeaderEpochResp {
+    pub header: RespHeader,
+    pub body: OffsetsForLeaderEpochRespBody,
+}
+
+impl OffsetsForLeaderEpochResp {
+    pub fn new(body: OffsetsForLeaderEpochRespBody) -> Self {
+        Self {
+            header: RespHeader::new(ApiKey::OffsetsForLeaderEpoch),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
     }
 }
 

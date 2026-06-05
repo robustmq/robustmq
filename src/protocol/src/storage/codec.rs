@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use super::protocol::{
-    ApiKey, FetchReq, FetchResp, ReadReq, ReadResp, WriteReq, WriteResp,
+    ApiKey, FetchReq, FetchResp, OffsetsForLeaderEpochReq, OffsetsForLeaderEpochResp, ReadReq,
+    ReadResp, WriteReq, WriteResp,
 };
 use super::StorageError;
 use bytes::{BufMut, BytesMut};
@@ -31,6 +32,8 @@ pub enum StorageEnginePacket {
     ReadResp(ReadResp),
     FetchReq(FetchReq),
     FetchResp(FetchResp),
+    OffsetsForLeaderEpochReq(OffsetsForLeaderEpochReq),
+    OffsetsForLeaderEpochResp(OffsetsForLeaderEpochResp),
 }
 
 impl fmt::Display for StorageEnginePacket {
@@ -42,6 +45,12 @@ impl fmt::Display for StorageEnginePacket {
             StorageEnginePacket::ReadResp(_) => write!(f, "ReadResp"),
             StorageEnginePacket::FetchReq(_) => write!(f, "FetchReq"),
             StorageEnginePacket::FetchResp(_) => write!(f, "FetchResp"),
+            StorageEnginePacket::OffsetsForLeaderEpochReq(_) => {
+                write!(f, "OffsetsForLeaderEpochReq")
+            }
+            StorageEnginePacket::OffsetsForLeaderEpochResp(_) => {
+                write!(f, "OffsetsForLeaderEpochResp")
+            }
         }
     }
 }
@@ -93,6 +102,15 @@ impl StorageEngineCodec {
                 req_type = 1;
             }
             StorageEnginePacket::FetchResp(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+            }
+            StorageEnginePacket::OffsetsForLeaderEpochReq(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+                req_type = 1;
+            }
+            StorageEnginePacket::OffsetsForLeaderEpochResp(data) => {
                 header_byte = data.header.encode();
                 body_byte = data.body.encode();
             }
@@ -190,6 +208,9 @@ impl StorageEngineCodec {
                         ApiKey::Write => decode_write_req(&body_bytes, header),
                         ApiKey::Read => decode_read_req(&body_bytes, header),
                         ApiKey::Fetch => decode_fetch_req(&body_bytes, header),
+                        ApiKey::OffsetsForLeaderEpoch => {
+                            decode_offsets_for_leader_epoch_req(&body_bytes, header)
+                        }
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -202,6 +223,9 @@ impl StorageEngineCodec {
                         ApiKey::Write => decode_write_resp(&body_bytes, header),
                         ApiKey::Read => decode_read_resp(&body_bytes, header),
                         ApiKey::Fetch => decode_fetch_resp(&body_bytes, header),
+                        ApiKey::OffsetsForLeaderEpoch => {
+                            decode_offsets_for_leader_epoch_resp(&body_bytes, header)
+                        }
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -328,6 +352,38 @@ fn decode_fetch_resp(
         }))),
         Err(e) => Err(StorageError::DecodeBodyError(
             "fetch_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_offsets_for_leader_epoch_req(
+    body_bytes: &[u8],
+    header: super::protocol::ReqHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::OffsetsForLeaderEpochReqBody;
+    match OffsetsForLeaderEpochReqBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::OffsetsForLeaderEpochReq(
+            OffsetsForLeaderEpochReq { header, body },
+        ))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "offsets_for_leader_epoch_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_offsets_for_leader_epoch_resp(
+    body_bytes: &[u8],
+    header: super::protocol::RespHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::OffsetsForLeaderEpochRespBody;
+    match OffsetsForLeaderEpochRespBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::OffsetsForLeaderEpochResp(
+            OffsetsForLeaderEpochResp { header, body },
+        ))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "offsets_for_leader_epoch_resp".to_string(),
             e.to_string(),
         )),
     }

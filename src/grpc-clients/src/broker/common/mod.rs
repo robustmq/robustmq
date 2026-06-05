@@ -16,9 +16,9 @@ use crate::macros::impl_retriable_request;
 use protocol::broker::broker::{
     broker_service_client::BrokerServiceClient, GetQosDataByClientIdReply,
     GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
-    GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, UpdateCacheReply,
-    UpdateCacheRequest,
+    GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply, QueryReplicaLeoRequest,
+    SendLastWillMessageReply, SendLastWillMessageRequest, SendNatsShareGroupMessageReply,
+    SendNatsShareGroupMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -67,4 +67,13 @@ impl_retriable_request!(
     send_nats_share_group_message,
     "BrokerService",
     "SendNatsShareGroupMessage"
+);
+
+impl_retriable_request!(
+    QueryReplicaLeoRequest,
+    BrokerServiceClient<Channel>,
+    QueryReplicaLeoReply,
+    query_replica_leo,
+    "BrokerService",
+    "QueryReplicaLeo"
 );

@@ -75,7 +75,15 @@ pub async fn list_segment_by_req(
     req: &ListSegmentRequest,
 ) -> ListSegmentStream {
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-    let binary_segments = if req.shard_name.is_empty() && req.segment == -1 {
+    let binary_segments = if !req.filters.is_empty() {
+        let mut results = Vec::with_capacity(req.filters.len());
+        for f in &req.filters {
+            if let Some(seg) = segment_storage.get(&f.shard_name, f.segment as u32)? {
+                results.push(seg);
+            }
+        }
+        results
+    } else if req.shard_name.is_empty() && req.segment == -1 {
         segment_storage.all_segment()?
     } else if !req.shard_name.is_empty() && req.segment == -1 {
         segment_storage.list_by_shard(&req.shard_name)?

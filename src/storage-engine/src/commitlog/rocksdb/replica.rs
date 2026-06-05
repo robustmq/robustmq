@@ -24,12 +24,6 @@ use rocksdb_engine::keys::storage::{
     shard_record_key, shard_record_key_prefix, shard_segment_leo_key,
 };
 
-/// RocksDB-backed `ReplicaLog` for the ISR follower path. Records use the same
-/// `shard_record_key(shard, segment_seq, offset)` as the producer/consumer path,
-/// so a record has one identity across leader and followers and a leader switch
-/// needs no key rewrite. The LEO lives under a sibling `record-leo/...` key.
-/// Durability relies on replica redundancy (min.insync.replicas) plus rocksdb's
-/// background WAL flush, not a per-write fsync.
 #[async_trait]
 impl ReplicaLog for RocksDBStorageEngine {
     async fn append_at(
@@ -50,9 +44,6 @@ impl ReplicaLog for RocksDBStorageEngine {
             ));
         }
 
-        // The leader assigns offsets; each record carries its own and the batch
-        // is contiguous, so key by record offset. Persistence relies on replica
-        // redundancy + rocksdb's background flush, not a per-append fsync.
         let mut batch = WriteBatch::default();
         let mut new_leo = leo;
         for record in &records {
@@ -86,9 +77,6 @@ impl ReplicaLog for RocksDBStorageEngine {
 
         let cf = self.get_cf()?;
         let prefix = shard_record_key_prefix(shard, segment_seq);
-        // Bounded scan [offset, leo): keys embed a zero-padded offset so
-        // lexicographic order == offset order. The `leo` upper bound also drops
-        // any records that outlive a crashed truncate (LEO is lowered first).
         let seek_key = shard_record_key(shard, segment_seq, offset);
         let until_key = shard_record_key(shard, segment_seq, leo);
 
@@ -122,9 +110,6 @@ impl ReplicaLog for RocksDBStorageEngine {
         let cf = self.get_cf()?;
         let new_leo = self.read_leo(shard, segment_seq)?.min(offset + 1);
 
-        // Lower the LEO first, then delete the tail records: the WAL replays in
-        // write order, so a crash never leaves LEO past the log end (read_from's
-        // upper bound also ignores any record above LEO).
         let leo_key = shard_segment_leo_key(shard, segment_seq);
         self.rocksdb_engine_handler
             .write(cf.clone(), &leo_key, &new_leo)?;
@@ -139,7 +124,6 @@ impl ReplicaLog for RocksDBStorageEngine {
 
     async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
-        // LEO to 0 first, then drop the records (same ordering as truncate).
         let leo_key = shard_segment_leo_key(shard, segment_seq);
         self.rocksdb_engine_handler
             .write(cf.clone(), &leo_key, &0u64)?;

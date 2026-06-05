@@ -22,11 +22,14 @@ use nats_broker::broker::NatsBrokerServerParams;
 use nats_broker::push::nats_fanout::send_packet;
 use protocol::broker::broker::{
     broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
-    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, SendLastWillMessageReply,
-    SendLastWillMessageRequest, SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest,
-    ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
+    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply,
+    QueryReplicaLeoRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, ShardSegmentDeleteStatus,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
+use storage_engine::isr::fetch::FetchEngines;
+use storage_engine::isr::offsets_for_leader_epoch::query_local_replica_state;
 use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
 use tracing::warn;
@@ -163,5 +166,28 @@ impl BrokerService for GrpcBrokerService {
             "subscriber not found: connect_id={}, sid={}",
             req.connect_id, req.sid
         )))
+    }
+
+    async fn query_replica_leo(
+        &self,
+        request: Request<QueryReplicaLeoRequest>,
+    ) -> Result<Response<QueryReplicaLeoReply>, Status> {
+        let req = request.into_inner();
+        let engines = FetchEngines {
+            memory: self.storage_params.memory_storage_engine.clone(),
+            rocksdb: self.storage_params.rocksdb_storage_engine.clone(),
+        };
+        let state = query_local_replica_state(
+            &engines,
+            &self.storage_params.cache_manager,
+            &req.shard_name,
+            req.segment_seq,
+        );
+        Ok(Response::new(QueryReplicaLeoReply {
+            segment_leo: state.segment_leo,
+            latest_leader_epoch: state.latest_leader_epoch,
+            log_start_offset: state.log_start_offset,
+            available: state.available,
+        }))
     }
 }

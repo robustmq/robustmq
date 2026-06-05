@@ -37,6 +37,7 @@ service EngineService {
   rpc ListSegmentMeta(ListSegmentMetaRequest) returns (stream ListSegmentMetaReply) {}
 
   rpc UpdateStartTimeBySegmentMeta(UpdateStartTimeBySegmentMetaRequest) returns (UpdateStartTimeBySegmentMetaReply) {}
+
 }
 
 message ListShardRequest {
@@ -65,9 +66,17 @@ message DeleteShardRequest {
 
 message DeleteShardReply {}
 
+message ListSegmentFilter {
+  string shard_name = 1;
+  int32 segment = 2;
+}
+
 message ListSegmentRequest {
   string shard_name = 3;
   int32 segment = 4;
+  // Batch mode: if non-empty, query these specific (shard, segment) pairs.
+  // shard_name/segment fields are ignored when filters is set.
+  repeated ListSegmentFilter filters = 5;
 }
 
 message ListSegmentReply {
@@ -114,6 +123,7 @@ message UpdateSegmentIsrRequest {
 message UpdateSegmentIsrReply {
   uint32 new_segment_epoch = 1;
 }
+
 
 message ListSegmentMetaRequest {
   string shard_name = 3;

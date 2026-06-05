@@ -426,7 +426,7 @@ UpdateSegmentIsr 路径:
 | 跨 segment 切换 | 永不发生 | 永不发生 | 新 segment 独立副本拓扑 |
 | 副本重平衡 | 不支持(整 shard 重建) | 不支持 | seal up 后切新 segment 时可换节点 |
 
-**协议代码与引擎解耦**:所有差异封闭在 `ReplicaLog` trait 实现里。ISR 控制面(`fetch.rs / fetcher.rs` 等)只调 trait,**不感知**引擎类型。
+**协议代码与引擎解耦**:所有差异封闭在 `ReplicaLog` trait 实现里。ISR 控制面(`fetch.rs / fetcher.rs` 等)只调 trait,**不感知**引擎类型。网络传输层由 `FetchTransport` trait 抽象(`fetch` + `offsets_for_leader_epoch` 两方法),生产用 `PacketFetchTransport`(经 `ClientConnectionManager` 连接池);`EngineReplicaLog`(struct,持双引擎按 shard `storage_type` 动态路由)实现 `ReplicaLog`,一个 fetcher 线程可混服 memory/rocksdb 两种引擎的 shard。
 
 ---
 

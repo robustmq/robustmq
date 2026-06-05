@@ -28,7 +28,10 @@ use common_config::storage::StorageType;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::codec::StorageEnginePacket;
-use protocol::storage::protocol::{FetchReqBody, FetchRespBody};
+use protocol::storage::protocol::{
+    FetchReqBody, FetchRespBody, OffsetsForLeaderEpochReq, OffsetsForLeaderEpochReqBody,
+    OffsetsForLeaderEpochRespBody,
+};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -164,6 +167,21 @@ impl FetchTransport for PacketFetchTransport {
             ))),
         }
     }
+
+    async fn offsets_for_leader_epoch(
+        &self,
+        leader_node_id: u64,
+        req: OffsetsForLeaderEpochReqBody,
+    ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+        let packet =
+            StorageEnginePacket::OffsetsForLeaderEpochReq(OffsetsForLeaderEpochReq::new(req));
+        match self.client.read_send(leader_node_id, packet).await? {
+            StorageEnginePacket::OffsetsForLeaderEpochResp(resp) => Ok(resp.body),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "offsets_for_leader_epoch to node {leader_node_id} expected resp, got {other}"
+            ))),
+        }
+    }
 }
 
 struct FetcherSlot {
@@ -210,7 +228,7 @@ impl ReplicaFetcherManager {
 
     fn spawn_thread(&self, idx: usize) {
         let slot = &self.slots[idx];
-        let mut thread = ReplicaFetcherThread::new(
+        let thread = ReplicaFetcherThread::new(
             self.transport.clone(),
             self.log.clone(),
             self.broker_cache.clone(),
@@ -329,6 +347,26 @@ mod tests {
                 );
             }
             Ok(FetchRespBody { shards })
+        }
+
+        async fn offsets_for_leader_epoch(
+            &self,
+            _leader_node_id: u64,
+            req: OffsetsForLeaderEpochReqBody,
+        ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+            let engines = crate::isr::fetch::FetchEngines {
+                memory: self.engine.clone(),
+                rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
+            };
+            Ok(
+                crate::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch(
+                    &engines,
+                    &self.engine.cache_manager,
+                    &rocksdb_engine::test::test_rocksdb_instance(),
+                    &req,
+                )
+                .await,
+            )
         }
     }
 

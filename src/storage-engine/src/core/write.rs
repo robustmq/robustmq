@@ -25,6 +25,7 @@ use crate::{
         SegmentIdentity,
     },
     isr::hw::{advance_hw, wait_for_hw},
+    isr::state::ReplicaRole,
 };
 use common_base::utils::serialize::serialize;
 use common_config::{broker::broker_config, storage::StorageType};
@@ -68,6 +69,26 @@ pub async fn batch_write(
             records,
         )
         .await;
+    }
+
+    if let Some(replica_state) =
+        cache_manager.get_segment_replica(shard_name, active_segment.segment_seq)
+    {
+        if replica_state.role() != ReplicaRole::LeaderActive {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "NotLeaderForPartition: shard {shard_name} role is not LeaderActive"
+            )));
+        }
+    }
+
+    if acks == ACKS_ALL {
+        let isr_size = active_segment.isr.len() as u32;
+        let min_isr = shard.config.min_in_sync_replicas;
+        if isr_size < min_isr {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "NotEnoughReplicas: ISR size {isr_size} < min_in_sync_replicas {min_isr} for shard {shard_name}"
+            )));
+        }
     }
 
     let offsets = match shard.config.storage_type {
@@ -233,7 +254,10 @@ mod tests {
             segment_iden.shard_name.clone(),
             crate::core::shard::ShardOffsetState::default(),
         );
-        cache_manager.get_or_create_segment_replica(&segment_iden.shard_name, 0);
+        {
+            let state = cache_manager.get_or_create_segment_replica(&segment_iden.shard_name, 0);
+            state.set_role(crate::isr::state::ReplicaRole::LeaderActive);
+        }
 
         let client_pool = Arc::new(ClientPool::new(100));
         let write_manager = Arc::new(WriteManager::new(
@@ -305,6 +329,8 @@ mod tests {
             seg.isr = vec![1, 2];
             e.cache_manager.set_segment(&seg);
         }
+        let state = e.cache_manager.get_or_create_segment_replica(&e.shard, 0);
+        state.update_follower_progress(2, 1, 1, 0, 0, 0);
         let err = tokio::time::timeout(Duration::from_secs(5), write(&e, -1))
             .await
             .unwrap();

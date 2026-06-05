@@ -152,7 +152,7 @@ async fn parse_segment(
                 segment_file.try_create().await?;
             }
             if shard.config.storage_type == StorageType::EngineMemory
-                && shard.config.storage_type == StorageType::EngineRocksDB
+                || shard.config.storage_type == StorageType::EngineRocksDB
             {
                 let commit_log_offset =
                     CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
@@ -191,21 +191,23 @@ async fn parse_segment(
     Ok(())
 }
 
-/// Drop an out-of-order segment notification: keep the local copy if it already
-/// has a segment_epoch greater than the incoming one. A bump notification with a
-/// higher epoch is always accepted.
 fn is_stale_segment_notification(
     cache_manager: &Arc<StorageCacheManager>,
     segment_iden: &SegmentIdentity,
     incoming: &EngineSegment,
 ) -> bool {
     if let Some(local) = cache_manager.get_segment(segment_iden) {
-        if local.segment_epoch > incoming.segment_epoch {
+        let stale = local.segment_epoch > incoming.segment_epoch
+            || (local.segment_epoch == incoming.segment_epoch
+                && local.leader_epoch > incoming.leader_epoch);
+        if stale {
             warn!(
-                "Dropping stale segment notification for {}: local segment_epoch {} > incoming {}",
+                "Dropping stale segment notification for {}: local (segment_epoch {}, leader_epoch {}) > incoming (segment_epoch {}, leader_epoch {})",
                 segment_iden.name(),
                 local.segment_epoch,
-                incoming.segment_epoch
+                local.leader_epoch,
+                incoming.segment_epoch,
+                incoming.leader_epoch
             );
             return true;
         }
@@ -279,6 +281,16 @@ mod tests {
         }
     }
 
+    fn segment_le(segment_epoch: u32, leader_epoch: u32) -> EngineSegment {
+        EngineSegment {
+            shard_name: "s1".to_string(),
+            segment_seq: 0,
+            segment_epoch,
+            leader_epoch,
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn segment_epoch_monotonic_filter() {
         let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
@@ -292,5 +304,35 @@ mod tests {
         assert!(is_stale_segment_notification(&cache, &iden, &segment(1)));
         assert!(!is_stale_segment_notification(&cache, &iden, &segment(2)));
         assert!(!is_stale_segment_notification(&cache, &iden, &segment(3)));
+    }
+
+    #[test]
+    fn leader_epoch_filter_within_same_segment_epoch() {
+        let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
+            BrokerConfig::default(),
+        ))));
+        let iden = SegmentIdentity::new("s1", 0);
+        cache.set_segment(&segment_le(5, 10));
+
+        assert!(is_stale_segment_notification(
+            &cache,
+            &iden,
+            &segment_le(5, 9)
+        ));
+        assert!(!is_stale_segment_notification(
+            &cache,
+            &iden,
+            &segment_le(5, 10)
+        ));
+        assert!(!is_stale_segment_notification(
+            &cache,
+            &iden,
+            &segment_le(5, 11)
+        ));
+        assert!(!is_stale_segment_notification(
+            &cache,
+            &iden,
+            &segment_le(6, 9)
+        ));
     }
 }

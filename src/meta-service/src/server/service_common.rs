@@ -14,6 +14,7 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
+use crate::core::isr_recovery::recover_unavailable_segments_on_node_join;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::services::{
     append_by_req, join_cluster_by_req, leave_cluster_by_req, snapshot_by_req, vote_by_req,
@@ -38,6 +39,7 @@ use crate::server::services::mqtt::share_group::{
     delete_share_group_member_by_req, list_share_group_by_req, list_share_group_member_by_req,
 };
 use grpc_clients::pool::ClientPool;
+use metadata_struct::meta::node::BrokerNode;
 use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceService;
@@ -146,15 +148,31 @@ impl MetaServiceService for GrpcPlacementService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        register_node_by_req(
+        let node_id = BrokerNode::decode(&req.node)
+            .map_err(|e| Status::invalid_argument(format!("invalid node payload: {e}")))?
+            .node_id;
+
+        let reply = register_node_by_req(
             &self.cluster_cache,
             &self.raft_manager,
             &self.mqtt_call_manager,
             req,
         )
         .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        .map_err(Self::to_status)?;
+
+        if node_id > 0 {
+            let cache = self.cluster_cache.clone();
+            let raft = self.raft_manager.clone();
+            let call = self.mqtt_call_manager.clone();
+            let pool = self.client_pool.clone();
+            tokio::spawn(async move {
+                recover_unavailable_segments_on_node_join(node_id, &cache, &raft, &call, &pool)
+                    .await;
+            });
+        }
+
+        Ok(Response::new(reply))
     }
 
     async fn un_register_node(

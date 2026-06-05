@@ -18,7 +18,8 @@ use protocol::meta::meta_service_journal::{
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
     ListSegmentMetaReply, ListSegmentMetaRequest, ListSegmentReply, ListSegmentRequest,
     ListShardReply, ListShardRequest, SealUpSegmentReply, SealUpSegmentRequest,
-    UpdateStartTimeBySegmentMetaReply, UpdateStartTimeBySegmentMetaRequest,
+    UpdateSegmentIsrReply, UpdateSegmentIsrRequest, UpdateStartTimeBySegmentMetaReply,
+    UpdateStartTimeBySegmentMetaRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -114,5 +115,15 @@ impl_retriable_request!(
     update_start_time_by_segment_meta,
     "EngineService",
     "UpdateStartTimeBySegmentMeta",
+    true
+);
+
+impl_retriable_request!(
+    UpdateSegmentIsrRequest,
+    EngineServiceClient<Channel>,
+    UpdateSegmentIsrReply,
+    update_segment_isr,
+    "EngineService",
+    "UpdateSegmentIsr",
     true
 );
