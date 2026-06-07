@@ -52,3 +52,6 @@ parking_lot.workspace = true
 memmap2.workspace = true
 rate-limit.workspace = true
 common-metrics.workspace = true
+
+[dev-dependencies]
+meta-service.workspace = true
