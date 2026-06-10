@@ -71,6 +71,12 @@ pub enum StorageEngineError {
     #[error("Shard {0} Not Active, is triggering the creation of an active Segment")]
     NotActiveSegment(String),
 
+    #[error("Segment replicate {0}/{1} Not Exists")]
+    NotSegmentState(String, u32),
+
+    #[error("Offset state for shard {0} not initialized")]
+    NotOffsetState(String),
+
     #[error("segment {0} does not exist")]
     SegmentNotExist(String),
 
@@ -214,6 +220,8 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::NodeNotFound(_) => "NodeNotFound".to_string(),
         StorageEngineError::OutOfOrder(_, _, _) => "OutOfOrder".to_string(),
         StorageEngineError::OffsetOutOfRange(_, _, _, _) => "OffsetOutOfRange".to_string(),
+        StorageEngineError::NotSegmentState(_, _) => "StorageEngineError".to_string(),
+        StorageEngineError::NotOffsetState(_) => "NotOffsetState".to_string(),
     }
 }
 

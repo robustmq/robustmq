@@ -16,7 +16,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::isr::log::ReplicaLog;
-use crate::isr::state::{ReplicaRole, SegmentReplicaState};
+use crate::isr::follower::{update_follower_progress, SegmentReplicaState};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
@@ -51,24 +51,22 @@ async fn maintain_once(
     rocksdb: &Arc<RocksDBStorageEngine>,
 ) {
     let conf = broker_config();
-    let leaders: Vec<(String, u32)> = cache_manager
-        .segment_replica_states
+
+    let leader_segments: Vec<_> = cache_manager
+        .segments
         .iter()
-        .filter(|e| e.value().role() == ReplicaRole::LeaderActive)
-        .map(|e| e.key().clone())
+        .flat_map(|e| {
+            e.value()
+                .iter()
+                .filter(|s| s.leader == conf.broker_id)
+                .map(|s| s.clone())
+                .collect::<Vec<_>>()
+        })
         .collect();
 
-    for (shard, segment_seq) in leaders {
-        let Some(segment) = cache_manager.get_segment(&crate::filesegment::SegmentIdentity {
-            shard_name: shard.clone(),
-            segment: segment_seq,
-        }) else {
-            continue;
-        };
-
-        if segment.leader != conf.broker_id {
-            continue;
-        }
+    for segment in leader_segments {
+        let shard = segment.shard_name.clone();
+        let segment_seq = segment.segment_seq;
 
         let Some(state) = cache_manager.get_segment_replica(&shard, segment_seq) else {
             continue;
@@ -166,7 +164,7 @@ pub fn compute_new_isr(
         if *replica_id == leader_id {
             continue;
         }
-        let progress = state.follower_progress.get(replica_id);
+        let progress = state.get(replica_id);
 
         // A follower is considered in-sync if:
         // 1. Its LEO has caught up to the leader's LEO, OR
@@ -174,7 +172,7 @@ pub fn compute_new_isr(
         //    lag without thrashing the ISR when the leader writes faster than the follower fetches.
         let caught_up = match &progress {
             Some(p) => {
-                p.leo >= leader_leo || now_sec.saturating_sub(p.last_caught_up_ts) <= lag_max_sec
+                p.leo >= leader_leo || now_sec.saturating_sub(p.last_fetch_ts) <= lag_max_sec
             }
             None => false,
         };
@@ -201,14 +199,14 @@ mod tests {
     use super::*;
 
     fn state() -> SegmentReplicaState {
-        SegmentReplicaState::new("s".to_string(), 0)
+        SegmentReplicaState::new()
     }
 
     #[test]
     fn shrink_drops_lagging_follower() {
         let st = state();
-        st.update_follower_progress(2, 1, 1, 100, 100, 100);
-        st.update_follower_progress(3, 1, 1, 50, 100, 0);
+        update_follower_progress(&st, 2, 1, 100, 100, 100);
+        update_follower_progress(&st, 3, 1, 50, 100, 0);
 
         let new_isr = compute_new_isr(&st, &[1, 2, 3], &[1, 2, 3], 1, 100, 10000, 100);
         assert_eq!(new_isr, Some(vec![1, 2]));
@@ -217,7 +215,7 @@ mod tests {
     #[test]
     fn no_change_when_all_caught_up() {
         let st = state();
-        st.update_follower_progress(2, 1, 1, 100, 100, 100);
+        update_follower_progress(&st, 2, 1, 100, 100, 100);
 
         let new_isr = compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 100);
         assert_eq!(new_isr, None);
@@ -226,7 +224,7 @@ mod tests {
     #[test]
     fn expand_adds_caught_up_replica() {
         let st = state();
-        st.update_follower_progress(2, 1, 1, 100, 100, 100);
+        update_follower_progress(&st, 2, 1, 100, 100, 100);
 
         let new_isr = compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100);
         assert_eq!(new_isr, Some(vec![1, 2]));

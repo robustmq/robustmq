@@ -29,9 +29,10 @@ mod tests {
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
     use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
+    use storage_engine::core::shard::ShardOffsetState;
     use storage_engine::isr::fetcher_manager::build_engine_fetcher_manager;
     use storage_engine::isr::role::apply_leader_and_isr;
-    use storage_engine::isr::state::ReplicaRole;
+    use storage_engine::isr::follower::update_follower_progress;
 
     use crate::isr::make_engine;
 
@@ -92,27 +93,29 @@ mod tests {
         }
 
         let seg = segment_v(1, 2);
+        cm.add_segment_replica("t6-shard", 0);
+        cm.save_offset_state("t6-shard".to_string(), ShardOffsetState::default());
 
         // First apply: becomes leader, follower_progress is empty
-        let role = apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
-        assert_eq!(role, ReplicaRole::LeaderActive);
+        apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
+        // simulate dynamic_cache.rs: set_segment is called after apply
+        cm.set_segment(&seg);
 
         // Simulate follower 2 starting to fetch
         let state = cm.get_segment_replica("t6-shard", 0).unwrap();
-        state.update_follower_progress(2, 1, 1, 5, 10, 0);
+        update_follower_progress(&state, 2, 1, 5, 10, 0);
         assert!(
-            state.follower_progress.contains_key(&2),
+            state.contains_key(&2),
             "follower progress should be seeded"
         );
 
         // Second apply with identical segment (same leader_epoch=1, segment_epoch=2)
-        let role2 = apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
-        assert_eq!(role2, ReplicaRole::LeaderActive);
+        apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
 
         // follower_progress must NOT be cleared (leader_epoch did not change)
         let state2 = cm.get_segment_replica("t6-shard", 0).unwrap();
         assert!(
-            state2.follower_progress.contains_key(&2),
+            state2.contains_key(&2),
             "follower progress must survive idempotent re-apply"
         );
     }
@@ -132,14 +135,17 @@ mod tests {
             bc.set_cluster_config(cfg);
         }
 
+        cm.add_segment_replica("t6-shard", 0);
+        cm.save_offset_state("t6-shard".to_string(), ShardOffsetState::default());
+
         // First apply: epoch=1
         apply_leader_and_isr(&cm, &db, &mgr, &segment_v(1, 0))
             .await
             .unwrap();
 
         let state = cm.get_segment_replica("t6-shard", 0).unwrap();
-        state.update_follower_progress(2, 1, 1, 5, 10, 0);
-        assert!(state.follower_progress.contains_key(&2));
+        update_follower_progress(&state, 2, 1, 5, 10, 0);
+        assert!(state.contains_key(&2));
 
         // Second apply: epoch=2 → leader_epoch changed → should reset
         apply_leader_and_isr(&cm, &db, &mgr, &segment_v(2, 0))
@@ -148,7 +154,7 @@ mod tests {
 
         let state2 = cm.get_segment_replica("t6-shard", 0).unwrap();
         assert!(
-            state2.follower_progress.is_empty(),
+            state2.is_empty(),
             "leader_epoch change should reset follower progress"
         );
     }

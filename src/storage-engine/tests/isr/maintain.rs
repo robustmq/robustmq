@@ -19,12 +19,12 @@
 mod tests {
     use meta_service::core::isr_recovery::{elect_recovery_leader, ReplicaStateReport};
     use storage_engine::isr::isr_maintain::compute_new_isr;
-    use storage_engine::isr::state::SegmentReplicaState;
+    use storage_engine::isr::follower::{update_follower_progress, SegmentReplicaState};
 
     // T3: compute_new_isr correctly shrinks and expands the ISR based on follower lag.
     #[test]
     fn isr_maintain_shrink_and_expand() {
-        let state = SegmentReplicaState::new("s".to_string(), 0);
+        let state = SegmentReplicaState::new();
         let replicas = vec![1u64, 2];
         let leader_leo: u64 = 10;
         let lag_max_ms: u64 = 5_000; // 5 s
@@ -32,7 +32,7 @@ mod tests {
 
         // Follower 2 last caught up 100 s ago — well beyond the 5 s window
         let stale_ts = now_sec - 100;
-        state.update_follower_progress(2, 1, 1, 0, leader_leo, stale_ts);
+        update_follower_progress(&state, 2, 1, 0, leader_leo, stale_ts);
 
         // ISR should shrink: follower 2 is lagging and the window has expired
         let shrunk = compute_new_isr(
@@ -45,7 +45,7 @@ mod tests {
         );
 
         // Follower 2 catches up: update LEO to leader_leo, timestamp = now
-        state.update_follower_progress(2, 1, 1, leader_leo, leader_leo, now_sec);
+        update_follower_progress(&state, 2, 1, leader_leo, leader_leo, now_sec);
 
         // ISR should expand back to [1, 2]
         let expanded = compute_new_isr(&state, &[1], &replicas, 1, leader_leo, lag_max_ms, now_sec);
@@ -59,7 +59,7 @@ mod tests {
     // T3b: leader is never evicted even when no follower progress entry exists.
     #[test]
     fn isr_maintain_leader_always_in_isr() {
-        let state = SegmentReplicaState::new("s".to_string(), 0);
+        let state = SegmentReplicaState::new();
         let replicas = vec![1u64];
         let now_sec: u64 = 1_000_000;
 
@@ -71,13 +71,13 @@ mod tests {
     // T3c: no change returns None rather than a new vec
     #[test]
     fn isr_maintain_returns_none_when_unchanged() {
-        let state = SegmentReplicaState::new("s".to_string(), 0);
+        let state = SegmentReplicaState::new();
         let replicas = vec![1u64, 2];
         let leader_leo: u64 = 5;
         let now_sec: u64 = 1_000_000;
 
         // Follower 2 is fresh
-        state.update_follower_progress(2, 1, 1, leader_leo, leader_leo, now_sec);
+        update_follower_progress(&state, 2, 1, leader_leo, leader_leo, now_sec);
 
         let result = compute_new_isr(&state, &replicas, &replicas, 1, leader_leo, 5_000, now_sec);
         assert_eq!(result, None, "unchanged ISR should return None");

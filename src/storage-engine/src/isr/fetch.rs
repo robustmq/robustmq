@@ -15,10 +15,11 @@
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
-use crate::isr::hw::advance_hw;
+use crate::isr::follower::advance_hw;
 use crate::isr::log::ReplicaLog;
-use crate::isr::state::ReplicaRole;
+use crate::isr::follower::update_follower_progress;
 use common_base::tools::now_second;
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::protocol::{
@@ -113,17 +114,25 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         ..Default::default()
     };
 
+    let broker_id = broker_config().broker_id;
+    let segment_iden = crate::filesegment::SegmentIdentity::new(&req.shard_name, req.segment_seq);
+    if cache_manager
+        .get_segment(&segment_iden)
+        .is_none_or(|s| s.leader != broker_id)
+    {
+        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
+        return resp;
+    }
+
     let Some(state) = cache_manager.get_segment_replica(&req.shard_name, req.segment_seq) else {
         resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
         return resp;
     };
 
-    if state.role() != ReplicaRole::LeaderActive {
-        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
-        return resp;
-    }
-
-    let leader_epoch = state.leader_epoch();
+    let leader_epoch = cache_manager
+        .get_segment(&segment_iden)
+        .map(|s| s.leader_epoch)
+        .unwrap_or(0);
     resp.leader_epoch = leader_epoch;
     if req.current_leader_epoch < leader_epoch {
         resp.error_code = FetchErrorCode::FencedLeaderEpoch.as_u32();
@@ -157,10 +166,10 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    if !state.update_follower_progress(
+    if !update_follower_progress(
+        &state,
         replica_id,
         replica_broker_epoch,
-        req.current_leader_epoch,
         req.fetch_offset,
         leo,
         now_second(),
@@ -173,20 +182,24 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    resp.leader_hw = match cache_manager.get_active_segment(&req.shard_name) {
-        Some(segment) => advance_hw(
-            cache_manager,
-            &req.shard_name,
-            req.segment_seq,
-            &segment.isr,
-            segment.leader,
-            leo,
-        ),
-        None => cache_manager
-            .get_offset_state(&req.shard_name)
-            .map(|s| s.high_watermark_offset)
-            .unwrap_or(0),
-    };
+    resp.leader_hw = cache_manager
+        .get_active_segment(&req.shard_name)
+        .and_then(|segment| {
+            advance_hw(
+                cache_manager,
+                &req.shard_name,
+                req.segment_seq,
+                &segment.isr,
+                segment.leader,
+                leo,
+            )
+        })
+        .or_else(|| {
+            cache_manager
+                .get_offset_state(&req.shard_name)
+                .map(|s| s.high_watermark_offset)
+        })
+        .unwrap_or(0);
 
     match log
         .read_from(
@@ -211,9 +224,10 @@ fn encode_records(records: &[StorageRecord]) -> Vec<Vec<u8>> {
 mod tests {
     use super::*;
     use crate::commitlog::memory::engine::MemoryStorageEngine;
-    use crate::core::test_tool::test_build_memory_engine;
+    use crate::core::test_tool::{test_build_memory_engine, test_init_conf};
     use bytes::Bytes;
     use metadata_struct::storage::record::StorageRecord;
+    use metadata_struct::storage::segment::EngineSegment;
 
     fn record(offset: u64, data: &str) -> StorageRecord {
         StorageRecord {
@@ -237,10 +251,16 @@ mod tests {
     }
 
     async fn setup_leader() -> MemoryStorageEngine {
+        test_init_conf();
         let engine = test_build_memory_engine();
-        let state = engine.cache_manager.get_or_create_segment_replica("s", 0);
-        state.set_role(ReplicaRole::LeaderActive);
-        state.set_leader_epoch(3);
+        engine.cache_manager.set_segment(&EngineSegment {
+            shard_name: "s".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 3,
+            ..Default::default()
+        });
+        engine.cache_manager.add_segment_replica("s", 0);
         engine
             .append_at(
                 "s",
@@ -309,6 +329,7 @@ mod tests {
             rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
         };
 
+        test_init_conf();
         for shard in ["s1", "s2"] {
             mem.cache_manager.set_shard(EngineShard {
                 shard_name: shard.to_string(),
@@ -318,9 +339,14 @@ mod tests {
                 },
                 ..Default::default()
             });
-            let st = mem.cache_manager.get_or_create_segment_replica(shard, 0);
-            st.set_role(ReplicaRole::LeaderActive);
-            st.set_leader_epoch(1);
+            mem.cache_manager.set_segment(&EngineSegment {
+                shard_name: shard.to_string(),
+                segment_seq: 0,
+                leader: 1,
+                leader_epoch: 1,
+                ..Default::default()
+            });
+            mem.cache_manager.add_segment_replica(shard, 0);
         }
         mem.append_at("s1", 0, 0, vec![record(0, "a"), record(1, "b")])
             .await

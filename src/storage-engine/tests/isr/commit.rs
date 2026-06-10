@@ -38,7 +38,7 @@ mod tests {
     use storage_engine::core::shard::ShardOffsetState;
     use storage_engine::core::write::batch_write;
     use storage_engine::filesegment::write::WriteManager;
-    use storage_engine::isr::state::ReplicaRole;
+    use storage_engine::isr::follower::update_follower_progress;
     use tokio::sync::broadcast;
 
     const ACKS_ONE: i8 = 1;
@@ -117,12 +117,11 @@ mod tests {
             bc.set_cluster_config(cfg);
         }
 
-        let state = cm.get_or_create_segment_replica(&shard, 0);
-        state.set_role(ReplicaRole::LeaderActive);
-
+        cm.add_segment_replica(&shard, 0);
         if !leader_only {
             // Follower 2 exists but has LEO=0 → will not let HW advance
-            state.update_follower_progress(2, 1, 1, 0, 0, 0);
+            let state = cm.get_segment_replica(&shard, 0).unwrap();
+            update_follower_progress(&state, 2, 1, 0, 0, 0);
         }
 
         let rocksdb = Arc::new(RocksDBStorageEngine::new(cm.clone(), db.clone()));

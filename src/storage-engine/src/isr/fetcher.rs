@@ -348,11 +348,11 @@ pub fn fetcher_index(leader_node_id: u64, num_fetchers: u32) -> u32 {
 mod tests {
     use super::*;
     use crate::commitlog::memory::engine::MemoryStorageEngine;
-    use crate::core::test_tool::test_build_memory_engine;
+    use crate::core::test_tool::{test_build_memory_engine, test_init_conf};
     use crate::isr::fetch::fetch_one_shard;
-    use crate::isr::state::ReplicaRole;
     use bytes::Bytes;
     use metadata_struct::storage::record::StorageRecord;
+    use metadata_struct::storage::segment::EngineSegment;
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
 
@@ -417,11 +417,17 @@ mod tests {
     }
 
     async fn leader_with_shards(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader {
+        test_init_conf();
         let engine = Arc::new(test_build_memory_engine());
         for (shard, records) in shards {
-            let st = engine.cache_manager.get_or_create_segment_replica(shard, 0);
-            st.set_role(ReplicaRole::LeaderActive);
-            st.set_leader_epoch(1);
+            engine.cache_manager.set_segment(&EngineSegment {
+                shard_name: shard.to_string(),
+                segment_seq: 0,
+                leader: 1,
+                leader_epoch: 1,
+                ..Default::default()
+            });
+            engine.cache_manager.add_segment_replica(shard, 0);
             if !records.is_empty() {
                 engine
                     .append_at(shard, 0, 0, records.clone())

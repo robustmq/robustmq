@@ -16,7 +16,7 @@ use crate::core::cache::StorageCacheManager;
 use crate::isr::fetch::FetchEngines;
 use crate::isr::leader_epoch::LeaderEpochCache;
 use crate::isr::log::ReplicaLog;
-use crate::isr::state::ReplicaRole;
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use protocol::storage::protocol::{
     FetchErrorCode, OffsetsForLeaderEpochReqBody, OffsetsForLeaderEpochRespBody,
@@ -37,16 +37,28 @@ pub async fn handle_offsets_for_leader_epoch(
         current_leader_epoch: 0,
     };
 
-    let Some(state) = cache_manager.get_segment_replica(&req.shard_name, req.segment_seq) else {
-        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
-        return resp;
-    };
-    if state.role() != ReplicaRole::LeaderActive {
+    let broker_id = broker_config().broker_id;
+    let segment_iden = crate::filesegment::SegmentIdentity::new(&req.shard_name, req.segment_seq);
+    if cache_manager
+        .get_segment(&segment_iden)
+        .is_none_or(|s| s.leader != broker_id)
+    {
         resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
         return resp;
     }
 
-    let leader_epoch = state.leader_epoch();
+    if cache_manager
+        .get_segment_replica(&req.shard_name, req.segment_seq)
+        .is_none()
+    {
+        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
+        return resp;
+    }
+
+    let leader_epoch = cache_manager
+        .get_segment(&segment_iden)
+        .map(|s| s.leader_epoch)
+        .unwrap_or(0);
     resp.current_leader_epoch = leader_epoch;
     if req.current_leader_epoch < leader_epoch {
         resp.error_code = FetchErrorCode::FencedLeaderEpoch.as_u32();
@@ -141,9 +153,10 @@ pub fn query_local_replica_state(
             .unwrap_or(0),
         _ => 0,
     };
+    let segment_iden = crate::filesegment::SegmentIdentity::new(shard, segment_seq);
     let latest_leader_epoch = cache_manager
-        .get_segment_replica(shard, segment_seq)
-        .map(|s| s.leader_epoch())
+        .get_segment(&segment_iden)
+        .map(|s| s.leader_epoch)
         .unwrap_or(0);
     LocalReplicaState {
         segment_leo: leo.unwrap_or(0),
@@ -156,9 +169,12 @@ pub fn query_local_replica_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::test_tool::{test_build_memory_engine, test_build_rocksdb_engine};
+    use crate::core::test_tool::{
+        test_build_memory_engine, test_build_rocksdb_engine, test_init_conf,
+    };
     use bytes::Bytes;
     use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use metadata_struct::storage::segment::EngineSegment;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
     use rocksdb_engine::test::test_rocksdb_instance;
 
@@ -188,9 +204,16 @@ mod tests {
             },
             ..Default::default()
         });
-        let st = cm.get_or_create_segment_replica("s", 0);
-        st.set_role(ReplicaRole::LeaderActive);
-        st.set_leader_epoch(epochs.last().map(|e| e.0).unwrap_or(0));
+        test_init_conf();
+        let latest_epoch = epochs.last().map(|e| e.0).unwrap_or(0);
+        cm.set_segment(&EngineSegment {
+            shard_name: "s".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: latest_epoch,
+            ..Default::default()
+        });
+        cm.add_segment_replica("s", 0);
         let records: Vec<_> = (0..leo).map(record).collect();
         if !records.is_empty() {
             memory.append_at("s", 0, 0, records).await.unwrap();

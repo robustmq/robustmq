@@ -24,10 +24,10 @@ use crate::{
         write::{WriteChannelDataRecord, WriteManager},
         SegmentIdentity,
     },
-    isr::hw::{advance_hw, wait_for_hw},
-    isr::state::ReplicaRole,
+    isr::follower::{advance_hw, wait_for_hw},
 };
 use common_base::utils::serialize::serialize;
+use tracing::warn;
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
@@ -69,16 +69,6 @@ pub async fn batch_write(
             records,
         )
         .await;
-    }
-
-    if let Some(replica_state) =
-        cache_manager.get_segment_replica(shard_name, active_segment.segment_seq)
-    {
-        if replica_state.role() != ReplicaRole::LeaderActive {
-            return Err(StorageEngineError::CommonErrorStr(format!(
-                "NotLeaderForPartition: shard {shard_name} role is not LeaderActive"
-            )));
-        }
     }
 
     if acks == ACKS_ALL {
@@ -124,14 +114,21 @@ pub async fn batch_write(
             ))
         })?;
 
-    advance_hw(
+    if advance_hw(
         cache_manager,
         shard_name,
         active_segment.segment_seq,
         &active_segment.isr,
         active_segment.leader,
         leader_leo,
-    );
+    )
+    .is_none()
+    {
+        warn!(
+            "advance_hw: replica state missing for shard {shard_name} segment {}",
+            active_segment.segment_seq
+        );
+    }
 
     if acks == ACKS_ALL {
         let max_wait_ms = conf.storage_runtime.replica_fetch_max_wait_ms.max(1);
@@ -231,6 +228,7 @@ mod tests {
     use super::*;
     use crate::commitlog::offset::CommitLogOffset;
     use crate::core::test_tool::test_init_segment;
+    use crate::isr::follower::update_follower_progress;
     use bytes::Bytes;
     use grpc_clients::pool::ClientPool;
     use std::time::Duration;
@@ -259,10 +257,7 @@ mod tests {
             segment_iden.shard_name.clone(),
             crate::core::shard::ShardOffsetState::default(),
         );
-        {
-            let state = cache_manager.get_or_create_segment_replica(&segment_iden.shard_name, 0);
-            state.set_role(crate::isr::state::ReplicaRole::LeaderActive);
-        }
+        cache_manager.add_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 
         let client_pool = Arc::new(ClientPool::new(100));
         let write_manager = Arc::new(WriteManager::new(
@@ -334,8 +329,9 @@ mod tests {
             seg.isr = vec![1, 2];
             e.cache_manager.set_segment(&seg);
         }
-        let state = e.cache_manager.get_or_create_segment_replica(&e.shard, 0);
-        state.update_follower_progress(2, 1, 1, 0, 0, 0);
+        e.cache_manager.add_segment_replica(&e.shard, 0);
+        let state = e.cache_manager.get_segment_replica(&e.shard, 0).unwrap();
+        update_follower_progress(&state, 2, 1, 0, 0, 0);
         let err = tokio::time::timeout(Duration::from_secs(5), write(&e, -1))
             .await
             .unwrap();

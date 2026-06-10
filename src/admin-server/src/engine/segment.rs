@@ -80,8 +80,6 @@ pub struct SegmentDetailReq {
 pub struct FollowerProgressResp {
     pub node_id: u64,
     pub leo: u64,
-    pub last_known_leader_epoch: u32,
-    pub last_fetch_ts: u64,
     pub last_caught_up_ts: u64,
 }
 
@@ -123,34 +121,33 @@ fn local_replica_state_from_cache(
         None => (0, 0, 0),
     };
 
-    let (role, leader_epoch, segment_epoch, follower_progress) = match &replica_state {
-        Some(rs) => {
-            let fp: Vec<FollowerProgressResp> = rs
-                .follower_progress
-                .iter()
-                .map(|e| FollowerProgressResp {
-                    node_id: *e.key(),
-                    leo: e.value().leo,
-                    last_known_leader_epoch: e.value().last_known_leader_epoch,
-                    last_fetch_ts: e.value().last_fetch_ts,
-                    last_caught_up_ts: e.value().last_caught_up_ts,
-                })
-                .collect();
-            (
-                format!("{:?}", rs.role()),
-                rs.leader_epoch(),
-                rs.segment_epoch(),
-                fp,
-            )
-        }
-        None => (String::from("Unknown"), 0, 0, vec![]),
+    let segment_iden = SegmentIdentity::new(shard_name, segment_seq);
+    let seg = cm.get_segment(&segment_iden);
+    let role_str = match &seg {
+        Some(s) if s.leader == broker_id => "Leader".to_string(),
+        Some(_) => "Follower".to_string(),
+        None => "Unknown".to_string(),
+    };
+    let segment_epoch = seg.as_ref().map(|s| s.segment_epoch).unwrap_or(0);
+
+    let leader_epoch = seg.as_ref().map(|s| s.leader_epoch).unwrap_or(0);
+    let follower_progress = match &replica_state {
+        Some(rs) => rs
+            .iter()
+            .map(|e| FollowerProgressResp {
+                node_id: *e.key(),
+                leo: e.value().leo,
+                last_caught_up_ts: e.value().last_fetch_ts,
+            })
+            .collect(),
+        None => vec![],
     };
 
     SegmentReplicaStateResp {
         node_id: broker_id,
         is_leader: false,
         in_isr: false,
-        role,
+        role: role_str,
         leader_epoch,
         segment_epoch,
         leo,

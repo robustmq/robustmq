@@ -94,6 +94,10 @@ async fn parse_shard(
                 commit_offset.save_earliest_offset(&shard.shard_name, 0)?;
                 commit_offset.save_latest_offset(&shard.shard_name, 0)?;
             }
+            cache_manager.save_offset_state(
+                shard.shard_name.clone(),
+                crate::core::shard::ShardOffsetState::default(),
+            );
             cache_manager.set_shard(shard);
         }
         BrokerUpdateCacheActionType::Update => {}
@@ -133,12 +137,9 @@ async fn parse_segment(
             if is_stale_segment_notification(cache_manager, &segment_iden, &segment) {
                 return Ok(());
             }
-            cache_manager.set_segment(&segment);
 
-            let conf = broker_config();
-            if conf.broker_id == segment.leader {
-                cache_manager.add_leader_segment(&segment_iden);
-            }
+            cache_manager.add_segment_replica(&segment.shard_name, segment.segment_seq);
+
             apply_leader_and_isr(
                 cache_manager,
                 rocksdb_engine_handler,
@@ -147,10 +148,17 @@ async fn parse_segment(
             )
             .await?;
 
+            cache_manager.set_segment(&segment);
+            let conf = broker_config();
+            if conf.broker_id == segment.leader {
+                cache_manager.add_leader_segment(&segment_iden);
+            }
+
             if shard.config.storage_type == StorageType::EngineSegment {
                 let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
                 segment_file.try_create().await?;
             }
+
             if shard.config.storage_type == StorageType::EngineMemory
                 || shard.config.storage_type == StorageType::EngineRocksDB
             {
@@ -167,13 +175,7 @@ async fn parse_segment(
             if is_stale_segment_notification(cache_manager, &segment_iden, &segment) {
                 return Ok(());
             }
-            cache_manager.set_segment(&segment);
-            let conf = broker_config();
-            if conf.broker_id == segment.leader {
-                cache_manager.add_leader_segment(&segment_iden);
-            } else {
-                cache_manager.remove_leader_segment(&segment_iden);
-            }
+
             apply_leader_and_isr(
                 cache_manager,
                 rocksdb_engine_handler,
@@ -181,6 +183,14 @@ async fn parse_segment(
                 &segment,
             )
             .await?;
+
+            cache_manager.set_segment(&segment);
+            let conf = broker_config();
+            if conf.broker_id == segment.leader {
+                cache_manager.add_leader_segment(&segment_iden);
+            } else {
+                cache_manager.remove_leader_segment(&segment_iden);
+            }
         }
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;

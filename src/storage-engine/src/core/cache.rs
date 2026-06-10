@@ -16,7 +16,7 @@ use crate::core::offset_index::SegmentOffsetIndex;
 use crate::core::shard::ShardOffsetState;
 use crate::filesegment::segment_file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
-use crate::isr::state::SegmentReplicaState;
+use crate::isr::follower::SegmentReplicaState;
 use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
 use dashmap::DashMap;
@@ -114,15 +114,10 @@ impl StorageCacheManager {
     }
 
     // ISR segment replica state
-    pub fn get_or_create_segment_replica(
-        &self,
-        shard: &str,
-        segment_seq: u32,
-    ) -> Arc<SegmentReplicaState> {
+    pub fn add_segment_replica(&self, shard: &str, segment_seq: u32) {
         self.segment_replica_states
             .entry((shard.to_string(), segment_seq))
-            .or_insert_with(|| Arc::new(SegmentReplicaState::new(shard.to_string(), segment_seq)))
-            .clone()
+            .or_insert_with(|| Arc::new(DashMap::new()));
     }
 
     pub fn get_segment_replica(

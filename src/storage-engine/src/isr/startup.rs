@@ -89,8 +89,7 @@ async fn recover_one_segment(
     shard: &str,
     segment_seq: u32,
 ) -> Result<(), StorageEngineError> {
-    let state = cache_manager.get_or_create_segment_replica(shard, segment_seq);
-    let _guard = state.lock_state().await;
+    cache_manager.add_segment_replica(shard, segment_seq);
     let is_rocksdb = cache_manager
         .shards
         .get(shard)

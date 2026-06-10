@@ -19,19 +19,20 @@
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use std::time::Duration;
-
+    use crate::isr::make_engine;
     use async_trait::async_trait;
     use bytes::Bytes;
     use common_config::storage::StorageType;
     use dashmap::DashMap;
     use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use metadata_struct::storage::segment::EngineSegment;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
     use protocol::storage::protocol::{
         FetchReqBody, FetchRespBody, OffsetsForLeaderEpochReqBody, OffsetsForLeaderEpochRespBody,
     };
     use rocksdb_engine::test::test_rocksdb_instance;
+    use std::sync::Arc;
+    use std::time::Duration;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
     use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use storage_engine::core::error::StorageEngineError;
@@ -40,13 +41,10 @@ mod tests {
     use storage_engine::isr::fetcher::{
         FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
     };
-    use storage_engine::isr::hw::advance_hw;
+    use storage_engine::isr::follower::advance_hw;
     use storage_engine::isr::leader_epoch::LeaderEpochCache;
     use storage_engine::isr::log::ReplicaLog;
     use storage_engine::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch;
-    use storage_engine::isr::state::ReplicaRole;
-
-    use crate::isr::make_engine;
 
     fn record(data: &str, offset: u64) -> StorageRecord {
         StorageRecord {
@@ -160,12 +158,18 @@ mod tests {
             },
             ..Default::default()
         });
+        leader.cache_manager.set_segment(&EngineSegment {
+            shard_name: shard.to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 1,
+            isr: vec![1],
+            ..Default::default()
+        });
         leader
             .cache_manager
             .save_offset_state(shard.to_string(), ShardOffsetState::default());
-        let ls = leader.cache_manager.get_or_create_segment_replica(shard, 0);
-        ls.set_role(ReplicaRole::LeaderActive);
-        ls.set_leader_epoch(1);
+        leader.cache_manager.add_segment_replica(shard, 0);
         {
             let bc = leader.cache_manager.broker_cache.clone();
             let mut cfg = bc.get_cluster_config();
@@ -185,7 +189,7 @@ mod tests {
             .unwrap();
 
         let leader_leo = leader.as_ref().latest_offset(shard, 0).unwrap();
-        advance_hw(&leader.cache_manager, shard, 0, &[1], 1, leader_leo);
+        let _ = advance_hw(&leader.cache_manager, shard, 0, &[1], 1, leader_leo);
 
         let follower = make_engine();
         let (thread, _) = make_follower_thread(
@@ -230,14 +234,18 @@ mod tests {
             },
             ..Default::default()
         });
+        new_leader.cache_manager.set_segment(&EngineSegment {
+            shard_name: shard.to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 2,
+            isr: vec![1],
+            ..Default::default()
+        });
         new_leader
             .cache_manager
             .save_offset_state(shard.to_string(), ShardOffsetState::default());
-        let ls = new_leader
-            .cache_manager
-            .get_or_create_segment_replica(shard, 0);
-        ls.set_role(ReplicaRole::LeaderActive);
-        ls.set_leader_epoch(2);
+        new_leader.cache_manager.add_segment_replica(shard, 0);
         new_leader
             .as_ref()
             .append_at(
