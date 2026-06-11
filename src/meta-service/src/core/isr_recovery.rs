@@ -16,7 +16,6 @@ use crate::core::cache::MetaCacheManager;
 use crate::core::notify::send_notify_by_set_segment;
 use crate::core::segment::sync_save_segment_info;
 use crate::raft::manager::MultiRaftManager;
-use common_config::broker::broker_config;
 use dashmap::DashMap;
 use grpc_clients::broker::common::call::broker_query_replica_leo;
 use grpc_clients::pool::ClientPool;
@@ -26,7 +25,6 @@ use node_call::NodeCallManager;
 use protocol::broker::broker::QueryReplicaLeoRequest;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
 use tracing::{info, warn};
 
@@ -47,22 +45,19 @@ pub async fn recover_unavailable_segments_on_node_join(
     call_manager: &Arc<NodeCallManager>,
     client_pool: &Arc<ClientPool>,
 ) {
-    let unavailable: Vec<EngineSegment> = meta_cache
-        .segment_list
+    // Only the active segment needs a leader; sealed segments are read-only.
+    let to_recover: Vec<EngineSegment> = meta_cache
+        .shard_list
         .iter()
-        .flat_map(|shard| {
-            shard
-                .iter()
-                .filter(|seg| {
-                    seg.status == SegmentStatus::Unavailable
-                        && seg.last_known_isr.contains(&node_id)
-                })
-                .map(|seg| seg.clone())
-                .collect::<Vec<_>>()
+        .filter_map(|shard| meta_cache.get_segment(&shard.shard_name, shard.active_segment_seq))
+        .filter(|seg| {
+            meta_cache.get_broker_node(seg.leader).is_none()
+                || (seg.status == SegmentStatus::Unavailable
+                    && seg.last_known_isr.contains(&node_id))
         })
         .collect();
 
-    for segment in unavailable {
+    for segment in to_recover {
         if let Err(e) = try_recover_unavailable_segment(
             &segment,
             meta_cache,
@@ -91,33 +86,32 @@ async fn try_recover_unavailable_segment(
     let lock = recovery_lock(&key);
     let _guard = lock.lock().await;
 
+    // Needs recovery: parked Unavailable, or its leader is no longer a live node.
+    let needs_recovery = |seg: &EngineSegment| {
+        seg.status == SegmentStatus::Unavailable || meta_cache.get_broker_node(seg.leader).is_none()
+    };
+
     let current = match meta_cache.get_segment(&segment.shard_name, segment.segment_seq) {
         Some(s) => s,
         None => return Ok(()),
     };
-    if current.status != SegmentStatus::Unavailable {
+    if !needs_recovery(&current) {
         return Ok(());
     }
+
+    let candidate_ids: &[u64] = if current.status == SegmentStatus::Unavailable {
+        &current.last_known_isr
+    } else {
+        &current.isr
+    };
     let nodes: Vec<BrokerNode> = meta_cache
         .node_list
         .iter()
-        .filter(|n| current.last_known_isr.contains(n.key()))
+        .filter(|n| candidate_ids.contains(n.key()))
         .map(|n| n.value().clone())
         .collect();
     if nodes.is_empty() {
         return Ok(());
-    }
-
-    let wait_ms = broker_config().meta_runtime.unavailable_recovery_wait_ms;
-    if wait_ms > 0 {
-        tokio::time::sleep(Duration::from_millis(wait_ms)).await;
-    }
-
-    // Re-check status after wait: another goroutine may have already recovered this segment.
-    if let Some(refreshed) = meta_cache.get_segment(&current.shard_name, current.segment_seq) {
-        if refreshed.status != SegmentStatus::Unavailable {
-            return Ok(());
-        }
     }
 
     let mut leo_map: HashMap<u64, ReplicaStateReport> = HashMap::new();
@@ -145,9 +139,15 @@ async fn try_recover_unavailable_segment(
     }
 
     let reports: Vec<ReplicaStateReport> = leo_map.into_values().collect();
-    let Some(new_leader_id) = elect_recovery_leader(&reports) else {
-        return Ok(());
+    let new_leader_id = match elect_recovery_leader(&reports) {
+        Some(id) => id,
+        None => return Ok(()),
     };
+
+    // Leader unchanged on an already-writable segment: nothing to update.
+    if new_leader_id == current.leader && current.status != SegmentStatus::Unavailable {
+        return Ok(());
+    }
 
     let mut new_segment = current.clone();
     new_segment.leader = new_leader_id;
@@ -177,8 +177,8 @@ async fn try_recover_unavailable_segment(
         .map_err(|e| e.to_string())?;
 
     info!(
-        "isr recovery: {}/{} recovered, new leader={}",
-        current.shard_name, current.segment_seq, new_leader_id
+        "isr recovery: {}/{} recovered, leader {} -> {}",
+        current.shard_name, current.segment_seq, current.leader, new_leader_id
     );
     Ok(())
 }

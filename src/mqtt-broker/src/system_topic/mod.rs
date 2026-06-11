@@ -26,8 +26,10 @@ use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
+use tokio::time::sleep;
 use tracing::warn;
 
 // Cluster status information
@@ -79,6 +81,7 @@ impl SystemTopic {
     }
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
+        sleep(Duration::from_secs(60)).await;
         let ac_fn = async || -> ResultCommonError {
             report_broker_info(
                 &self.client_pool,

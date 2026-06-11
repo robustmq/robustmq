@@ -15,6 +15,7 @@
 use crate::controller::connector_scheduler::ConnectorScheduler;
 use crate::controller::engine_gc::start_engine_delete_gc_thread;
 use crate::controller::group_gc::start_group_gc_thread;
+use crate::controller::leader_rebalance::start_segment_leader_rebalance_thread;
 use crate::controller::mail_gc::start_mail_gc_thread;
 use crate::controller::topic_delete::start_topic_delete_thread;
 use crate::core::cache::MetaCacheManager;
@@ -31,6 +32,7 @@ pub mod connector_scheduler;
 pub mod connector_status;
 pub mod engine_gc;
 pub mod group_gc;
+pub mod leader_rebalance;
 pub mod mail_gc;
 pub mod topic_delete;
 
@@ -164,6 +166,21 @@ impl BrokerController {
                 raft_manager,
                 cache_manager,
                 client_pool,
+                raw_stop_send,
+            )
+            .await;
+        }));
+
+        // segment leader rebalance
+        let raft_manager = self.raft_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_segment_leader_rebalance_thread(
+                raft_manager,
+                cache_manager,
+                call_manager,
                 raw_stop_send,
             )
             .await;

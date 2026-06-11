@@ -90,12 +90,9 @@ pub fn default_meta_runtime() -> MetaRuntime {
         offset_raft_group_num: 1,
         data_raft_group_num: 1,
         group_offset_expire_sec: 7 * 24 * 3600,
-        unavailable_recovery_wait_ms: 5000,
+        segment_leader_rebalance_interval_ms: 60_000,
+        segment_leader_rebalance_max_moves: 50,
     }
-}
-
-pub fn default_unavailable_recovery_wait_ms() -> u64 {
-    5000
 }
 
 pub fn default_mqtt_server() -> MqttServer {

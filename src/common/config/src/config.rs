@@ -433,21 +433,27 @@ pub struct MetaRuntime {
     pub data_raft_group_num: u32,
     #[serde(default = "default_group_offset_expire_sec")]
     pub group_offset_expire_sec: u64,
-    #[serde(default = "default_unavailable_recovery_wait_ms")]
-    pub unavailable_recovery_wait_ms: u64,
+    #[serde(default = "default_segment_leader_rebalance_interval_ms")]
+    pub segment_leader_rebalance_interval_ms: u64,
+    #[serde(default = "default_segment_leader_rebalance_max_moves")]
+    pub segment_leader_rebalance_max_moves: u32,
 }
 
 fn default_raft_sharded_group_num() -> u32 {
     1
 }
 
-fn default_unavailable_recovery_wait_ms() -> u64 {
-    5000
-}
-
 fn default_group_offset_expire_sec() -> u64 {
     // 7 days
     7 * 24 * 3600
+}
+
+fn default_segment_leader_rebalance_interval_ms() -> u64 {
+    60_000
+}
+
+fn default_segment_leader_rebalance_max_moves() -> u32 {
+    50
 }
 
 impl Default for MetaRuntime {
