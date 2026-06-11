@@ -30,7 +30,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(Clone, Debug, Default)]
 pub struct ShardOffsetState {
@@ -93,6 +93,28 @@ pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError
     Ok(true)
 }
 
+/// Whether the shard is already provisioned locally: present in the cache, this
+/// broker is its segment-0 leader, and (for segment storage) its metadata exists.
+fn shard_provisioned(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterShardInfo) -> bool {
+    let shard_name = &shard.shard_name;
+    if !cache_manager.shards.contains_key(shard_name) {
+        return false;
+    }
+    let segment_iden = SegmentIdentity::new(shard_name, 0);
+    let broker_id = broker_config().broker_id;
+    let is_leader = cache_manager
+        .get_segment(&segment_iden)
+        .is_some_and(|s| s.leader == broker_id);
+    if !is_leader {
+        return false;
+    }
+    match shard.config.storage_type {
+        StorageType::EngineSegment => cache_manager.get_segment_meta(&segment_iden).is_some(),
+        StorageType::EngineMemory | StorageType::EngineRocksDB => true,
+        _ => false,
+    }
+}
+
 pub async fn create_shard_to_place(
     cache_manager: &Arc<StorageCacheManager>,
     client_pool: &Arc<ClientPool>,
@@ -101,6 +123,16 @@ pub async fn create_shard_to_place(
     is_support_storage_type(shard.config.storage_type)?;
 
     let shard_name = &shard.shard_name;
+
+    // Idempotent ensure: already provisioned and led locally, nothing to do.
+    if shard_provisioned(cache_manager, shard) {
+        debug!(
+            "Shard {} already provisioned, skipping creation",
+            shard_name
+        );
+        return Ok(());
+    }
+
     let conf: &common_config::config::BrokerConfig = broker_config();
     let request = CreateShardRequest {
         shard_name: shard_name.to_string(),
@@ -115,31 +147,12 @@ pub async fn create_shard_to_place(
     )
     .await?;
 
-    // Wait for shard to be ready: cache populated and this broker is the leader
-    let broker_id = broker_config().broker_id;
+    // Wait for shard to be ready: cache populated and this broker is the leader.
     let wait_result = timeout(Duration::from_secs(10), async {
         loop {
-            let segment_iden = SegmentIdentity::new(shard_name, 0);
-            let is_leader = cache_manager
-                .get_segment(&segment_iden)
-                .is_some_and(|s| s.leader == broker_id);
-
-            if shard.config.storage_type == StorageType::EngineSegment
-                && cache_manager.shards.contains_key(shard_name)
-                && cache_manager.get_segment_meta(&segment_iden).is_some()
-                && is_leader
-            {
+            if shard_provisioned(cache_manager, shard) {
                 return;
             }
-
-            if (shard.config.storage_type == StorageType::EngineMemory
-                || shard.config.storage_type == StorageType::EngineRocksDB)
-                && cache_manager.shards.contains_key(shard_name)
-                && is_leader
-            {
-                return;
-            }
-
             sleep(Duration::from_millis(100)).await;
         }
     })

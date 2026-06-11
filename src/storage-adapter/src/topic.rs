@@ -29,7 +29,7 @@ use metadata_struct::{
 use protocol::meta::meta_service_mqtt::CreateTopicRequest;
 use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
-use tracing::info;
+use tracing::{debug, info};
 
 pub async fn create_topic_full(
     broker_cache: &Arc<NodeCacheManager>,
@@ -119,7 +119,7 @@ async fn init_single_inner_topic(
     topic_name: &str,
 ) -> Result<(), CommonError> {
     if let Some(topic) = broker_cache.get_topic_by_name(DEFAULT_TENANT, topic_name) {
-        info!(
+        debug!(
             "Inner topic '{}' already exists, ensuring storage shard is provisioned",
             topic_name
         );

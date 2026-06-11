@@ -30,7 +30,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tonic::codegen::tokio_stream::Stream;
 use tonic::Status;
-use tracing::info;
+use tracing::{debug, info};
 
 type ListShardStream =
     Result<Pin<Box<dyn Stream<Item = Result<ListShardReply, Status>> + Send>>, MetaServiceError>;
@@ -81,6 +81,8 @@ pub async fn create_shard_by_req(
         ));
     }
 
+    let already_exists = cache_manager.shard_list.contains_key(&req.shard_name);
+
     let shard: EngineShard = create_shard(
         cache_manager,
         raft_manager,
@@ -106,10 +108,17 @@ pub async fn create_shard_by_req(
 
     let replica = segment.replicas.iter().map(|rep| rep.node_id).collect();
 
-    info!(
-        "Created shard '{}' with initial segment {}",
-        req.shard_name, segment.segment_seq
-    );
+    if already_exists {
+        debug!(
+            "Shard '{}' already exists with segment {}, skipped creation",
+            req.shard_name, segment.segment_seq
+        );
+    } else {
+        info!(
+            "Created shard '{}' with initial segment {}",
+            req.shard_name, segment.segment_seq
+        );
+    }
 
     Ok(CreateShardReply {
         segment_no: segment.segment_seq,
