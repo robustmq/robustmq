@@ -13,9 +13,9 @@
 // limitations under the License.
 
 pub mod fetch;
-pub mod follower;
 pub mod fetcher;
 pub mod fetcher_manager;
+pub mod follower;
 
 pub mod isr_maintain;
 pub mod leader_epoch;
@@ -24,4 +24,3 @@ pub mod offsets_for_leader_epoch;
 pub mod reconcile;
 pub mod role;
 pub mod startup;
-

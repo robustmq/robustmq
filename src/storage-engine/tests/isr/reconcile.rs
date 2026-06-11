@@ -31,8 +31,8 @@ mod tests {
     use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use storage_engine::core::shard::ShardOffsetState;
     use storage_engine::isr::fetcher_manager::build_engine_fetcher_manager;
-    use storage_engine::isr::role::apply_leader_and_isr;
     use storage_engine::isr::follower::update_follower_progress;
+    use storage_engine::isr::role::apply_leader_and_isr;
 
     use crate::isr::make_engine;
 
@@ -104,10 +104,7 @@ mod tests {
         // Simulate follower 2 starting to fetch
         let state = cm.get_segment_replica("t6-shard", 0).unwrap();
         update_follower_progress(&state, 2, 1, 5, 10, 0);
-        assert!(
-            state.contains_key(&2),
-            "follower progress should be seeded"
-        );
+        assert!(state.contains_key(&2), "follower progress should be seeded");
 
         // Second apply with identical segment (same leader_epoch=1, segment_epoch=2)
         apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();

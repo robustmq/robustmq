@@ -27,13 +27,13 @@ use crate::{
     isr::follower::{advance_hw, wait_for_hw},
 };
 use common_base::utils::serialize::serialize;
-use tracing::warn;
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
 use protocol::storage::codec::StorageEnginePacket;
 use std::sync::Arc;
+use tracing::warn;
 
 const ACKS_ALL: i8 = -1;
 

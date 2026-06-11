@@ -15,8 +15,8 @@
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::isr::follower::SegmentReplicaState;
 use crate::isr::log::ReplicaLog;
-use crate::isr::follower::{update_follower_progress, SegmentReplicaState};
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
 use common_config::broker::broker_config;
@@ -197,6 +197,7 @@ pub fn compute_new_isr(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::isr::follower::update_follower_progress;
 
     fn state() -> SegmentReplicaState {
         SegmentReplicaState::new()

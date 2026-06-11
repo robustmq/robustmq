@@ -18,8 +18,8 @@
 #[cfg(test)]
 mod tests {
     use meta_service::core::isr_recovery::{elect_recovery_leader, ReplicaStateReport};
-    use storage_engine::isr::isr_maintain::compute_new_isr;
     use storage_engine::isr::follower::{update_follower_progress, SegmentReplicaState};
+    use storage_engine::isr::isr_maintain::compute_new_isr;
 
     // T3: compute_new_isr correctly shrinks and expands the ISR based on follower lag.
     #[test]
