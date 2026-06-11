@@ -135,13 +135,6 @@ impl DataRouteJournal {
         Ok(value)
     }
 
-    /// State-machine apply for an ISR update. Runs identically on every node, so
-    /// it must never return a business `Err` (openraft treats an apply `Err` as a
-    /// fatal storage fault and shuts the node down). All five fences are evaluated
-    /// here — atomically with the write — and the outcome is encoded into the
-    /// returned value via [`IsrUpdateOutcome`]: rejections are normal under
-    /// concurrency (e.g. a lost CAS), not faults. Only a genuine decode/IO error
-    /// returns `Err`.
     pub async fn update_segment_isr(&self, value: Bytes) -> Result<Bytes, MetaServiceError> {
         let req = UpdateSegmentIsrRequest::decode(value.as_ref())?;
         let storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
@@ -150,26 +143,24 @@ impl DataRouteJournal {
             return Ok(IsrUpdateOutcome::SegmentNotFound.encode());
         };
 
-        // fence 1: requester is the current leader
         if req.requester_node_id != current.leader {
             return Ok(IsrUpdateOutcome::NotLeader.encode());
         }
-        // fence 2: leader_epoch matches
+
         if req.leader_epoch != current.leader_epoch {
             return Ok(IsrUpdateOutcome::FencedLeaderEpoch.encode());
         }
-        // fence 3: broker_epoch matches the registry (zombie process)
+
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         let known_broker_epoch = node_storage.get_broker_epoch(req.requester_node_id)?;
         if req.requester_broker_epoch != known_broker_epoch {
             return Ok(IsrUpdateOutcome::StaleBrokerEpoch.encode());
         }
-        // fence 4: segment_epoch CAS (concurrent ISR updates)
+
         if req.expected_segment_epoch != current.segment_epoch {
             return Ok(IsrUpdateOutcome::InvalidUpdateVersion.encode());
         }
-        // fence 5: ISR validity, re-checked against `current` (the leader/replicas
-        // may have changed since the server-layer pre-check)
+
         let replica_ids: Vec<u64> = current.replicas.iter().map(|r| r.node_id).collect();
         if req.new_isr.is_empty()
             || !req.new_isr.contains(&current.leader)

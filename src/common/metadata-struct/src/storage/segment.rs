@@ -34,8 +34,6 @@ pub struct EngineSegment {
     #[serde(default)]
     pub leader_broker_epoch: u64,
     #[serde(default)]
-    pub log_start_offset: u64,
-    #[serde(default)]
     pub last_known_isr: Vec<u64>,
 }
 
@@ -184,7 +182,6 @@ mod tests {
         let seg = EngineSegment::default();
         assert_eq!(seg.segment_epoch, 0);
         assert_eq!(seg.leader_broker_epoch, 0);
-        assert_eq!(seg.log_start_offset, 0);
         assert!(seg.last_known_isr.is_empty());
     }
 
@@ -199,14 +196,12 @@ mod tests {
             status: SegmentStatus::Unavailable,
             segment_epoch: 11,
             leader_broker_epoch: 42,
-            log_start_offset: 100,
             last_known_isr: vec![7, 8],
             ..Default::default()
         };
         let decoded = EngineSegment::decode(&seg.encode().unwrap()).unwrap();
         assert_eq!(decoded.segment_epoch, 11);
         assert_eq!(decoded.leader_broker_epoch, 42);
-        assert_eq!(decoded.log_start_offset, 100);
         assert_eq!(decoded.last_known_isr, vec![7, 8]);
         assert_eq!(decoded.status, SegmentStatus::Unavailable);
     }
