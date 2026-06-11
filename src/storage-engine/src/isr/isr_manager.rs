@@ -15,6 +15,7 @@
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::SegmentReplicaState;
 use crate::isr::log::ReplicaLog;
 use common_base::error::ResultCommonError;
@@ -29,7 +30,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 
-pub async fn start_isr_maintain_thread(
+pub async fn start_isr_manager_thread(
     client_pool: Arc<ClientPool>,
     cache_manager: Arc<StorageCacheManager>,
     memory: Arc<MemoryStorageEngine>,
@@ -44,27 +45,55 @@ pub async fn start_isr_maintain_thread(
     loop_select_ticket(ac_fn, interval, stop_sx).await;
 }
 
+// Number of leader segments handled by a single maintain task. Leader segments are split into
+// chunks of this size and processed concurrently; maintain_once returns once all tasks complete.
+const MAINTAIN_TASK_CHUNK_SIZE: usize = 1000;
+
 async fn maintain_once(
     client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<StorageCacheManager>,
     memory: &Arc<MemoryStorageEngine>,
     rocksdb: &Arc<RocksDBStorageEngine>,
 ) {
-    let conf = broker_config();
-
     let leader_segments: Vec<_> = cache_manager
-        .segments
+        .leader_segments
         .iter()
-        .flat_map(|e| {
-            e.value()
-                .iter()
-                .filter(|s| s.leader == conf.broker_id)
-                .map(|s| s.clone())
-                .collect::<Vec<_>>()
-        })
+        .map(|e| e.value().clone())
         .collect();
 
-    for segment in leader_segments {
+    let mut handles = Vec::new();
+    for chunk in leader_segments.chunks(MAINTAIN_TASK_CHUNK_SIZE) {
+        let chunk = chunk.to_vec();
+        let client_pool = client_pool.clone();
+        let cache_manager = cache_manager.clone();
+        let memory = memory.clone();
+        let rocksdb = rocksdb.clone();
+        handles.push(tokio::spawn(async move {
+            maintain_segments(&client_pool, &cache_manager, &memory, &rocksdb, chunk).await;
+        }));
+    }
+
+    for handle in handles {
+        if let Err(e) = handle.await {
+            warn!("ISR maintain task failed: {}", e);
+        }
+    }
+}
+
+async fn maintain_segments(
+    client_pool: &Arc<ClientPool>,
+    cache_manager: &Arc<StorageCacheManager>,
+    memory: &Arc<MemoryStorageEngine>,
+    rocksdb: &Arc<RocksDBStorageEngine>,
+    segments: Vec<SegmentIdentity>,
+) {
+    let conf = broker_config();
+
+    for segment_iden in segments {
+        let Some(segment) = cache_manager.get_segment(&segment_iden) else {
+            continue;
+        };
+
         let shard = segment.shard_name.clone();
         let segment_seq = segment.segment_seq;
 
@@ -206,8 +235,8 @@ mod tests {
     #[test]
     fn shrink_drops_lagging_follower() {
         let st = state();
-        update_follower_progress(&st, 2, 1, 100, 100, 100);
-        update_follower_progress(&st, 3, 1, 50, 100, 0);
+        update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
+        update_follower_progress(&st, 3, 1, 50, 100, 0).unwrap();
 
         let new_isr = compute_new_isr(&st, &[1, 2, 3], &[1, 2, 3], 1, 100, 10000, 100);
         assert_eq!(new_isr, Some(vec![1, 2]));
@@ -216,7 +245,7 @@ mod tests {
     #[test]
     fn no_change_when_all_caught_up() {
         let st = state();
-        update_follower_progress(&st, 2, 1, 100, 100, 100);
+        update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
 
         let new_isr = compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 100);
         assert_eq!(new_isr, None);
@@ -225,7 +254,7 @@ mod tests {
     #[test]
     fn expand_adds_caught_up_replica() {
         let st = state();
-        update_follower_progress(&st, 2, 1, 100, 100, 100);
+        update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
 
         let new_isr = compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100);
         assert_eq!(new_isr, Some(vec![1, 2]));

@@ -13,176 +13,20 @@
 // limitations under the License.
 
 use crate::clients::manager::ClientConnectionManager;
-use crate::clients::packet::build_fetch_req;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
-use crate::core::error::StorageEngineError;
 use crate::isr::fetcher::{
     fetcher_index, FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
 };
 use crate::isr::log::ReplicaLog;
-use async_trait::async_trait;
+use crate::isr::log_replica::EngineReplicaLog;
+use crate::isr::packet_transport::PacketFetchTransport;
 use broker_core::cache::NodeCacheManager;
-use common_config::storage::StorageType;
 use dashmap::DashMap;
-use metadata_struct::storage::record::StorageRecord;
-use protocol::storage::codec::StorageEnginePacket;
-use protocol::storage::protocol::{
-    FetchReqBody, FetchRespBody, OffsetsForLeaderEpochReq, OffsetsForLeaderEpochReqBody,
-    OffsetsForLeaderEpochRespBody,
-};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
-
-#[derive(Clone)]
-pub struct EngineReplicaLog {
-    memory: Arc<MemoryStorageEngine>,
-    rocksdb: Arc<RocksDBStorageEngine>,
-    cache_manager: Arc<StorageCacheManager>,
-}
-
-impl EngineReplicaLog {
-    pub fn new(
-        memory: Arc<MemoryStorageEngine>,
-        rocksdb: Arc<RocksDBStorageEngine>,
-        cache_manager: Arc<StorageCacheManager>,
-    ) -> Self {
-        EngineReplicaLog {
-            memory,
-            rocksdb,
-            cache_manager,
-        }
-    }
-
-    fn is_rocksdb(&self, shard: &str) -> bool {
-        self.cache_manager
-            .shards
-            .get(shard)
-            .map(|s| s.config.storage_type == StorageType::EngineRocksDB)
-            .unwrap_or(false)
-    }
-}
-
-#[async_trait]
-impl ReplicaLog for EngineReplicaLog {
-    async fn append_at(
-        &self,
-        shard: &str,
-        segment_seq: u32,
-        base_offset: u64,
-        records: Vec<StorageRecord>,
-    ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb
-                .append_at(shard, segment_seq, base_offset, records)
-                .await
-        } else {
-            self.memory
-                .append_at(shard, segment_seq, base_offset, records)
-                .await
-        }
-    }
-
-    async fn read_from(
-        &self,
-        shard: &str,
-        segment_seq: u32,
-        offset: u64,
-        max_bytes: u64,
-    ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb
-                .read_from(shard, segment_seq, offset, max_bytes)
-                .await
-        } else {
-            self.memory
-                .read_from(shard, segment_seq, offset, max_bytes)
-                .await
-        }
-    }
-
-    fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb.latest_offset(shard, segment_seq)
-        } else {
-            self.memory.latest_offset(shard, segment_seq)
-        }
-    }
-
-    async fn truncate_to(
-        &self,
-        shard: &str,
-        segment_seq: u32,
-        offset: u64,
-    ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb.truncate_to(shard, segment_seq, offset).await
-        } else {
-            self.memory.truncate_to(shard, segment_seq, offset).await
-        }
-    }
-
-    async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb.clear(shard, segment_seq).await
-        } else {
-            self.memory.clear(shard, segment_seq).await
-        }
-    }
-
-    fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard) {
-            self.rocksdb.log_start_offset(shard, segment_seq)
-        } else {
-            self.memory.log_start_offset(shard, segment_seq)
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct PacketFetchTransport {
-    client: Arc<ClientConnectionManager>,
-}
-
-impl PacketFetchTransport {
-    pub fn new(client: Arc<ClientConnectionManager>) -> Self {
-        PacketFetchTransport { client }
-    }
-}
-
-#[async_trait]
-impl FetchTransport for PacketFetchTransport {
-    async fn fetch(
-        &self,
-        leader_node_id: u64,
-        req: FetchReqBody,
-    ) -> Result<FetchRespBody, StorageEngineError> {
-        let packet = StorageEnginePacket::FetchReq(build_fetch_req(req));
-        match self.client.read_send(leader_node_id, packet).await? {
-            StorageEnginePacket::FetchResp(resp) => Ok(resp.body),
-            other => Err(StorageEngineError::CommonErrorStr(format!(
-                "fetch to node {leader_node_id} expected FetchResp, got {other}"
-            ))),
-        }
-    }
-
-    async fn offsets_for_leader_epoch(
-        &self,
-        leader_node_id: u64,
-        req: OffsetsForLeaderEpochReqBody,
-    ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
-        let packet =
-            StorageEnginePacket::OffsetsForLeaderEpochReq(OffsetsForLeaderEpochReq::new(req));
-        match self.client.read_send(leader_node_id, packet).await? {
-            StorageEnginePacket::OffsetsForLeaderEpochResp(resp) => Ok(resp.body),
-            other => Err(StorageEngineError::CommonErrorStr(format!(
-                "offsets_for_leader_epoch to node {leader_node_id} expected resp, got {other}"
-            ))),
-        }
-    }
-}
 
 struct FetcherSlot {
     segments: SegmentMap,
@@ -279,6 +123,12 @@ impl ReplicaFetcherManager {
             self.stop_thread(idx);
         }
     }
+
+    #[cfg(test)]
+    pub fn is_fetching(&self, shard: &str, segment_seq: u32) -> bool {
+        let key = (shard.to_string(), segment_seq);
+        self.slots.iter().any(|s| s.segments.contains_key(&key))
+    }
 }
 
 pub fn build_engine_fetcher_manager(
@@ -301,107 +151,12 @@ pub fn build_engine_fetcher_manager(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::test_tool::{test_build_memory_engine, test_init_conf};
-    use crate::isr::fetch::fetch_one_shard;
-    use crate::isr::leader_epoch::LeaderEpochCache;
-    use bytes::Bytes;
-    use metadata_struct::storage::segment::EngineSegment;
-    use protocol::storage::protocol::FetchReqBody;
+    use crate::core::test_tool::test_build_memory_engine;
+    use crate::isr::test_util::{
+        configure_follower_broker_cache, leader_with, record, seg_state, InProcLeader,
+    };
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::time::Duration;
-
-    fn record(offset: u64, data: &str) -> StorageRecord {
-        StorageRecord {
-            metadata: metadata_struct::storage::record::StorageRecordMetadata {
-                offset,
-                ..Default::default()
-            },
-            protocol_data: None,
-            data: Bytes::from(data.to_string()),
-        }
-    }
-
-    #[derive(Clone)]
-    struct InProcLeader {
-        engine: Arc<MemoryStorageEngine>,
-    }
-
-    #[async_trait]
-    impl FetchTransport for InProcLeader {
-        async fn fetch(
-            &self,
-            _leader_node_id: u64,
-            req: FetchReqBody,
-        ) -> Result<FetchRespBody, StorageEngineError> {
-            let mut shards = Vec::new();
-            for s in &req.shards {
-                shards.push(
-                    fetch_one_shard(
-                        &self.engine.cache_manager,
-                        self.engine.as_ref(),
-                        req.replica_id,
-                        req.replica_broker_epoch,
-                        s,
-                    )
-                    .await,
-                );
-            }
-            Ok(FetchRespBody { shards })
-        }
-
-        async fn offsets_for_leader_epoch(
-            &self,
-            _leader_node_id: u64,
-            req: OffsetsForLeaderEpochReqBody,
-        ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
-            let engines = crate::isr::fetch::FetchEngines {
-                memory: self.engine.clone(),
-                rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
-            };
-            Ok(
-                crate::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch(
-                    &engines,
-                    &self.engine.cache_manager,
-                    &rocksdb_engine::test::test_rocksdb_instance(),
-                    &req,
-                )
-                .await,
-            )
-        }
-    }
-
-    async fn leader_with(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader {
-        test_init_conf();
-        let engine = Arc::new(test_build_memory_engine());
-        for (shard, records) in shards {
-            engine.cache_manager.set_segment(&EngineSegment {
-                shard_name: shard.to_string(),
-                segment_seq: 0,
-                leader: 1,
-                leader_epoch: 1,
-                ..Default::default()
-            });
-            engine.cache_manager.add_segment_replica(shard, 0);
-            if !records.is_empty() {
-                engine
-                    .append_at(shard, 0, 0, records.clone())
-                    .await
-                    .unwrap();
-            }
-        }
-        InProcLeader { engine }
-    }
-
-    fn seg_state(shard: &str, leader_node_id: u64) -> SegmentFetchState {
-        SegmentFetchState {
-            shard: shard.to_string(),
-            segment_seq: 0,
-            leader_node_id,
-            current_leader_epoch: 1,
-            max_bytes: 1024 * 1024,
-            cache: LeaderEpochCache::load(test_rocksdb_instance(), shard, 0).unwrap(),
-        }
-    }
 
     fn follower_log(memory: Arc<MemoryStorageEngine>) -> EngineReplicaLog {
         let cache_manager = memory.cache_manager.clone();
@@ -440,12 +195,7 @@ mod tests {
         let follower_engine = Arc::new(test_build_memory_engine());
         let follower = follower_log(follower_engine.clone());
         let broker_cache = follower_engine.cache_manager.broker_cache.clone();
-        let mut config = broker_cache.get_cluster_config();
-        config.broker_id = 2;
-        config.storage_runtime.replica_fetch_max_wait_ms = 0;
-        config.storage_runtime.replica_fetch_backoff_ms = 5;
-        broker_cache.set_cluster_config(config);
-        broker_cache.set_broker_epoch(1);
+        configure_follower_broker_cache(&broker_cache);
 
         let mgr = ReplicaFetcherManager::new(2, Arc::new(leader), Arc::new(follower), broker_cache);
         mgr.start();
@@ -472,12 +222,7 @@ mod tests {
     ) -> ReplicaFetcherManager {
         let follower = follower_log(follower_engine.clone());
         let broker_cache = follower_engine.cache_manager.broker_cache.clone();
-        let mut config = broker_cache.get_cluster_config();
-        config.broker_id = 2;
-        config.storage_runtime.replica_fetch_max_wait_ms = 0;
-        config.storage_runtime.replica_fetch_backoff_ms = 5;
-        broker_cache.set_cluster_config(config);
-        broker_cache.set_broker_epoch(1);
+        configure_follower_broker_cache(&broker_cache);
         ReplicaFetcherManager::new(2, Arc::new(leader), Arc::new(follower), broker_cache)
     }
 

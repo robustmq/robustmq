@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::cache::StorageCacheManager;
-use crate::isr::fetch::FetchEngines;
+use crate::isr::handle_fetch::FetchEngines;
 use crate::isr::leader_epoch::LeaderEpochCache;
 use crate::isr::log::ReplicaLog;
 use common_config::broker::broker_config;
@@ -39,26 +39,20 @@ pub async fn handle_offsets_for_leader_epoch(
 
     let broker_id = broker_config().broker_id;
     let segment_iden = crate::filesegment::SegmentIdentity::new(&req.shard_name, req.segment_seq);
-    if cache_manager
-        .get_segment(&segment_iden)
-        .is_none_or(|s| s.leader != broker_id)
+    let Some(segment) = cache_manager.get_segment(&segment_iden) else {
+        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
+        return resp;
+    };
+    if segment.leader != broker_id
+        || cache_manager
+            .get_segment_replica(&req.shard_name, req.segment_seq)
+            .is_none()
     {
         resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
         return resp;
     }
 
-    if cache_manager
-        .get_segment_replica(&req.shard_name, req.segment_seq)
-        .is_none()
-    {
-        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
-        return resp;
-    }
-
-    let leader_epoch = cache_manager
-        .get_segment(&segment_iden)
-        .map(|s| s.leader_epoch)
-        .unwrap_or(0);
+    let leader_epoch = segment.leader_epoch;
     resp.current_leader_epoch = leader_epoch;
     if req.current_leader_epoch < leader_epoch {
         resp.error_code = FetchErrorCode::FencedLeaderEpoch.as_u32();
@@ -172,22 +166,10 @@ mod tests {
     use crate::core::test_tool::{
         test_build_memory_engine, test_build_rocksdb_engine, test_init_conf,
     };
-    use bytes::Bytes;
-    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use crate::isr::test_util::record;
     use metadata_struct::storage::segment::EngineSegment;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
     use rocksdb_engine::test::test_rocksdb_instance;
-
-    fn record(offset: u64) -> StorageRecord {
-        StorageRecord {
-            metadata: StorageRecordMetadata {
-                offset,
-                ..Default::default()
-            },
-            protocol_data: None,
-            data: Bytes::from("v"),
-        }
-    }
 
     async fn leader_with_epochs(
         epochs: &[(u32, u64)],
@@ -214,7 +196,7 @@ mod tests {
             ..Default::default()
         });
         cm.add_segment_replica("s", 0);
-        let records: Vec<_> = (0..leo).map(record).collect();
+        let records: Vec<_> = (0..leo).map(|o| record(o, "v")).collect();
         if !records.is_empty() {
             memory.append_at("s", 0, 0, records).await.unwrap();
         }
@@ -270,5 +252,40 @@ mod tests {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(1, 1)).await;
         assert_eq!(resp.error_code, FetchErrorCode::FencedLeaderEpoch.as_u32());
+    }
+
+    #[tokio::test]
+    async fn unknown_when_current_epoch_ahead() {
+        let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
+        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(2, 3)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::UnknownLeaderEpoch.as_u32());
+        assert_eq!(resp.current_leader_epoch, 2);
+    }
+
+    #[tokio::test]
+    async fn not_leader_when_segment_missing() {
+        let (engines, cm, db) = leader_with_epochs(&[(1, 0)], 1).await;
+        let mut r = req(1, 1);
+        r.shard_name = "missing".to_string();
+        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &r).await;
+        assert_eq!(
+            resp.error_code,
+            FetchErrorCode::NotLeaderForPartition.as_u32()
+        );
+    }
+
+    #[tokio::test]
+    async fn query_local_replica_state_reports_leo_and_epoch() {
+        let (engines, cm, _db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
+        let state = query_local_replica_state(&engines, &cm, "s", 0);
+        assert!(state.available);
+        assert_eq!(state.segment_leo, 8);
+        assert_eq!(state.latest_leader_epoch, 2);
+        assert_eq!(state.log_start_offset, 0);
+
+        // Unknown shard: not available, zeroed.
+        let missing = query_local_replica_state(&engines, &cm, "missing", 0);
+        assert!(!missing.available);
+        assert_eq!(missing.segment_leo, 0);
     }
 }

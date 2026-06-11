@@ -23,6 +23,7 @@ use broker_core::cache::NodeCacheManager;
 use common_config::config::BrokerConfig;
 use rocksdb_engine::test::test_rocksdb_instance;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
+use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
 
 pub(crate) fn make_engine() -> Arc<MemoryStorageEngine> {
@@ -30,4 +31,21 @@ pub(crate) fn make_engine() -> Arc<MemoryStorageEngine> {
     let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
     let cm = Arc::new(StorageCacheManager::new(broker_cache));
     Arc::new(MemoryStorageEngine::new(db, cm, Default::default()))
+}
+
+/// Set this node's broker id on the cache's cluster config.
+pub(crate) fn set_broker_id(cm: &Arc<StorageCacheManager>, broker_id: u64) {
+    let bc = cm.broker_cache.clone();
+    let mut cfg = bc.get_cluster_config();
+    cfg.broker_id = broker_id;
+    bc.set_cluster_config(cfg);
+}
+
+/// A rocksdb storage engine sharing `engine`'s cache manager, backed by a fresh
+/// rocksdb instance.
+pub(crate) fn make_rocksdb(engine: &Arc<MemoryStorageEngine>) -> Arc<RocksDBStorageEngine> {
+    Arc::new(RocksDBStorageEngine::new(
+        engine.cache_manager.clone(),
+        test_rocksdb_instance(),
+    ))
 }

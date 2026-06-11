@@ -19,7 +19,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::isr::make_engine;
+    use crate::isr::{make_engine, make_rocksdb, set_broker_id};
     use async_trait::async_trait;
     use bytes::Bytes;
     use common_config::storage::StorageType;
@@ -34,17 +34,16 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-    use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use storage_engine::core::error::StorageEngineError;
     use storage_engine::core::shard::ShardOffsetState;
-    use storage_engine::isr::fetch::{fetch_one_shard, FetchEngines};
     use storage_engine::isr::fetcher::{
         FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
     };
     use storage_engine::isr::follower::advance_hw;
+    use storage_engine::isr::handle_epoch::handle_offsets_for_leader_epoch;
+    use storage_engine::isr::handle_fetch::{fetch_one_shard, FetchEngines};
     use storage_engine::isr::leader_epoch::LeaderEpochCache;
     use storage_engine::isr::log::ReplicaLog;
-    use storage_engine::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch;
 
     fn record(data: &str, offset: u64) -> StorageRecord {
         StorageRecord {
@@ -57,11 +56,43 @@ mod tests {
         }
     }
 
-    fn make_rocksdb_engine(mem: &Arc<MemoryStorageEngine>) -> Arc<RocksDBStorageEngine> {
-        Arc::new(RocksDBStorageEngine::new(
-            mem.cache_manager.clone(),
-            test_rocksdb_instance(),
-        ))
+    /// Build an in-process leader engine (broker 1) for `shard` at `leader_epoch`,
+    /// seeded with `records`.
+    async fn setup_leader(
+        shard: &str,
+        leader_epoch: u32,
+        records: Vec<StorageRecord>,
+    ) -> Arc<MemoryStorageEngine> {
+        let leader = make_engine();
+        leader.cache_manager.set_shard(EngineShard {
+            shard_name: shard.to_string(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineMemory,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        leader.cache_manager.set_segment(&EngineSegment {
+            shard_name: shard.to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch,
+            isr: vec![1],
+            ..Default::default()
+        });
+        leader
+            .cache_manager
+            .save_offset_state(shard.to_string(), ShardOffsetState::default());
+        leader.cache_manager.add_segment_replica(shard, 0);
+        set_broker_id(&leader.cache_manager, 1);
+        if !records.is_empty() {
+            leader
+                .as_ref()
+                .append_at(shard, 0, 0, records)
+                .await
+                .unwrap();
+        }
+        leader
     }
 
     #[derive(Clone)]
@@ -99,7 +130,7 @@ mod tests {
         ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
             let engines = FetchEngines {
                 memory: self.leader.clone(),
-                rocksdb: make_rocksdb_engine(&self.leader),
+                rocksdb: make_rocksdb(&self.leader),
             };
             Ok(handle_offsets_for_leader_epoch(
                 &engines,
@@ -149,44 +180,12 @@ mod tests {
     #[tokio::test]
     async fn replication_happy_path() {
         let shard = "t1-shard";
-        let leader = make_engine();
-        leader.cache_manager.set_shard(EngineShard {
-            shard_name: shard.to_string(),
-            config: EngineShardConfig {
-                storage_type: StorageType::EngineMemory,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        leader.cache_manager.set_segment(&EngineSegment {
-            shard_name: shard.to_string(),
-            segment_seq: 0,
-            leader: 1,
-            leader_epoch: 1,
-            isr: vec![1],
-            ..Default::default()
-        });
-        leader
-            .cache_manager
-            .save_offset_state(shard.to_string(), ShardOffsetState::default());
-        leader.cache_manager.add_segment_replica(shard, 0);
-        {
-            let bc = leader.cache_manager.broker_cache.clone();
-            let mut cfg = bc.get_cluster_config();
-            cfg.broker_id = 1;
-            bc.set_cluster_config(cfg);
-        }
-
-        leader
-            .as_ref()
-            .append_at(
-                shard,
-                0,
-                0,
-                vec![record("a", 0), record("b", 1), record("c", 2)],
-            )
-            .await
-            .unwrap();
+        let leader = setup_leader(
+            shard,
+            1,
+            vec![record("a", 0), record("b", 1), record("c", 2)],
+        )
+        .await;
 
         let leader_leo = leader.as_ref().latest_offset(shard, 0).unwrap();
         let _ = advance_hw(&leader.cache_manager, shard, 0, &[1], 1, leader_leo);
@@ -225,43 +224,12 @@ mod tests {
         let shard = "t2-shard";
 
         // New leader: epoch=2, LEO=3 (offsets 0, 1, 2)
-        let new_leader = make_engine();
-        new_leader.cache_manager.set_shard(EngineShard {
-            shard_name: shard.to_string(),
-            config: EngineShardConfig {
-                storage_type: StorageType::EngineMemory,
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        new_leader.cache_manager.set_segment(&EngineSegment {
-            shard_name: shard.to_string(),
-            segment_seq: 0,
-            leader: 1,
-            leader_epoch: 2,
-            isr: vec![1],
-            ..Default::default()
-        });
-        new_leader
-            .cache_manager
-            .save_offset_state(shard.to_string(), ShardOffsetState::default());
-        new_leader.cache_manager.add_segment_replica(shard, 0);
-        new_leader
-            .as_ref()
-            .append_at(
-                shard,
-                0,
-                0,
-                vec![record("a", 0), record("b", 1), record("c", 2)],
-            )
-            .await
-            .unwrap();
-        {
-            let bc = new_leader.cache_manager.broker_cache.clone();
-            let mut cfg = bc.get_cluster_config();
-            cfg.broker_id = 1;
-            bc.set_cluster_config(cfg);
-        }
+        let new_leader = setup_leader(
+            shard,
+            2,
+            vec![record("a", 0), record("b", 1), record("c", 2)],
+        )
+        .await;
 
         // Follower: 5 records (0-4), records 3-4 are the diverged tail from old epoch
         let follower = make_engine();

@@ -23,20 +23,6 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::warn;
 
-pub fn recover_leader_epoch_cache(
-    cache: &mut LeaderEpochCache,
-    local_leo: u64,
-    log_start_offset: u64,
-) -> Result<(), StorageEngineError> {
-    cache.truncate_from_end(local_leo)?;
-    cache.truncate_from_start(log_start_offset)?;
-    Ok(())
-}
-
-pub fn recover_hw(persisted_hw: u64, local_leo: u64) -> u64 {
-    persisted_hw.min(local_leo)
-}
-
 pub async fn recover_local_segments(
     cache_manager: &Arc<StorageCacheManager>,
     memory: &Arc<MemoryStorageEngine>,
@@ -79,6 +65,20 @@ pub async fn recover_local_segments(
             );
         }
     }
+}
+
+fn recover_leader_epoch_cache(
+    cache: &mut LeaderEpochCache,
+    local_leo: u64,
+    log_start_offset: u64,
+) -> Result<(), StorageEngineError> {
+    cache.truncate_from_end(local_leo)?;
+    cache.truncate_from_start(log_start_offset)?;
+    Ok(())
+}
+
+fn recover_hw(persisted_hw: u64, local_leo: u64) -> u64 {
+    persisted_hw.min(local_leo)
 }
 
 async fn recover_one_segment(

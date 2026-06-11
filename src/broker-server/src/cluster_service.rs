@@ -28,8 +28,8 @@ use protocol::broker::broker::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
-use storage_engine::isr::fetch::FetchEngines;
-use storage_engine::isr::offsets_for_leader_epoch::query_local_replica_state;
+use storage_engine::isr::handle_epoch::query_local_replica_state;
+use storage_engine::isr::handle_fetch::FetchEngines;
 use storage_engine::StorageEngineParams;
 use tonic::{Request, Response, Status};
 use tracing::warn;

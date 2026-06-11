@@ -198,10 +198,18 @@ mod tests {
         let cm = engine.cache_manager.clone();
         let db = rocksdb_engine::test::test_rocksdb_instance();
         setup(&cm);
+        let mgr = manager(&cm, &db);
 
-        apply_leader_and_isr(&cm, &db, &manager(&cm, &db), &segment(2, &[1, 2], 3))
+        apply_leader_and_isr(&cm, &db, &mgr, &segment(2, &[1, 2], 3))
             .await
             .unwrap();
+
+        // follower path assigns a fetch for the leader, and must NOT record a leader epoch
+        assert!(mgr.is_fetching("s", 0));
+        assert_eq!(
+            LeaderEpochCache::load(db, "s", 0).unwrap().latest_epoch(),
+            0
+        );
     }
 
     #[tokio::test]
@@ -210,10 +218,17 @@ mod tests {
         let cm = engine.cache_manager.clone();
         let db = rocksdb_engine::test::test_rocksdb_instance();
         setup(&cm);
+        let mgr = manager(&cm, &db);
+        mgr.assign_segment(crate::isr::test_util::seg_state("s", 2));
+        assert!(mgr.is_fetching("s", 0));
 
-        apply_leader_and_isr(&cm, &db, &manager(&cm, &db), &segment(2, &[2, 3], 3))
+        // broker 1 is not in the replica set -> drop the fetcher and the replica state
+        apply_leader_and_isr(&cm, &db, &mgr, &segment(2, &[2, 3], 3))
             .await
             .unwrap();
+
+        assert!(!mgr.is_fetching("s", 0));
+        assert!(cm.get_segment_replica("s", 0).is_none());
     }
 
     #[tokio::test]

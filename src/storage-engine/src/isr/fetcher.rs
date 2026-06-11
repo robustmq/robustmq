@@ -103,13 +103,13 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
     }
 
     pub async fn run(&self, mut stop: broadcast::Receiver<bool>) {
-        loop {
-            let backoff_ms = self
-                .broker_cache
-                .get_cluster_config()
-                .storage_runtime
-                .replica_fetch_backoff_ms;
+        let backoff_ms = self
+            .broker_cache
+            .get_cluster_config()
+            .storage_runtime
+            .replica_fetch_backoff_ms;
 
+        loop {
             tokio::select! {
                 biased;
                 _ = stop.recv() => return,
@@ -221,10 +221,12 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
             }
             return Ok(false);
         }
+
         if resp.error_code == FetchErrorCode::FencedLeaderEpoch.as_u32() {
             self.truncate_after_fence(&key).await?;
             return Ok(false);
         }
+
         if resp.error_code != FetchErrorCode::None.as_u32() {
             return Ok(false);
         }
@@ -348,106 +350,12 @@ pub fn fetcher_index(leader_node_id: u64, num_fetchers: u32) -> u32 {
 mod tests {
     use super::*;
     use crate::commitlog::memory::engine::MemoryStorageEngine;
-    use crate::core::test_tool::{test_build_memory_engine, test_init_conf};
-    use crate::isr::fetch::fetch_one_shard;
-    use bytes::Bytes;
-    use metadata_struct::storage::record::StorageRecord;
-    use metadata_struct::storage::segment::EngineSegment;
+    use crate::core::test_tool::test_build_memory_engine;
+    use crate::isr::test_util::{
+        configure_follower_broker_cache, leader_with, record, seg_state, InProcLeader,
+    };
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
-
-    fn record(offset: u64, data: &str) -> StorageRecord {
-        StorageRecord {
-            metadata: metadata_struct::storage::record::StorageRecordMetadata {
-                offset,
-                ..Default::default()
-            },
-            protocol_data: None,
-            data: Bytes::from(data.to_string()),
-        }
-    }
-
-    #[derive(Clone)]
-    struct InProcLeader {
-        engine: Arc<MemoryStorageEngine>,
-    }
-
-    #[async_trait]
-    impl FetchTransport for InProcLeader {
-        async fn fetch(
-            &self,
-            _leader_node_id: u64,
-            req: FetchReqBody,
-        ) -> Result<FetchRespBody, StorageEngineError> {
-            let mut shards = Vec::new();
-            for s in &req.shards {
-                shards.push(
-                    fetch_one_shard(
-                        &self.engine.cache_manager,
-                        self.engine.as_ref(),
-                        req.replica_id,
-                        req.replica_broker_epoch,
-                        s,
-                    )
-                    .await,
-                );
-            }
-            Ok(FetchRespBody { shards })
-        }
-
-        async fn offsets_for_leader_epoch(
-            &self,
-            _leader_node_id: u64,
-            req: protocol::storage::protocol::OffsetsForLeaderEpochReqBody,
-        ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
-            let engines = crate::isr::fetch::FetchEngines {
-                memory: self.engine.clone(),
-                rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
-            };
-            Ok(
-                crate::isr::offsets_for_leader_epoch::handle_offsets_for_leader_epoch(
-                    &engines,
-                    &self.engine.cache_manager,
-                    &rocksdb_engine::test::test_rocksdb_instance(),
-                    &req,
-                )
-                .await,
-            )
-        }
-    }
-
-    async fn leader_with_shards(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader {
-        test_init_conf();
-        let engine = Arc::new(test_build_memory_engine());
-        for (shard, records) in shards {
-            engine.cache_manager.set_segment(&EngineSegment {
-                shard_name: shard.to_string(),
-                segment_seq: 0,
-                leader: 1,
-                leader_epoch: 1,
-                ..Default::default()
-            });
-            engine.cache_manager.add_segment_replica(shard, 0);
-            if !records.is_empty() {
-                engine
-                    .append_at(shard, 0, 0, records.clone())
-                    .await
-                    .unwrap();
-            }
-        }
-        InProcLeader { engine }
-    }
-
-    fn seg_state(shard: &str, leader_node_id: u64) -> SegmentFetchState {
-        SegmentFetchState {
-            shard: shard.to_string(),
-            segment_seq: 0,
-            leader_node_id,
-            current_leader_epoch: 1,
-            max_bytes: 1024 * 1024,
-            cache: LeaderEpochCache::load(test_rocksdb_instance(), shard, 0).unwrap(),
-        }
-    }
 
     fn thread(
         leader: InProcLeader,
@@ -457,12 +365,7 @@ mod tests {
         SegmentMap,
     ) {
         let broker_cache = follower.cache_manager.broker_cache.clone();
-        let mut config = broker_cache.get_cluster_config();
-        config.broker_id = 2;
-        config.storage_runtime.replica_fetch_max_wait_ms = 0;
-        config.storage_runtime.replica_fetch_backoff_ms = 10;
-        broker_cache.set_cluster_config(config);
-        broker_cache.set_broker_epoch(1);
+        configure_follower_broker_cache(&broker_cache);
         let segments: SegmentMap = Arc::new(DashMap::new());
         let th = ReplicaFetcherThread::new(leader, follower, broker_cache, segments.clone());
         (th, segments)
@@ -474,7 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn one_thread_serves_many_shards_in_one_round() {
-        let leader = leader_with_shards(&[
+        let leader = leader_with(&[
             ("s1", vec![record(0, "a"), record(1, "b")]),
             ("s2", vec![record(0, "c")]),
             ("s3", vec![]),
@@ -496,8 +399,7 @@ mod tests {
     #[tokio::test]
     async fn run_loop_catches_up_then_stops() {
         let leader =
-            leader_with_shards(&[("s1", vec![record(0, "a"), record(1, "b"), record(2, "c")])])
-                .await;
+            leader_with(&[("s1", vec![record(0, "a"), record(1, "b"), record(2, "c")])]).await;
         let follower = test_build_memory_engine();
         let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
@@ -516,7 +418,7 @@ mod tests {
     #[tokio::test]
     async fn remove_segment_stops_fetching_it() {
         let leader =
-            leader_with_shards(&[("s1", vec![record(0, "a")]), ("s2", vec![record(0, "b")])]).await;
+            leader_with(&[("s1", vec![record(0, "a")]), ("s2", vec![record(0, "b")])]).await;
         let follower = test_build_memory_engine();
         let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));

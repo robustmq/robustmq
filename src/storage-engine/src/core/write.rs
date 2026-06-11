@@ -331,7 +331,7 @@ mod tests {
         }
         e.cache_manager.add_segment_replica(&e.shard, 0);
         let state = e.cache_manager.get_segment_replica(&e.shard, 0).unwrap();
-        update_follower_progress(&state, 2, 1, 0, 0, 0);
+        update_follower_progress(&state, 2, 1, 0, 0, 0).unwrap();
         let err = tokio::time::timeout(Duration::from_secs(5), write(&e, -1))
             .await
             .unwrap();

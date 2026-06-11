@@ -109,7 +109,7 @@ impl StorageEngineServer {
     }
 
     pub async fn start(&self) -> Result<(), std::io::Error> {
-        crate::isr::startup::recover_local_segments(
+        crate::isr::recover::recover_local_segments(
             &self.cache_manager,
             &self.memory_storage_engine,
             &self.rocksdb_storage_engine,
@@ -181,7 +181,7 @@ impl StorageEngineServer {
         let stop_sx = self.stop.clone();
         self.task_supervisor
             .spawn(TaskKind::StorageEngineIsrMaintain.to_string(), async move {
-                crate::isr::isr_maintain::start_isr_maintain_thread(
+                crate::isr::isr_manager::start_isr_manager_thread(
                     client_pool,
                     cache_manager,
                     memory_storage_engine,

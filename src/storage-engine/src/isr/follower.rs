@@ -28,6 +28,13 @@ pub struct FollowerProgress {
 
 pub type SegmentReplicaState = DashMap<u64, FollowerProgress>;
 
+#[derive(Debug)]
+pub struct StaleBrokerEpoch {
+    pub replica_id: u64,
+    pub received: u64,
+    pub current: u64,
+}
+
 pub fn update_follower_progress(
     fp: &SegmentReplicaState,
     replica_id: u64,
@@ -35,28 +42,27 @@ pub fn update_follower_progress(
     fetch_offset: u64,
     leader_leo: u64,
     now: u64,
-) -> bool {
+) -> Result<(), StaleBrokerEpoch> {
     let mut progress = fp.entry(replica_id).or_insert_with(|| FollowerProgress {
         last_fetch_ts: now,
         ..Default::default()
     });
     if follower_broker_epoch < progress.follower_broker_epoch {
-        return false;
+        return Err(StaleBrokerEpoch {
+            replica_id,
+            received: follower_broker_epoch,
+            current: progress.follower_broker_epoch,
+        });
     }
     progress.follower_broker_epoch = follower_broker_epoch;
     progress.leo = fetch_offset;
     if fetch_offset >= leader_leo {
         progress.last_fetch_ts = now;
     }
-    true
+    Ok(())
 }
 
-pub fn committable_hw(
-    fp: &SegmentReplicaState,
-    isr: &[u64],
-    leader_id: u64,
-    leader_leo: u64,
-) -> u64 {
+fn committable_hw(fp: &SegmentReplicaState, isr: &[u64], leader_id: u64, leader_leo: u64) -> u64 {
     let mut hw = leader_leo;
     for replica_id in isr {
         if *replica_id == leader_id {
@@ -125,32 +131,29 @@ mod tests {
     use crate::core::shard::ShardOffsetState;
     use crate::core::test_tool::test_build_memory_engine;
 
-    // ── follower progress ─────────────────────────────────────────────────────
-
-    #[test]
-    fn follower_progress_tracking() {
-        let fp: SegmentReplicaState = DashMap::new();
-        fp.insert(
-            2,
-            FollowerProgress {
-                leo: 10,
-                ..Default::default()
-            },
-        );
-        assert_eq!(fp.get(&2).unwrap().leo, 10);
-    }
-
     #[tokio::test]
     async fn committable_hw_is_min_across_isr() {
         let fp: SegmentReplicaState = DashMap::new();
         assert_eq!(committable_hw(&fp, &[1], 1, 100), 100);
 
-        update_follower_progress(&fp, 2, 1, 80, 100, 0);
+        update_follower_progress(&fp, 2, 1, 80, 100, 0).unwrap();
         assert_eq!(committable_hw(&fp, &[1, 2], 1, 100), 80);
         assert_eq!(committable_hw(&fp, &[1, 2, 3], 1, 100), 80);
 
         fp.clear();
         assert_eq!(committable_hw(&fp, &[1, 2], 1, 100), 100);
+    }
+
+    #[test]
+    fn stale_broker_epoch_is_rejected_and_progress_kept() {
+        let fp: SegmentReplicaState = DashMap::new();
+        update_follower_progress(&fp, 2, 5, 10, 10, 0).unwrap();
+
+        let err = update_follower_progress(&fp, 2, 3, 20, 20, 0).unwrap_err();
+        assert_eq!(err.current, 5);
+        assert_eq!(err.received, 3);
+        // a fenced update must not advance the recorded progress
+        assert_eq!(fp.get(&2).unwrap().leo, 10);
     }
 
     fn setup(shard: &str, isr: &[u64]) -> Arc<StorageCacheManager> {
@@ -161,7 +164,7 @@ mod tests {
         let state = cm.get_segment_replica(shard, 0).unwrap();
         for id in isr {
             if *id != 1 {
-                update_follower_progress(&state, *id, 1, 0, 0, 0);
+                update_follower_progress(&state, *id, 1, 0, 0, 0).unwrap();
             }
         }
         cm
@@ -171,7 +174,7 @@ mod tests {
     async fn advance_hw_to_min_isr_leo() {
         let cm = setup("s", &[1, 2]);
         let state = cm.get_segment_replica("s", 0).unwrap();
-        update_follower_progress(&state, 2, 1, 5, 10, 0);
+        update_follower_progress(&state, 2, 1, 5, 10, 0).unwrap();
 
         let hw = advance_hw(&cm, "s", 0, &[1, 2], 1, 10).unwrap();
         assert_eq!(hw, 5);

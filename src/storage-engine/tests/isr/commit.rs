@@ -121,7 +121,7 @@ mod tests {
         if !leader_only {
             // Follower 2 exists but has LEO=0 → will not let HW advance
             let state = cm.get_segment_replica(&shard, 0).unwrap();
-            update_follower_progress(&state, 2, 1, 0, 0, 0);
+            update_follower_progress(&state, 2, 1, 0, 0, 0).unwrap();
         }
 
         let rocksdb = Arc::new(RocksDBStorageEngine::new(cm.clone(), db.clone()));

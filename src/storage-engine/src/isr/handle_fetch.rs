@@ -15,6 +15,7 @@
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::advance_hw;
 use crate::isr::follower::update_follower_progress;
 use crate::isr::log::ReplicaLog;
@@ -115,11 +116,13 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
     };
 
     let broker_id = broker_config().broker_id;
-    let segment_iden = crate::filesegment::SegmentIdentity::new(&req.shard_name, req.segment_seq);
-    if cache_manager
-        .get_segment(&segment_iden)
-        .is_none_or(|s| s.leader != broker_id)
-    {
+    let segment_iden = SegmentIdentity::new(&req.shard_name, req.segment_seq);
+    let Some(segment) = cache_manager.get_segment(&segment_iden) else {
+        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
+        return resp;
+    };
+
+    if segment.leader != broker_id {
         resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
         return resp;
     }
@@ -129,10 +132,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     };
 
-    let leader_epoch = cache_manager
-        .get_segment(&segment_iden)
-        .map(|s| s.leader_epoch)
-        .unwrap_or(0);
+    let leader_epoch = segment.leader_epoch;
     resp.leader_epoch = leader_epoch;
     if req.current_leader_epoch < leader_epoch {
         resp.error_code = FetchErrorCode::FencedLeaderEpoch.as_u32();
@@ -151,9 +151,13 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
             return resp;
         }
     };
-    let log_start = log
-        .log_start_offset(&req.shard_name, req.segment_seq)
-        .unwrap_or(0);
+    let log_start = match log.log_start_offset(&req.shard_name, req.segment_seq) {
+        Ok(v) => v,
+        Err(_) => {
+            resp.error_code = FetchErrorCode::OffsetOutOfRange.as_u32();
+            return resp;
+        }
+    };
     resp.leader_leo = leo;
     resp.leader_log_start = log_start;
 
@@ -166,14 +170,16 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    if !update_follower_progress(
+    if update_follower_progress(
         &state,
         replica_id,
         replica_broker_epoch,
         req.fetch_offset,
         leo,
         now_second(),
-    ) {
+    )
+    .is_err()
+    {
         resp.leader_hw = cache_manager
             .get_offset_state(&req.shard_name)
             .map(|s| s.high_watermark_offset)
@@ -182,24 +188,18 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    resp.leader_hw = cache_manager
-        .get_active_segment(&req.shard_name)
-        .and_then(|segment| {
-            advance_hw(
-                cache_manager,
-                &req.shard_name,
-                req.segment_seq,
-                &segment.isr,
-                segment.leader,
-                leo,
-            )
-        })
-        .or_else(|| {
-            cache_manager
-                .get_offset_state(&req.shard_name)
-                .map(|s| s.high_watermark_offset)
-        })
-        .unwrap_or(0);
+    let Some(hw) = advance_hw(
+        cache_manager,
+        &req.shard_name,
+        req.segment_seq,
+        &segment.isr,
+        segment.leader,
+        leo,
+    ) else {
+        resp.error_code = FetchErrorCode::NotLeaderForPartition.as_u32();
+        return resp;
+    };
+    resp.leader_hw = hw;
 
     match log
         .read_from(
@@ -225,20 +225,8 @@ mod tests {
     use super::*;
     use crate::commitlog::memory::engine::MemoryStorageEngine;
     use crate::core::test_tool::{test_build_memory_engine, test_init_conf};
-    use bytes::Bytes;
-    use metadata_struct::storage::record::StorageRecord;
+    use crate::isr::test_util::record;
     use metadata_struct::storage::segment::EngineSegment;
-
-    fn record(offset: u64, data: &str) -> StorageRecord {
-        StorageRecord {
-            metadata: metadata_struct::storage::record::StorageRecordMetadata {
-                offset,
-                ..Default::default()
-            },
-            protocol_data: None,
-            data: Bytes::from(data.to_string()),
-        }
-    }
 
     fn shard_req(epoch: u32, fetch_offset: u64) -> FetchShardReq {
         FetchShardReq {
@@ -317,6 +305,81 @@ mod tests {
             code(fetch_one_shard(cm, &engine, 2, 3, &shard_req(3, 1)).await),
             FetchErrorCode::StaleBrokerEpoch.as_u32()
         );
+
+        // UnknownLeaderEpoch marks the segment for an immediate reconcile.
+        assert!(cm.take_reconcile_needed().contains(&("s".to_string(), 0)));
+    }
+
+    async fn leader_shard_memory(records: Vec<StorageRecord>) -> Arc<MemoryStorageEngine> {
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+        test_init_conf();
+        let mem = Arc::new(test_build_memory_engine());
+        mem.cache_manager.set_shard(EngineShard {
+            shard_name: "s".to_string(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineMemory,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        mem.cache_manager.set_segment(&EngineSegment {
+            shard_name: "s".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 1,
+            ..Default::default()
+        });
+        mem.cache_manager.add_segment_replica("s", 0);
+        if !records.is_empty() {
+            mem.append_at("s", 0, 0, records).await.unwrap();
+        }
+        mem
+    }
+
+    fn fetch_req(fetch_offset: u64, min_bytes: u64, max_wait_ms: u64) -> FetchReqBody {
+        FetchReqBody {
+            replica_id: 2,
+            replica_broker_epoch: 1,
+            min_bytes,
+            max_wait_ms,
+            shards: vec![FetchShardReq {
+                shard_name: "s".to_string(),
+                segment_seq: 0,
+                fetch_offset,
+                current_leader_epoch: 1,
+                max_bytes: 1024 * 1024,
+            }],
+        }
+    }
+
+    fn engines(mem: &Arc<MemoryStorageEngine>) -> FetchEngines {
+        FetchEngines {
+            memory: mem.clone(),
+            rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
+        }
+    }
+
+    #[tokio::test]
+    async fn long_poll_times_out_empty() {
+        let mem = leader_shard_memory(vec![]).await;
+        let resp = handle_fetch(&engines(&mem), &mem.cache_manager, &fetch_req(0, 1, 30)).await;
+        assert_eq!(resp.shards.len(), 1);
+        assert!(resp.shards[0].records.is_empty());
+    }
+
+    #[tokio::test]
+    async fn long_poll_picks_up_late_append() {
+        let mem = leader_shard_memory(vec![]).await;
+        let writer = mem.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(15)).await;
+            writer
+                .append_at("s", 0, 0, vec![record(0, "a")])
+                .await
+                .unwrap();
+        });
+        let resp = handle_fetch(&engines(&mem), &mem.cache_manager, &fetch_req(0, 1, 200)).await;
+        assert_eq!(resp.shards[0].records.len(), 1);
     }
 
     #[tokio::test]
@@ -324,10 +387,7 @@ mod tests {
         use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 
         let mem = Arc::new(test_build_memory_engine());
-        let engines = FetchEngines {
-            memory: mem.clone(),
-            rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
-        };
+        let eng = engines(&mem);
 
         test_init_conf();
         for shard in ["s1", "s2"] {
@@ -374,7 +434,7 @@ mod tests {
                 },
             ],
         };
-        let resp = handle_fetch(&engines, &mem.cache_manager, &req).await;
+        let resp = handle_fetch(&eng, &mem.cache_manager, &req).await;
         assert_eq!(resp.shards.len(), 2);
         assert_eq!(resp.shards[0].records.len(), 2);
         assert!(resp.shards[1].records.is_empty());
