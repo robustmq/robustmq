@@ -57,8 +57,15 @@ UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard \
   2>/dev/null || true)
 
 # 4. Files deleted locally that exist on origin → remove on remote
-_DELETED_RAW=$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D \
-  "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
+#    Sources: committed-but-not-pushed, staged, and unstaged deletions.
+_DELETED_RAW=$(printf '%s\n%s\n%s' \
+  "$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D \
+      "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)" \
+  "$(git -C "$PROJECT_ROOT" diff --cached --name-only --diff-filter=D \
+      2>/dev/null || true)" \
+  "$(git -C "$PROJECT_ROOT" diff --name-only --diff-filter=D \
+      2>/dev/null || true)" \
+  | sort -u)
 # Keep only files that are truly gone from disk
 DELETED_FILES=""
 while IFS= read -r f; do
@@ -110,8 +117,9 @@ if [[ "${SKIP_ARCHIVE}" -eq 0 ]]; then
 fi
 
 # ── Build remote delete commands (passed via env to avoid injection) ────────────
-# Serialize deleted file list as newline-separated; the remote side reads $DELETED_LIST
-DELETED_LIST="$DELETED_FILES"
+# Encode with ':' so newlines don't break SSH command-line argument parsing.
+# '|' and '\n' are shell metacharacters; ':' is safe in assignment context.
+DELETED_LIST=$(printf '%s' "$DELETED_FILES" | tr '\n' ':')
 
 # ── Remote: pull → extract → commit → push ────────────────────────────────────
 info "Syncing remote ..."
@@ -153,16 +161,15 @@ fi
 # Remove stale archives
 find "${REMOTE_DIR}" -maxdepth 1 -name '*.tar.gz' -delete
 
-# Remove files deleted locally
+# Remove files deleted locally (DELETED_LIST is ':'-separated to survive SSH arg passing)
 if [[ -n "${DELETED_LIST}" ]]; then
   info "Removing locally-deleted files on remote ..."
-  while IFS= read -r f; do
+  IFS=':' read -ra del_files <<< "${DELETED_LIST}"
+  for f in "${del_files[@]}"; do
     [[ -z "$f" ]] && continue
-    target="${REMOTE_DIR}/${f}"
-    if rm -f -- "$target"; then
-      info "  Deleted: ${f}"
-    fi
-  done <<< "${DELETED_LIST}"
+    rm -f -- "${REMOTE_DIR}/${f}"
+    info "  Deleted: ${f}"
+  done
 fi
 
 # Commit and push
