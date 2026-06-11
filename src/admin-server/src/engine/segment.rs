@@ -22,6 +22,9 @@ use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_engine::filesegment::SegmentIdentity;
+use storage_engine::isr::fetcher_manager::SegmentFetchInfo;
+use storage_engine::isr::handle_epoch::query_local_replica_state;
+use storage_engine::isr::handle_fetch::FetchEngines;
 use tracing::warn;
 
 // ── list ──────────────────────────────────────────────────────────────────────
@@ -81,11 +84,17 @@ pub struct FollowerProgressResp {
     pub node_id: u64,
     pub leo: u64,
     pub last_caught_up_ts: u64,
+    /// How far this follower trails the leader's LEO (leader_leo - follower_leo).
+    pub lag: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SegmentReplicaStateResp {
     pub node_id: u64,
+    /// Replica ordinal within the segment's replica set (from the segment metadata).
+    pub replica_seq: u64,
+    /// Storage folder this replica uses on its node.
+    pub fold: String,
     pub is_leader: bool,
     pub in_isr: bool,
     pub role: String,
@@ -94,7 +103,10 @@ pub struct SegmentReplicaStateResp {
     pub leo: u64,
     pub high_watermark: u64,
     pub log_start_offset: u64,
+    /// Leader-side view of every follower's progress (empty on followers).
     pub follower_progress: Vec<FollowerProgressResp>,
+    /// Follower-side fetch process state (None on the leader / when not fetching).
+    pub fetch: Option<SegmentFetchInfo>,
     pub available: bool,
     pub error: Option<String>,
 }
@@ -113,13 +125,20 @@ fn local_replica_state_from_cache(
 ) -> SegmentReplicaStateResp {
     let cm = &state.engine_context.cache_manager;
     let broker_id = state.broker_cache.get_cluster_config().broker_id;
-    let offset_state = cm.get_offset_state(shard_name);
-    let replica_state = cm.get_segment_replica(shard_name, segment_seq);
 
-    let (leo, hw, log_start) = match &offset_state {
-        Some(s) => (s.latest_offset, s.high_watermark_offset, s.earliest_offset),
-        None => (0, 0, 0),
+    // Per-segment LEO / log start from the local log engine (accurate for any
+    // segment, including sealed ones — shard-level offset state is not).
+    let engines = FetchEngines {
+        memory: state.engine_context.memory_storage_engine.clone(),
+        rocksdb: state.engine_context.rocksdb_storage_engine.clone(),
     };
+    let local = query_local_replica_state(&engines, cm, shard_name, segment_seq);
+
+    // High watermark is tracked per shard.
+    let hw = cm
+        .get_offset_state(shard_name)
+        .map(|s| s.high_watermark_offset)
+        .unwrap_or(0);
 
     let segment_iden = SegmentIdentity::new(shard_name, segment_seq);
     let seg = cm.get_segment(&segment_iden);
@@ -130,31 +149,45 @@ fn local_replica_state_from_cache(
     };
     let segment_epoch = seg.as_ref().map(|s| s.segment_epoch).unwrap_or(0);
 
-    let leader_epoch = seg.as_ref().map(|s| s.leader_epoch).unwrap_or(0);
+    // Leader-side view of each follower's progress (empty on followers).
+    let replica_state = cm.get_segment_replica(shard_name, segment_seq);
     let follower_progress = match &replica_state {
         Some(rs) => rs
             .iter()
-            .map(|e| FollowerProgressResp {
-                node_id: *e.key(),
-                leo: e.value().leo,
-                last_caught_up_ts: e.value().last_fetch_ts,
+            .map(|e| {
+                let f_leo = e.value().leo;
+                FollowerProgressResp {
+                    node_id: *e.key(),
+                    leo: f_leo,
+                    last_caught_up_ts: e.value().last_fetch_ts,
+                    lag: local.segment_leo.saturating_sub(f_leo),
+                }
             })
             .collect(),
         None => vec![],
     };
 
+    // Follower-side fetch process state (None on the leader / when not fetching here).
+    let fetch = state
+        .engine_context
+        .fetcher_manager
+        .fetch_state(shard_name, segment_seq);
+
     SegmentReplicaStateResp {
         node_id: broker_id,
+        replica_seq: 0,
+        fold: String::new(),
         is_leader: false,
         in_isr: false,
         role: role_str,
-        leader_epoch,
+        leader_epoch: local.latest_leader_epoch,
         segment_epoch,
-        leo,
+        leo: local.segment_leo,
         high_watermark: hw,
-        log_start_offset: log_start,
+        log_start_offset: local.log_start_offset,
         follower_progress,
-        available: replica_state.is_some() || offset_state.is_some(),
+        fetch,
+        available: local.available,
         error: None,
     }
 }
@@ -199,17 +232,13 @@ pub async fn segment_detail(
                 None => {
                     replicas.push(SegmentReplicaStateResp {
                         node_id,
-                        available: false,
-                        error: Some(format!("node {} not found in broker cache", node_id)),
+                        replica_seq: replica.replica_seq,
+                        fold: replica.fold.clone(),
                         is_leader: segment.leader == node_id,
                         in_isr: segment.isr.contains(&node_id),
-                        role: String::new(),
-                        leader_epoch: 0,
-                        segment_epoch: 0,
-                        leo: 0,
-                        high_watermark: 0,
-                        log_start_offset: 0,
-                        follower_progress: vec![],
+                        available: false,
+                        error: Some(format!("node {} not found in broker cache", node_id)),
+                        ..Default::default()
                     });
                     continue;
                 }
@@ -231,17 +260,13 @@ pub async fn segment_detail(
                     );
                     replicas.push(SegmentReplicaStateResp {
                         node_id,
-                        available: false,
-                        error: Some(e.to_string()),
+                        replica_seq: replica.replica_seq,
+                        fold: replica.fold.clone(),
                         is_leader: segment.leader == node_id,
                         in_isr: segment.isr.contains(&node_id),
-                        role: String::new(),
-                        leader_epoch: 0,
-                        segment_epoch: 0,
-                        leo: 0,
-                        high_watermark: 0,
-                        log_start_offset: 0,
-                        follower_progress: vec![],
+                        available: false,
+                        error: Some(e.to_string()),
+                        ..Default::default()
                     });
                     continue;
                 }
@@ -250,6 +275,8 @@ pub async fn segment_detail(
 
         resp.is_leader = segment.leader == node_id;
         resp.in_isr = segment.isr.contains(&node_id);
+        resp.replica_seq = replica.replica_seq;
+        resp.fold = replica.fold.clone();
         replicas.push(resp);
     }
 

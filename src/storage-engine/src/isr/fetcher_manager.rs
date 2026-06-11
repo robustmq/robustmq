@@ -24,6 +24,7 @@ use crate::isr::log_replica::EngineReplicaLog;
 use crate::isr::packet_transport::PacketFetchTransport;
 use broker_core::cache::NodeCacheManager;
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -32,6 +33,20 @@ struct FetcherSlot {
     segments: SegmentMap,
     stop: broadcast::Sender<bool>,
     handle: Mutex<Option<JoinHandle<()>>>,
+}
+
+/// Read-only view of a segment's local fetch (follower) state, for diagnostics.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SegmentFetchInfo {
+    /// Node this replica fetches from (the segment leader).
+    pub leader_node_id: u64,
+    /// Leader epoch this fetcher is fetching at.
+    pub current_leader_epoch: u32,
+    pub max_bytes: u64,
+    /// Index of the fetcher thread handling this leader.
+    pub fetcher_index: u32,
+    /// Whether that fetcher thread is currently running.
+    pub thread_running: bool,
 }
 
 pub struct ReplicaFetcherManager {
@@ -128,6 +143,24 @@ impl ReplicaFetcherManager {
     pub fn is_fetching(&self, shard: &str, segment_seq: u32) -> bool {
         let key = (shard.to_string(), segment_seq);
         self.slots.iter().any(|s| s.segments.contains_key(&key))
+    }
+
+    /// Read-only fetch state for a segment, or None if this node is not fetching it
+    /// (e.g. it is the leader, or the segment is not assigned here).
+    pub fn fetch_state(&self, shard: &str, segment_seq: u32) -> Option<SegmentFetchInfo> {
+        let key = (shard.to_string(), segment_seq);
+        for (idx, slot) in self.slots.iter().enumerate() {
+            if let Some(s) = slot.segments.get(&key) {
+                return Some(SegmentFetchInfo {
+                    leader_node_id: s.leader_node_id,
+                    current_leader_epoch: s.current_leader_epoch,
+                    max_bytes: s.max_bytes,
+                    fetcher_index: idx as u32,
+                    thread_running: slot.handle.lock().unwrap().is_some(),
+                });
+            }
+        }
+        None
     }
 }
 

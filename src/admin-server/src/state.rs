@@ -31,6 +31,9 @@ use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::{metrics::mqtt::MQTTMetricsCache, rocksdb::RocksDBEngine};
 use schema_register::schema::SchemaRegisterManager;
 use storage_adapter::driver::StorageDriverManager;
+use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
+use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
+use storage_engine::isr::fetcher_manager::ReplicaFetcherManager;
 use storage_engine::{core::cache::StorageCacheManager, handler::adapter::StorageEngineHandler};
 
 #[derive(Clone)]
@@ -71,4 +74,7 @@ pub struct MQTTContext {
 pub struct StorageEngineContext {
     pub cache_manager: Arc<StorageCacheManager>,
     pub engine_adapter_handler: Arc<StorageEngineHandler>,
+    pub fetcher_manager: Arc<ReplicaFetcherManager>,
+    pub memory_storage_engine: Arc<MemoryStorageEngine>,
+    pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
 }

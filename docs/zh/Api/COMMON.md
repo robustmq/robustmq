@@ -342,7 +342,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 ### Segment 详情查询
 - **接口**: `POST /api/storage-engine/segment/detail`
-- **描述**: 查询指定 Segment 的详细信息，包括基本元数据和所有副本节点的实时状态（HW、LEO、角色等）。本节点数据直接从本地缓存读取，其他副本节点通过内部 HTTP 转发获取。
+- **描述**: 查询指定 Segment 的详细信息，包括基本元数据和**每个副本节点**的实时状态：按段精确的 LEO / log start、高水位、角色、Leader/ISR、副本存储路径，以及 Follower 的拉取（fetch）进程状态。本节点数据直接从本地引擎读取，其他副本节点通过内部 HTTP 转发获取；不可达的副本以 `available=false` + `error` 返回。
 - **请求参数**:
 
 | 参数名 | 类型 | 必填 | 说明 |
@@ -367,36 +367,41 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
       "shard_name": "my-shard",
       "segment_seq": 0,
       "leader": 1,
-      "replicas": [{"node_id": 1}, {"node_id": 2}],
+      "replicas": [
+        {"replica_seq": 0, "node_id": 1, "fold": "/data1"},
+        {"replica_seq": 1, "node_id": 2, "fold": "/data2"}
+      ],
       "isr": [1, 2],
+      "leader_epoch": 1,
+      "segment_epoch": 0,
+      "status": "Write",
       "config": {}
     },
     "segment_meta": null,
     "replicas": [
       {
         "node_id": 1,
+        "replica_seq": 0,
+        "fold": "/data1",
         "is_leader": true,
         "in_isr": true,
-        "role": "LeaderActive",
+        "role": "Leader",
         "leader_epoch": 1,
         "segment_epoch": 0,
         "leo": 100,
         "high_watermark": 98,
         "log_start_offset": 0,
         "follower_progress": [
-          {
-            "node_id": 2,
-            "leo": 98,
-            "last_known_leader_epoch": 1,
-            "last_fetch_ts": 1749100000,
-            "last_caught_up_ts": 1749099990
-          }
+          { "node_id": 2, "leo": 98, "last_caught_up_ts": 1749099990, "lag": 2 }
         ],
+        "fetch": null,
         "available": true,
         "error": null
       },
       {
         "node_id": 2,
+        "replica_seq": 1,
+        "fold": "/data2",
         "is_leader": false,
         "in_isr": true,
         "role": "Follower",
@@ -406,6 +411,13 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
         "high_watermark": 98,
         "log_start_offset": 0,
         "follower_progress": [],
+        "fetch": {
+          "leader_node_id": 1,
+          "current_leader_epoch": 1,
+          "max_bytes": 1048576,
+          "fetcher_index": 1,
+          "thread_running": true
+        },
         "available": true,
         "error": null
       }
@@ -416,32 +428,44 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 
 **响应字段说明**:
 
-`segment` 字段为 Segment 基本信息；`segment_meta` 为元数据（可为 null）；`replicas` 为各副本节点状态列表。
+`segment` 字段为 Segment 基本信息（含 `replicas`、`isr`、`leader`、`leader_epoch`、`segment_epoch`、`status` 等）；`segment_meta` 为元数据（可为 null）；`replicas` 为各副本节点状态列表。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `node_id` | `u64` | 副本所在节点 ID |
+| `replica_seq` | `u64` | 副本在该 Segment 副本集中的序号 |
+| `fold` | `string` | 该副本在其节点上使用的存储目录 |
 | `is_leader` | `bool` | 是否为当前 Leader |
 | `in_isr` | `bool` | 是否在 ISR 列表中 |
-| `role` | `string` | 副本角色：`LeaderActive`、`Follower`、`Unknown` 等 |
+| `role` | `string` | 副本角色：`Leader`、`Follower`、`Unknown` |
 | `leader_epoch` | `u32` | Leader Epoch，每次 Leader 切换自增 |
 | `segment_epoch` | `u32` | Segment Epoch |
-| `leo` | `u64` | Log End Offset，该副本已写入的最新偏移量 |
-| `high_watermark` | `u64` | 高水位，所有 ISR 副本均已同步的最大偏移量 |
-| `log_start_offset` | `u64` | 日志起始偏移量 |
-| `follower_progress` | `array` | Follower 同步进度列表（仅 Leader 节点有数据） |
-| `available` | `bool` | 节点是否可访问 |
+| `leo` | `u64` | Log End Offset，该副本在本段已写入的最新偏移量（按段精确） |
+| `high_watermark` | `u64` | 高水位，所有 ISR 副本均已同步的最大偏移量（分片级） |
+| `log_start_offset` | `u64` | 本段日志起始偏移量 |
+| `follower_progress` | `array` | Leader 视角下各 Follower 的同步进度（仅 Leader 节点有数据） |
+| `fetch` | `object/null` | Follower 的拉取进程状态（仅 Follower 有；Leader 为 null） |
+| `available` | `bool` | 该副本本地是否已就绪（日志中存在本段） |
 | `error` | `string/null` | 访问失败时的错误信息 |
 
-`follower_progress` 字段说明：
+`follower_progress` 字段说明（Leader 视角）：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `node_id` | `u64` | Follower 节点 ID |
-| `leo` | `u64` | Follower 已同步的 LEO |
-| `last_known_leader_epoch` | `u32` | Follower 最后已知的 Leader Epoch |
-| `last_fetch_ts` | `u64` | 最后一次 Fetch 请求时间戳（毫秒） |
-| `last_caught_up_ts` | `u64` | 最后一次追上 Leader 的时间戳（毫秒） |
+| `leo` | `u64` | Leader 记录的该 Follower 已同步 LEO |
+| `last_caught_up_ts` | `u64` | 最后一次成功 Fetch / 追上的时间戳（秒） |
+| `lag` | `u64` | 落后量：Leader LEO − Follower LEO |
+
+`fetch` 字段说明（Follower 拉取进程）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `leader_node_id` | `u64` | 本副本从哪个节点（Leader）拉取 |
+| `current_leader_epoch` | `u32` | 拉取时使用的 Leader Epoch |
+| `max_bytes` | `u64` | 单次 Fetch 的最大字节数 |
+| `fetcher_index` | `u32` | 处理该 Leader 的 fetcher 线程编号 |
+| `thread_running` | `bool` | 该 fetcher 线程是否在运行 |
 
 ---
 

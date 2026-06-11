@@ -81,6 +81,9 @@ impl BrokerServer {
         let engine_context = StorageEngineContext {
             engine_adapter_handler: self.engine_params.storage_engine_handler.clone(),
             cache_manager: self.engine_params.cache_manager.clone(),
+            fetcher_manager: self.engine_params.fetcher_manager.clone(),
+            memory_storage_engine: self.engine_params.memory_storage_engine.clone(),
+            rocksdb_storage_engine: self.engine_params.rocksdb_storage_engine.clone(),
         };
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let storage_driver_manager = self.mqtt_params.storage_driver_manager.clone();
