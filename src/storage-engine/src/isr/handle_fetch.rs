@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::offset::CommitLogOffset;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::filesegment::SegmentIdentity;
@@ -26,6 +27,7 @@ use metadata_struct::storage::record::StorageRecord;
 use protocol::storage::protocol::{
     FetchErrorCode, FetchReqBody, FetchRespBody, FetchShardReq, FetchShardResp,
 };
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -38,9 +40,10 @@ pub struct FetchEngines {
 pub async fn handle_fetch(
     engines: &FetchEngines,
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &FetchReqBody,
 ) -> FetchRespBody {
-    let resp = collect(engines, cache_manager, req).await;
+    let resp = collect(engines, cache_manager, rocksdb_engine_handler, req).await;
 
     let has_data = resp
         .shards
@@ -51,12 +54,13 @@ pub async fn handle_fetch(
     }
 
     sleep(Duration::from_millis(req.max_wait_ms)).await;
-    collect(engines, cache_manager, req).await
+    collect(engines, cache_manager, rocksdb_engine_handler, req).await
 }
 
 async fn collect(
     engines: &FetchEngines,
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &FetchReqBody,
 ) -> FetchRespBody {
     let mut shards = Vec::with_capacity(req.shards.len());
@@ -69,6 +73,7 @@ async fn collect(
             Some(StorageType::EngineMemory) => {
                 fetch_one_shard(
                     cache_manager,
+                    rocksdb_engine_handler,
                     engines.memory.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
@@ -79,6 +84,7 @@ async fn collect(
             Some(StorageType::EngineRocksDB) => {
                 fetch_one_shard(
                     cache_manager,
+                    rocksdb_engine_handler,
                     engines.rocksdb.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
@@ -104,6 +110,7 @@ fn records_bytes(records: &[Vec<u8>]) -> u64 {
 
 pub async fn fetch_one_shard<L: ReplicaLog>(
     cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     log: &L,
     replica_id: u64,
     replica_broker_epoch: u64,
@@ -188,9 +195,11 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
+    let commit_log_offset =
+        CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
     let Some(hw) = advance_hw(
         cache_manager,
-        log.commit_log_offset(),
+        &commit_log_offset,
         &req.shard_name,
         req.segment_seq,
         &segment.isr,
@@ -270,13 +279,14 @@ mod tests {
     async fn leader_serves_records_and_empty_tail() {
         let engine = setup_leader().await;
         let cm = &engine.cache_manager;
+        let db = &engine.commit_log_offset.rocksdb_engine_handler;
 
-        let resp = fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 1)).await;
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 1)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
         assert_eq!(resp.records.len(), 2);
         assert_eq!(resp.leader_leo, 3);
 
-        let resp = fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 3)).await;
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 3)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
         assert!(resp.records.is_empty());
     }
@@ -285,29 +295,30 @@ mod tests {
     async fn fences_reject() {
         let engine = setup_leader().await;
         let cm = &engine.cache_manager;
+        let db = &engine.commit_log_offset.rocksdb_engine_handler;
         let code = |r: FetchShardResp| r.error_code;
 
         let mut missing = shard_req(3, 0);
         missing.shard_name = "missing".to_string();
         assert_eq!(
-            code(fetch_one_shard(cm, &engine, 2, 1, &missing).await),
+            code(fetch_one_shard(cm, db, &engine, 2, 1, &missing).await),
             FetchErrorCode::NotLeaderForPartition.as_u32()
         );
         assert_eq!(
-            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(2, 1)).await),
+            code(fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(2, 1)).await),
             FetchErrorCode::FencedLeaderEpoch.as_u32()
         );
         assert_eq!(
-            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(9, 1)).await),
+            code(fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(9, 1)).await),
             FetchErrorCode::UnknownLeaderEpoch.as_u32()
         );
         assert_eq!(
-            code(fetch_one_shard(cm, &engine, 2, 1, &shard_req(3, 99)).await),
+            code(fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 99)).await),
             FetchErrorCode::OffsetOutOfRange.as_u32()
         );
-        fetch_one_shard(cm, &engine, 2, 5, &shard_req(3, 1)).await;
+        fetch_one_shard(cm, db, &engine, 2, 5, &shard_req(3, 1)).await;
         assert_eq!(
-            code(fetch_one_shard(cm, &engine, 2, 3, &shard_req(3, 1)).await),
+            code(fetch_one_shard(cm, db, &engine, 2, 3, &shard_req(3, 1)).await),
             FetchErrorCode::StaleBrokerEpoch.as_u32()
         );
 
@@ -371,7 +382,13 @@ mod tests {
     #[tokio::test]
     async fn long_poll_times_out_empty() {
         let mem = leader_shard_memory(vec![]).await;
-        let resp = handle_fetch(&engines(&mem), &mem.cache_manager, &fetch_req(0, 1, 30)).await;
+        let resp = handle_fetch(
+            &engines(&mem),
+            &mem.cache_manager,
+            &mem.commit_log_offset.rocksdb_engine_handler,
+            &fetch_req(0, 1, 30),
+        )
+        .await;
         assert_eq!(resp.shards.len(), 1);
         assert!(resp.shards[0].records.is_empty());
     }
@@ -387,7 +404,13 @@ mod tests {
                 .await
                 .unwrap();
         });
-        let resp = handle_fetch(&engines(&mem), &mem.cache_manager, &fetch_req(0, 1, 200)).await;
+        let resp = handle_fetch(
+            &engines(&mem),
+            &mem.cache_manager,
+            &mem.commit_log_offset.rocksdb_engine_handler,
+            &fetch_req(0, 1, 200),
+        )
+        .await;
         assert_eq!(resp.shards[0].records.len(), 1);
     }
 
@@ -447,7 +470,13 @@ mod tests {
                 },
             ],
         };
-        let resp = handle_fetch(&eng, &mem.cache_manager, &req).await;
+        let resp = handle_fetch(
+            &eng,
+            &mem.cache_manager,
+            &mem.commit_log_offset.rocksdb_engine_handler,
+            &req,
+        )
+        .await;
         assert_eq!(resp.shards.len(), 2);
         assert_eq!(resp.shards[0].records.len(), 2);
         assert!(resp.shards[1].records.is_empty());

@@ -78,6 +78,7 @@ impl FetchTransport for InProcLeader {
             shards.push(
                 fetch_one_shard(
                     &self.engine.cache_manager,
+                    &self.engine.commit_log_offset.rocksdb_engine_handler,
                     self.engine.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,

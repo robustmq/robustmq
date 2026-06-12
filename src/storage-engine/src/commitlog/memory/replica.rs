@@ -91,10 +91,6 @@ impl ReplicaLog for MemoryStorageEngine {
     fn log_start_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
         self.commit_log_offset.get_earliest_offset(shard)
     }
-
-    fn commit_log_offset(&self) -> &crate::commitlog::offset::CommitLogOffset {
-        &self.commit_log_offset
-    }
 }
 
 #[cfg(test)]

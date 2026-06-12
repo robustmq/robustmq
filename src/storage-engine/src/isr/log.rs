@@ -73,8 +73,6 @@ pub trait ReplicaLog: Send + Sync {
     /// offset to this after retention. memory/rocksdb return 0 (or the actual
     /// post-retention start); filesegment returns the current file's start.
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError>;
-
-    fn commit_log_offset(&self) -> &CommitLogOffset;
 }
 
 #[async_trait]
@@ -122,9 +120,5 @@ impl ReplicaLog for Arc<dyn ReplicaLog> {
 
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
         (**self).log_start_offset(shard, segment_seq)
-    }
-
-    fn commit_log_offset(&self) -> &CommitLogOffset {
-        (**self).commit_log_offset()
     }
 }

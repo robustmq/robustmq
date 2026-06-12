@@ -87,6 +87,7 @@ pub fn advance_hw(
 ) -> Option<u64> {
     let state = cache_manager.get_segment_replica(shard, segment_seq)?;
     let new_hw = committable_hw(&state, isr, leader_id, leader_leo);
+    // Persist on advance (HW only moves forward), then wake acks=all waiters.
     match commit_log_offset.save_high_watermark_offset(shard, new_hw) {
         Ok(true) => {
             let _ = cache_manager.hw_watcher(shard).send(new_hw);

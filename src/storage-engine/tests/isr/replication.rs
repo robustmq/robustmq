@@ -112,6 +112,7 @@ mod tests {
                 shards.push(
                     fetch_one_shard(
                         &self.leader.cache_manager,
+                        &self.leader.commit_log_offset.rocksdb_engine_handler,
                         self.leader.as_ref(),
                         req.replica_id,
                         req.replica_broker_epoch,

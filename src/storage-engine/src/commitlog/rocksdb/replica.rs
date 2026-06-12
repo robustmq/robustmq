@@ -136,10 +136,6 @@ impl ReplicaLog for RocksDBStorageEngine {
     fn log_start_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
         self.commitlog_offset.get_earliest_offset(shard)
     }
-
-    fn commit_log_offset(&self) -> &crate::commitlog::offset::CommitLogOffset {
-        &self.commitlog_offset
-    }
 }
 
 impl RocksDBStorageEngine {

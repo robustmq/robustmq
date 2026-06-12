@@ -202,7 +202,13 @@ impl Command for StorageEngineHandlerCommand {
                     memory: self.memory_storage_engine.clone(),
                     rocksdb: self.rocksdb_storage_engine.clone(),
                 };
-                let body = handle_fetch(&engines, &self.cache_manager, &request.body).await;
+                let body = handle_fetch(
+                    &engines,
+                    &self.cache_manager,
+                    &self.rocksdb_engine_handler,
+                    &request.body,
+                )
+                .await;
                 let resp = FetchResp::new(body);
 
                 let response = ResponsePackage::new(
