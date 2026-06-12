@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::offset::CommitLogOffset;
 use crate::core::error::StorageEngineError;
 use async_trait::async_trait;
 use metadata_struct::storage::record::StorageRecord;

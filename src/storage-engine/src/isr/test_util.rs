@@ -146,6 +146,7 @@ pub fn seg_state(shard: &str, leader_node_id: u64) -> SegmentFetchState {
         current_leader_epoch: 1,
         max_bytes: 1024 * 1024,
         cache: LeaderEpochCache::load(test_rocksdb_instance(), shard, 0).unwrap(),
+        needs_truncation: false,
     }
 }
 

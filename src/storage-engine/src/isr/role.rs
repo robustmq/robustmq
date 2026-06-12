@@ -118,6 +118,7 @@ fn apply_as_follower(
         current_leader_epoch: segment.leader_epoch,
         max_bytes,
         cache,
+        needs_truncation: true,
     });
     Ok(())
 }

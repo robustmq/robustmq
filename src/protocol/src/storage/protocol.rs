@@ -641,8 +641,8 @@ impl OffsetsForLeaderEpochReq {
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct OffsetsForLeaderEpochRespBody {
-    pub end_offset_epoch: i32,
-    pub end_offset: u64,
+    pub truncate_epoch: i32,
+    pub truncate_offset: u64,
     pub error_code: u32,
     pub current_leader_epoch: u32,
 }

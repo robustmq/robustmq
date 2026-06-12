@@ -70,6 +70,7 @@ pub struct SegmentFetchState {
     pub current_leader_epoch: u32,
     pub max_bytes: u64,
     pub cache: LeaderEpochCache,
+    pub needs_truncation: bool,
 }
 
 pub type SegmentMap = Arc<DashMap<(String, u32), SegmentFetchState>>;
@@ -124,9 +125,34 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
     }
 
     pub async fn fetch_round(&self) -> bool {
+        // Newly-assigned follower segments run one epoch-truncation check before
+        // their first fetch. A fetch can only detect divergence when the follower
+        // is ahead in offset, fenced, or has an offset gap; it cannot detect a
+        // diverged tail that sits at the same offsets as the leader (unclean
+        // leader change). The proactive check via OffsetsForLeaderEpoch closes
+        // that gap. A segment is not fetched until its check succeeds.
+        let pending: Vec<(String, u32)> = self
+            .segments
+            .iter()
+            .filter(|e| e.value().needs_truncation)
+            .map(|e| e.key().clone())
+            .collect();
+        for key in pending {
+            if let Err(e) = self.truncate_after_fence(&key).await {
+                warn!("initial truncation check {}/{}: {}", key.0, key.1, e);
+                continue;
+            }
+            if let Some(mut state) = self.segments.get_mut(&key) {
+                state.needs_truncation = false;
+            }
+        }
+
         let mut by_leader: HashMap<u64, Vec<FetchShardReq>> = HashMap::new();
         for entry in self.segments.iter() {
             let state = entry.value();
+            if state.needs_truncation {
+                continue;
+            }
             let fetch_offset = match self.log.latest_offset(&state.shard, state.segment_seq) {
                 Ok(v) => v,
                 Err(e) => {
@@ -208,21 +234,25 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
         let segment_seq = resp.segment_seq;
         let fetch_offset = self.log.latest_offset(shard, segment_seq)?;
 
-        if resp.error_code == FetchErrorCode::OffsetOutOfRange.as_u32() {
-            if fetch_offset < resp.leader_log_start {
-                // Follower is too far behind (log compacted on leader): wipe and re-pull from scratch.
-                self.log.clear(shard, segment_seq).await?;
-                if let Some(mut state) = self.segments.get_mut(&key) {
-                    state.cache.clear()?;
-                }
-            } else {
-                // fetch_offset > leader LEO: follower is ahead of leader, truncate to align.
-                self.truncate_after_fence(&key).await?;
+        let oor = FetchErrorCode::OffsetOutOfRange.as_u32();
+        let fenced = FetchErrorCode::FencedLeaderEpoch.as_u32();
+
+        if resp.error_code == oor && fetch_offset < resp.leader_log_start {
+            // Follower is too far behind (log compacted on leader): wipe and re-pull from scratch.
+            warn!(
+                "follower {}/{} behind leader log start (local LEO {} < leader log start {}), clearing local log and re-fetching from scratch",
+                shard, segment_seq, fetch_offset, resp.leader_log_start
+            );
+            self.log.clear(shard, segment_seq).await?;
+            if let Some(mut state) = self.segments.get_mut(&key) {
+                state.cache.clear()?;
             }
             return Ok(false);
         }
 
-        if resp.error_code == FetchErrorCode::FencedLeaderEpoch.as_u32() {
+        // OffsetOutOfRange with the follower ahead of the leader, or a fenced
+        // epoch: realign the diverged tail via OffsetsForLeaderEpoch.
+        if resp.error_code == oor || resp.error_code == fenced {
             self.truncate_after_fence(&key).await?;
             return Ok(false);
         }
@@ -292,7 +322,11 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
             return Ok(());
         }
 
-        if resp.end_offset_epoch < 0 {
+        if resp.truncate_epoch < 0 {
+            warn!(
+                "truncate {}/{}: leader has no epoch <= follower's, clearing local log and re-fetching from scratch",
+                shard, segment_seq
+            );
             self.log.clear(shard, segment_seq).await?;
             if let Some(mut state) = self.segments.get_mut(key) {
                 state.cache.clear()?;
@@ -304,12 +338,12 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
         }
 
         let local_leo = self.log.latest_offset(shard, segment_seq)?;
-        if local_leo > resp.end_offset {
+        if local_leo > resp.truncate_offset {
             warn!(
-                "truncate {}/{}: local_leo={} > leader_end_offset={}, truncating diverged data",
-                shard, segment_seq, local_leo, resp.end_offset
+                "truncate {}/{}: local_leo={} > truncate_offset={}, truncating diverged data",
+                shard, segment_seq, local_leo, resp.truncate_offset
             );
-            match resp.end_offset.checked_sub(1) {
+            match resp.truncate_offset.checked_sub(1) {
                 Some(keep_to) => self.log.truncate_to(shard, segment_seq, keep_to).await?,
                 None => self.log.clear(shard, segment_seq).await?,
             }
@@ -317,7 +351,7 @@ impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
         if let Some(mut state) = self.segments.get_mut(key) {
             state
                 .cache
-                .truncate_from_end_by_epoch(resp.end_offset_epoch as u32)?;
+                .truncate_from_end_by_epoch(resp.truncate_epoch as u32)?;
             if resp.current_leader_epoch > 0 {
                 let old_epoch = state.current_leader_epoch;
                 state.current_leader_epoch = resp.current_leader_epoch;
@@ -436,7 +470,7 @@ mod tests {
 
     #[derive(Clone)]
     struct FencingLeader {
-        end_offset: u64,
+        truncate_offset: u64,
     }
 
     #[async_trait]
@@ -465,8 +499,8 @@ mod tests {
             _req: OffsetsForLeaderEpochReqBody,
         ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
             Ok(OffsetsForLeaderEpochRespBody {
-                end_offset_epoch: 1,
-                end_offset: self.end_offset,
+                truncate_epoch: 1,
+                truncate_offset: self.truncate_offset,
                 error_code: FetchErrorCode::None.as_u32(),
                 current_leader_epoch: 2,
             })
@@ -498,7 +532,7 @@ mod tests {
         broker_cache.set_broker_epoch(1);
         let segments: SegmentMap = Arc::new(DashMap::new());
         let th = ReplicaFetcherThread::new(
-            FencingLeader { end_offset: 3 },
+            FencingLeader { truncate_offset: 3 },
             follower,
             broker_cache,
             segments.clone(),
@@ -515,6 +549,7 @@ mod tests {
                 current_leader_epoch: 1,
                 max_bytes: 1024 * 1024,
                 cache: follower_cache,
+                needs_truncation: false,
             },
         );
 

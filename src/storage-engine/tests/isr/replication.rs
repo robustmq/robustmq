@@ -169,6 +169,7 @@ mod tests {
                 current_leader_epoch: leader_epoch,
                 max_bytes: 1024 * 1024,
                 cache,
+                needs_truncation: false,
             },
         );
 

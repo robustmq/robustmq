@@ -31,8 +31,8 @@ pub async fn handle_offsets_for_leader_epoch(
     req: &OffsetsForLeaderEpochReqBody,
 ) -> OffsetsForLeaderEpochRespBody {
     let mut resp = OffsetsForLeaderEpochRespBody {
-        end_offset_epoch: -1,
-        end_offset: 0,
+        truncate_epoch: -1,
+        truncate_offset: 0,
         error_code: FetchErrorCode::None.as_u32(),
         current_leader_epoch: 0,
     };
@@ -84,19 +84,19 @@ pub async fn handle_offsets_for_leader_epoch(
     };
 
     if req.follower_leader_epoch > cache.latest_epoch() {
-        resp.end_offset_epoch = -1;
-        resp.end_offset = leader_leo;
+        resp.truncate_epoch = -1;
+        resp.truncate_offset = leader_leo;
         return resp;
     }
 
     match cache.end_offset_for(req.follower_leader_epoch) {
         Some(next_start) => {
-            resp.end_offset_epoch = req.follower_leader_epoch as i32;
-            resp.end_offset = next_start;
+            resp.truncate_epoch = req.follower_leader_epoch as i32;
+            resp.truncate_offset = next_start;
         }
         None => {
-            resp.end_offset_epoch = cache.latest_epoch() as i32;
-            resp.end_offset = leader_leo;
+            resp.truncate_epoch = cache.latest_epoch() as i32;
+            resp.truncate_offset = leader_leo;
         }
     }
     resp
@@ -231,24 +231,24 @@ mod tests {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(1, 2)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
-        assert_eq!(resp.end_offset_epoch, 1);
-        assert_eq!(resp.end_offset, 5);
+        assert_eq!(resp.truncate_epoch, 1);
+        assert_eq!(resp.truncate_offset, 5);
     }
 
     #[tokio::test]
     async fn latest_epoch_returns_leo() {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(2, 2)).await;
-        assert_eq!(resp.end_offset_epoch, 2);
-        assert_eq!(resp.end_offset, 8);
+        assert_eq!(resp.truncate_epoch, 2);
+        assert_eq!(resp.truncate_offset, 8);
     }
 
     #[tokio::test]
     async fn follower_epoch_ahead_returns_leo() {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(9, 2)).await;
-        assert_eq!(resp.end_offset_epoch, -1);
-        assert_eq!(resp.end_offset, 8);
+        assert_eq!(resp.truncate_epoch, -1);
+        assert_eq!(resp.truncate_offset, 8);
     }
 
     #[tokio::test]

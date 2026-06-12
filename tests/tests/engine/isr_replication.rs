@@ -131,6 +131,7 @@ mod tests {
             current_leader_epoch: 1,
             max_bytes: 1024 * 1024,
             cache,
+            needs_truncation: false,
         });
 
         for _ in 0..20 {
@@ -251,6 +252,7 @@ mod tests {
             current_leader_epoch: 1,
             max_bytes: 1024 * 1024,
             cache: follower_cache,
+            needs_truncation: false,
         });
 
         thread.fetch_round().await;

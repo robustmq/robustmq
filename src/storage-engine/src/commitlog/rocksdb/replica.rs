@@ -16,13 +16,12 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::error::StorageEngineError;
 use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
-use common_base::utils::serialize::{deserialize, serialize};
+use common_base::utils::serialize::serialize;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::segment_name;
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{
-    shard_record_key, shard_record_key_prefix, shard_segment_leo_key,
-};
+use rocksdb_engine::keys::storage::{shard_record_key, shard_record_key_prefix};
 
 #[async_trait]
 impl ReplicaLog for RocksDBStorageEngine {
@@ -34,7 +33,7 @@ impl ReplicaLog for RocksDBStorageEngine {
         records: Vec<StorageRecord>,
     ) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
-        let leo = self.read_leo(shard, segment_seq)?;
+        let leo = self.commitlog_offset.get_latest_offset(shard)?;
 
         if base_offset != leo {
             return Err(StorageEngineError::OutOfOrder(
@@ -51,54 +50,28 @@ impl ReplicaLog for RocksDBStorageEngine {
             batch.put_cf(&cf, key.as_bytes(), serialize(record)?);
             new_leo = record.metadata.offset + 1;
         }
-        let leo_key = shard_segment_leo_key(shard, segment_seq);
-        batch.put_cf(&cf, leo_key.as_bytes(), serialize(&new_leo)?);
 
         self.rocksdb_engine_handler.write_batch(batch)?;
+        self.commitlog_offset.save_latest_offset(shard, new_leo)?;
         Ok(())
     }
 
     async fn read_from(
         &self,
         shard: &str,
-        segment_seq: u32,
+        _segment_seq: u32,
         offset: u64,
         max_bytes: u64,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let leo = self.read_leo(shard, segment_seq)?;
-        if offset > leo {
-            return Err(StorageEngineError::OffsetOutOfRange(
-                segment_name(shard, segment_seq),
-                offset,
-                0,
-                leo,
-            ));
-        }
-
-        let cf = self.get_cf()?;
-        let prefix = shard_record_key_prefix(shard, segment_seq);
-        let seek_key = shard_record_key(shard, segment_seq, offset);
-        let until_key = shard_record_key(shard, segment_seq, leo);
-
-        let mut records = Vec::new();
-        let mut total_bytes = 0u64;
-        for (_, value) in self
-            .rocksdb_engine_handler
-            .read_prefix_from(cf, &prefix, &seek_key, &until_key)?
-        {
-            let record: StorageRecord = deserialize(&value)?;
-            let size = record.data.len() as u64;
-            if !records.is_empty() && total_bytes + size > max_bytes {
-                break;
-            }
-            total_bytes += size;
-            records.push(record);
-        }
-        Ok(records)
+        let read_config = AdapterReadConfig {
+            max_record_num: u64::MAX,
+            max_size: max_bytes,
+        };
+        self.read_by_offset(shard, offset, &read_config).await
     }
 
-    fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        self.read_leo(shard, segment_seq)
+    fn latest_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
+        self.commitlog_offset.get_latest_offset(shard)
     }
 
     async fn truncate_to(
@@ -108,11 +81,11 @@ impl ReplicaLog for RocksDBStorageEngine {
         offset: u64,
     ) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
-        let new_leo = self.read_leo(shard, segment_seq)?.min(offset + 1);
-
-        let leo_key = shard_segment_leo_key(shard, segment_seq);
-        self.rocksdb_engine_handler
-            .write(cf.clone(), &leo_key, &new_leo)?;
+        let new_leo = self
+            .commitlog_offset
+            .get_latest_offset(shard)?
+            .min(offset + 1);
+        self.commitlog_offset.save_latest_offset(shard, new_leo)?;
 
         let prefix = shard_record_key_prefix(shard, segment_seq);
         let from = shard_record_key(shard, segment_seq, offset + 1);
@@ -124,9 +97,7 @@ impl ReplicaLog for RocksDBStorageEngine {
 
     async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
         let cf = self.get_cf()?;
-        let leo_key = shard_segment_leo_key(shard, segment_seq);
-        self.rocksdb_engine_handler
-            .write(cf.clone(), &leo_key, &0u64)?;
+        self.commitlog_offset.save_latest_offset(shard, 0)?;
 
         let prefix = shard_record_key_prefix(shard, segment_seq);
         self.rocksdb_engine_handler.delete_prefix(cf, &prefix)?;
@@ -135,17 +106,6 @@ impl ReplicaLog for RocksDBStorageEngine {
 
     fn log_start_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
         self.commitlog_offset.get_earliest_offset(shard)
-    }
-}
-
-impl RocksDBStorageEngine {
-    fn read_leo(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        let cf = self.get_cf()?;
-        let key = shard_segment_leo_key(shard, segment_seq);
-        Ok(self
-            .rocksdb_engine_handler
-            .read::<u64>(cf, &key)?
-            .unwrap_or(0))
     }
 }
 
@@ -168,9 +128,17 @@ mod tests {
         }
     }
 
+    fn init_offsets(engine: &crate::commitlog::rocksdb::engine::RocksDBStorageEngine, shard: &str) {
+        engine.cache_manager.save_offset_state(
+            shard.to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
+    }
+
     #[tokio::test]
     async fn append_read_roundtrip() {
         let engine = test_build_rocksdb_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at(
                 "s",
@@ -190,6 +158,7 @@ mod tests {
     #[tokio::test]
     async fn append_out_of_order_is_rejected() {
         let engine = test_build_rocksdb_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at("s", 0, 0, vec![record(0, "a")])
             .await
@@ -204,6 +173,7 @@ mod tests {
     #[tokio::test]
     async fn truncate_resets_leo_and_drops_tail() {
         let engine = test_build_rocksdb_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at(
                 "s",
@@ -227,6 +197,7 @@ mod tests {
     #[tokio::test]
     async fn clear_empties_log() {
         let engine = test_build_rocksdb_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at("s", 0, 0, vec![record(0, "a"), record(1, "b")])
             .await
@@ -243,6 +214,7 @@ mod tests {
     #[tokio::test]
     async fn append_after_truncate_continues() {
         let engine = test_build_rocksdb_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at(
                 "s",
