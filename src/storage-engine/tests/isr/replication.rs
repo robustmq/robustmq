@@ -149,7 +149,7 @@ mod tests {
         shard: &str,
         segment_seq: u32,
         leader_epoch: u32,
-    ) -> (ReplicaFetcherThread<T, MemoryStorageEngine>, SegmentMap) {
+    ) -> (ReplicaFetcherThread<T>, SegmentMap) {
         let bc = follower.cache_manager.broker_cache.clone();
         let mut cfg = bc.get_cluster_config();
         cfg.broker_id = 2;
@@ -173,8 +173,7 @@ mod tests {
             },
         );
 
-        let thread =
-            ReplicaFetcherThread::new(transport, (**follower).clone(), bc, segments.clone());
+        let thread = ReplicaFetcherThread::new(transport, follower.clone(), bc, segments.clone());
         (thread, segments)
     }
 

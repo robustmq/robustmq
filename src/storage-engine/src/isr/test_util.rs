@@ -30,8 +30,10 @@ use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
 use bytes::Bytes;
+use common_config::storage::StorageType;
 use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
 use metadata_struct::storage::segment::EngineSegment;
+use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 use protocol::storage::protocol::{
     FetchReqBody, FetchRespBody, OffsetsForLeaderEpochReqBody, OffsetsForLeaderEpochRespBody,
 };
@@ -40,6 +42,14 @@ use std::sync::Arc;
 
 pub fn init_offsets(engine: &MemoryStorageEngine, shards: &[&str]) {
     for shard in shards {
+        engine.cache_manager.set_shard(EngineShard {
+            shard_name: shard.to_string(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineMemory,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
         engine.cache_manager.save_offset_state(
             shard.to_string(),
             crate::commitlog::offset::ShardOffsetState::default(),

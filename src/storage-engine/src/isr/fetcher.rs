@@ -76,22 +76,17 @@ pub struct SegmentFetchState {
 pub type SegmentMap = Arc<DashMap<(String, u32), SegmentFetchState>>;
 
 #[derive(Clone)]
-pub struct ReplicaFetcherThread<
-    T: FetchTransport + Clone + 'static,
-    L: ReplicaLog + Clone + 'static,
-> {
+pub struct ReplicaFetcherThread<T: FetchTransport + Clone + 'static> {
     transport: T,
-    log: L,
+    log: Arc<dyn ReplicaLog>,
     broker_cache: Arc<NodeCacheManager>,
     segments: SegmentMap,
 }
 
-impl<T: FetchTransport + Clone + 'static, L: ReplicaLog + Clone + 'static>
-    ReplicaFetcherThread<T, L>
-{
+impl<T: FetchTransport + Clone + 'static> ReplicaFetcherThread<T> {
     pub fn new(
         transport: T,
-        log: L,
+        log: Arc<dyn ReplicaLog>,
         broker_cache: Arc<NodeCacheManager>,
         segments: SegmentMap,
     ) -> Self {
@@ -394,14 +389,12 @@ mod tests {
     fn thread(
         leader: InProcLeader,
         follower: MemoryStorageEngine,
-    ) -> (
-        ReplicaFetcherThread<InProcLeader, MemoryStorageEngine>,
-        SegmentMap,
-    ) {
+    ) -> (ReplicaFetcherThread<InProcLeader>, SegmentMap) {
         let broker_cache = follower.cache_manager.broker_cache.clone();
         configure_follower_broker_cache(&broker_cache);
         let segments: SegmentMap = Arc::new(DashMap::new());
-        let th = ReplicaFetcherThread::new(leader, follower, broker_cache, segments.clone());
+        let th =
+            ReplicaFetcherThread::new(leader, Arc::new(follower), broker_cache, segments.clone());
         (th, segments)
     }
 
@@ -533,7 +526,7 @@ mod tests {
         let segments: SegmentMap = Arc::new(DashMap::new());
         let th = ReplicaFetcherThread::new(
             FencingLeader { truncate_offset: 3 },
-            follower,
+            Arc::new(follower),
             broker_cache,
             segments.clone(),
         );

@@ -42,12 +42,13 @@ impl EngineReplicaLog {
         }
     }
 
-    fn is_rocksdb(&self, shard: &str) -> bool {
-        self.cache_manager
+    fn is_rocksdb(&self, shard: &str) -> Result<bool, StorageEngineError> {
+        let shard_state = self
+            .cache_manager
             .shards
             .get(shard)
-            .map(|s| s.config.storage_type == StorageType::EngineRocksDB)
-            .unwrap_or(false)
+            .ok_or_else(|| StorageEngineError::ShardNotExist(shard.to_string()))?;
+        Ok(shard_state.config.storage_type == StorageType::EngineRocksDB)
     }
 }
 
@@ -60,7 +61,7 @@ impl ReplicaLog for EngineReplicaLog {
         base_offset: u64,
         records: Vec<StorageRecord>,
     ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb
                 .append_at(shard, segment_seq, base_offset, records)
                 .await
@@ -78,7 +79,7 @@ impl ReplicaLog for EngineReplicaLog {
         offset: u64,
         max_bytes: u64,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb
                 .read_from(shard, segment_seq, offset, max_bytes)
                 .await
@@ -90,7 +91,7 @@ impl ReplicaLog for EngineReplicaLog {
     }
 
     fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb.latest_offset(shard, segment_seq)
         } else {
             self.memory.latest_offset(shard, segment_seq)
@@ -103,7 +104,7 @@ impl ReplicaLog for EngineReplicaLog {
         segment_seq: u32,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb.truncate_to(shard, segment_seq, offset).await
         } else {
             self.memory.truncate_to(shard, segment_seq, offset).await
@@ -111,7 +112,7 @@ impl ReplicaLog for EngineReplicaLog {
     }
 
     async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb.clear(shard, segment_seq).await
         } else {
             self.memory.clear(shard, segment_seq).await
@@ -119,7 +120,7 @@ impl ReplicaLog for EngineReplicaLog {
     }
 
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard) {
+        if self.is_rocksdb(shard)? {
             self.rocksdb.log_start_offset(shard, segment_seq)
         } else {
             self.memory.log_start_offset(shard, segment_seq)
