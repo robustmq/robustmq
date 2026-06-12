@@ -34,8 +34,8 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
+    use storage_engine::commitlog::offset::ShardOffsetState;
     use storage_engine::core::error::StorageEngineError;
-    use storage_engine::core::shard::ShardOffsetState;
     use storage_engine::isr::fetcher::{
         FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
     };
@@ -188,9 +188,20 @@ mod tests {
         .await;
 
         let leader_leo = leader.as_ref().latest_offset(shard, 0).unwrap();
-        let _ = advance_hw(&leader.cache_manager, shard, 0, &[1], 1, leader_leo);
+        let _ = advance_hw(
+            &leader.cache_manager,
+            &leader.commit_log_offset,
+            shard,
+            0,
+            &[1],
+            1,
+            leader_leo,
+        );
 
         let follower = make_engine();
+        follower
+            .cache_manager
+            .save_offset_state(shard.to_string(), ShardOffsetState::default());
         let (thread, _) = make_follower_thread(
             LeaderTransport {
                 leader: leader.clone(),
@@ -233,6 +244,9 @@ mod tests {
 
         // Follower: 5 records (0-4), records 3-4 are the diverged tail from old epoch
         let follower = make_engine();
+        follower
+            .cache_manager
+            .save_offset_state(shard.to_string(), ShardOffsetState::default());
         follower
             .as_ref()
             .append_at(

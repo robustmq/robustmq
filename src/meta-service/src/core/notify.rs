@@ -403,6 +403,19 @@ pub async fn send_notify_by_set_segment(
     .await
 }
 
+pub async fn send_notify_by_update_segment(
+    call_manager: &Arc<NodeCallManager>,
+    segment_info: EngineSegment,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::Segment,
+        segment_info.encode()?,
+    )
+    .await
+}
+
 pub async fn send_notify_by_delete_segment(
     call_manager: &Arc<NodeCallManager>,
     segment_info: EngineSegment,

@@ -32,13 +32,6 @@ use std::time::Duration;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info};
 
-#[derive(Clone, Debug, Default)]
-pub struct ShardOffsetState {
-    pub earliest_offset: u64,
-    pub high_watermark_offset: u64,
-    pub latest_offset: u64,
-}
-
 pub fn delete_local_shard(
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,

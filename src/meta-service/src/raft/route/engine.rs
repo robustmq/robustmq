@@ -25,13 +25,13 @@ use metadata_struct::storage::shard::EngineShard;
 use prost::Message as _;
 use protocol::meta::meta_service_journal::UpdateSegmentIsrRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Outcome of an ISR update applied by the state machine, encoded into the raft
-/// response value. A rejection is a normal result (not a fault), so it travels
-/// through the `Ok` channel rather than an apply `Err`.
-///
-/// Wire format: `[status_byte]`, plus 4 LE bytes of new_segment_epoch when Applied.
+/// response value as JSON. A rejection is a normal result (not a fault), so it
+/// travels through the `Ok` channel rather than an apply `Err`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IsrUpdateOutcome {
     Applied(u32),
     SegmentNotFound,
@@ -43,49 +43,14 @@ pub enum IsrUpdateOutcome {
 }
 
 impl IsrUpdateOutcome {
-    const APPLIED: u8 = 0;
-    const SEGMENT_NOT_FOUND: u8 = 1;
-    const NOT_LEADER: u8 = 2;
-    const FENCED_LEADER_EPOCH: u8 = 3;
-    const STALE_BROKER_EPOCH: u8 = 4;
-    const INVALID_UPDATE_VERSION: u8 = 5;
-    const INVALID_ISR: u8 = 6;
-
     pub fn encode(&self) -> Bytes {
-        match self {
-            IsrUpdateOutcome::Applied(epoch) => {
-                let mut buf = Vec::with_capacity(5);
-                buf.push(Self::APPLIED);
-                buf.extend_from_slice(&epoch.to_le_bytes());
-                Bytes::from(buf)
-            }
-            IsrUpdateOutcome::SegmentNotFound => Bytes::from(vec![Self::SEGMENT_NOT_FOUND]),
-            IsrUpdateOutcome::NotLeader => Bytes::from(vec![Self::NOT_LEADER]),
-            IsrUpdateOutcome::FencedLeaderEpoch => Bytes::from(vec![Self::FENCED_LEADER_EPOCH]),
-            IsrUpdateOutcome::StaleBrokerEpoch => Bytes::from(vec![Self::STALE_BROKER_EPOCH]),
-            IsrUpdateOutcome::InvalidUpdateVersion => {
-                Bytes::from(vec![Self::INVALID_UPDATE_VERSION])
-            }
-            IsrUpdateOutcome::InvalidIsr => Bytes::from(vec![Self::INVALID_ISR]),
-        }
+        Bytes::from(serde_json::to_vec(self).expect("serialize IsrUpdateOutcome"))
     }
 
     pub fn decode(value: &[u8]) -> Result<Self, MetaServiceError> {
-        let malformed =
-            || MetaServiceError::CommonError("malformed IsrUpdateOutcome response".to_string());
-        match *value.first().ok_or_else(malformed)? {
-            Self::APPLIED => {
-                let bytes: [u8; 4] = value.get(1..5).ok_or_else(malformed)?.try_into().unwrap();
-                Ok(IsrUpdateOutcome::Applied(u32::from_le_bytes(bytes)))
-            }
-            Self::SEGMENT_NOT_FOUND => Ok(IsrUpdateOutcome::SegmentNotFound),
-            Self::NOT_LEADER => Ok(IsrUpdateOutcome::NotLeader),
-            Self::FENCED_LEADER_EPOCH => Ok(IsrUpdateOutcome::FencedLeaderEpoch),
-            Self::STALE_BROKER_EPOCH => Ok(IsrUpdateOutcome::StaleBrokerEpoch),
-            Self::INVALID_UPDATE_VERSION => Ok(IsrUpdateOutcome::InvalidUpdateVersion),
-            Self::INVALID_ISR => Ok(IsrUpdateOutcome::InvalidIsr),
-            _ => Err(malformed()),
-        }
+        serde_json::from_slice(value).map_err(|e| {
+            MetaServiceError::CommonError(format!("malformed IsrUpdateOutcome response: {e}"))
+        })
     }
 }
 
@@ -147,7 +112,7 @@ impl DataRouteJournal {
             return Ok(IsrUpdateOutcome::NotLeader.encode());
         }
 
-        if req.leader_epoch != current.leader_epoch {
+        if req.expected_leader_epoch != current.leader_epoch {
             return Ok(IsrUpdateOutcome::FencedLeaderEpoch.encode());
         }
 
@@ -259,7 +224,7 @@ mod tests {
             new_isr,
             requester_node_id: seg.leader,
             requester_broker_epoch: 0,
-            leader_epoch: seg.leader_epoch,
+            expected_leader_epoch: seg.leader_epoch,
             expected_segment_epoch: seg.segment_epoch,
         }
     }
@@ -307,7 +272,7 @@ mod tests {
             IsrUpdateOutcome::NotLeader
         ));
         assert!(matches!(
-            apply(&j, &with(&|r| r.leader_epoch = 99)).await,
+            apply(&j, &with(&|r| r.expected_leader_epoch = 99)).await,
             IsrUpdateOutcome::FencedLeaderEpoch
         ));
         assert!(matches!(

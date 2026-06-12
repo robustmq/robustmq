@@ -219,6 +219,7 @@ impl StorageEngineServer {
                 // Give handler threads a moment to observe the stop signal before
                 // request_channel is dropped, avoiding spurious "channel closed" warnings.
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                self.fetcher_manager.shutdown();
                 info!("Storage Engine has stopped.");
             }
             Err(e) => {

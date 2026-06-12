@@ -116,6 +116,7 @@ pub async fn batch_write(
 
     if advance_hw(
         cache_manager,
+        &memory_storage_engine.commit_log_offset,
         shard_name,
         active_segment.segment_seq,
         &active_segment.isr,
@@ -255,7 +256,7 @@ mod tests {
             .unwrap();
         cache_manager.save_offset_state(
             segment_iden.shard_name.clone(),
-            crate::core::shard::ShardOffsetState::default(),
+            crate::commitlog::offset::ShardOffsetState::default(),
         );
         cache_manager.add_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 

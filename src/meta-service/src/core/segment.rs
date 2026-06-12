@@ -260,6 +260,7 @@ pub async fn sync_update_segment_isr(
         .write_metadata(data)
         .await?
         .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+
     let value = response
         .data
         .value
@@ -279,7 +280,7 @@ pub async fn sync_update_segment_isr(
         IsrUpdateOutcome::FencedLeaderEpoch => Err(MetaServiceError::FencedLeaderEpoch(
             req.shard_name.clone(),
             req.segment,
-            req.leader_epoch,
+            req.expected_leader_epoch,
             0,
         )),
         IsrUpdateOutcome::StaleBrokerEpoch => Err(MetaServiceError::StaleBrokerEpoch(

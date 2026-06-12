@@ -196,6 +196,10 @@ mod tests {
             ..Default::default()
         });
         cm.add_segment_replica("s", 0);
+        cm.save_offset_state(
+            "s".to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
         let records: Vec<_> = (0..leo).map(|o| record(o, "v")).collect();
         if !records.is_empty() {
             memory.append_at("s", 0, 0, records).await.unwrap();

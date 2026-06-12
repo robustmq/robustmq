@@ -16,12 +16,9 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::core::error::StorageEngineError;
 use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
+use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 
-/// In-memory `ReplicaLog`: nothing is persisted, a restart is a fresh replica (§9.5).
-/// Stores into the same `ShardState.data` the producer/consumer path uses, so a
-/// record has one identity and a leader switch needs no data move. memory has a
-/// single segment, so `segment_seq` is unused.
 #[async_trait]
 impl ReplicaLog for MemoryStorageEngine {
     async fn append_at(
@@ -32,7 +29,7 @@ impl ReplicaLog for MemoryStorageEngine {
         records: Vec<StorageRecord>,
     ) -> Result<(), StorageEngineError> {
         let shard_state = self.get_or_create_shard(shard);
-        let leo: u64 = self.leo(shard);
+        let leo = self.commit_log_offset.get_latest_offset(shard)?;
         if base_offset != leo {
             return Err(StorageEngineError::OutOfOrder(
                 shard.to_string(),
@@ -41,14 +38,12 @@ impl ReplicaLog for MemoryStorageEngine {
             ));
         }
 
-        // The leader assigns offsets; each record carries its own and the batch
-        // is contiguous, so store by record offset.
         let mut new_leo = leo;
         for record in records {
             new_leo = record.metadata.offset + 1;
             shard_state.data.insert(record.metadata.offset, record);
         }
-        self.set_leo(shard, new_leo);
+        self.commit_log_offset.save_latest_offset(shard, new_leo)?;
         Ok(())
     }
 
@@ -59,37 +54,15 @@ impl ReplicaLog for MemoryStorageEngine {
         offset: u64,
         max_bytes: u64,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let leo = self.leo(shard);
-        if offset > leo {
-            return Err(StorageEngineError::OffsetOutOfRange(
-                shard.to_string(),
-                offset,
-                0,
-                leo,
-            ));
-        }
-        let Some(shard_state) = self.shards.get(shard) else {
-            return Ok(Vec::new());
+        let read_config = AdapterReadConfig {
+            max_record_num: u64::MAX,
+            max_size: max_bytes,
         };
-
-        let mut records = Vec::new();
-        let mut total_bytes = 0u64;
-        for current in offset..leo {
-            let Some(record) = shard_state.data.get(&current) else {
-                continue;
-            };
-            let size = record.data.len() as u64;
-            if !records.is_empty() && total_bytes + size > max_bytes {
-                break;
-            }
-            total_bytes += size;
-            records.push(record.clone());
-        }
-        Ok(records)
+        self.read_by_offset(shard, offset, &read_config).await
     }
 
     fn latest_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
-        Ok(self.leo(shard))
+        self.commit_log_offset.get_latest_offset(shard)
     }
 
     async fn truncate_to(
@@ -100,25 +73,33 @@ impl ReplicaLog for MemoryStorageEngine {
     ) -> Result<(), StorageEngineError> {
         let shard_state = self.get_or_create_shard(shard);
         shard_state.data.retain(|&o, _| o <= offset);
-        let new_leo = self.leo(shard).min(offset + 1);
-        self.set_leo(shard, new_leo);
+        let new_leo = self
+            .commit_log_offset
+            .get_latest_offset(shard)?
+            .min(offset + 1);
+        self.commit_log_offset.save_latest_offset(shard, new_leo)?;
         Ok(())
     }
 
     async fn clear(&self, shard: &str, _segment_seq: u32) -> Result<(), StorageEngineError> {
         let shard_state = self.get_or_create_shard(shard);
         shard_state.data.clear();
-        self.set_leo(shard, 0);
+        self.commit_log_offset.save_latest_offset(shard, 0)?;
         Ok(())
     }
 
-    fn log_start_offset(&self, _shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
-        Ok(0)
+    fn log_start_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
+        self.commit_log_offset.get_earliest_offset(shard)
+    }
+
+    fn commit_log_offset(&self) -> &crate::commitlog::offset::CommitLogOffset {
+        &self.commit_log_offset
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::commitlog::memory::engine::MemoryStorageEngine;
     use crate::core::test_tool::test_build_memory_engine;
     use crate::isr::log::ReplicaLog;
     use bytes::Bytes;
@@ -135,9 +116,17 @@ mod tests {
         }
     }
 
+    fn init_offsets(engine: &MemoryStorageEngine, shard: &str) {
+        engine.cache_manager.save_offset_state(
+            shard.to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
+    }
+
     #[tokio::test]
     async fn append_read_roundtrip() {
         let engine = test_build_memory_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at(
                 "s",
@@ -157,6 +146,7 @@ mod tests {
     #[tokio::test]
     async fn append_out_of_order_is_rejected() {
         let engine = test_build_memory_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at("s", 0, 0, vec![record(0, "a")])
             .await
@@ -172,6 +162,7 @@ mod tests {
     #[tokio::test]
     async fn truncate_resets_leo() {
         let engine = test_build_memory_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at(
                 "s",
@@ -195,6 +186,7 @@ mod tests {
     #[tokio::test]
     async fn clear_empties_log() {
         let engine = test_build_memory_engine();
+        init_offsets(&engine, "s");
         engine
             .append_at("s", 0, 0, vec![record(0, "a"), record(1, "b")])
             .await

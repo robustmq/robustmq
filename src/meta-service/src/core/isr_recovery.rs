@@ -95,6 +95,7 @@ async fn try_recover_unavailable_segment(
         Some(s) => s,
         None => return Ok(()),
     };
+
     if !needs_recovery(&current) {
         return Ok(());
     }
@@ -104,6 +105,7 @@ async fn try_recover_unavailable_segment(
     } else {
         &current.isr
     };
+
     let nodes: Vec<BrokerNode> = meta_cache
         .node_list
         .iter()

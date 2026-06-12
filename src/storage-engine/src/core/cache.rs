@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::commitlog::offset::ShardOffsetState;
 use crate::core::offset_index::SegmentOffsetIndex;
-use crate::core::shard::ShardOffsetState;
 use crate::filesegment::segment_file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::SegmentReplicaState;

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::core::{cache::StorageCacheManager, error::StorageEngineError, shard::ShardOffsetState};
+use crate::core::{cache::StorageCacheManager, error::StorageEngineError};
 use rocksdb_engine::{
     keys::engine::{shard_earliest_offset, shard_high_watermark_offset, shard_latest_offset},
     rocksdb::RocksDBEngine,
@@ -22,6 +22,13 @@ use rocksdb_engine::{
     },
 };
 use std::sync::Arc;
+
+#[derive(Clone, Debug, Default)]
+pub struct ShardOffsetState {
+    pub earliest_offset: u64,
+    pub high_watermark_offset: u64,
+    pub latest_offset: u64,
+}
 
 pub struct CommitLogOffset {
     pub cache_manager: Arc<StorageCacheManager>,
@@ -37,158 +44,105 @@ impl CommitLogOffset {
             rocksdb_engine_handler,
         }
     }
+    // ===== latest offset (LEO) =====
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
-        self.save_latest_offset_by_shard(shard, offset)?;
+        self.save_offset(&shard_latest_offset(shard), offset)?;
         self.cache_manager.update_latest_offset(shard, offset);
         Ok(())
     }
 
-    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        if let Some(state) = self.cache_manager.get_offset_state(shard_name) {
+    pub fn get_latest_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
+        if let Some(state) = self.cache_manager.get_offset_state(shard) {
             Ok(state.latest_offset)
         } else {
-            let (_, latest_offset) = self.recover_shard_data(shard_name)?;
-            Ok(latest_offset)
+            Ok(self.recover_shard_data(shard)?.latest_offset)
         }
     }
 
+    // ===== earliest offset (log start) =====
     pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
-        self.save_earliest_offset_by_shard(shard, offset)?;
+        self.save_offset(&shard_earliest_offset(shard), offset)?;
         self.cache_manager.update_earliest_offset(shard, offset);
         Ok(())
     }
 
-    pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        if let Some(state) = self.cache_manager.get_offset_state(shard_name) {
+    pub fn get_earliest_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
+        if let Some(state) = self.cache_manager.get_offset_state(shard) {
             Ok(state.earliest_offset)
         } else {
-            let (earliest_offset, _) = self.recover_shard_data(shard_name)?;
-            Ok(earliest_offset)
+            Ok(self.recover_shard_data(shard)?.earliest_offset)
         }
     }
 
-    //======== earliest offset ========
-    fn save_earliest_offset_by_shard(
+    // ===== high watermark（HW） =====
+    pub fn save_high_watermark_offset(
         &self,
         shard: &str,
         offset: u64,
-    ) -> Result<(), StorageEngineError> {
-        let key = shard_earliest_offset(shard);
-        Ok(engine_save_by_engine(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-            offset,
-        )?)
-    }
-
-    fn read_earliest_offset_by_shard(
-        &self,
-        shard: &str,
-    ) -> Result<Option<u64>, StorageEngineError> {
-        let key = shard_earliest_offset(shard);
-        if let Some(res) = engine_get_by_engine::<u64>(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-        )? {
-            return Ok(Some(res.data));
+    ) -> Result<bool, StorageEngineError> {
+        let advanced = self
+            .cache_manager
+            .update_high_watermark_offset(shard, offset);
+        if advanced {
+            self.save_offset(&shard_high_watermark_offset(shard), offset)?;
         }
-
-        Ok(None)
+        Ok(advanced)
     }
 
-    //======== high watermark offset ========
-    #[allow(dead_code)]
-    fn save_high_watermark_offset_by_shard(
-        &self,
-        shard: &str,
-        offset: u64,
-    ) -> Result<(), StorageEngineError> {
-        let key = shard_high_watermark_offset(shard);
-        Ok(engine_save_by_engine(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-            offset,
-        )?)
-    }
-
-    #[allow(dead_code)]
-    fn read_high_watermark_offset_by_shard(
-        &self,
-        shard: &str,
-    ) -> Result<Option<u64>, StorageEngineError> {
-        let key = shard_high_watermark_offset(shard);
-        if let Some(res) = engine_get_by_engine::<u64>(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-        )? {
-            return Ok(Some(res.data));
-        }
-
-        Ok(None)
-    }
-
-    //======== latest offset ========
-    fn save_latest_offset_by_shard(
-        &self,
-        shard: &str,
-        offset: u64,
-    ) -> Result<(), StorageEngineError> {
-        let key = shard_latest_offset(shard);
-        Ok(engine_save_by_engine(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-            offset,
-        )?)
-    }
-
-    fn read_latest_offset_by_shard(&self, shard: &str) -> Result<Option<u64>, StorageEngineError> {
-        let key = shard_latest_offset(shard);
-        if let Some(res) = engine_get_by_engine::<u64>(
-            &self.rocksdb_engine_handler,
-            DB_COLUMN_FAMILY_STORAGE_ENGINE,
-            &key,
-        )? {
-            return Ok(Some(res.data));
-        }
-
-        Ok(None)
-    }
-
-    fn recover_shard_data(&self, shard_name: &str) -> Result<(u64, u64), StorageEngineError> {
-        let earliest_offset =
-            if let Some(offset) = self.read_earliest_offset_by_shard(shard_name)? {
-                offset
-            } else {
-                return Err(StorageEngineError::CommonErrorStr(format!(
-                    "Failed to recover shard '{}': earliest offset not found in storage",
-                    shard_name
-                )));
-            };
-
-        let latest_offset = if let Some(offset) = self.read_latest_offset_by_shard(shard_name)? {
-            offset
+    pub fn get_high_watermark_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
+        if let Some(state) = self.cache_manager.get_offset_state(shard) {
+            Ok(state.high_watermark_offset)
         } else {
-            return Err(StorageEngineError::CommonErrorStr(format!(
-                "Failed to recover shard '{}': latest offset not found in storage",
-                shard_name
-            )));
+            Ok(self
+                .load_offset(&shard_high_watermark_offset(shard))?
+                .unwrap_or(0))
+        }
+    }
+
+    fn save_offset(&self, key: &str, offset: u64) -> Result<(), StorageEngineError> {
+        engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            key,
+            offset,
+        )?;
+        Ok(())
+    }
+
+    fn load_offset(&self, key: &str) -> Result<Option<u64>, StorageEngineError> {
+        Ok(engine_get_by_engine::<u64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            key,
+        )?
+        .map(|res| res.data))
+    }
+
+    fn recover_shard_data(&self, shard: &str) -> Result<ShardOffsetState, StorageEngineError> {
+        let missing = |what: &str| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Failed to recover shard '{shard}': {what} offset not found in storage"
+            ))
         };
+        let earliest_offset = self
+            .load_offset(&shard_earliest_offset(shard))?
+            .ok_or_else(|| missing("earliest"))?;
+        let latest_offset = self
+            .load_offset(&shard_latest_offset(shard))?
+            .ok_or_else(|| missing("latest"))?;
+        let high_watermark_offset = self
+            .load_offset(&shard_high_watermark_offset(shard))?
+            .unwrap_or(0)
+            .min(latest_offset);
 
-        self.cache_manager.save_offset_state(
-            shard_name.to_string(),
-            ShardOffsetState {
-                earliest_offset,
-                latest_offset,
-                high_watermark_offset: 0,
-            },
-        );
-
-        Ok((earliest_offset, latest_offset))
+        let state = ShardOffsetState {
+            earliest_offset,
+            latest_offset,
+            high_watermark_offset,
+        };
+        self.cache_manager
+            .save_offset_state(shard.to_string(), state.clone());
+        Ok(state)
     }
 }
 
@@ -211,14 +165,11 @@ mod tests {
         let shard_name = "test_shard";
         let offset = 12345u64;
 
-        // Test save
         offset_manager
-            .save_earliest_offset_by_shard(shard_name, offset)
+            .save_offset(&shard_earliest_offset(shard_name), offset)
             .unwrap();
-
-        // Test read
         let result = offset_manager
-            .read_earliest_offset_by_shard(shard_name)
+            .load_offset(&shard_earliest_offset(shard_name))
             .unwrap();
 
         assert_eq!(result, Some(offset));
@@ -234,14 +185,11 @@ mod tests {
         let shard_name = "test_shard";
         let offset = 67890u64;
 
-        // Test save
         offset_manager
-            .save_high_watermark_offset_by_shard(shard_name, offset)
+            .save_offset(&shard_high_watermark_offset(shard_name), offset)
             .unwrap();
-
-        // Test read
         let result = offset_manager
-            .read_high_watermark_offset_by_shard(shard_name)
+            .load_offset(&shard_high_watermark_offset(shard_name))
             .unwrap();
 
         assert_eq!(result, Some(offset));
@@ -257,14 +205,11 @@ mod tests {
         let shard_name = "test_shard";
         let offset = 99999u64;
 
-        // Test save
         offset_manager
-            .save_latest_offset_by_shard(shard_name, offset)
+            .save_offset(&shard_latest_offset(shard_name), offset)
             .unwrap();
-
-        // Test read
         let result = offset_manager
-            .read_latest_offset_by_shard(shard_name)
+            .load_offset(&shard_latest_offset(shard_name))
             .unwrap();
 
         assert_eq!(result, Some(offset));

@@ -33,9 +33,9 @@ mod tests {
     use rocksdb_engine::test::test_rocksdb_instance;
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
+    use storage_engine::commitlog::offset::ShardOffsetState;
     use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use storage_engine::core::cache::StorageCacheManager;
-    use storage_engine::core::shard::ShardOffsetState;
     use storage_engine::core::write::batch_write;
     use storage_engine::filesegment::write::WriteManager;
     use storage_engine::isr::follower::update_follower_progress;

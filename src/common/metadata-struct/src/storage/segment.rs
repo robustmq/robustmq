@@ -23,18 +23,13 @@ pub struct EngineSegment {
     pub shard_name: String,
     pub segment_seq: u32,
     pub replicas: Vec<Replica>,
+    pub isr: Vec<u64>,
+    pub last_known_isr: Vec<u64>,
     pub leader_epoch: u32,
     pub leader: u64,
-    pub isr: Vec<u64>,
-    pub status: SegmentStatus,
-
-    // ISR protocol
-    #[serde(default)]
     pub segment_epoch: u32,
-    #[serde(default)]
     pub leader_broker_epoch: u64,
-    #[serde(default)]
-    pub last_known_isr: Vec<u64>,
+    pub status: SegmentStatus,
 }
 
 impl EngineSegment {

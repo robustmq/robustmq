@@ -14,7 +14,7 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
-use crate::core::notify::send_notify_by_set_segment;
+use crate::core::notify::send_notify_by_update_segment;
 use crate::core::segment::{
     create_segment, seal_up_segment, sync_update_segment_isr, update_segment_status,
 };
@@ -254,6 +254,7 @@ pub async fn update_segment_isr_by_req(
             "ISR must not be empty".to_string(),
         ));
     }
+
     if !req.new_isr.contains(&segment.leader) {
         return Err(MetaServiceError::InvalidIsr(
             req.shard_name.clone(),
@@ -262,6 +263,7 @@ pub async fn update_segment_isr_by_req(
             "ISR must contain the leader".to_string(),
         ));
     }
+
     let replica_ids: Vec<u64> = segment.replicas.iter().map(|r| r.node_id).collect();
     if !req.new_isr.iter().all(|n| replica_ids.contains(n)) {
         return Err(MetaServiceError::InvalidIsr(
@@ -275,7 +277,7 @@ pub async fn update_segment_isr_by_req(
     let new_segment_epoch = sync_update_segment_isr(raft_manager, req).await?;
 
     if let Some(updated) = cache_manager.get_segment(&req.shard_name, req.segment) {
-        send_notify_by_set_segment(call_manager, updated).await?;
+        send_notify_by_update_segment(call_manager, updated).await?;
     }
 
     Ok(UpdateSegmentIsrReply { new_segment_epoch })

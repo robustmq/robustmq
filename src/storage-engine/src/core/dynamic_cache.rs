@@ -96,7 +96,7 @@ async fn parse_shard(
             }
             cache_manager.save_offset_state(
                 shard.shard_name.clone(),
-                crate::core::shard::ShardOffsetState::default(),
+                crate::commitlog::offset::ShardOffsetState::default(),
             );
             cache_manager.set_shard(shard);
         }

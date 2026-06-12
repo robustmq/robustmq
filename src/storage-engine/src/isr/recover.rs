@@ -16,6 +16,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::filesegment::SegmentIdentity;
 use crate::isr::leader_epoch::LeaderEpochCache;
 use crate::isr::log::ReplicaLog;
 use common_config::storage::StorageType;
@@ -32,19 +33,17 @@ pub async fn recover_local_segments(
     let segments: Vec<(String, u32)> = cache_manager
         .shards
         .iter()
-        .filter_map(|s| {
-            let st = s.config.storage_type;
-            if st == StorageType::EngineMemory || st == StorageType::EngineRocksDB {
-                Some((s.shard_name.clone(), st))
-            } else {
-                None
-            }
+        .filter(|s| {
+            matches!(
+                s.config.storage_type,
+                StorageType::EngineMemory | StorageType::EngineRocksDB
+            )
         })
-        .flat_map(|(shard, _)| {
-            cache_manager
-                .get_segments_list_by_shard(&shard)
-                .into_iter()
-                .map(move |seg| (shard.clone(), seg.segment_seq))
+        .filter_map(|s| {
+            let iden = SegmentIdentity::new(&s.shard_name, s.active_segment_seq);
+            let seg = cache_manager.get_segment(&iden)?;
+            seg.is_replica()
+                .then(|| (s.shard_name.clone(), s.active_segment_seq))
         })
         .collect();
 
@@ -153,11 +152,15 @@ mod tests {
 
     #[tokio::test]
     async fn recover_local_segments_trims_phantom_epoch() {
-        use crate::core::test_tool::{test_build_memory_engine, test_build_rocksdb_engine};
+        use crate::core::test_tool::{
+            test_build_memory_engine, test_build_rocksdb_engine, test_init_conf,
+        };
         use bytes::Bytes;
         use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+        use metadata_struct::storage::segment::Replica;
         use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 
+        test_init_conf();
         let memory = Arc::new(test_build_memory_engine());
         let cm = memory.cache_manager.clone();
         let db = test_rocksdb_instance();
@@ -172,8 +175,20 @@ mod tests {
         cm.set_segment(&metadata_struct::storage::segment::EngineSegment {
             shard_name: "s".to_string(),
             segment_seq: 0,
+            leader: 1,
+            isr: vec![1],
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: String::new(),
+            }],
             ..Default::default()
         });
+
+        cm.save_offset_state(
+            "s".to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
 
         let recs: Vec<_> = (0..3u64)
             .map(|o| StorageRecord {

@@ -190,6 +190,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
 
     let Some(hw) = advance_hw(
         cache_manager,
+        log.commit_log_offset(),
         &req.shard_name,
         req.segment_seq,
         &segment.isr,
@@ -249,6 +250,10 @@ mod tests {
             ..Default::default()
         });
         engine.cache_manager.add_segment_replica("s", 0);
+        engine.cache_manager.save_offset_state(
+            "s".to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
         engine
             .append_at(
                 "s",
@@ -330,6 +335,10 @@ mod tests {
             ..Default::default()
         });
         mem.cache_manager.add_segment_replica("s", 0);
+        mem.cache_manager.save_offset_state(
+            "s".to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
         if !records.is_empty() {
             mem.append_at("s", 0, 0, records).await.unwrap();
         }
@@ -407,6 +416,10 @@ mod tests {
                 ..Default::default()
             });
             mem.cache_manager.add_segment_replica(shard, 0);
+            mem.cache_manager.save_offset_state(
+                shard.to_string(),
+                crate::commitlog::offset::ShardOffsetState::default(),
+            );
         }
         mem.append_at("s1", 0, 0, vec![record(0, "a"), record(1, "b")])
             .await

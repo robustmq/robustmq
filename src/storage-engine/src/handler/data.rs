@@ -254,7 +254,7 @@ mod tests {
             .unwrap();
         cache_manager.save_offset_state(
             segment_iden.shard_name.clone(),
-            crate::core::shard::ShardOffsetState::default(),
+            crate::commitlog::offset::ShardOffsetState::default(),
         );
 
         let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();

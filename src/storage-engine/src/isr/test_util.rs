@@ -38,6 +38,15 @@ use protocol::storage::protocol::{
 use rocksdb_engine::test::test_rocksdb_instance;
 use std::sync::Arc;
 
+pub fn init_offsets(engine: &MemoryStorageEngine, shards: &[&str]) {
+    for shard in shards {
+        engine.cache_manager.save_offset_state(
+            shard.to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
+    }
+}
+
 /// Build a single record carrying `data` at `offset`.
 pub fn record(offset: u64, data: &str) -> StorageRecord {
     StorageRecord {
@@ -113,6 +122,10 @@ pub async fn leader_with(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader 
             ..Default::default()
         });
         engine.cache_manager.add_segment_replica(shard, 0);
+        engine.cache_manager.save_offset_state(
+            shard.to_string(),
+            crate::commitlog::offset::ShardOffsetState::default(),
+        );
         if !records.is_empty() {
             engine
                 .append_at(shard, 0, 0, records.clone())

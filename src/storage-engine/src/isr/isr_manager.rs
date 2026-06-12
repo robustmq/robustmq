@@ -138,7 +138,7 @@ async fn propose_isr(
         new_isr: new_isr.clone(),
         requester_node_id: broker_id,
         requester_broker_epoch: broker_epoch,
-        leader_epoch: segment.leader_epoch,
+        expected_leader_epoch: segment.leader_epoch,
         expected_segment_epoch: segment.segment_epoch,
     };
     match update_segment_isr(client_pool, &conf.get_meta_service_addr(), req).await {

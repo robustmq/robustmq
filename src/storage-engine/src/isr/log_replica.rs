@@ -125,4 +125,8 @@ impl ReplicaLog for EngineReplicaLog {
             self.memory.log_start_offset(shard, segment_seq)
         }
     }
+
+    fn commit_log_offset(&self) -> &crate::commitlog::offset::CommitLogOffset {
+        self.memory.commit_log_offset()
+    }
 }

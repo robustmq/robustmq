@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 struct FetcherSlot {
     segments: SegmentMap,
@@ -83,6 +84,7 @@ impl ReplicaFetcherManager {
         for idx in 0..self.slots.len() {
             self.spawn_thread(idx);
         }
+        info!("replica fetcher started with {} threads", self.slots.len());
     }
 
     fn spawn_thread(&self, idx: usize) {
@@ -99,16 +101,26 @@ impl ReplicaFetcherManager {
     }
 
     pub fn stop_thread(&self, idx: usize) {
+        if self.stop_thread_inner(idx) {
+            info!("replica fetcher thread {} stopped", idx);
+        }
+    }
+
+    fn stop_thread_inner(&self, idx: usize) -> bool {
         if let Some(slot) = self.slots.get(idx) {
             let _ = slot.stop.send(true);
             slot.handle.lock().unwrap().take();
+            true
+        } else {
+            false
         }
     }
 
     pub fn restart_thread(&self, idx: usize) {
-        self.stop_thread(idx);
+        self.stop_thread_inner(idx);
         if idx < self.slots.len() {
             self.spawn_thread(idx);
+            info!("replica fetcher thread {} restarted", idx);
         }
     }
 
@@ -186,7 +198,7 @@ mod tests {
     use super::*;
     use crate::core::test_tool::test_build_memory_engine;
     use crate::isr::test_util::{
-        configure_follower_broker_cache, leader_with, record, seg_state, InProcLeader,
+        configure_follower_broker_cache, init_offsets, leader_with, record, seg_state, InProcLeader,
     };
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::time::Duration;
@@ -226,6 +238,7 @@ mod tests {
         .await;
 
         let follower_engine = Arc::new(test_build_memory_engine());
+        init_offsets(&follower_engine, &["s1", "s2"]);
         let follower = follower_log(follower_engine.clone());
         let broker_cache = follower_engine.cache_manager.broker_cache.clone();
         configure_follower_broker_cache(&broker_cache);
@@ -273,6 +286,7 @@ mod tests {
     async fn restart_thread_keeps_assigned_segments() {
         let leader = leader_with(&[("s1", vec![record(0, "a")])]).await;
         let follower_engine = Arc::new(test_build_memory_engine());
+        init_offsets(&follower_engine, &["s1", "s2"]);
         let mgr = follower_manager(leader, follower_engine.clone());
         mgr.start();
 
@@ -290,6 +304,7 @@ mod tests {
     async fn stop_thread_halts_only_one_thread() {
         let leader = leader_with(&[("s1", vec![record(0, "a")])]).await;
         let follower_engine = Arc::new(test_build_memory_engine());
+        init_offsets(&follower_engine, &["s1"]);
         let mgr = follower_manager(leader, follower_engine.clone());
         mgr.start();
 

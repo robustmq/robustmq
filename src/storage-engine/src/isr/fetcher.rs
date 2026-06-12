@@ -352,7 +352,7 @@ mod tests {
     use crate::commitlog::memory::engine::MemoryStorageEngine;
     use crate::core::test_tool::test_build_memory_engine;
     use crate::isr::test_util::{
-        configure_follower_broker_cache, leader_with, record, seg_state, InProcLeader,
+        configure_follower_broker_cache, init_offsets, leader_with, record, seg_state, InProcLeader,
     };
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
@@ -384,6 +384,7 @@ mod tests {
         ])
         .await;
         let follower = test_build_memory_engine();
+        init_offsets(&follower, &["s1", "s2", "s3"]);
         let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
         add(&segments, seg_state("s2", 7));
@@ -401,6 +402,7 @@ mod tests {
         let leader =
             leader_with(&[("s1", vec![record(0, "a"), record(1, "b"), record(2, "c")])]).await;
         let follower = test_build_memory_engine();
+        init_offsets(&follower, &["s1"]);
         let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
 
@@ -420,6 +422,7 @@ mod tests {
         let leader =
             leader_with(&[("s1", vec![record(0, "a")]), ("s2", vec![record(0, "b")])]).await;
         let follower = test_build_memory_engine();
+        init_offsets(&follower, &["s1", "s2"]);
         let (th, segments) = thread(leader, follower);
         add(&segments, seg_state("s1", 7));
         add(&segments, seg_state("s2", 7));
@@ -473,6 +476,7 @@ mod tests {
     #[tokio::test]
     async fn fenced_follower_truncates_diverged_tail() {
         let follower = test_build_memory_engine();
+        init_offsets(&follower, &["s"]);
         follower
             .append_at(
                 "s",

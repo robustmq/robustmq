@@ -116,7 +116,7 @@ message UpdateSegmentIsrRequest {
   repeated uint64 new_isr = 3;
   uint64 requester_node_id = 4;
   uint64 requester_broker_epoch = 5;
-  uint32 leader_epoch = 6;
+  uint32 expected_leader_epoch = 6;
   uint32 expected_segment_epoch = 7;
 }
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::commitlog::offset::CommitLogOffset;
 use crate::core::cache::StorageCacheManager;
 use dashmap::DashMap;
 use std::sync::Arc;
@@ -77,6 +78,7 @@ fn committable_hw(fp: &SegmentReplicaState, isr: &[u64], leader_id: u64, leader_
 
 pub fn advance_hw(
     cache_manager: &Arc<StorageCacheManager>,
+    commit_log_offset: &CommitLogOffset,
     shard: &str,
     segment_seq: u32,
     isr: &[u64],
@@ -85,8 +87,12 @@ pub fn advance_hw(
 ) -> Option<u64> {
     let state = cache_manager.get_segment_replica(shard, segment_seq)?;
     let new_hw = committable_hw(&state, isr, leader_id, leader_leo);
-    if cache_manager.update_high_watermark_offset(shard, new_hw) {
-        let _ = cache_manager.hw_watcher(shard).send(new_hw);
+    match commit_log_offset.save_high_watermark_offset(shard, new_hw) {
+        Ok(true) => {
+            let _ = cache_manager.hw_watcher(shard).send(new_hw);
+        }
+        Ok(false) => {}
+        Err(e) => warn!("persist high watermark for shard {shard}: {e}"),
     }
     Some(new_hw)
 }
@@ -128,7 +134,7 @@ pub async fn wait_for_hw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::shard::ShardOffsetState;
+    use crate::commitlog::offset::ShardOffsetState;
     use crate::core::test_tool::test_build_memory_engine;
 
     #[tokio::test]
@@ -156,7 +162,7 @@ mod tests {
         assert_eq!(fp.get(&2).unwrap().leo, 10);
     }
 
-    fn setup(shard: &str, isr: &[u64]) -> Arc<StorageCacheManager> {
+    fn setup(shard: &str, isr: &[u64]) -> (Arc<StorageCacheManager>, Arc<CommitLogOffset>) {
         let engine = test_build_memory_engine();
         let cm = engine.cache_manager.clone();
         cm.save_offset_state(shard.to_string(), ShardOffsetState::default());
@@ -167,33 +173,33 @@ mod tests {
                 update_follower_progress(&state, *id, 1, 0, 0, 0).unwrap();
             }
         }
-        cm
+        (cm, engine.commit_log_offset.clone())
     }
 
     #[tokio::test]
     async fn advance_hw_to_min_isr_leo() {
-        let cm = setup("s", &[1, 2]);
+        let (cm, clo) = setup("s", &[1, 2]);
         let state = cm.get_segment_replica("s", 0).unwrap();
         update_follower_progress(&state, 2, 1, 5, 10, 0).unwrap();
 
-        let hw = advance_hw(&cm, "s", 0, &[1, 2], 1, 10).unwrap();
+        let hw = advance_hw(&cm, &clo, "s", 0, &[1, 2], 1, 10).unwrap();
         assert_eq!(hw, 5);
         assert_eq!(cm.get_offset_state("s").unwrap().high_watermark_offset, 5);
     }
 
     #[tokio::test]
     async fn wait_for_hw_wakes_on_advance() {
-        let cm = setup("s", &[1]);
+        let (cm, clo) = setup("s", &[1]);
         let cm2 = cm.clone();
         let waiter = tokio::spawn(async move { wait_for_hw(&cm2, "s", 3, 1000).await });
         tokio::time::sleep(Duration::from_millis(20)).await;
-        advance_hw(&cm, "s", 0, &[1], 1, 3);
+        advance_hw(&cm, &clo, "s", 0, &[1], 1, 3);
         assert!(waiter.await.unwrap());
     }
 
     #[tokio::test]
     async fn wait_for_hw_times_out() {
-        let cm = setup("s", &[1, 2]);
+        let (cm, _clo) = setup("s", &[1, 2]);
         assert!(!wait_for_hw(&cm, "s", 3, 50).await);
     }
 }
