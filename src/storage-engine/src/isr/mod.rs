@@ -25,7 +25,7 @@ pub mod leader_epoch;
 pub mod log;
 pub mod reconcile;
 pub mod recover;
-pub mod role;
+pub mod apply;
 
 #[cfg(test)]
 pub mod test_util;

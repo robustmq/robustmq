@@ -15,6 +15,7 @@
 use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
 use crate::core::group_leader::group_leader_switch;
+use crate::core::node_decommission::decommission_node_segments;
 use crate::core::notify::{send_notify_by_add_node, send_notify_by_delete_node};
 use crate::core::segment_leader::segment_leader_switch;
 use crate::raft::manager::MultiRaftManager;
@@ -43,6 +44,8 @@ pub async fn register_node_by_req(
     Ok(RegisterNodeReply { broker_epoch })
 }
 
+/// Explicit unregister (permanent decommission): delete the node, switch the
+/// leaders it held, and migrate its replicas onto surviving nodes.
 pub async fn un_register_node_by_req(
     meta_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
@@ -50,17 +53,19 @@ pub async fn un_register_node_by_req(
     call_manager: &Arc<NodeCallManager>,
     req: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, MetaServiceError> {
-    remove_node(
+    decommission_node(
         meta_cache,
         raft_manager,
         rocksdb_engine_handler,
         call_manager,
         req.node_id,
     )
-    .await?;
-    Ok(UnRegisterNodeReply::default())
+    .await
 }
 
+/// Temporary offline (heartbeat timeout / restart): delete the node from the
+/// membership and switch the leaders it held, but leave it in each segment's
+/// replica set so it resumes as a follower and catches up when it re-registers.
 pub async fn remove_node(
     meta_cache: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
@@ -79,6 +84,48 @@ pub async fn remove_node(
             node_id,
         )
         .await;
+    }
+    Ok(UnRegisterNodeReply::default())
+}
+
+/// Permanent decommission: delete the node, then (in the background) switch its
+/// group/segment leaders and migrate the segments it replicated onto surviving
+/// nodes. Replica migration is metadata-only — the new replica catches up from
+/// the leader once one exists.
+pub async fn decommission_node(
+    meta_cache: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    call_manager: &Arc<NodeCallManager>,
+    node_id: u64,
+) -> Result<UnRegisterNodeReply, MetaServiceError> {
+    if let Some(node) = meta_cache.get_broker_node(node_id) {
+        sync_delete_node(raft_manager, &UnRegisterNodeRequest { node_id }).await?;
+        send_notify_by_delete_node(call_manager, node.clone()).await?;
+
+        let meta_cache = meta_cache.clone();
+        let raft_manager = raft_manager.clone();
+        let rocksdb_engine_handler = rocksdb_engine_handler.clone();
+        let call_manager = call_manager.clone();
+        tokio::spawn(async move {
+            if let Err(e) =
+                group_leader_switch(&meta_cache, &raft_manager, &call_manager, &rocksdb_engine_handler, node_id)
+                    .await
+            {
+                error!("group leader switch failed for decommissioned node {}: {}", node_id, e);
+            }
+            if let Err(e) = decommission_node_segments(
+                &meta_cache,
+                &raft_manager,
+                &call_manager,
+                &rocksdb_engine_handler,
+                node_id,
+            )
+            .await
+            {
+                error!("segment decommission failed for node {}: {}", node_id, e);
+            }
+        });
     }
     Ok(UnRegisterNodeReply::default())
 }

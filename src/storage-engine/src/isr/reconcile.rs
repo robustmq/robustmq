@@ -15,7 +15,7 @@
 use crate::core::cache::StorageCacheManager;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::fetcher_manager::ReplicaFetcherManager;
-use crate::isr::role::apply_leader_and_isr;
+use crate::isr::apply::apply_leader_and_isr;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;

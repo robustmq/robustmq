@@ -22,6 +22,7 @@ pub mod group_leader;
 pub mod heartbeat;
 pub mod isr_recovery;
 pub mod log;
+pub mod node_decommission;
 pub mod notify;
 pub mod segment;
 pub mod segment_leader;

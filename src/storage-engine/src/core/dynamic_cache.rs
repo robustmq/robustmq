@@ -20,7 +20,7 @@ use crate::{
         segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
     },
     isr::fetcher_manager::ReplicaFetcherManager,
-    isr::role::apply_leader_and_isr,
+    isr::apply::apply_leader_and_isr,
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::segment::EngineSegment;

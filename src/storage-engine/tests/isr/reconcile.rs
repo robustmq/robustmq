@@ -33,7 +33,7 @@ mod tests {
         build_engine_fetcher_manager, ReplicaFetcherManager,
     };
     use storage_engine::isr::follower::update_follower_progress;
-    use storage_engine::isr::role::apply_leader_and_isr;
+    use storage_engine::isr::apply::apply_leader_and_isr;
 
     use crate::isr::{make_engine, make_rocksdb, set_broker_id};
 

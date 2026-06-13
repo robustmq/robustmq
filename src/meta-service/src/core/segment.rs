@@ -328,7 +328,7 @@ fn calc_leader_node(replicas: &[Replica]) -> Result<u64, MetaServiceError> {
     })
 }
 
-fn calc_node_fold(
+pub(crate) fn calc_node_fold(
     cache_manager: &Arc<MetaCacheManager>,
     node_id: u64,
 ) -> Result<String, MetaServiceError> {
