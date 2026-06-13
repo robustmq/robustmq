@@ -14,8 +14,9 @@
 
 use super::cache::MetaCacheManager;
 use super::error::MetaServiceError;
-use crate::core::leader_switch::trigger_leader_switch;
+use crate::core::group_leader::group_leader_switch;
 use crate::core::notify::{send_notify_by_add_node, send_notify_by_delete_node};
+use crate::core::segment_leader::segment_leader_switch;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
@@ -27,6 +28,7 @@ use protocol::meta::meta_service_common::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+use tracing::error;
 
 pub async fn register_node_by_req(
     meta_cache: &Arc<MetaCacheManager>,
@@ -79,6 +81,40 @@ pub async fn remove_node(
         .await;
     }
     Ok(UnRegisterNodeReply::default())
+}
+
+pub async fn trigger_leader_switch(
+    meta_cache: Arc<MetaCacheManager>,
+    raft_manager: Arc<MultiRaftManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    mqtt_call_manager: Arc<NodeCallManager>,
+    remove_id: u64,
+) {
+    tokio::spawn(async move {
+        let result: Result<(), MetaServiceError> = async {
+            group_leader_switch(
+                &meta_cache,
+                &raft_manager,
+                &mqtt_call_manager,
+                &rocksdb_engine_handler,
+                remove_id,
+            )
+            .await?;
+            segment_leader_switch(
+                &meta_cache,
+                &raft_manager,
+                &mqtt_call_manager,
+                &rocksdb_engine_handler,
+                remove_id,
+            )
+            .await?;
+            Ok(())
+        }
+        .await;
+        if let Err(e) = result {
+            error!("leader switch failed for removed node {}: {}", remove_id, e);
+        }
+    });
 }
 
 async fn sync_save_node(

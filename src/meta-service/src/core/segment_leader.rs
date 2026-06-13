@@ -16,94 +16,21 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        cache::MetaCacheManager,
-        error::MetaServiceError,
-        group_leader::generate_group_leader,
-        notify::{send_notify_by_set_segment, send_notify_by_set_share_group},
+        cache::MetaCacheManager, error::MetaServiceError, notify::send_notify_by_set_segment,
         segment::sync_save_segment_info,
     },
-    raft::{
-        manager::MultiRaftManager,
-        route::data::{StorageData, StorageDataType},
-    },
+    raft::manager::MultiRaftManager,
     storage::common::node::NodeStorage,
 };
-use bytes::Bytes;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
-pub async fn trigger_leader_switch(
-    meta_cache: Arc<MetaCacheManager>,
-    raft_manager: Arc<MultiRaftManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    mqtt_call_manager: Arc<NodeCallManager>,
-    remove_id: u64,
-) {
-    tokio::spawn(async move {
-        let result: Result<(), MetaServiceError> = async {
-            group_leader_switch(
-                &meta_cache,
-                &raft_manager,
-                &mqtt_call_manager,
-                &rocksdb_engine_handler,
-                remove_id,
-            )
-            .await?;
-            segment_leader_switch(
-                &meta_cache,
-                &raft_manager,
-                &mqtt_call_manager,
-                &rocksdb_engine_handler,
-                remove_id,
-            )
-            .await?;
-            Ok(())
-        }
-        .await;
-        if let Err(e) = result {
-            error!("leader switch failed for removed node {}: {}", remove_id, e);
-        }
-    });
-}
-
-pub async fn group_leader_switch(
-    meta_cache: &Arc<MetaCacheManager>,
-    raft_manager: &Arc<MultiRaftManager>,
-    call_manager: &Arc<NodeCallManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    remove_id: u64,
-) -> Result<(), MetaServiceError> {
-    let affected: Vec<_> = meta_cache
-        .group_leader
-        .iter()
-        .filter(|g| g.leader_broker == remove_id)
-        .map(|g| g.clone())
-        .collect();
-
-    let mut switched = 0u32;
-    for mut group_leader in affected {
-        let new_leader_broker =
-            generate_group_leader(meta_cache, rocksdb_engine_handler, &group_leader.tenant).await?;
-        group_leader.leader_broker = new_leader_broker;
-
-        let data = StorageData::new(
-            StorageDataType::MqttSetGroupLeader,
-            Bytes::copy_from_slice(&group_leader.encode()?),
-        );
-        raft_manager
-            .write_data(&group_leader.group_name, data)
-            .await?;
-        send_notify_by_set_share_group(call_manager, group_leader).await?;
-        switched += 1;
-    }
-    info!(
-        "group_leader_switch completed, node {} removed, {} group leaders switched",
-        remove_id, switched
-    );
-    Ok(())
-}
+// Number of segments handled by a single switch task. Affected segments are
+// split into chunks of this size and processed concurrently; a batch completes
+// once all its tasks complete.
+const SWITCH_TASK_CHUNK_SIZE: usize = 1000;
 
 pub async fn segment_leader_switch(
     meta_cache: &Arc<MetaCacheManager>,
@@ -112,7 +39,7 @@ pub async fn segment_leader_switch(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     remove_id: u64,
 ) -> Result<(), MetaServiceError> {
-    let affected: Vec<_> = meta_cache
+    let affected: Vec<EngineSegment> = meta_cache
         .segment_list
         .iter()
         .flat_map(|shard| {
@@ -124,17 +51,143 @@ pub async fn segment_leader_switch(
         })
         .collect();
 
+    // Active (write-accepting) segments are on the hot write path; sealed /
+    // historical segments only serve reads. Switch them on two independent
+    // tasks so the active switch never waits behind the (potentially huge)
+    // set of inactive segments.
+    let (active, inactive): (Vec<_>, Vec<_>) =
+        affected.into_iter().partition(|seg| seg.allow_write());
+
+    let active_task = tokio::spawn(active_segment_leader_switch(
+        raft_manager.clone(),
+        call_manager.clone(),
+        rocksdb_engine_handler.clone(),
+        remove_id,
+        active,
+    ));
+    let inactive_task = tokio::spawn(inactive_segment_leader_switch(
+        raft_manager.clone(),
+        call_manager.clone(),
+        rocksdb_engine_handler.clone(),
+        remove_id,
+        inactive,
+    ));
+
+    let (active_res, inactive_res) = tokio::join!(active_task, inactive_task);
+    join_result(active_res)?;
+    join_result(inactive_res)?;
+    Ok(())
+}
+
+async fn active_segment_leader_switch(
+    raft_manager: Arc<MultiRaftManager>,
+    call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    remove_id: u64,
+    segments: Vec<EngineSegment>,
+) -> Result<(), MetaServiceError> {
+    switch_segments_concurrently(
+        "active",
+        raft_manager,
+        call_manager,
+        rocksdb_engine_handler,
+        remove_id,
+        segments,
+    )
+    .await
+}
+
+async fn inactive_segment_leader_switch(
+    raft_manager: Arc<MultiRaftManager>,
+    call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    remove_id: u64,
+    segments: Vec<EngineSegment>,
+) -> Result<(), MetaServiceError> {
+    switch_segments_concurrently(
+        "inactive",
+        raft_manager,
+        call_manager,
+        rocksdb_engine_handler,
+        remove_id,
+        segments,
+    )
+    .await
+}
+
+async fn switch_segments_concurrently(
+    label: &str,
+    raft_manager: Arc<MultiRaftManager>,
+    call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    remove_id: u64,
+    segments: Vec<EngineSegment>,
+) -> Result<(), MetaServiceError> {
+    let mut handles = Vec::new();
+    for chunk in segments.chunks(SWITCH_TASK_CHUNK_SIZE) {
+        let chunk = chunk.to_vec();
+        let raft_manager = raft_manager.clone();
+        let call_manager = call_manager.clone();
+        let rocksdb_engine_handler = rocksdb_engine_handler.clone();
+        handles.push(tokio::spawn(async move {
+            switch_segment_chunk(
+                &raft_manager,
+                &call_manager,
+                &rocksdb_engine_handler,
+                remove_id,
+                chunk,
+            )
+            .await
+        }));
+    }
+
+    // The batch completes only once every task completes; await them all
+    // before propagating the first error.
+    let mut switched = 0u32;
+    let mut unavailable = 0u32;
+    let mut first_err = None;
+    for handle in handles {
+        match handle.await {
+            Ok(Ok((s, u))) => {
+                switched += s;
+                unavailable += u;
+            }
+            Ok(Err(e)) => first_err = first_err.or(Some(e)),
+            Err(e) => {
+                first_err = first_err.or(Some(MetaServiceError::CommonError(format!(
+                    "{label} segment leader switch task panicked: {e}"
+                ))))
+            }
+        }
+    }
+    if let Some(e) = first_err {
+        return Err(e);
+    }
+    info!(
+        "{label}_segment_leader_switch completed, node {} removed, {} switched, {} marked Unavailable",
+        remove_id, switched, unavailable
+    );
+    Ok(())
+}
+
+async fn switch_segment_chunk(
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    remove_id: u64,
+    segments: Vec<EngineSegment>,
+) -> Result<(u32, u32), MetaServiceError> {
     let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
 
     let mut switched = 0u32;
     let mut unavailable = 0u32;
-    for segment in affected {
+    for segment in segments {
         let new_leader = segment.isr.iter().copied().find(|id| *id != remove_id);
         let new_leader_broker_epoch = match new_leader {
             Some(id) => node_storage.get_broker_epoch(id)?,
             None => 0,
         };
-        let new_segment: EngineSegment =
+        let new_segment =
             compute_segment_after_leader_failure(&segment, remove_id, new_leader_broker_epoch);
 
         if new_segment.status == SegmentStatus::Unavailable {
@@ -150,11 +203,18 @@ pub async fn segment_leader_switch(
         sync_save_segment_info(raft_manager, &new_segment).await?;
         send_notify_by_set_segment(call_manager, new_segment).await?;
     }
-    info!(
-        "segment_leader_switch completed, node {} removed, {} switched, {} marked Unavailable",
-        remove_id, switched, unavailable
-    );
-    Ok(())
+    Ok((switched, unavailable))
+}
+
+fn join_result(
+    res: Result<Result<(), MetaServiceError>, tokio::task::JoinError>,
+) -> Result<(), MetaServiceError> {
+    match res {
+        Ok(inner) => inner,
+        Err(e) => Err(MetaServiceError::CommonError(format!(
+            "segment leader switch task panicked: {e}"
+        ))),
+    }
 }
 
 /// Decide a segment's new state after its leader `remove_id` fails. Elects the

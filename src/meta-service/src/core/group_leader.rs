@@ -13,10 +13,15 @@
 // limitations under the License.
 
 use crate::core::error::MetaServiceError;
+use crate::core::notify::send_notify_by_set_share_group;
 use crate::raft::manager::MultiRaftManager;
+use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::{core::cache::MetaCacheManager, storage::common::share_group::ShareGroupStorage};
+use bytes::Bytes;
+use node_call::NodeCallManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
+use tracing::info;
 
 pub async fn get_group_leader(
     _raft_manager: &Arc<MultiRaftManager>,
@@ -50,12 +55,11 @@ pub async fn generate_group_leader(
 ) -> Result<u64, MetaServiceError> {
     let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
     let list = storage.list_by_tenant(tenant)?;
-    let mut broker_ids: Vec<u64> = cache_manager
+    let broker_ids: Vec<u64> = cache_manager
         .node_list
         .iter()
         .map(|node| node.node_id)
         .collect();
-    broker_ids.sort_unstable();
 
     if broker_ids.is_empty() {
         return Err(MetaServiceError::NoAvailableBrokerNode);
@@ -82,6 +86,43 @@ pub async fn generate_group_leader(
         .ok_or(MetaServiceError::NoAvailableBrokerNode)?;
 
     Ok(target_broker_id)
+}
+
+pub async fn group_leader_switch(
+    meta_cache: &Arc<MetaCacheManager>,
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    remove_id: u64,
+) -> Result<(), MetaServiceError> {
+    let affected: Vec<_> = meta_cache
+        .group_leader
+        .iter()
+        .filter(|g| g.leader_broker == remove_id)
+        .map(|g| g.clone())
+        .collect();
+
+    let mut switched = 0u32;
+    for mut group_leader in affected {
+        let new_leader_broker =
+            generate_group_leader(meta_cache, rocksdb_engine_handler, &group_leader.tenant).await?;
+        group_leader.leader_broker = new_leader_broker;
+
+        let data = StorageData::new(
+            StorageDataType::MqttSetGroupLeader,
+            Bytes::copy_from_slice(&group_leader.encode()?),
+        );
+        raft_manager
+            .write_data(&group_leader.group_name, data)
+            .await?;
+        send_notify_by_set_share_group(call_manager, group_leader).await?;
+        switched += 1;
+    }
+    info!(
+        "group_leader_switch completed, node {} removed, {} group leaders switched",
+        remove_id, switched
+    );
+    Ok(())
 }
 
 #[cfg(test)]
