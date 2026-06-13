@@ -16,11 +16,13 @@ use crate::core::cache::MetaCacheManager;
 use crate::core::notify::send_notify_by_set_segment;
 use crate::core::segment::sync_save_segment_info;
 use crate::raft::manager::MultiRaftManager;
+use crate::storage::common::node::NodeStorage;
 use common_base::error::ResultCommonError;
 use common_base::tools::loop_select_ticket;
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use node_call::NodeCallManager;
+use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
@@ -29,6 +31,7 @@ pub async fn start_segment_leader_rebalance_thread(
     raft_manager: Arc<MultiRaftManager>,
     cache_manager: Arc<MetaCacheManager>,
     call_manager: Arc<NodeCallManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
 ) {
     let interval = broker_config()
@@ -36,7 +39,13 @@ pub async fn start_segment_leader_rebalance_thread(
         .segment_leader_rebalance_interval_ms;
     let ac_fn = async || -> ResultCommonError {
         if raft_manager.is_metadata_leader() {
-            rebalance_once(&raft_manager, &cache_manager, &call_manager).await;
+            rebalance_once(
+                &raft_manager,
+                &cache_manager,
+                &call_manager,
+                &rocksdb_engine_handler,
+            )
+            .await;
         }
         Ok(())
     };
@@ -47,6 +56,7 @@ async fn rebalance_once(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) {
     // Only the active segment carries write/replication load; sealed segments are
     // read-only and Unavailable ones are the recovery path's job.
@@ -65,7 +75,15 @@ async fn rebalance_once(
         if moved >= max_moves {
             break;
         }
-        match switch_to_preferred(raft_manager, cache_manager, call_manager, &segment).await {
+        match switch_to_preferred(
+            raft_manager,
+            cache_manager,
+            call_manager,
+            rocksdb_engine_handler,
+            &segment,
+        )
+        .await
+        {
             Ok(true) => moved += 1,
             Ok(false) => {}
             Err(e) => warn!(
@@ -99,6 +117,7 @@ async fn switch_to_preferred(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment: &EngineSegment,
 ) -> Result<bool, String> {
     // Re-read and re-validate against the latest state (it may have changed since
@@ -116,10 +135,16 @@ async fn switch_to_preferred(
 
     // ISR stays intact: preferred is already in-sync, the old leader stays a
     // follower in the ISR. Only the leadership term changes.
+    let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
+    let preferred_broker_epoch = node_storage
+        .get_broker_epoch(preferred)
+        .map_err(|e| e.to_string())?;
+
     let mut new_segment = current.clone();
     new_segment.leader = preferred;
     new_segment.leader_epoch += 1;
     new_segment.segment_epoch += 1;
+    new_segment.leader_broker_epoch = preferred_broker_epoch;
 
     sync_save_segment_info(raft_manager, &new_segment)
         .await

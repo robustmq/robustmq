@@ -50,10 +50,25 @@ Check in priority order:
 - Duplicate import lines → merge
 - Temporary flag variables (`let mut failed = false; ... if !failed { commit() }`) → early return
 
+**Comments (keep lean)**
+- Remove redundant or obvious comments; the code should speak for itself
+- Keep only comments that explain a non-obvious *why* (an invariant, a subtle ordering, a footgun)
+- Do not over-comment — fewer, higher-signal comments beat many noisy ones
+
+**Test Cases (assess and complete)**
+- Coverage: identify core logic paths and edge cases that are not tested; add focused tests for the gaps (the pure decision functions and the bug-prone branches first)
+- Conciseness: if tests are redundant or overlapping (one case is a subset of another), slim them down — tests should be few, focused, and high-signal, not exhaustive duplication
+- Prefer testing the pure/extractable logic directly over standing up heavy mocks for orchestration glue
+
+**Naming (align names with behavior)**
+- Function names: does the name describe what the function actually does? Rename misleading or vague names (e.g. a `get_*` that mutates, a `*_switch` that only computes)
+- File / module names: does the file name match its content and responsibility? Flag/rename when it has drifted
+- When renaming, update every reference (callers, imports, `mod` declarations) and re-run `cargo check`. Be conservative with widely-used public names — only rename when the current name is genuinely misleading, not for taste
+
 **What NOT to do**
 - Do not refactor correct code just to be "more Rusty"
 - Do not introduce new abstractions or traits
-- Do not change public API signatures (unless there is a bug)
+- Do not change public API signatures (unless there is a bug, or a name is genuinely misleading — then rename and update all call sites)
 - Do not add unnecessary comments
 
 ### 3. Fix
@@ -64,7 +79,7 @@ Check in priority order:
 
 ### 4. Loop
 
-After each round of fixes, re-analyze the file to confirm nothing was missed. Stop only when you can clearly state: "no logic errors, no lock issues, no worthwhile simplification remaining."
+After each round of fixes, re-analyze the file to confirm nothing was missed. Stop only when you can clearly state: "no logic errors, no lock issues, no worthwhile simplification remaining, names match behavior, test coverage adequate and focused, comments lean."
 
 ## Output Format
 

@@ -175,12 +175,14 @@ impl BrokerController {
         let raft_manager = self.raft_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let call_manager = self.node_call_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
         let raw_stop_send = stop_send.clone();
         tokio::spawn(Box::pin(async move {
             start_segment_leader_rebalance_thread(
                 raft_manager,
                 cache_manager,
                 call_manager,
+                rocksdb_engine_handler,
                 raw_stop_send,
             )
             .await;
