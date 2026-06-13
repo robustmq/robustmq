@@ -27,6 +27,7 @@ use axum::extract::{Query, State};
 use broker_core::topic::TopicStorage;
 use common_base::error::common::CommonError;
 use common_base::http_response::{error_response, success_response};
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::mqtt::{retain_message::MQTTRetainMessage, topic::Topic};
@@ -271,8 +272,15 @@ pub async fn topic_create(
         }
     };
 
-    let partition = params.partition.unwrap_or(1).max(1);
-    let replication = params.replication.unwrap_or(1).max(1);
+    let conf = broker_config();
+    let partition = params
+        .partition
+        .unwrap_or(conf.runtime.default_topic_partition_num)
+        .max(1);
+    let replication = params
+        .replication
+        .unwrap_or(conf.runtime.default_topic_replica_num)
+        .max(1);
 
     let topic = MetaTopic::new(&params.tenant, &params.topic_name, storage_type)
         .with_source(source)

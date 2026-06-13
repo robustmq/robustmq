@@ -19,13 +19,13 @@ pub mod handle_fetch;
 pub mod log_replica;
 pub mod packet_transport;
 
+pub mod apply;
 pub mod handle_epoch;
 pub mod isr_manager;
 pub mod leader_epoch;
 pub mod log;
 pub mod reconcile;
 pub mod recover;
-pub mod apply;
 
 #[cfg(test)]
 pub mod test_util;

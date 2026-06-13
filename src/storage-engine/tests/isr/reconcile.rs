@@ -29,11 +29,11 @@ mod tests {
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
     use storage_engine::commitlog::offset::ShardOffsetState;
+    use storage_engine::isr::apply::apply_leader_and_isr;
     use storage_engine::isr::fetcher_manager::{
         build_engine_fetcher_manager, ReplicaFetcherManager,
     };
     use storage_engine::isr::follower::update_follower_progress;
-    use storage_engine::isr::apply::apply_leader_and_isr;
 
     use crate::isr::{make_engine, make_rocksdb, set_broker_id};
 

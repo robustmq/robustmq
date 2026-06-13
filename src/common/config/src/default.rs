@@ -71,6 +71,8 @@ pub fn default_runtime() -> Runtime {
         tls_cert: "./config/certs/cert.pem".to_string(),
         tls_key: "./config/certs/key.pem".to_string(),
         pprof_enable: false,
+        default_topic_partition_num: 3,
+        default_topic_replica_num: 2,
     }
 }
 
@@ -399,6 +401,12 @@ pub fn default_storage_metadata_reconcile_interval_ms() -> u64 {
 }
 pub fn default_storage_isr_maintain_interval_ms() -> u64 {
     1000
+}
+pub fn default_topic_partition_num() -> u32 {
+    1
+}
+pub fn default_topic_replica_num() -> u32 {
+    2
 }
 
 // ClusterLimit

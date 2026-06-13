@@ -19,8 +19,8 @@ use crate::{
     filesegment::{
         segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
     },
-    isr::fetcher_manager::ReplicaFetcherManager,
     isr::apply::apply_leader_and_isr,
+    isr::fetcher_manager::ReplicaFetcherManager,
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::segment::EngineSegment;

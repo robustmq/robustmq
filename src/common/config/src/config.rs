@@ -45,7 +45,7 @@ use super::default::{
     default_storage_replica_lag_time_max_ms, default_storage_tcp_port,
     default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
     default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
-    default_topic_alias_max,
+    default_topic_alias_max, default_topic_partition_num, default_topic_replica_num,
 };
 use crate::common::default_log;
 use crate::common::Log;
@@ -318,6 +318,12 @@ pub struct Runtime {
 
     #[serde(default)]
     pub pprof_enable: bool,
+
+    #[serde(default = "default_topic_partition_num")]
+    pub default_topic_partition_num: u32,
+
+    #[serde(default = "default_topic_replica_num")]
+    pub default_topic_replica_num: u32,
 }
 
 impl Default for Runtime {

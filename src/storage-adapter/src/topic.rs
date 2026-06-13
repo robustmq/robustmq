@@ -31,6 +31,15 @@ use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, info};
 
+pub fn topic_replication_num(replica_num: u32) -> u32 {
+    let conf = broker_config();
+    if conf.meta_addrs.len() == 1 {
+        1
+    } else {
+        replica_num
+    }
+}
+
 pub async fn create_topic_full(
     broker_cache: &Arc<NodeCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
@@ -137,9 +146,12 @@ async fn init_single_inner_topic(
         return Ok(());
     }
 
-    info!("Inner topic '{}' not found, creating...", topic_name);
-
-    let topic = Topic::new(DEFAULT_TENANT, topic_name, StorageType::EngineRocksDB);
+    let conf = broker_config();
+    let topic = Topic::new(DEFAULT_TENANT, topic_name, StorageType::EngineRocksDB)
+        .with_partition(conf.runtime.default_topic_partition_num)
+        .with_replication(topic_replication_num(
+            conf.runtime.default_topic_replica_num,
+        ));
     create_topic_full(broker_cache, storage_driver_manager, client_pool, &topic).await?;
 
     info!("Inner topic '{}' created successfully", topic_name);

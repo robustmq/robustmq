@@ -42,7 +42,10 @@ use std::{
     collections::HashMap,
     sync::{atomic::AtomicI64, Arc},
 };
-use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
+use storage_adapter::{
+    driver::StorageDriverManager,
+    topic::{create_topic_full, topic_replication_num},
+};
 
 static SHARD_ALLOCATION_GENERAL: AtomicI64 = AtomicI64::new(0);
 
@@ -83,10 +86,14 @@ pub async fn try_get_or_init_mq9_subject(
 ) -> Result<NatSubject, NatsBrokerError> {
     let storage_name_list =
         get_subject_storage_name(cache_manager, storage_driver_manager, client_pool, true).await?;
-
+    let conf = broker_config();
     let topic = Topic::new(tenant, subject, StorageType::EngineRocksDB)
         .with_source(TopicSource::MQ9)
-        .with_storage_name_list(storage_name_list);
+        .with_storage_name_list(storage_name_list)
+        .with_partition(conf.runtime.default_topic_partition_num)
+        .with_replication(topic_replication_num(
+            conf.runtime.default_topic_replica_num,
+        ));
 
     create_topic_full(
         &cache_manager.node_cache,
@@ -108,10 +115,14 @@ pub async fn try_get_or_init_nats_core_subject(
 ) -> Result<NatSubject, NatsBrokerError> {
     let storage_name_list =
         get_subject_storage_name(cache_manager, storage_driver_manager, client_pool, false).await?;
-
+    let conf = broker_config();
     let topic = Topic::new(tenant, subject, StorageType::EngineMemory)
         .with_source(TopicSource::NATS)
-        .with_storage_name_list(storage_name_list);
+        .with_storage_name_list(storage_name_list)
+        .with_partition(conf.runtime.default_topic_partition_num)
+        .with_replication(topic_replication_num(
+            conf.runtime.default_topic_replica_num,
+        ));
 
     create_topic_full(
         &cache_manager.node_cache,
@@ -166,12 +177,21 @@ async fn get_subject_storage_name(
         return Ok(topic.storage_name_list.clone());
     }
 
+    let conf = broker_config();
     let topic = if is_mq9 {
         Topic::new(tenant, &shard_topic_name, StorageType::EngineRocksDB)
             .with_source(TopicSource::MQ9)
+            .with_partition(conf.runtime.default_topic_partition_num)
+            .with_replication(topic_replication_num(
+                conf.runtime.default_topic_replica_num,
+            ))
     } else {
         Topic::new(tenant, &shard_topic_name, StorageType::EngineMemory)
             .with_source(TopicSource::NATS)
+            .with_partition(conf.runtime.default_topic_partition_num)
+            .with_replication(topic_replication_num(
+                conf.runtime.default_topic_replica_num,
+            ))
     };
 
     create_topic_full(

@@ -108,11 +108,19 @@ pub async fn decommission_node(
         let rocksdb_engine_handler = rocksdb_engine_handler.clone();
         let call_manager = call_manager.clone();
         tokio::spawn(async move {
-            if let Err(e) =
-                group_leader_switch(&meta_cache, &raft_manager, &call_manager, &rocksdb_engine_handler, node_id)
-                    .await
+            if let Err(e) = group_leader_switch(
+                &meta_cache,
+                &raft_manager,
+                &call_manager,
+                &rocksdb_engine_handler,
+                node_id,
+            )
+            .await
             {
-                error!("group leader switch failed for decommissioned node {}: {}", node_id, e);
+                error!(
+                    "group leader switch failed for decommissioned node {}: {}",
+                    node_id, e
+                );
             }
             if let Err(e) = decommission_node_segments(
                 &meta_cache,

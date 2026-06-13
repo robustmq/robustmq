@@ -18,6 +18,7 @@ use crate::core::tool::ResultMqttBrokerError;
 use crate::subscribe::manager::SubscribeManager;
 use crate::{core::cache::MQTTCacheManager, subscribe::parse::ParseSubscribeData};
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::{
@@ -29,6 +30,7 @@ use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheRes
 use protocol::mqtt::common::{Publish, PublishProperties};
 use std::sync::Arc;
 use std::time::Duration;
+use storage_adapter::topic::topic_replication_num;
 use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
 use tokio::time::sleep;
 
@@ -172,14 +174,18 @@ pub async fn try_init_topic(
                 topic_name, tenant
             )));
         }
-
+        let conf = broker_config();
         let topic = Topic::new(tenant, topic_name, StorageType::EngineRocksDB)
             .with_source(TopicSource::MQTT)
             .with_config(TopicConfig {
                 retention_sec: DEFAULT_RETENTION_SEC,
                 max_record_num: Some(1000),
                 max_segment_size: None,
-            });
+            })
+            .with_partition(conf.runtime.default_topic_partition_num)
+            .with_replication(topic_replication_num(
+                conf.runtime.default_topic_replica_num,
+            ));
         create_topic_full(
             &cache_manager.node_cache,
             storage_driver_manager,

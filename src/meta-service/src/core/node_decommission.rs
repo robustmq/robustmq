@@ -140,13 +140,8 @@ async fn decommission_chunk(
         let existing: HashSet<u64> = segment.replicas.iter().map(|r| r.node_id).collect();
         let target = pick_target(alive_ids, load, &existing);
 
-        let new_segment = build_decommissioned_segment(
-            meta_cache,
-            &node_storage,
-            &segment,
-            remove_id,
-            target,
-        )?;
+        let new_segment =
+            build_decommissioned_segment(meta_cache, &node_storage, &segment, remove_id, target)?;
 
         if new_segment.status == SegmentStatus::Unavailable {
             warn!(
