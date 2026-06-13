@@ -738,11 +738,12 @@ html body * .text[data-v-4f9c455b] {
 #VPSidebarNav .VPSidebarItem.level-0 .text,
 #VPSidebarNav .VPSidebarItem.level-0 > .item > .text,
 #VPSidebarNav .VPSidebarItem.level-0 > .item .link > .text {
-  font-size: 11px !important;
+  font-size: 14px !important;
   font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.6 !important;
   text-transform: none !important;
-  color: rgba(168, 85, 247, 0.7) !important;
+  color: rgba(168, 85, 247, 0.85) !important;
 }
 
 /* Sidebar hover and active */
