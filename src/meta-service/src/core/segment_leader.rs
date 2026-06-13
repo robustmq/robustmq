@@ -192,11 +192,30 @@ async fn switch_segment_chunk(
 
         if new_segment.status == SegmentStatus::Unavailable {
             warn!(
-                "segment {}/{} ISR empty after removing node {}, marking Unavailable",
-                segment.shard_name, segment.segment_seq, remove_id
+                "segment {}/{} marked Unavailable after removing leader {}: no surviving ISR member (ISR was {:?}, segment_epoch {} -> {})",
+                segment.shard_name,
+                segment.segment_seq,
+                remove_id,
+                segment.isr,
+                segment.segment_epoch,
+                new_segment.segment_epoch
             );
             unavailable += 1;
         } else {
+            info!(
+                "segment {}/{} leader switched {} -> {} after removing node {} (leader_epoch {} -> {}, segment_epoch {} -> {}, ISR {:?} -> {:?})",
+                segment.shard_name,
+                segment.segment_seq,
+                segment.leader,
+                new_segment.leader,
+                remove_id,
+                segment.leader_epoch,
+                new_segment.leader_epoch,
+                segment.segment_epoch,
+                new_segment.segment_epoch,
+                segment.isr,
+                new_segment.isr
+            );
             switched += 1;
         }
 
