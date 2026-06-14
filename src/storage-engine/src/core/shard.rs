@@ -141,7 +141,8 @@ pub async fn create_shard_to_place(
     .await?;
 
     // Wait for shard to be ready: cache populated and this broker is the leader.
-    let wait_result = timeout(Duration::from_secs(10), async {
+    const SHARD_READY_TIMEOUT_SECS: u64 = 10;
+    let wait_result = timeout(Duration::from_secs(SHARD_READY_TIMEOUT_SECS), async {
         loop {
             if shard_provisioned(cache_manager, shard) {
                 return;
@@ -160,8 +161,8 @@ pub async fn create_shard_to_place(
             Ok(())
         }
         Err(_) => Err(StorageEngineError::CommonErrorStr(format!(
-            "Timeout waiting for shard '{}' to be created in local cache after 3 seconds",
-            shard_name
+            "Timeout waiting for shard '{}' (topic '{}') to be created in local cache after {}s",
+            shard_name, shard.topic_name, SHARD_READY_TIMEOUT_SECS
         ))),
     }
 }
