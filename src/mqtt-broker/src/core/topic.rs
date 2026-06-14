@@ -155,6 +155,7 @@ pub async fn get_topic_alias(
 pub async fn try_init_topic(
     tenant: &str,
     topic_name: &str,
+    is_inner_topic: bool,
     cache_manager: &Arc<MQTTCacheManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
     client_pool: &Arc<ClientPool>,
@@ -174,9 +175,17 @@ pub async fn try_init_topic(
                 topic_name, tenant
             )));
         }
+        // System topics ($SYS/...) are marked SystemInner so the storage layer
+        // may create them under-replicated on a small cluster and top them up
+        // later, instead of failing when fewer nodes than replica_num are up.
+        let source = if is_inner_topic {
+            TopicSource::SystemInner
+        } else {
+            TopicSource::MQTT
+        };
         let conf = broker_config();
         let topic = Topic::new(tenant, topic_name, StorageType::EngineRocksDB)
-            .with_source(TopicSource::MQTT)
+            .with_source(source)
             .with_config(TopicConfig {
                 retention_sec: DEFAULT_RETENTION_SEC,
                 max_record_num: Some(1000),

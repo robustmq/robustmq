@@ -83,6 +83,7 @@ async fn send_message_inner(
     if let Err(e) = try_init_topic(
         &params.tenant,
         &params.topic,
+        false,
         &state.mqtt_context.cache_manager,
         &state.storage_driver_manager,
         &state.client_pool,

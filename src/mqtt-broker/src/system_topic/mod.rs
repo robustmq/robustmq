@@ -250,6 +250,7 @@ pub(crate) async fn write_topic_data(
     let topic = try_init_topic(
         DEFAULT_TENANT,
         &topic_name,
+        true,
         &metadata_cache.clone(),
         storage_driver_manager,
         &client_pool.clone(),

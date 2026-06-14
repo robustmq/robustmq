@@ -161,6 +161,7 @@ async fn event_batch_consumer(
     let topic = match try_init_topic(
         DEFAULT_TENANT,
         SYSTEM_TOPIC_EVENT,
+        true,
         &cache_manager,
         &storage_driver_manager,
         &client_pool,
