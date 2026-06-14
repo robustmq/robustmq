@@ -252,6 +252,7 @@ Note the timings the drill exercises: a dead **follower** leaves the ISR in ~6-1
 | `broker-core` heartbeat reports to **every** meta node, not one | heartbeat table is in-memory per meta node + the expiry check is leader-only; after a meta-leader change the new leader never saw heartbeats and expired ALL nodes every `heartbeat_timeout_ms` → endless cluster-wide leader/ISR churn that never self-heals |
 | `isr_manager::compute_new_isr` keeps a follower in-sync purely by fetch **recency** (`last_fetch_ts`), not a static `leo >= leader_leo` | a follower that died while fully caught up kept `leo == leader_leo` against a non-advancing leader LEO forever → dead replica pinned in the ISR indefinitely (blocks acks=all, stale ISR) |
 | `dynamic_cache.rs` Create handler also `remove_leader_segment` when this node is NOT the new leader | leader switch is a "Create" notification; a demoted node kept the segment in `leader_segments` and kept running ISR maintenance for it → stale ISR proposals / divergent maintenance view across nodes |
+| `isr/apply.rs::apply_as_follower` passes `leader_epoch_changed` flag — only sets `needs_truncation: true` when the leader epoch actually changed, not on every Segment Update | every ISR membership notification (e.g. ISR shrink when a follower was killed) called `apply_as_follower` unconditionally with `needs_truncation: true`, stopping the fetcher for a full OffsetsForLeaderEpoch round-trip; when this gap overlapped an acks=all write's 30s window it raced to a TokioTimeErrorElapsed timeout |
 
 ## Pass / Fail Criteria
 
@@ -295,3 +296,45 @@ for c in 1 2 3; do while pgrep -f "server-$c.toml" >/dev/null; do sleep 1; done;
 | Test fails because follower HW lags the leader | Don't assert HW immediately — poll until `hw == leader_leo` with a timeout. The follower learns HW one fetch round later. |
 | Used `EngineSegment` and replicas never sync | ISR replication is not implemented for `EngineSegment`. Use `EngineRocksDB`/`EngineMemory`. |
 | `segment_detail` returns null `data` | The segment isn't in cache yet — wait for provisioning (~10s) and confirm `segment_seq` exists via the segment list. |
+
+## Run Report (generate after each complete A+B+C session)
+
+After all three drills finish (or fail), emit a structured summary so the results
+are recorded in the conversation. Collect the key facts from test output and logs,
+then print a report in this format:
+
+```
+=== ISR REPLICATION DRILL RUN REPORT ===
+Date:        <YYYY-MM-DD>
+Code commit: <git rev-parse --short HEAD>
+
+Drill A — replica sync
+  Result:    PASS / FAIL
+  Details:   ISR converged at LEO=HW=<N> in <T>s
+
+Drill B — leader failover
+  Result:    PASS / FAIL
+  Details:   leader switched n<X>->n<Y> after <T>s, no data loss, rejoin after <T>s
+
+Drill C — rolling-restart chaos (10 rounds)
+  Result:    PASS / FAIL
+  Rounds:    <N>/10 passed
+  Records:   <N> committed records read back OK
+  Epochs:    <N> leader-epoch switches
+  Details:   <any notable anomalies or the failure round + panic line>
+
+Log errors:
+  node1: <N> ERRORs
+  node2: <N> ERRORs
+  node3: <N> ERRORs
+
+Overall:  PASS / FAIL
+========================================
+```
+
+Gather inputs with:
+```bash
+git rev-parse --short HEAD
+# Drill results come from the test output captured above.
+for c in 1 2 3; do echo "node$c ERROR: $(grep -c ' ERROR' /tmp/n$c.log)"; done
+```

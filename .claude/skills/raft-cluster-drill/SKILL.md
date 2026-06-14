@@ -431,4 +431,55 @@ pkill -9 -f "broker-server --conf"
 | Nodes fail to start after a few restart rounds; `RaftCore exited ... invalid state: purge_upto > snapshot_last_log_id` | Logs are read back empty on restart. Confirm by grepping the startup logs for `get_initial_state ... last_log_id=None` and `Clean the hole`. Root cause was `get_log_state`/`try_get_log_entries` iterating without `total_order_seek` while the DB has a 10-byte fixed-prefix extractor (log keys are 17 bytes) — the reverse seek finds nothing and openraft thinks the whole log was lost, then purges past the snapshot. Fixed in `raft/store/log.rs` by setting `ReadOptions::set_total_order_seek(true)` on both iterators (regression test: `test_get_log_state_survives_reopen_with_prefix_extractor`). |
 | Drill F read-back reports a tenant MISSING but point-get / `list?limit=big` / `total_count` show it IS present | **Test artifact, NOT a bug.** List endpoints default to `limit=10` (`parse_limit`, admin-server/src/tool/query.rs). With >10 rows the lexicographically-last name is paginated out. Always query lists with an explicit large `?limit=`. Verify with `/api/cluster/tenant/list?limit=100000` and the `total_count` field before suspecting data loss. |
 | `console subscriber server failed: Address already in use` panic at startup | **Benign** for co-located multi-node drills — all three nodes bind the same tokio-console port. Does not affect Raft or shutdown. Do NOT count it as a Raft panic; grep `invalid state: expect` to isolate the real Raft panic. |
+
+## Run Report (generate after completing all drills in a session)
+
+After all drills finish (or fail), emit a structured summary. Gather facts from
+test output, admin API responses, and node logs, then print:
+
+```
+=== RAFT CLUSTER DRILL RUN REPORT ===
+Date:        <YYYY-MM-DD>
+Code commit: <git rev-parse --short HEAD>
+
+Drill A — 3-node bootstrap + leader election
+  Result:    PASS / FAIL
+  Details:   <raft leader elected, all nodes visible in broker_node_list>
+
+Drill B — snapshot install on fresh joiner
+  Result:    PASS / FAIL
+  Details:   <snapshot applied, data readable on new member>
+
+Drill C — rolling restart (quorum never broken)
+  Result:    PASS / FAIL
+  Details:   <N rounds, cluster recovered each time, no invalid-state panic>
+
+Drill D — leader kill + re-election
+  Result:    PASS / FAIL
+  Details:   <new leader elected in <T>s, committed data preserved>
+
+Drill E — partition simulation (quorum loss + recovery)
+  Result:    PASS / FAIL
+  Details:   <cluster stalled during partition, recovered after heal>
+
+Drill F — data integrity (read-back all written records)
+  Result:    PASS / FAIL
+  Details:   <N records written, N read back, no missing/duplicate>
+
+Log errors:
+  node1: <N> ERRORs  (grep -c ' ERROR' /tmp/n1.log)
+  node2: <N> ERRORs
+  node3: <N> ERRORs
+  Raft panics: <N>  (grep -c 'invalid state: expect' /tmp/n*.log)
+
+Overall:  PASS / FAIL
+======================================
+```
+
+Gather inputs with:
+```bash
+git rev-parse --short HEAD
+for c in 1 2 3; do echo "node$c ERROR: $(grep -c ' ERROR' /tmp/n$c.log)"; done
+for c in 1 2 3; do echo "node$c RAFT_PANIC: $(grep -c 'invalid state: expect' /tmp/n$c.log)"; done
+```
 | Process won't exit on `kill -INT`, only `kill -9` works | Regression in signal handling (libc handler in daemon.rs) or a `leave_cluster` re-introduced into shutdown. |

@@ -67,7 +67,12 @@ pub async fn apply_leader_and_isr(
             leader_epoch_changed,
         )?;
     } else {
-        apply_as_follower(rocksdb_engine_handler, fetcher_manager, segment)?;
+        apply_as_follower(
+            rocksdb_engine_handler,
+            fetcher_manager,
+            segment,
+            leader_epoch_changed,
+        )?;
     }
     Ok(())
 }
@@ -104,6 +109,7 @@ fn apply_as_follower(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     fetcher_manager: &Arc<ReplicaFetcherManager>,
     segment: &EngineSegment,
+    leader_epoch_changed: bool,
 ) -> Result<(), StorageEngineError> {
     let shard = &segment.shard_name;
     let segment_seq = segment.segment_seq;
@@ -118,7 +124,7 @@ fn apply_as_follower(
         current_leader_epoch: segment.leader_epoch,
         max_bytes,
         cache,
-        needs_truncation: true,
+        needs_truncation: leader_epoch_changed,
     });
     Ok(())
 }
