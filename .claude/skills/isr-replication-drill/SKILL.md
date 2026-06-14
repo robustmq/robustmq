@@ -1,6 +1,6 @@
 ---
 name: isr-replication-drill
-description: Run 3-node ISR drills for RobustMQ — replica-sync (LEO/HW convergence, ISR stability) and leader-failover (kill the leader, verify switch + no committed-data loss + rejoin). Use when the user wants to verify replica replication / ISR health or failover — e.g. "演练 isr 副本同步", "验证三副本同步", "kill leader 演练", "验证 leader 切换/故障转移", "test ISR replication", "副本同步是否正常".
+description: Run 3-node ISR drills for RobustMQ — replica-sync (LEO/HW convergence), leader-failover (kill leader → switch + no committed-data loss + rejoin), and rolling-restart chaos (repeatedly restart one node, frequent leader switches, verify ISR stays correct). Use when the user wants to verify replica replication / ISR health, failover, or behaviour under churn — e.g. "演练 isr 副本同步", "验证三副本同步", "kill leader 演练", "验证 leader 切换/故障转移", "滚动重启/频繁切换 isr 是否正常", "test ISR replication", "副本同步是否正常".
 ---
 
 # RobustMQ ISR Replication Drill
@@ -19,10 +19,14 @@ ISR stays full) by polling the segment-detail admin API.
 - Verify leader **failover**: killing the leader switches it to a surviving replica
   with NO committed-data loss, and the killed node rejoins the ISR after restart
   (Drill B)
+- Verify ISR correctness under a **rolling restart** with frequent leader switches
+  (Drill C)
 - Regression-check the fixes: follower-HW (apply `leader_hw` from the fetch
   response), segment-detail cross-node fan-out, leader-switch offset reset
-  (committed-data loss), acks=all producer commit timeout, and reconcile self-heal
-  of a restarted follower's fetcher
+  (committed-data loss), acks=all producer commit timeout, reconcile self-heal of a
+  restarted follower's fetcher, heartbeat reported to every meta node (no false
+  expiry after a meta-leader change), recency-based ISR shrink (drop a dead
+  caught-up follower), and `leader_segments` cleanup on demotion
 
 ## Key Semantics — what "ISR healthy" means
 
@@ -203,6 +207,51 @@ This drill guards three fixes — a regression in any of them fails it:
 > dir, NOT the repo root. The test restarts the killed broker via the repo root
 > (resolved from `CARGO_MANIFEST_DIR`) with `current_dir(repo_root)`. A bare
 > `./target/debug/broker-server` would silently fail to spawn.
+
+## Drill C — rolling-restart chaos (frequent leader switches)
+
+Stresses the ISR machinery under a sustained rolling restart: 10 rounds, each
+restarts ONE node (rotating 1→2→3→1…) so the meta-service Raft always keeps a 2/3
+quorum (killing two would lose it — don't). Restarting the current leader forces a
+switch, so leadership moves around frequently; the test asserts the ISR stays
+correct throughout.
+
+```bash
+cargo test -p robustmq-test three_replica_chaos_rolling_kill -- --ignored --nocapture
+```
+
+Each round: write a committed batch (acks=all) → kill one node → wait for it to
+leave the ISR (and leadership to move if it was the leader) → write another batch
+on the 2 survivors (acks=all, still committed) → restart the node → wait for it to
+rejoin and catch up the writes it missed → verify. Per round it checks, on EVERY
+segment-detail read:
+
+- `hw <= leo` invariant (HW/offset-bookkeeping corruption)
+- `replicas == {1,2,3}` always; dead node leaves ISR then ISR recovers to `{1,2,3}`
+- every replica `leo == hw == cumulative`, `lso == 0` (no loss, full catch-up)
+- `leader_epoch` monotonic (fencing); **all 3 nodes agree on leader/epoch/ISR**
+  (split-brain / stale-view check)
+- acks=all commits in both full and degraded (2-node) ISR (no write stall)
+
+and at the end reads back all `cumulative` records and scans every node log for the
+blacklist (see Log Analysis). Expected tail:
+
+```
+round 1 OK: leader=n3 epoch=0 isr=[1, 2, 3] all leo=hw=60 lso=0
+...
+round 10 OK: leader=n3 epoch=6 isr=[1, 2, 3] all leo=hw=600 lso=0
+CHAOS COMPLETE: 10 rounds, 600 committed records read back OK, 6 leader-epoch switches, all replicas consistent
+```
+
+Note the timings the drill exercises: a dead **follower** leaves the ISR in ~6-11s
+(leader-side lag shrink, `replica_lag_time_max_ms`), a dead **leader** in ~28-30s
+(heartbeat timeout → switch). This drill found and guards three real ISR defects:
+
+| Fix | Bug it prevents |
+|-----|-----------------|
+| `broker-core` heartbeat reports to **every** meta node, not one | heartbeat table is in-memory per meta node + the expiry check is leader-only; after a meta-leader change the new leader never saw heartbeats and expired ALL nodes every `heartbeat_timeout_ms` → endless cluster-wide leader/ISR churn that never self-heals |
+| `isr_manager::compute_new_isr` keeps a follower in-sync purely by fetch **recency** (`last_fetch_ts`), not a static `leo >= leader_leo` | a follower that died while fully caught up kept `leo == leader_leo` against a non-advancing leader LEO forever → dead replica pinned in the ISR indefinitely (blocks acks=all, stale ISR) |
+| `dynamic_cache.rs` Create handler also `remove_leader_segment` when this node is NOT the new leader | leader switch is a "Create" notification; a demoted node kept the segment in `leader_segments` and kept running ISR maintenance for it → stale ISR proposals / divergent maintenance view across nodes |
 
 ## Pass / Fail Criteria
 

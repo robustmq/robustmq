@@ -152,6 +152,12 @@ async fn parse_segment(
             let conf = broker_config();
             if conf.broker_id == segment.leader {
                 cache_manager.add_leader_segment(&segment_iden);
+            } else {
+                // A leader switch is delivered as a Create notification too; a node
+                // that is no longer the leader must drop the segment from its
+                // leader_segments set, otherwise it keeps running ISR maintenance
+                // for a segment it no longer leads (stale ISR proposals / churn).
+                cache_manager.remove_leader_segment(&segment_iden);
             }
 
             if shard.config.storage_type == StorageType::EngineSegment {

@@ -150,9 +150,29 @@ impl ClusterStorage {
             node_id: config.broker_id,
         };
 
-        heartbeat(&self.client_pool, &config.get_meta_service_addr(), req).await?;
-
-        Ok(())
+        // Send the heartbeat to EVERY meta node, not just one. The heartbeat only
+        // refreshes the in-memory `node_heartbeat` table on the meta node that
+        // handles it (it is not raft-replicated), and the expiry check runs solely
+        // on the metadata leader. A single-target heartbeat that lands on a follower
+        // leaves the leader's table stale, so after a leadership change the leader
+        // wrongly expires every node every `heartbeat_timeout_ms`, causing endless
+        // leader/ISR churn. Refreshing all nodes keeps the current — and any future —
+        // leader's table fresh. Succeeds if at least one meta node ack'd.
+        let addrs = config.get_meta_service_addr();
+        let mut acked = false;
+        let mut last_err: Option<CommonError> = None;
+        for addr in &addrs {
+            match heartbeat(&self.client_pool, std::slice::from_ref(addr), req).await {
+                Ok(_) => acked = true,
+                Err(e) => last_err = Some(e),
+            }
+        }
+        if acked {
+            Ok(())
+        } else {
+            Err(last_err
+                .unwrap_or_else(|| CommonError::CommonError("no meta service addr".to_string())))
+        }
     }
 
     pub async fn set_dynamic_config(

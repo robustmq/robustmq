@@ -180,7 +180,7 @@ pub fn compute_new_isr(
     current_isr: &[u64],
     replicas: &[u64],
     leader_id: u64,
-    leader_leo: u64,
+    _leader_leo: u64,
     lag_time_max_ms: u64,
     now_sec: u64,
 ) -> Option<Vec<u64>> {
@@ -195,14 +195,19 @@ pub fn compute_new_isr(
         }
         let progress = state.get(replica_id);
 
-        // A follower is considered in-sync if:
-        // 1. Its LEO has caught up to the leader's LEO, OR
-        // 2. It caught up recently enough (within replica_lag_time_max_ms) — allows short-term
-        //    lag without thrashing the ISR when the leader writes faster than the follower fetches.
+        // In-sync is determined purely by fetch liveness: the follower must have
+        // caught up to the leader's LEO recently (within replica_lag_time_max_ms).
+        // `last_fetch_ts` is refreshed only when a fetch reaches the leader LEO, so an
+        // actively-fetching, caught-up follower keeps it fresh, while a follower that
+        // stopped fetching (e.g. it died) has a frozen `last_fetch_ts` and is dropped
+        // once the lag window passes.
+        //
+        // NOTE: we must NOT also keep a follower whose last-known `leo >= leader_leo`.
+        // A follower that died while fully caught up keeps that frozen LEO equal to a
+        // no-longer-advancing leader LEO forever, which would pin a dead replica in the
+        // ISR indefinitely (blocking acks=all and leaving the ISR stale).
         let caught_up = match &progress {
-            Some(p) => {
-                p.leo >= leader_leo || now_sec.saturating_sub(p.last_fetch_ts) <= lag_max_sec
-            }
+            Some(p) => now_sec.saturating_sub(p.last_fetch_ts) <= lag_max_sec,
             None => false,
         };
 
@@ -265,5 +270,20 @@ mod tests {
         let st = state();
         let new_isr = compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100);
         assert_eq!(new_isr, None);
+    }
+
+    // Regression: a follower that was fully caught up (leo == leader_leo) but then
+    // stopped fetching must be dropped after the lag window — even though the leader
+    // LEO never advanced past its frozen leo. Previously a `leo >= leader_leo` check
+    // pinned such a dead replica in the ISR forever.
+    #[test]
+    fn drops_caught_up_follower_that_stopped_fetching() {
+        let st = state();
+        // n2 caught up at t=100 (leo=100 == leader_leo), then went silent.
+        update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
+        // Now is 200s; lag_max=10s. n2's last-known leo (100) still equals leader_leo,
+        // but it hasn't fetched in 100s, so it must be removed.
+        let new_isr = compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 200);
+        assert_eq!(new_isr, Some(vec![1]));
     }
 }
