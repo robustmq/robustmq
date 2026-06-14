@@ -120,12 +120,16 @@ impl RespHeader {
     }
 }
 
+/// Default acks=all commit timeout (ms) when the producer doesn't specify one.
+pub const DEFAULT_WRITE_TIMEOUT_MS: u64 = 30_000;
+
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct WriteReqBody {
     pub shard_name: String,
     pub messages: Vec<Vec<u8>>,
     pub acks: i8,
     pub current_leader_epoch: u32,
+    pub timeout_ms: u64,
 }
 
 impl WriteReqBody {
@@ -135,6 +139,7 @@ impl WriteReqBody {
             messages,
             acks: 1,
             current_leader_epoch: 0,
+            timeout_ms: DEFAULT_WRITE_TIMEOUT_MS,
         }
     }
 

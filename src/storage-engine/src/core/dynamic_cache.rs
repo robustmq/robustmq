@@ -162,10 +162,18 @@ async fn parse_segment(
             if shard.config.storage_type == StorageType::EngineMemory
                 || shard.config.storage_type == StorageType::EngineRocksDB
             {
-                let commit_log_offset =
-                    CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
-                commit_log_offset.save_earliest_offset(&shard.shard_name, 0)?;
-                commit_log_offset.save_latest_offset(&shard.shard_name, 0)?;
+                // Only initialize offsets for a segment that is genuinely new on
+                // this node. A leader switch / ISR recovery / rebalance re-sends the
+                // segment to nodes that ALREADY hold its data as a "Create"; resetting
+                // offsets there would wipe the committed log's bookkeeping
+                // (latest_offset -> 0) and make the new leader truncate committed data.
+                // If offset state already exists, leave it untouched.
+                if cache_manager.get_offset_state(&shard.shard_name).is_none() {
+                    let commit_log_offset =
+                        CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+                    commit_log_offset.save_earliest_offset(&shard.shard_name, 0)?;
+                    commit_log_offset.save_latest_offset(&shard.shard_name, 0)?;
+                }
             }
         }
 

@@ -160,6 +160,7 @@ mod tests {
             &e.shard,
             &records(3),
             ACKS_ALL,
+            1000,
         )
         .await
         .unwrap();
@@ -187,6 +188,7 @@ mod tests {
             &e.shard,
             &records(3),
             ACKS_ONE,
+            1000,
         )
         .await
         .unwrap();
@@ -208,6 +210,7 @@ mod tests {
                 &e.shard,
                 &records(3),
                 ACKS_ALL,
+                1000,
             ),
         )
         .await

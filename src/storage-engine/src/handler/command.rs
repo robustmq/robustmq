@@ -92,6 +92,7 @@ impl Command for StorageEngineHandlerCommand {
         match pack {
             StorageEnginePacket::WriteReq(request) => {
                 let acks = request.body.acks;
+                let timeout_ms = request.body.timeout_ms;
                 let current_leader_epoch = request.body.current_leader_epoch;
                 let messages = request.body.messages;
 
@@ -131,6 +132,7 @@ impl Command for StorageEngineHandlerCommand {
                     &request.body.shard_name,
                     &messages,
                     acks,
+                    timeout_ms,
                 )
                 .await
                 {

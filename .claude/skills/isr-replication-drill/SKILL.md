@@ -1,6 +1,6 @@
 ---
 name: isr-replication-drill
-description: Run a 3-node ISR replica-sync drill for RobustMQ — create a 3-replica topic, write continuously, and verify replicas stay in sync via segment-detail (LEO/HW convergence, ISR stability). Use when the user wants to verify replica replication / ISR health — e.g. "演练 isr 副本同步", "验证三副本同步", "test ISR replication", "副本同步是否正常".
+description: Run 3-node ISR drills for RobustMQ — replica-sync (LEO/HW convergence, ISR stability) and leader-failover (kill the leader, verify switch + no committed-data loss + rejoin). Use when the user wants to verify replica replication / ISR health or failover — e.g. "演练 isr 副本同步", "验证三副本同步", "kill leader 演练", "验证 leader 切换/故障转移", "test ISR replication", "副本同步是否正常".
 ---
 
 # RobustMQ ISR Replication Drill
@@ -16,8 +16,13 @@ ISR stays full) by polling the segment-detail admin API.
 - Confirm followers replicate the leader's log (follower LEO → leader LEO)
 - Confirm the high watermark (HW) advances on **both** leader and followers
 - Confirm the ISR set stays full (no replica falls out) under continuous writes
-- Regression-check the follower-HW fix (followers must apply `leader_hw` from the
-  fetch response) and the segment-detail cross-node fan-out
+- Verify leader **failover**: killing the leader switches it to a surviving replica
+  with NO committed-data loss, and the killed node rejoins the ISR after restart
+  (Drill B)
+- Regression-check the fixes: follower-HW (apply `leader_hw` from the fetch
+  response), segment-detail cross-node fan-out, leader-switch offset reset
+  (committed-data loss), acks=all producer commit timeout, and reconcile self-heal
+  of a restarted follower's fetcher
 
 ## Key Semantics — what "ISR healthy" means
 
@@ -139,6 +144,65 @@ curl -s -X POST http://localhost:58080/api/storage-engine/shard/list \
 ```
 `segment_detail` requires `segment_seq` — first get it from the segment list
 (`active_segment_seq`); it does not auto-pick the active segment.
+
+## Drill B — kill leader failover + rejoin
+
+Verifies the cluster survives losing the segment leader **without data loss** and
+that the killed node rejoins the ISR after restart.
+
+```bash
+cargo test -p robustmq-test three_replica_leader_failover -- --ignored --nocapture
+```
+
+What it does:
+1. Creates a 3-replica `EngineRocksDB` shard; writes 100 records to the leader
+   with **acks=all** (so they are committed on all ISR replicas — `leo=hw=100`).
+2. Confirms all 3 replicas show `leo=hw=100`, then **kills the leader broker
+   process** (`pkill -INT -f server-N.toml`).
+3. Polls a surviving node's admin until `segment.leader` changes; asserts the new
+   leader is a surviving replica, `leader_epoch` bumped, the dead node left the ISR
+   but is **retained in `replicas`** (temporary-offline).
+4. **No data loss**: polls until both survivors settle at `leo=hw=100`, `lso=0`
+   (committed data preserved across the switch).
+5. Writes 100 more to the **new** leader (acks=all) → survivors converge to
+   `leo=hw=200`.
+6. Restarts the killed node and asserts it **rejoins the ISR** and catches up
+   (`leo=hw=200`, `lso=0`).
+
+Expected passing output (shape):
+```
+all 3 replicas committed LEO=HW=100
+LEADER SWITCHED n2 -> n1 after 28.1s (epoch 0 -> 1, isr=[1], replicas=[2, 3, 1])
+no data loss: both survivors hold committed LEO=HW=100
+survivors converged: 2 live replicas at LEO=HW=200
+node2 REJOINED ISR after 4.0s: isr=[1, 2, 3]
+test result: ok. 1 passed
+```
+
+Key behaviours and timings (verified):
+- **Switch latency ≈ 28–30s**, driven by the meta-service heartbeat timeout
+  (`heartbeat_timeout_ms`, default 30s). A graceful `kill -INT` does NOT shorten it
+  — the broker does not actively unregister on shutdown, so `kill -INT` and
+  `kill -9` both wait for the heartbeat timeout.
+- **acks=all is required** to prove no-loss: it carries a producer commit timeout
+  (`WriteReqBody.timeout_ms`, default 30s) and returns only once the HW reaches the
+  written offset on all ISR replicas. With acks=1 the un-committed tail is lost on
+  failover (expected Kafka-like semantics, not a bug).
+- **Rejoin** is driven by the metadata reconcile thread (~30s interval) self-healing
+  a follower that has no fetcher; look for the WARN
+  `reconcile: follower has no fetcher for <shard>/<seg> (leader=N), starting replication`.
+
+This drill guards three fixes — a regression in any of them fails it:
+| Fix | Bug it prevents |
+|-----|-----------------|
+| `dynamic_cache.rs` Create handler only inits offsets for a genuinely-new segment (`get_offset_state().is_none()`) | leader-switch "Create" notification resetting `latest_offset→0` on a node that already holds the data → committed data truncated/lost |
+| `WriteReqBody.timeout_ms` (producer commit timeout, threaded into `batch_write`'s acks=all wait) | acks=all spuriously timing out because it reused the 500ms `replica_fetch_max_wait_ms` |
+| `reconcile.rs` self-heal: start a fetcher when this node is a follower with no `fetch_state` | a restarted follower that missed the leader-switch notification never resuming replication → never rejoining the ISR |
+
+> **Process restart from a test:** `cargo test` runs with CWD = the test package
+> dir, NOT the repo root. The test restarts the killed broker via the repo root
+> (resolved from `CARGO_MANIFEST_DIR`) with `current_dir(repo_root)`. A bare
+> `./target/debug/broker-server` would silently fail to spawn.
 
 ## Pass / Fail Criteria
 

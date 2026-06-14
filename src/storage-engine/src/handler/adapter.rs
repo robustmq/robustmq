@@ -193,6 +193,7 @@ impl StorageEngineHandler {
             shard,
             records,
             1,
+            0,
         )
         .await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;

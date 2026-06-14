@@ -16,7 +16,7 @@ use metadata_struct::storage::{adapter_read_config::AdapterWriteRespRow, record:
 use protocol::storage::protocol::{
     ApiKey, FetchReq, FetchReqBody, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody,
     ReqHeader, RespHeader, StorageEngineNetworkError, WriteReq, WriteReqBody, WriteResp,
-    WriteRespBody, WriteRespMessage,
+    WriteRespBody, WriteRespMessage, DEFAULT_WRITE_TIMEOUT_MS,
 };
 
 use crate::core::error::StorageEngineError;
@@ -31,6 +31,7 @@ pub fn build_write_req(shard_name: String, messages: Vec<Vec<u8>>) -> WriteReq {
             messages,
             acks: 1,
             current_leader_epoch: 0,
+            timeout_ms: DEFAULT_WRITE_TIMEOUT_MS,
         },
     }
 }

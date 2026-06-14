@@ -53,6 +53,7 @@ pub async fn write_data_req(
     shard_name: &str,
     messages: &[Vec<u8>],
     acks: i8,
+    timeout_ms: u64,
 ) -> Result<Vec<WriteRespMessage>, StorageEngineError> {
     if messages.is_empty() {
         return Ok(Vec::new());
@@ -76,6 +77,7 @@ pub async fn write_data_req(
         shard_name,
         &record_list,
         acks,
+        timeout_ms,
     )
     .await?;
 
@@ -304,6 +306,7 @@ mod tests {
             &segment_iden.shard_name,
             &messages,
             1,
+            0,
         )
         .await
         .unwrap();

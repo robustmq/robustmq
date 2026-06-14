@@ -32,6 +32,7 @@ use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
 use protocol::storage::codec::StorageEnginePacket;
+use protocol::storage::protocol::DEFAULT_WRITE_TIMEOUT_MS;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -47,6 +48,7 @@ pub async fn batch_write(
     shard_name: &str,
     records: &[AdapterWriteRecord],
     acks: i8,
+    timeout_ms: u64,
 ) -> Result<Vec<AdapterWriteRespRow>, StorageEngineError> {
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
@@ -132,10 +134,16 @@ pub async fn batch_write(
     }
 
     if acks == ACKS_ALL {
-        let max_wait_ms = conf.storage_runtime.replica_fetch_max_wait_ms.max(1);
-        if !wait_for_hw(cache_manager, shard_name, leader_leo, max_wait_ms).await {
+        // Commit-wait timeout comes from the producer (write request), defaulting
+        // to 30s — NOT the replica fetch long-poll wait, which is far too short.
+        let commit_wait_ms = if timeout_ms == 0 {
+            DEFAULT_WRITE_TIMEOUT_MS
+        } else {
+            timeout_ms
+        };
+        if !wait_for_hw(cache_manager, shard_name, leader_leo, commit_wait_ms).await {
             return Err(StorageEngineError::CommonErrorStr(format!(
-                "acks=all timed out waiting for HW to reach {leader_leo} on shard {shard_name}"
+                "acks=all timed out after {commit_wait_ms}ms waiting for HW to reach {leader_leo} on shard {shard_name}"
             )));
         }
     }
@@ -305,6 +313,7 @@ mod tests {
             &e.shard,
             &records(3),
             acks,
+            1000,
         )
         .await
     }

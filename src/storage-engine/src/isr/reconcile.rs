@@ -141,12 +141,31 @@ async fn reconcile_active(
         .collect();
 
     let segments = batch_fetch_segments(client_pool, addrs, filters).await;
+    let broker_id = broker_config().broker_id;
     for segment in segments {
         let known_epoch = known
             .get(&(segment.shard_name.clone(), segment.segment_seq))
             .copied()
             .unwrap_or(0);
-        if segment.segment_epoch > known_epoch {
+
+        // Self-heal a missing follower fetcher: a node that restarted after the
+        // leader switched while it was down loads the post-switch segment at
+        // startup (so its local epoch already equals meta's, and the epoch-advance
+        // branch below never fires) but never started a fetcher — it missed the
+        // live LeaderAndIsr notification. Without this it never rejoins the ISR.
+        let missing_follower_fetcher = segment.is_replica()
+            && segment.leader != broker_id
+            && fetcher_manager
+                .fetch_state(&segment.shard_name, segment.segment_seq)
+                .is_none();
+        if missing_follower_fetcher {
+            warn!(
+                "reconcile: follower has no fetcher for {}/{} (leader={}), starting replication",
+                segment.shard_name, segment.segment_seq, segment.leader
+            );
+        }
+
+        if segment.segment_epoch > known_epoch || missing_follower_fetcher {
             apply_segment(
                 cache_manager,
                 rocksdb_engine_handler,
@@ -216,6 +235,9 @@ async fn apply_segment(
     fetcher_manager: &Arc<ReplicaFetcherManager>,
     segment: EngineSegment,
 ) {
+    // Ensure the per-segment replica state exists before applying; apply_leader_and_isr
+    // requires it (NotSegmentState otherwise). Idempotent.
+    cache_manager.add_segment_replica(&segment.shard_name, segment.segment_seq);
     cache_manager.set_segment(&segment);
     if let Err(e) = apply_leader_and_isr(
         cache_manager,
