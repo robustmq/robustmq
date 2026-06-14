@@ -86,19 +86,22 @@ pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError
     Ok(true)
 }
 
-/// Whether the shard is already provisioned locally: present in the cache, this
-/// broker is its segment-0 leader, and (for segment storage) its metadata exists.
+/// Whether the shard is provisioned in this broker's local cache: the shard and
+/// its segment-0 are present and (for segment storage) segment-0 metadata exists.
+///
+/// This intentionally does NOT require the local broker to be segment-0's leader.
+/// Leader/replica placement is load-balanced across the cluster, so the broker
+/// that requests shard creation is frequently neither the leader nor a replica;
+/// requiring local leadership here would make it wait forever. Shard, segment and
+/// segment metadata are all broadcast to every node via cache notifications, so
+/// any node can confirm provisioning from its local cache.
 fn shard_provisioned(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterShardInfo) -> bool {
     let shard_name = &shard.shard_name;
     if !cache_manager.shards.contains_key(shard_name) {
         return false;
     }
     let segment_iden = SegmentIdentity::new(shard_name, 0);
-    let broker_id = broker_config().broker_id;
-    let is_leader = cache_manager
-        .get_segment(&segment_iden)
-        .is_some_and(|s| s.leader == broker_id);
-    if !is_leader {
+    if cache_manager.get_segment(&segment_iden).is_none() {
         return false;
     }
     match shard.config.storage_type {
@@ -117,7 +120,7 @@ pub async fn create_shard_to_place(
 
     let shard_name = &shard.shard_name;
 
-    // Idempotent ensure: already provisioned and led locally, nothing to do.
+    // Idempotent ensure: already provisioned in local cache, nothing to do.
     if shard_provisioned(cache_manager, shard) {
         debug!(
             "Shard {} already provisioned, skipping creation",
@@ -140,7 +143,7 @@ pub async fn create_shard_to_place(
     )
     .await?;
 
-    // Wait for shard to be ready: cache populated and this broker is the leader.
+    // Wait for the shard to be ready: shard and segment-0 populated in local cache.
     const SHARD_READY_TIMEOUT_SECS: u64 = 10;
     let wait_result = timeout(Duration::from_secs(SHARD_READY_TIMEOUT_SECS), async {
         loop {
