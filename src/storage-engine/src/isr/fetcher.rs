@@ -279,6 +279,21 @@ impl<T: FetchTransport + Clone + 'static> ReplicaFetcherThread<T> {
                 Err(e) => return Err(e),
             }
         }
+
+        // Advance the follower's local HW to the leader's committed HW, clamped to
+        // the local LEO so a follower never exposes more than it durably stored.
+        // save_high_watermark_offset only moves the HW forward. This runs even when
+        // applied == 0, so the HW still catches up after the leader commits records
+        // the follower already had.
+        let local_leo = self.log.latest_offset(shard, segment_seq)?;
+        let new_hw = resp.leader_hw.min(local_leo);
+        if let Err(e) = self.log.update_high_watermark(shard, new_hw) {
+            warn!(
+                "follower {}/{}: failed to persist local HW {}: {}",
+                shard, segment_seq, new_hw, e
+            );
+        }
+
         Ok(applied > 0)
     }
 

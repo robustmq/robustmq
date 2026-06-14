@@ -1,0 +1,184 @@
+---
+name: isr-replication-drill
+description: Run a 3-node ISR replica-sync drill for RobustMQ — create a 3-replica topic, write continuously, and verify replicas stay in sync via segment-detail (LEO/HW convergence, ISR stability). Use when the user wants to verify replica replication / ISR health — e.g. "演练 isr 副本同步", "验证三副本同步", "test ISR replication", "副本同步是否正常".
+---
+
+# RobustMQ ISR Replication Drill
+
+A reproducible drill to verify ISR (In-Sync Replica) replication works end-to-end
+on a running RobustMQ cluster: create a 3-replica topic, write data continuously
+to the leader, and confirm every follower catches up (LEO converges, HW advances,
+ISR stays full) by polling the segment-detail admin API.
+
+## When to Use
+
+- Verify a 3-replica shard genuinely places 3 replicas across 3 nodes
+- Confirm followers replicate the leader's log (follower LEO → leader LEO)
+- Confirm the high watermark (HW) advances on **both** leader and followers
+- Confirm the ISR set stays full (no replica falls out) under continuous writes
+- Regression-check the follower-HW fix (followers must apply `leader_hw` from the
+  fetch response) and the segment-detail cross-node fan-out
+
+## Key Semantics — what "ISR healthy" means
+
+| Signal | Meaning | Healthy when |
+|--------|---------|--------------|
+| `segment.replicas.len()` | replicas actually placed | `== replica_num` (3) |
+| `segment.isr` | in-sync replica set | contains all 3 node ids |
+| `replica.leo` | log end offset of that replica | every follower `== leader.leo` |
+| `replica.high_watermark` | committed/visible offset | every replica `== leader.leo` after convergence |
+| `replica.in_isr` / `available` | membership + reachable | all `true` |
+| `leader.high_watermark` | leader committed offset | `== leader.leo` once ISR all ack |
+
+The three convergence conditions together prove health:
+1. **LEO converges** → replication pipe works (followers pulled every record).
+2. **HW converges** → commit semantics work (leader advances HW once ISR acks; the
+   follower then learns it from the next fetch response and advances its local HW).
+3. **ISR stays = 3** → no replica fell behind / got removed.
+
+> **CRITICAL — storage type.** ISR leader/follower fetch replication applies ONLY to
+> `EngineRocksDB` and `EngineMemory`. `EngineSegment` is NOT wired into ISR
+> replication yet (the fetch dispatch in `handle_fetch.rs` only matches
+> Memory/RocksDB; the `_` arm returns `NotLeaderForPartition`). **Use
+> `EngineRocksDB`** for this drill.
+
+> **Timing — follower HW lags one fetch round.** A follower learns the leader's HW
+> from the *next* fetch response, so its HW trails the leader by one round right
+> after writes stop. Always **poll until convergence with a timeout** — never assert
+> HW immediately after the last write.
+
+## Prerequisites
+
+- Build the actual executable (the `broker-server` binary is a `[[bin]]` in the
+  **`cmd`** package, NOT the `broker-server` lib — `cargo build -p broker-server`
+  silently builds only the library and leaves the binary stale):
+  ```bash
+  cargo build --bin broker-server
+  ```
+- Cluster configs: `config/cluster/server-{1,2,3}.toml`
+  (broker_id 1/2/3; meta/grpc 1228/2228/3228; engine tcp 1779/2779/3779;
+  admin http 58080/58082/58083). Data dirs: `data/broker-{1,2,3}`.
+- The integration test already exists: `tests/tests/engine/isr.rs`
+  (`three_replica_isr_sync`, `#[ignore]`). Test package name is **`robustmq-test`**.
+
+## Drill Steps
+
+### 0. Clean state (mandatory)
+
+```bash
+# Graceful stop of any leftover nodes (see the kill -INT note below), then wipe data.
+for c in 1 2 3; do p=$(pgrep -f "server-$c.toml"); [ -n "$p" ] && kill -INT "$p"; done
+for c in 1 2 3; do while pgrep -f "server-$c.toml" >/dev/null; do sleep 1; done; done
+rm -rf data/broker-1 data/broker-2 data/broker-3 data/logs
+```
+
+> **NEVER `pkill -9` the broker on this machine.** SIGKILL leaves an `ESTABLISHED`
+> socket on the grpc port (1228) that the local `mac_agent` keeps alive forever,
+> blocking the next bind ("Failed to start GRPC server on port 1228: transport
+> error"). Always stop with `kill -INT` (graceful). See Troubleshooting if 1228 is
+> already stuck.
+
+### 1. Start the 3-node cluster (staggered so node1 bootstraps first)
+
+```bash
+./target/debug/broker-server --conf config/cluster/server-1.toml > /tmp/n1.log 2>&1 &
+sleep 8
+./target/debug/broker-server --conf config/cluster/server-2.toml > /tmp/n2.log 2>&1 &
+sleep 9
+./target/debug/broker-server --conf config/cluster/server-3.toml > /tmp/n3.log 2>&1 &
+sleep 13
+```
+
+Verify all three are up and registered:
+```bash
+grep -oE "bootstrapping single-node cluster|Successfully joined cluster via peer|Meta Service cluster is ready|Failed to start GRPC" /tmp/n1.log /tmp/n2.log /tmp/n3.log | sort | uniq -c
+curl -s http://localhost:58080/api/info | python3 -c "import sys,json;d=json.load(sys.stdin).get('data',{});print('nodes:',sorted(n.get('node_id') for n in d.get('broker_node_list',[])))"
+```
+Expect node1 bootstrap, node2/3 joined, `nodes: [1, 2, 3]`. (A non-inner 3-replica
+shard requires all 3 nodes alive — `create_shard` rejects if `alive < replica_num`.)
+
+### 2. Run the integration test (the drill itself)
+
+```bash
+cargo test -p robustmq-test three_replica_isr_sync -- --ignored --nocapture
+```
+
+This test:
+1. Creates a 3-replica `EngineRocksDB` shard via admin.
+2. `get_shard` → asserts `replica_num == 3`, prints start/end offset + HW.
+3. `segment_detail` → finds the leader, asserts `replicas.len() == 3`.
+4. Writes 500 records (10×50) to the **leader** (discovered from `segment.leader`;
+   the write client registers all 3 nodes' engine addresses).
+5. Polls `segment_detail` until every replica is `available`, `in_isr`,
+   `leo == leader_leo`, **and `high_watermark == leader_leo`** (timeout 30s).
+6. Final asserts: ISR == 3, every replica leo/hw == leader_leo, leader hw == leo,
+   `get_shard` HW == 500, end_offset == 499.
+
+Expected passing output (shape):
+```
+get_shard ...: replica_num=3 start_offset=0 end_offset=0 high_watermark=0
+shard ... seg 0: leader=n3 replicas=[3, 2, 1] isr=[1, 2, 3]
+[2.9ms]  leader_leo=500 isr=3 | n3(leo=500,hw=500) n2(leo=500,hw=350) n1(leo=500,hw=350)
+[508ms]  leader_leo=500 isr=3 | n3(leo=500,hw=500) n2(leo=500,hw=500) n1(leo=500,hw=500)
+ISR converged: 3 replicas all at LEO=HW=500
+get_shard ... after writes: start_offset=0 end_offset=499 high_watermark=500
+test result: ok. 1 passed
+```
+Note how follower HW starts behind (350) and catches up to 500 — that lag is normal.
+
+### 3. (Optional) Manual inspection via admin API
+
+If you want to watch sync live without the test, after creating a shard:
+```bash
+# segment list → active segment_seq, then segment detail (per-replica leo/hw/isr)
+curl -s -X POST http://localhost:58080/api/storage-engine/segment/detail \
+  -H 'Content-Type: application/json' -d '{"shard_name":"<shard>","segment_seq":0}' | python3 -m json.tool
+# shard view (start/end offset + high_watermark)
+curl -s -X POST http://localhost:58080/api/storage-engine/shard/list \
+  -H 'Content-Type: application/json' -d '{"shard_name":"<shard>"}' | python3 -m json.tool
+```
+`segment_detail` requires `segment_seq` — first get it from the segment list
+(`active_segment_seq`); it does not auto-pick the active segment.
+
+## Pass / Fail Criteria
+
+PASS only if **all** hold after convergence (within the 30s poll window):
+- `replica_num == 3`, `segment.replicas.len() == 3`, `isr` has all 3 nodes.
+- Every replica: `available == true`, `in_isr == true`, `leo == leader_leo`,
+  `high_watermark == leader_leo`.
+- `leader.high_watermark == leader.leo`; `leader_leo == records_written` (500).
+- `get_shard.high_watermark == 500`, `end_offset == 499`.
+
+Common FAIL signatures and what they mean:
+| Symptom | Likely cause |
+|---------|--------------|
+| follower `leo` never reaches leader `leo` | replication pipe broken (fetcher thread / transport) |
+| follower `hw` stuck at 0 while `leo` caught up | follower not applying `leader_hw` (the fix in `fetcher.rs::apply_shard_resp`) |
+| a replica `available=false` + `Invalid URL` | segment-detail fan-out built http_addr without scheme |
+| `isr` shrinks below 3 | a replica fell behind / heartbeat lost |
+| `create_shard` fails "not enough nodes" | a node is down — non-inner 3-replica needs 3 alive |
+
+## Log Analysis
+
+```bash
+for c in 1 2 3; do echo "node$c ERROR: $(grep -c ' ERROR' /tmp/n$c.log)"; done   # expect 0
+```
+Transient `Unreachable node` WARNs only on the leader around a kill are benign.
+
+## Cleanup
+
+```bash
+# Graceful stop — do NOT pkill -9 (leaves a stuck 1228 socket via mac_agent).
+for c in 1 2 3; do p=$(pgrep -f "server-$c.toml"); [ -n "$p" ] && kill -INT "$p"; done
+for c in 1 2 3; do while pgrep -f "server-$c.toml" >/dev/null; do sleep 1; done; done
+```
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| node1 `Failed to start GRPC server on port 1228: transport error`, but `lsof -iTCP:1228 -sTCP:LISTEN` shows nothing | A `pkill -9` left an `ESTABLISHED` orphan on local port 1228 that `mac_agent` (`/usr/local/bin/mac_agent`, connects to every localhost port) keeps alive. Check `netstat -anp tcp \| grep '\.1228 '` — if you see `127.0.0.1.1228 ... ESTABLISHED` with no owning broker process, the only clean fixes are: restart/`kill` the `mac_agent` pid (launchd respawns it) to release the socket, or reboot. **Prevent it by always stopping with `kill -INT`.** |
+| Rebuilt code "didn't take" / binary mtime unchanged | `cargo build -p broker-server` builds only the lib. Use `cargo build --bin broker-server`. Verify: `strings target/debug/broker-server \| grep <a string you changed>`. |
+| Test fails because follower HW lags the leader | Don't assert HW immediately — poll until `hw == leader_leo` with a timeout. The follower learns HW one fetch round later. |
+| Used `EngineSegment` and replicas never sync | ISR replication is not implemented for `EngineSegment`. Use `EngineRocksDB`/`EngineMemory`. |
+| `segment_detail` returns null `data` | The segment isn't in cache yet — wait for provisioning (~10s) and confirm `segment_seq` exists via the segment list. |

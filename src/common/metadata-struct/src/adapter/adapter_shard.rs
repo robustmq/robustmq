@@ -42,4 +42,5 @@ pub enum AdapterShardDetailExtend {
 pub struct AdapterShardDetailOffset {
     pub start_offset: u64,
     pub end_offset: u64,
+    pub high_watermark: u64,
 }

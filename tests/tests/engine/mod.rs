@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod client_test;
+pub mod isr;
 pub mod key_compact;
 pub mod message_ttl;
 pub mod read_test;

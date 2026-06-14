@@ -126,4 +126,12 @@ impl ReplicaLog for EngineReplicaLog {
             self.memory.log_start_offset(shard, segment_seq)
         }
     }
+
+    fn update_high_watermark(&self, shard: &str, hw: u64) -> Result<(), StorageEngineError> {
+        if self.is_rocksdb(shard)? {
+            self.rocksdb.update_high_watermark(shard, hw)
+        } else {
+            self.memory.update_high_watermark(shard, hw)
+        }
+    }
 }

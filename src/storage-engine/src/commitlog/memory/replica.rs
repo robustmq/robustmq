@@ -91,6 +91,12 @@ impl ReplicaLog for MemoryStorageEngine {
     fn log_start_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
         self.commit_log_offset.get_earliest_offset(shard)
     }
+
+    fn update_high_watermark(&self, shard: &str, hw: u64) -> Result<(), StorageEngineError> {
+        self.commit_log_offset
+            .save_high_watermark_offset(shard, hw)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

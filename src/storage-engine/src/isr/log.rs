@@ -71,4 +71,9 @@ pub trait ReplicaLog: Send + Sync {
     /// offset to this after retention. memory/rocksdb return 0 (or the actual
     /// post-retention start); filesegment returns the current file's start.
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError>;
+
+    /// Persist the high watermark a follower learned from the leader's fetch
+    /// response. The caller clamps `hw` to the local LEO so a follower never
+    /// exposes more than it has durably stored; HW only moves forward.
+    fn update_high_watermark(&self, shard: &str, hw: u64) -> Result<(), StorageEngineError>;
 }

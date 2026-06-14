@@ -27,8 +27,6 @@ use storage_engine::isr::handle_epoch::query_local_replica_state;
 use storage_engine::isr::handle_fetch::FetchEngines;
 use tracing::warn;
 
-// ── list ──────────────────────────────────────────────────────────────────────
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SegmentListReq {
     pub shard_name: String,
@@ -71,8 +69,6 @@ pub async fn segment_list(
     })
 }
 
-// ── detail ────────────────────────────────────────────────────────────────────
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SegmentDetailReq {
     pub shard_name: String,
@@ -84,16 +80,13 @@ pub struct FollowerProgressResp {
     pub node_id: u64,
     pub leo: u64,
     pub last_caught_up_ts: u64,
-    /// How far this follower trails the leader's LEO (leader_leo - follower_leo).
     pub lag: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct SegmentReplicaStateResp {
     pub node_id: u64,
-    /// Replica ordinal within the segment's replica set (from the segment metadata).
     pub replica_seq: u64,
-    /// Storage folder this replica uses on its node.
     pub fold: String,
     pub is_leader: bool,
     pub in_isr: bool,
@@ -103,9 +96,7 @@ pub struct SegmentReplicaStateResp {
     pub leo: u64,
     pub high_watermark: u64,
     pub log_start_offset: u64,
-    /// Leader-side view of every follower's progress (empty on followers).
     pub follower_progress: Vec<FollowerProgressResp>,
-    /// Follower-side fetch process state (None on the leader / when not fetching).
     pub fetch: Option<SegmentFetchInfo>,
     pub available: bool,
     pub error: Option<String>,
@@ -126,8 +117,6 @@ fn local_replica_state_from_cache(
     let cm = &state.engine_context.cache_manager;
     let broker_id = state.broker_cache.get_cluster_config().broker_id;
 
-    // Per-segment LEO / log start from the local log engine (accurate for any
-    // segment, including sealed ones — shard-level offset state is not).
     let engines = FetchEngines {
         memory: state.engine_context.memory_storage_engine.clone(),
         rocksdb: state.engine_context.rocksdb_storage_engine.clone(),
@@ -228,7 +217,14 @@ pub async fn segment_detail(
         } else {
             let node = state.broker_cache.node_lists.get(&node_id);
             let http_addr = match &node {
-                Some(n) => n.http_addr.clone(),
+                Some(n) => {
+                    let addr = n.http_addr.clone();
+                    if addr.starts_with("http://") || addr.starts_with("https://") {
+                        addr
+                    } else {
+                        format!("http://{addr}")
+                    }
+                }
                 None => {
                     replicas.push(SegmentReplicaStateResp {
                         node_id,

@@ -143,6 +143,12 @@ impl StorageEngineHandler {
                 _ => (0, 0),
             };
 
+            let high_watermark = self
+                .cache_manager
+                .get_offset_state(&shard.shard_name)
+                .map(|s| s.high_watermark_offset)
+                .unwrap_or(0);
+
             results.push(AdapterShardDetail {
                 shard_name: shard.shard_name.clone(),
                 topic_name: shard.topic_name.clone(),
@@ -152,6 +158,7 @@ impl StorageEngineHandler {
                 offset: AdapterShardDetailOffset {
                     start_offset,
                     end_offset,
+                    high_watermark,
                 },
             });
         }
