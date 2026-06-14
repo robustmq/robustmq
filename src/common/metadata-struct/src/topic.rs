@@ -40,11 +40,9 @@ pub struct Topic {
     pub tenant: String,
     pub topic_name: String,
     pub storage_type: StorageType,
-    /// Which protocol or subsystem created this topic.
     pub source: TopicSource,
     pub partition: u32,
     pub replication: u32,
-    /// Maps partition index to its storage shard name. Populated via `create_partition_name` or set manually.
     pub storage_name_list: HashMap<u32, String>,
     pub config: TopicConfig,
     pub mark_delete: bool,

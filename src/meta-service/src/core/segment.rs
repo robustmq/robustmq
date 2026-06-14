@@ -22,12 +22,10 @@ use crate::core::segment_meta::{
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::raft::route::engine::IsrUpdateOutcome;
-use crate::storage::common::node::NodeStorage;
 use bytes::Bytes;
 use common_config::storage::StorageType;
 use grpc_clients::pool::ClientPool;
-use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::storage::segment::{segment_name, EngineSegment, Replica, SegmentStatus};
+use metadata_struct::storage::segment::{segment_name, EngineSegment, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
 use node_call::NodeCallManager;
 use prost::Message as _;
@@ -36,7 +34,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::info;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_segment(
@@ -58,7 +56,7 @@ pub async fn create_segment(
                 shard_info.shard_name, segment_seq, start_offset
             );
 
-            let segment: EngineSegment = build_segment(
+            let segment: EngineSegment = crate::core::segment_replica::build_segment(
                 shard_info,
                 cache_manager,
                 rocksdb_engine_handler,
@@ -138,66 +136,6 @@ pub async fn delete_segment_by_real(
         sync_delete_segment_metadata_info(raft_manager, &meta).await?;
     }
     Ok(())
-}
-
-async fn build_segment(
-    shard_info: &EngineShard,
-    cache_manager: &Arc<MetaCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
-    segment_no: u32,
-) -> Result<EngineSegment, MetaServiceError> {
-    if let Some(segment) = cache_manager.get_segment(&shard_info.shard_name, segment_no) {
-        return Ok(segment);
-    }
-
-    let node_list: Vec<BrokerNode> = cache_manager.get_engine_node_list();
-    let replica_num = shard_info.config.replica_num as usize;
-    if node_list.len() < replica_num {
-        return Err(MetaServiceError::NotEnoughEngineNodes(
-            "CreateSegment".to_string(),
-            shard_info.config.replica_num,
-            node_list.len() as u32,
-        ));
-    }
-
-    let mut rng = thread_rng();
-    let selected_nodes: Vec<&BrokerNode> =
-        node_list.choose_multiple(&mut rng, replica_num).collect();
-
-    let mut replicas = Vec::new();
-    for (i, node) in selected_nodes.iter().enumerate() {
-        let fold = calc_node_fold(cache_manager, node.node_id)?;
-        replicas.push(Replica {
-            replica_seq: i as u64,
-            node_id: node.node_id,
-            fold,
-        });
-    }
-
-    if replicas.len() != replica_num {
-        return Err(MetaServiceError::NumberOfReplicasIsIncorrect(
-            shard_info.config.replica_num,
-            replicas.len(),
-        ));
-    }
-
-    let leader = calc_leader_node(&replicas)?;
-    let isr: Vec<u64> = replicas.iter().map(|rep| rep.node_id).collect();
-
-    let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
-    let leader_broker_epoch = node_storage.get_broker_epoch(leader)?;
-
-    Ok(EngineSegment {
-        shard_name: shard_info.shard_name.clone(),
-        leader_epoch: 0,
-        status: SegmentStatus::Write,
-        segment_seq: segment_no,
-        leader,
-        replicas,
-        isr,
-        leader_broker_epoch,
-        ..Default::default()
-    })
 }
 
 pub async fn update_segment_status(
@@ -319,13 +257,6 @@ async fn sync_delete_segment_info(
         .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
 
     Ok(())
-}
-
-fn calc_leader_node(replicas: &[Replica]) -> Result<u64, MetaServiceError> {
-    replicas.first().map(|rep| rep.node_id).ok_or_else(|| {
-        warn!("Cannot calculate leader node: replica list is empty");
-        MetaServiceError::CommonError("Replica list is empty".to_string())
-    })
 }
 
 pub(crate) fn calc_node_fold(

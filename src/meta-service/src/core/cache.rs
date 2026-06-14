@@ -33,7 +33,42 @@ use metadata_struct::storage::shard::EngineShard;
 use metadata_struct::tenant::Tenant;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+
+/// Per-node replica/leader placement load, maintained incrementally by
+/// `set_segment`/`remove_segment` and lazily initialized on first read.
+#[derive(Clone, Default, Debug)]
+pub struct NodeLoadCache {
+    pub(crate) replica_count: DashMap<u64, u64>,
+    pub(crate) leader_count: DashMap<u64, u64>,
+    pub(crate) initialized: Arc<AtomicBool>,
+    pub(crate) init_lock: Arc<Mutex<()>>,
+}
+
+impl NodeLoadCache {
+    /// Add (`delta` = +1) or remove (`delta` = -1) a segment's replica/leader
+    /// contribution. No-op until initialized — the first scan sets the baseline.
+    pub(crate) fn apply(&self, segment: &EngineSegment, delta: i64) {
+        if !self.initialized.load(Ordering::Acquire) {
+            return;
+        }
+        for replica in &segment.replicas {
+            adjust_count(&self.replica_count, replica.node_id, delta);
+        }
+        adjust_count(&self.leader_count, segment.leader, delta);
+    }
+
+    pub(crate) fn remove_node(&self, node_id: u64) {
+        self.replica_count.remove(&node_id);
+        self.leader_count.remove(&node_id);
+    }
+}
+
+fn adjust_count(map: &DashMap<u64, u64>, node_id: u64, delta: i64) {
+    let mut entry = map.entry(node_id).or_insert(0);
+    *entry = (*entry as i64 + delta).max(0) as u64;
+}
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct MetaCacheManager {
@@ -71,6 +106,10 @@ pub struct MetaCacheManager {
 
     //（shard_name, JournalSegment)
     pub wait_delete_segment_list: DashMap<String, EngineSegment>,
+
+    // Per-node replica/leader placement load (not persisted; rebuilt on demand).
+    #[serde(skip)]
+    pub node_load: NodeLoadCache,
 }
 
 impl MetaCacheManager {
@@ -87,6 +126,7 @@ impl MetaCacheManager {
             wait_delete_shard_list: DashMap::with_capacity(8),
             wait_delete_segment_list: DashMap::with_capacity(8),
             group_leader: DashMap::with_capacity(8),
+            node_load: NodeLoadCache::default(),
         };
         cache.load_cache(rocksdb_engine_handler);
         cache
@@ -117,6 +157,7 @@ impl MetaCacheManager {
     pub fn remove_broker_node(&self, node_id: u64) -> Option<(u64, BrokerNode)> {
         self.node_list.remove(&node_id);
         self.node_heartbeat.remove(&node_id);
+        self.node_load.remove_node(node_id);
         None
     }
 

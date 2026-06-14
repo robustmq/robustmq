@@ -71,14 +71,21 @@ pub async fn create_shard_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
-    let num = cache_manager.node_list.len() as u32;
     let shard_config: EngineShardConfig = EngineShardConfig::decode(&req.shard_config)?;
-    if num < shard_config.replica_num {
-        return Err(MetaServiceError::NotEnoughEngineNodes(
-            "CreateShard".to_string(),
-            shard_config.replica_num,
-            num,
-        ));
+
+    // Regular topics need enough engine nodes for the full replica set before we
+    // create the shard — otherwise create_segment fails afterwards and leaves an
+    // orphan shard. Inner/system topics are exempt: they may start
+    // under-replicated and are topped up by the background fill task.
+    if !shard_config.is_inner_topic {
+        let engine_node_num = cache_manager.get_engine_node_list().len() as u32;
+        if engine_node_num < shard_config.replica_num {
+            return Err(MetaServiceError::NotEnoughEngineNodes(
+                "CreateShard".to_string(),
+                shard_config.replica_num,
+                engine_node_num,
+            ));
+        }
     }
 
     let already_exists = cache_manager.shard_list.contains_key(&req.shard_name);

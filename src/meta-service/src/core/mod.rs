@@ -27,4 +27,5 @@ pub mod notify;
 pub mod segment;
 pub mod segment_leader;
 pub mod segment_meta;
+pub mod segment_replica;
 pub mod shard;

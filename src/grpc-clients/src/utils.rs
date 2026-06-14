@@ -19,6 +19,7 @@ use common_base::error::common::CommonError;
 use common_metrics::grpc::record_grpc_client_call;
 use regex::Regex;
 use tokio::time::sleep;
+use tracing::{debug, info, warn};
 
 use crate::pool::ClientPool;
 use crate::retry_times;
@@ -83,22 +84,29 @@ where
     // retry at their own layer.
     const MIN_ATTEMPTS: usize = 3;
     const RETRY_INTERVAL_MS: u64 = 100;
+    // Try every node at least once before giving up: a write may be pinned to a
+    // stale cached leader, and the live leader could be any other node.
+    let max_attempts = MIN_ATTEMPTS.max(retry_times()).max(addrs.len());
     let mut times = 0;
     loop {
         let index = times % addrs.len();
         times += 1;
-        // For write requests, always prefer the cached leader if present; only
-        // fall back to round-robin when there is no cached leader. We do NOT
-        // give up on the leader just because one attempt failed — it may be
-        // briefly unavailable (committing a membership change, restarting, etc.).
-        let target_addr = if Req::IS_WRITE_REQUEST {
-            client_pool
-                .get_leader_addr(method)
-                .map(|l| l.value().to_string())
-                .unwrap_or_else(|| addrs[index].as_ref().to_string())
+        // Write requests prefer the cached leader when present, falling back to
+        // round-robin otherwise. A transport failure against the cached leader
+        // drops it (see below) so a crashed / re-elected leader is re-discovered.
+        let (target_addr, source) = if Req::IS_WRITE_REQUEST {
+            match client_pool.get_leader_addr(method) {
+                Some(l) => (l.value().to_string(), "cached-leader"),
+                None => (addrs[index].as_ref().to_string(), "round-robin"),
+            }
         } else {
-            addrs[index].as_ref().to_string()
+            (addrs[index].as_ref().to_string(), "round-robin")
         };
+
+        debug!(
+            "retry_call {} attempt {}/{}: target {} (via {}, index {})",
+            method, times, max_attempts, target_addr, source, index
+        );
 
         let mut client = Req::get_client(client_pool, &target_addr);
 
@@ -110,21 +118,86 @@ where
                 if err.to_string().contains("forward request to") {
                     // Not the leader — follow the redirect and cache the real leader.
                     if let Some(leader_addr) = get_forward_addr(&err) {
+                        info!(
+                            "retry_call {} attempt {}: {} redirected to leader {}",
+                            method, times, target_addr, leader_addr
+                        );
                         client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
                         let mut leader_client = Req::get_client(client_pool, &leader_addr);
-                        if let Ok(data) = Req::call_once(&mut leader_client, request.clone()).await
-                        {
-                            return Ok(data);
+                        match Req::call_once(&mut leader_client, request.clone()).await {
+                            Ok(data) => return Ok(data),
+                            Err(le) => {
+                                let le: CommonError = le.into();
+                                if is_transport_error(&le) {
+                                    // The redirected leader is unreachable — drop it
+                                    // so the next attempt sweeps the node list and
+                                    // re-discovers it.
+                                    warn!(
+                                        "retry_call {} attempt {}: redirected leader {} unreachable: {}",
+                                        method, times, leader_addr, le
+                                    );
+                                    client_pool.remove_leader_addr(method);
+                                } else {
+                                    // The leader processed and rejected the request
+                                    // (application error) — authoritative, return now.
+                                    warn!(
+                                        "retry_call {} attempt {}: redirected leader {} rejected the request (not retried): {}",
+                                        method, times, leader_addr, le
+                                    );
+                                    return Err(le);
+                                }
+                            }
                         }
+                    } else {
+                        warn!(
+                            "retry_call {} attempt {}: {} returned a forward error but no leader addr parsed: {}",
+                            method, times, target_addr, err
+                        );
                     }
+                } else if is_transport_error(&err) {
+                    // The node is unreachable (down / not yet listening) — sweep on
+                    // to the next node.
+                    warn!(
+                        "retry_call {} attempt {}: {} unreachable: {}",
+                        method, times, target_addr, err
+                    );
+                    if Req::IS_WRITE_REQUEST {
+                        // A write failed against the cached leader (e.g. it crashed
+                        // or a new leader was elected). Drop the stale leader so the
+                        // next attempt round-robins the nodes and re-discovers the
+                        // leader, instead of pinning to the same dead address.
+                        client_pool.remove_leader_addr(method);
+                    }
+                } else {
+                    // The node responded and rejected the request for an
+                    // application reason (e.g. "not enough nodes"). This is an
+                    // authoritative answer — return it immediately instead of
+                    // masking it by retrying into unreachable nodes.
+                    warn!(
+                        "retry_call {} attempt {}: {} rejected the request (not retried): {}",
+                        method, times, target_addr, err
+                    );
+                    return Err(err);
                 }
-                if times >= MIN_ATTEMPTS.max(retry_times()) {
+                if times >= max_attempts {
                     return Err(err);
                 }
                 sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
             }
         }
     }
+}
+
+/// Whether the error is a transport/availability failure (the node is
+/// unreachable), as opposed to an application-level rejection. Only transport
+/// failures are worth retrying against other nodes; an application rejection is
+/// authoritative and should be surfaced immediately.
+fn is_transport_error(err: &CommonError) -> bool {
+    let s = err.to_string();
+    s.contains("tcp connect error")
+        || s.contains("Connection refused")
+        || s.contains("ConnectError")
+        || s.contains("The service is currently unavailable")
 }
 
 pub fn get_forward_addr(err: &CommonError) -> Option<String> {
@@ -134,4 +207,184 @@ pub fn get_forward_addr(err: &CommonError) -> Option<String> {
     let error_info = err.to_string();
     let raw = re.captures(&error_info)?.get(1)?.as_str();
     Some(raw.replace(['\\', '"', ' '], ""))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+
+    /// Mock write request: `reject_addr` returns an application-level error,
+    /// `good_addr` succeeds, every other address fails as if connection-refused.
+    /// The client is just the target address; shared state records the call order.
+    struct MockState {
+        calls: Mutex<Vec<String>>,
+        good_addr: String,
+        reject_addr: Option<String>,
+    }
+
+    #[derive(Clone)]
+    struct MockReq {
+        state: Arc<MockState>,
+    }
+
+    impl RetriableRequest for MockReq {
+        type Client = String;
+        type Response = ();
+        type Error = CommonError;
+
+        const IS_WRITE_REQUEST: bool = true;
+
+        fn method_name() -> &'static str {
+            "MockService/MockWrite"
+        }
+
+        fn get_client(_pool: &ClientPool, addr: &str) -> Self::Client {
+            addr.to_string()
+        }
+
+        async fn call_once(
+            client: &mut Self::Client,
+            request: Self,
+        ) -> Result<Self::Response, Self::Error> {
+            request.state.calls.lock().unwrap().push(client.clone());
+            if request.state.reject_addr.as_deref() == Some(client.as_str()) {
+                // Application-level rejection (not a transport failure).
+                Err(CommonError::CommonError(
+                    "There are not enough nodes available in the cluster".to_string(),
+                ))
+            } else if *client == request.state.good_addr {
+                Ok(())
+            } else {
+                Err(CommonError::CommonError("tcp connect error".to_string()))
+            }
+        }
+    }
+
+    // A stale cached leader that is unreachable must be dropped so the retry
+    // sweeps the node list and re-discovers a live node, instead of pinning to
+    // the dead address every attempt.
+    #[tokio::test]
+    async fn write_drops_stale_leader_and_round_robins() {
+        let pool = ClientPool::new(1);
+        pool.set_leader_addr(
+            MockReq::method_name().to_string(),
+            "127.0.0.1:9999".to_string(),
+        );
+
+        let state = Arc::new(MockState {
+            calls: Mutex::new(Vec::new()),
+            good_addr: "127.0.0.1:2228".to_string(),
+            reject_addr: None,
+        });
+        let addrs = ["127.0.0.1:1228", "127.0.0.1:2228", "127.0.0.1:3228"];
+        let res = retry_call_inner::<MockReq>(
+            &pool,
+            &addrs,
+            MockReq {
+                state: state.clone(),
+            },
+        )
+        .await;
+
+        assert!(
+            res.is_ok(),
+            "should succeed once the dead cached leader is dropped"
+        );
+        let calls = state.calls.lock().unwrap();
+        assert_eq!(
+            calls[0], "127.0.0.1:9999",
+            "first attempt uses the cached leader"
+        );
+        assert!(
+            calls[1..].iter().any(|a| a == "127.0.0.1:2228"),
+            "subsequent attempts round-robin to a live node, got {calls:?}"
+        );
+        // The stale leader must have been evicted from the cache.
+        assert!(pool.get_leader_addr(MockReq::method_name()).is_none());
+    }
+
+    // With more nodes than the minimum attempt count, every node must still be
+    // tried before failing — here the only live node is the last one.
+    #[tokio::test]
+    async fn tries_every_node_before_succeeding() {
+        let pool = ClientPool::new(1);
+        let state = Arc::new(MockState {
+            calls: Mutex::new(Vec::new()),
+            good_addr: "127.0.0.1:5005".to_string(),
+            reject_addr: None,
+        });
+        let addrs = [
+            "127.0.0.1:5001",
+            "127.0.0.1:5002",
+            "127.0.0.1:5003",
+            "127.0.0.1:5004",
+            "127.0.0.1:5005",
+        ];
+        let res = retry_call_inner::<MockReq>(
+            &pool,
+            &addrs,
+            MockReq {
+                state: state.clone(),
+            },
+        )
+        .await;
+
+        assert!(
+            res.is_ok(),
+            "should reach the last (only live) node, got {res:?}"
+        );
+        let calls = state.calls.lock().unwrap();
+        assert!(
+            calls.iter().any(|a| a == "127.0.0.1:5005"),
+            "the last node must be tried, got {calls:?}"
+        );
+    }
+
+    #[test]
+    fn get_forward_addr_parses_and_strips() {
+        let err = CommonError::CommonError(
+            "has to forward request to: Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })"
+                .to_string(),
+        );
+        assert_eq!(get_forward_addr(&err).as_deref(), Some("127.0.0.1:2228"));
+
+        // No rpc_addr in the message → None.
+        let plain = CommonError::CommonError("connection refused".to_string());
+        assert_eq!(get_forward_addr(&plain), None);
+    }
+
+    // Only network errors and leader redirects are retried; an application-level
+    // rejection (e.g. "not enough nodes") is authoritative and returned at once,
+    // without sweeping the other nodes.
+    #[tokio::test]
+    async fn application_rejection_is_returned_immediately() {
+        let pool = ClientPool::new(1);
+        let state = Arc::new(MockState {
+            calls: Mutex::new(Vec::new()),
+            // :2228 would succeed, but it must never be reached.
+            good_addr: "127.0.0.1:2228".to_string(),
+            reject_addr: Some("127.0.0.1:1228".to_string()),
+        });
+        let addrs = ["127.0.0.1:1228", "127.0.0.1:2228", "127.0.0.1:3228"];
+        let res = retry_call_inner::<MockReq>(
+            &pool,
+            &addrs,
+            MockReq {
+                state: state.clone(),
+            },
+        )
+        .await;
+
+        assert!(
+            res.is_err(),
+            "an application rejection must propagate as an error"
+        );
+        let calls = state.calls.lock().unwrap();
+        assert_eq!(
+            calls.as_slice(),
+            ["127.0.0.1:1228"],
+            "must not retry other nodes after an application rejection, got {calls:?}"
+        );
+    }
 }

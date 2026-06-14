@@ -82,6 +82,12 @@ pub struct EngineShardConfig {
     // is cluster-wide and lives in the broker `StorageRuntime` config.
     #[serde(default = "default_min_in_sync_replicas")]
     pub min_in_sync_replicas: u32,
+
+    // Inner/system topic (derived from `Topic.source == SystemInner` at creation).
+    // Inner topics may be created with fewer replicas than `replica_num` when the
+    // cluster is small; the remainder is filled in later by a background task.
+    #[serde(default)]
+    pub is_inner_topic: bool,
 }
 
 /// 1 GiB (1024 * 1024 * 1024 bytes)
@@ -105,6 +111,7 @@ impl Default for EngineShardConfig {
             max_record_num: None,
             storage_type: StorageType::EngineMemory,
             min_in_sync_replicas: DEFAULT_MIN_IN_SYNC_REPLICAS,
+            is_inner_topic: false,
         }
     }
 }

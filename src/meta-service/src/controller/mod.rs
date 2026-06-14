@@ -19,6 +19,7 @@ use crate::controller::leader_rebalance::start_segment_leader_rebalance_thread;
 use crate::controller::mail_gc::start_mail_gc_thread;
 use crate::controller::topic_delete::start_topic_delete_thread;
 use crate::core::cache::MetaCacheManager;
+use crate::core::segment_replica::start_inner_topic_replica_fill_thread;
 use crate::raft::manager::MultiRaftManager;
 use broker_core::cache::NodeCacheManager;
 use grpc_clients::pool::ClientPool;
@@ -183,6 +184,21 @@ impl BrokerController {
                 cache_manager,
                 call_manager,
                 rocksdb_engine_handler,
+                raw_stop_send,
+            )
+            .await;
+        }));
+
+        // inner topic replica top-up
+        let raft_manager = self.raft_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let call_manager = self.node_call_manager.clone();
+        let raw_stop_send = stop_send.clone();
+        tokio::spawn(Box::pin(async move {
+            start_inner_topic_replica_fill_thread(
+                raft_manager,
+                cache_manager,
+                call_manager,
                 raw_stop_send,
             )
             .await;

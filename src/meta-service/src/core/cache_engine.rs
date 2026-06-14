@@ -46,16 +46,27 @@ impl MetaCacheManager {
     }
 
     pub fn set_segment(&self, segment: EngineSegment) {
-        let list = self
-            .segment_list
-            .entry(segment.shard_name.clone())
-            .or_insert(DashMap::with_capacity(8));
-        list.insert(segment.segment_seq, segment);
+        let old = {
+            let list = self
+                .segment_list
+                .entry(segment.shard_name.clone())
+                .or_insert(DashMap::with_capacity(8));
+            list.insert(segment.segment_seq, segment.clone())
+        };
+        // Keep per-node placement load in sync (old contribution out, new in).
+        if let Some(old) = old {
+            self.node_load.apply(&old, -1);
+        }
+        self.node_load.apply(&segment, 1);
     }
 
     pub fn remove_segment(&self, shard_name: &str, segment_seq: u32) {
-        if let Some(segment_list) = self.segment_list.get(shard_name) {
-            segment_list.remove(&segment_seq);
+        let removed = self
+            .segment_list
+            .get(shard_name)
+            .and_then(|segment_list| segment_list.remove(&segment_seq).map(|(_, seg)| seg));
+        if let Some(segment) = removed {
+            self.node_load.apply(&segment, -1);
         }
     }
 
