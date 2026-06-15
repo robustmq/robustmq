@@ -64,6 +64,7 @@ pub mod sub_opt_retain_handling_test;
 pub mod sub_wildcards_test;
 pub mod tenant;
 pub mod topic_alias_test;
+pub mod topic_delete_test;
 pub mod topic_rewrite_emqx_examples_test;
 pub mod topic_rewrite_test;
 pub mod user_properties_test;

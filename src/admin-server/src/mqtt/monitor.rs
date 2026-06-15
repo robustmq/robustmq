@@ -21,12 +21,12 @@ use common_base::{
     http_response::{error_response, success_response},
 };
 use dashmap::DashMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::state::HttpState;
 use rocksdb_engine::metrics::mqtt::MQTTMetricsCache;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Default)]
 pub struct MonitorDataReq {
     pub data_type: String,
     pub topic_name: Option<String>,
