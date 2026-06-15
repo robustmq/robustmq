@@ -402,6 +402,54 @@ mod tests {
         let mut last_epoch: u32 = 0;
         let mut switch_count: u32 = 0;
 
+        // ── pre-flight: prove replication pipeline is live before chaos rounds ──
+        // wait_full_and_caught_up(target=0) on a fresh shard passes immediately because
+        // leo=hw=0 is trivially true, but fetcher TCP connections to followers may not be
+        // established yet. A successful acks=1 write + full-catch-up is the only real proof
+        // that the storage engine TCP port is ready AND follower fetchers are running,
+        // so the first chaos-round acks=all won't time out on an unprimed cluster.
+        {
+            let obs0 = AdminHttpClient::new(admin_url(2));
+            let t0 = Instant::now();
+            loop {
+                let d = checked_detail(&obs0, &shard_name, segment_seq).await;
+                if d.segment.leader != 0 && d.segment.isr.len() == REPLICA_NUM {
+                    let record = AdapterWriteRecord::new("", Bytes::from("preflight"));
+                    let mut body = WriteReqBody::new(
+                        shard_name.clone(),
+                        vec![serialize::serialize(&record).unwrap()],
+                    );
+                    body.acks = 1;
+                    if let Ok(StorageEnginePacket::WriteResp(r)) = writer
+                        .write_send(
+                            d.segment.leader,
+                            StorageEnginePacket::WriteReq(WriteReq::new(body)),
+                        )
+                        .await
+                    {
+                        if r.header.error.is_none() {
+                            cumulative += 1;
+                            break;
+                        }
+                    }
+                }
+                assert!(
+                    t0.elapsed() < Duration::from_secs(60),
+                    "pre-flight acks=1 write did not succeed within 60s"
+                );
+                sleep(Duration::from_secs(3)).await;
+            }
+            wait_full_and_caught_up(
+                &AdminHttpClient::new(admin_url(2)),
+                &shard_name,
+                segment_seq,
+                cumulative,
+                "preflight",
+            )
+            .await;
+            println!("pre-flight OK: replication pipeline live, cumulative={cumulative}");
+        }
+
         for round in 1..=ROUNDS {
             let victim = ((round - 1) % 3) + 1;
             // Observe via a node that will survive this round's kill.
@@ -463,7 +511,7 @@ mod tests {
                 }
             };
 
-            // ── (4) no data loss: survivors still hold all committed data ──
+            // ── (4) no data loss: survivors hold committed data; dead node still in replica set ──
             {
                 let d = checked_detail(&obs, &shard_name, segment_seq).await;
                 assert_eq!(
@@ -471,19 +519,26 @@ mod tests {
                     vec![1, 2, 3],
                     "replica set must stay intact while degraded"
                 );
-                for r in d.replicas.iter().filter(|r| r.node_id != victim) {
-                    assert!(r.available, "survivor n{} unavailable", r.node_id);
-                    assert_eq!(
-                        r.leo, cumulative,
-                        "survivor n{} leo != {cumulative}",
-                        r.node_id
-                    );
-                    assert_eq!(
-                        r.high_watermark, cumulative,
-                        "survivor n{} hw != {cumulative}",
-                        r.node_id
-                    );
-                    assert_eq!(r.log_start_offset, 0, "survivor n{} lso != 0", r.node_id);
+                for r in &d.replicas {
+                    if r.node_id == victim {
+                        // segment_detail fans out an HTTP call to the dead node's admin port,
+                        // which fails → leo/hw return 0 (unreachable default), not last-known
+                        // values. Only the available flag is meaningful for a dead node.
+                        assert!(!r.available, "dead n{victim} still shows available");
+                    } else {
+                        assert!(r.available, "survivor n{} unavailable", r.node_id);
+                        assert_eq!(
+                            r.leo, cumulative,
+                            "survivor n{} leo != {cumulative}",
+                            r.node_id
+                        );
+                        assert_eq!(
+                            r.high_watermark, cumulative,
+                            "survivor n{} hw != {cumulative}",
+                            r.node_id
+                        );
+                        assert_eq!(r.log_start_offset, 0, "survivor n{} lso != 0", r.node_id);
+                    }
                 }
             }
 
@@ -498,7 +553,10 @@ mod tests {
                         d.replicas.iter().filter(|r| r.node_id != victim).collect();
                     if survivors.len() == REPLICA_NUM - 1
                         && survivors.iter().all(|r| {
-                            r.available && r.leo == cumulative && r.high_watermark == cumulative
+                            r.available
+                                && r.leo == cumulative
+                                && r.high_watermark == cumulative
+                                && r.log_start_offset == 0
                         })
                     {
                         break;
