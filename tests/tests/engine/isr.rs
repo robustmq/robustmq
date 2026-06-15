@@ -12,16 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ISR replica-sync integration test.
+// ISR rolling-restart chaos drill.
 //
 // Requires a running 3-node cluster (config/cluster/server-{1,2,3}.toml). Marked
-// `#[ignore]`; run with `cargo test -p tests three_replica_isr_sync -- --ignored --nocapture`.
+// `#[ignore]`; run with:
+//   cargo test -p robustmq-test three_replica_chaos_rolling_kill -- --ignored --nocapture
 //
-// Scenario: create a 3-replica shard, write data continuously to the leader, then
-// poll the segment-detail admin API and assert that all three replicas join the
-// ISR and their LEOs converge to the leader's (the high watermark advances to the
-// committed offset). Note: ISR leader/follower replication currently applies to
-// EngineRocksDB / EngineMemory storage, NOT EngineSegment — so this uses RocksDB.
+// 10 rounds: write (acks=all) → kill one node (rotating n1→n2→n3→n1…) →
+// wait ISR shrink → degraded write (acks=all on 2 survivors) → restart →
+// wait full ISR + catch-up → verify. Ends with a full content read-back.
+//
+// Review conditions tested each round:
+//   - hw <= leo on EVERY observation               → HW/offset bookkeeping corruption
+//   - all replicas leo == hw == cumulative         → data loss / divergence / lag
+//   - lso == 0                                     → unexpected truncation/retention
+//   - replicas == {1,2,3} always                   → replica drop/migration
+//   - ISR drops only dead node, then recovers      → wrong ISR shrink / failure to rejoin
+//   - leader_epoch monotonic, bumps on switch      → fencing broken
+//   - all 3 nodes agree on leader/epoch/ISR/leo/hw → split-brain / stale metadata view
+//   - acks=all commits in full & degraded ISR      → writes stalling
+//   - final read-back returns cumulative records   → content lost despite correct counters
+//   - node logs contain no blacklisted lines       → raft panics, watchdog kills, etc.
 
 #[cfg(test)]
 mod tests {
@@ -30,7 +41,7 @@ mod tests {
     use admin_server::engine::segment::{
         SegmentDetailReq, SegmentDetailResp, SegmentListReq, SegmentListResp,
     };
-    use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
+    use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq};
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
     use common_base::http_response::AdminServerResponse;
@@ -40,7 +51,12 @@ mod tests {
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::meta::node::BrokerNode;
     use protocol::storage::codec::StorageEnginePacket;
-    use protocol::storage::protocol::{WriteReq, WriteReqBody};
+    use protocol::storage::protocol::{
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
+        WriteReqBody,
+    };
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
     use storage_engine::clients::manager::ClientConnectionManager;
@@ -50,7 +66,21 @@ mod tests {
     const NODES: [u64; 3] = [1, 2, 3];
     const REPLICA_NUM: usize = 3;
 
-    /// Storage-engine TCP port of each dev-cluster node (config/cluster/server-N.toml).
+    // Log lines that must NEVER appear in any node log — each is an unambiguous
+    // defect. Benign rolling-restart noise (Unreachable node, fetcher retry,
+    // reconcile self-heal warn, diverged-tail truncation) is intentionally NOT listed.
+    const LOG_BLACKLIST: &[&str] = &[
+        "invalid state: expect", // raft purge_upto > snapshot regression
+        "last_log_id=None",      // raft log read back empty on restart
+        "Clean the hole",        // raft storage hole
+        "forcing exit",          // shutdown watchdog fired (ungraceful)
+        "acks=all timed out",    // committed write never acked
+        "NotEnoughReplicas",     // acks=all rejected
+        "panicked at",           // any Rust panic (storage, fetch, etc.)
+    ];
+
+    // ── address helpers ──────────────────────────────────────────────────────
+
     fn engine_addr(node_id: u64) -> String {
         match node_id {
             1 => "127.0.0.1:1779",
@@ -61,8 +91,25 @@ mod tests {
         .to_string()
     }
 
-    /// A write client that knows every node's engine address, so it can send the
-    /// write directly to whichever node is the segment leader.
+    fn admin_url(node_id: u64) -> String {
+        match node_id {
+            1 => "http://127.0.0.1:58080",
+            2 => "http://127.0.0.1:58082",
+            3 => "http://127.0.0.1:58083",
+            other => panic!("unknown node id {other}"),
+        }
+        .to_string()
+    }
+
+    fn repo_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("workspace root")
+            .to_path_buf()
+    }
+
+    // ── client / process helpers ─────────────────────────────────────────────
+
     fn build_write_client() -> Arc<ClientConnectionManager> {
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         for node_id in NODES {
@@ -76,21 +123,46 @@ mod tests {
         Arc::new(ClientConnectionManager::new(cache_manager, 2))
     }
 
-    async fn get_shard(admin: &AdminHttpClient, shard_name: &str) -> ShardListRow {
-        let resp = admin
-            .get_shard_list::<_, Vec<ShardListRow>>(&ShardListReq {
-                shard_name: Some(shard_name.to_string()),
-                ..Default::default()
-            })
-            .await
-            .unwrap();
-        assert_eq!(
-            resp.data.len(),
-            1,
-            "expected exactly one shard '{shard_name}'"
-        );
-        resp.data.into_iter().next().unwrap()
+    fn node_running(node_id: u64) -> bool {
+        Command::new("pgrep")
+            .args(["-f", &format!("server-{node_id}.toml")])
+            .output()
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false)
     }
+
+    async fn kill_node(node_id: u64) {
+        // Graceful stop only — kill -9 leaves a stuck grpc socket on this host.
+        let _ = Command::new("pkill")
+            .args(["-INT", "-f", &format!("server-{node_id}.toml")])
+            .status();
+        let t0 = Instant::now();
+        while node_running(node_id) {
+            if t0.elapsed() > Duration::from_secs(25) {
+                panic!("node{node_id} did not exit on kill -INT within 25s");
+            }
+            sleep(Duration::from_millis(500)).await;
+        }
+    }
+
+    // Always appends to /tmp/nX.log so scan_logs covers the full multi-restart run.
+    fn restart_node(node_id: u64) {
+        let root = repo_root();
+        let bin = root.join("target/debug/broker-server");
+        let log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(format!("/tmp/n{node_id}.log"))
+            .unwrap();
+        let _ = Command::new(&bin)
+            .current_dir(&root)
+            .args(["--conf", &format!("config/cluster/server-{node_id}.toml")])
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn();
+    }
+
+    // ── admin API helpers ────────────────────────────────────────────────────
 
     async fn active_segment_seq(admin: &AdminHttpClient, shard_name: &str) -> u32 {
         let resp_str = admin
@@ -102,236 +174,486 @@ mod tests {
         let resp: AdminServerResponse<SegmentListResp> = serde_json::from_str(&resp_str).unwrap();
         let list = resp.data.segment_list;
         assert!(!list.is_empty(), "no segments for shard '{shard_name}'");
-        // Active (writeable) segment = highest seq; a fresh shard has only seq 0.
         list.iter().map(|s| s.segment.segment_seq).max().unwrap()
     }
 
-    async fn segment_detail(
+    /// `segment_detail` + universal `hw <= leo` invariant on every read.
+    async fn checked_detail(
         admin: &AdminHttpClient,
         shard_name: &str,
         segment_seq: u32,
     ) -> SegmentDetailResp {
-        let req = SegmentDetailReq {
-            shard_name: shard_name.to_string(),
-            segment_seq,
-        };
-        admin
-            .get_segment_detail::<_, SegmentDetailResp>(&req)
+        let d = admin
+            .get_segment_detail::<_, SegmentDetailResp>(&SegmentDetailReq {
+                shard_name: shard_name.to_string(),
+                segment_seq,
+            })
             .await
-            .unwrap()
+            .unwrap();
+        for r in &d.replicas {
+            assert!(
+                r.high_watermark <= r.leo,
+                "INVARIANT hw<=leo violated on n{}: hw={} leo={} (shard {shard_name})",
+                r.node_id,
+                r.high_watermark,
+                r.leo
+            );
+        }
+        d
     }
 
-    fn replicas_line(detail: &SegmentDetailResp) -> String {
-        detail
-            .replicas
+    // ── data-shape helpers ───────────────────────────────────────────────────
+
+    fn replica_ids(d: &SegmentDetailResp) -> Vec<u64> {
+        let mut v: Vec<u64> = d.segment.replicas.iter().map(|r| r.node_id).collect();
+        v.sort_unstable();
+        v
+    }
+
+    fn sorted_isr(d: &SegmentDetailResp) -> Vec<u64> {
+        let mut v = d.segment.isr.clone();
+        v.sort_unstable();
+        v
+    }
+
+    fn replicas_line(d: &SegmentDetailResp) -> String {
+        d.replicas
             .iter()
             .map(|r| {
                 format!(
-                    "n{}(leo={},hw={},isr={},avail={})",
-                    r.node_id, r.leo, r.high_watermark, r.in_isr, r.available
+                    "n{}(leo={},hw={},lso={},isr={},avail={})",
+                    r.node_id, r.leo, r.high_watermark, r.log_start_offset, r.in_isr, r.available
                 )
             })
             .collect::<Vec<_>>()
             .join(" ")
     }
 
-    #[tokio::test]
-    #[ignore = "requires a running 3-node cluster (config/cluster/server-{1,2,3}.toml)"]
-    async fn three_replica_isr_sync() {
-        let admin = create_test_env().await; // http://127.0.0.1:58080
-        let shard_name = unique_id();
+    fn scan_logs() -> Vec<String> {
+        let mut hits = Vec::new();
+        for id in NODES {
+            let path = format!("/tmp/n{id}.log");
+            let Ok(content) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            for line in content.lines() {
+                if LOG_BLACKLIST.iter().any(|p| line.contains(p)) {
+                    let clean: String = line.replace('\u{1b}', "").replace("[0m", "");
+                    hits.push(format!("n{id}: {}", clean.trim()));
+                }
+            }
+        }
+        hits
+    }
 
-        // 1. Create a 3-replica RocksDB shard (ISR replication applies to RocksDB/Memory).
-        let config = r#"{"replica_num":3,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}"#.to_string();
-        let create = admin
-            .create_shard(&ShardCreateReq {
-                shard_name: shard_name.clone(),
-                topic_name: None,
-                desc: None,
-                config,
-            })
+    // ── write / read helpers ─────────────────────────────────────────────────
+
+    /// acks=all: returns only once records are committed on every ISR replica.
+    async fn write_acks_all(
+        writer: &Arc<ClientConnectionManager>,
+        leader: u64,
+        shard_name: &str,
+        label_base: u64,
+        n: u64,
+    ) {
+        let mut messages = Vec::with_capacity(n as usize);
+        for i in 0..n {
+            let record =
+                AdapterWriteRecord::new("", Bytes::from(format!("chaos-{}", label_base + i)));
+            messages.push(serialize::serialize(&record).unwrap());
+        }
+        let mut body = WriteReqBody::new(shard_name.to_string(), messages);
+        body.acks = -1;
+        let resp = writer
+            .write_send(leader, StorageEnginePacket::WriteReq(WriteReq::new(body)))
             .await
             .unwrap();
-        let create_resp: AdminServerResponse<serde_json::Value> =
-            serde_json::from_str(&create).unwrap();
+        match resp {
+            StorageEnginePacket::WriteResp(r) => {
+                if let Some(e) = r.header.error {
+                    panic!(
+                        "write to n{leader} failed: code={}, msg={}",
+                        e.code, e.error
+                    );
+                }
+            }
+            other => panic!("expected WriteResp, got {other:?}"),
+        }
+    }
+
+    /// Poll until all 3 replicas are in ISR, available, and leo==hw==target, lso==0.
+    async fn wait_full_and_caught_up(
+        obs: &AdminHttpClient,
+        shard_name: &str,
+        segment_seq: u32,
+        target: u64,
+        stage: &str,
+    ) -> SegmentDetailResp {
+        let deadline = Duration::from_secs(90);
+        let start = Instant::now();
+        loop {
+            let d = checked_detail(obs, shard_name, segment_seq).await;
+            let full =
+                d.segment.isr.len() == REPLICA_NUM && d.segment.replicas.len() == REPLICA_NUM;
+            let caught = d.replicas.len() == REPLICA_NUM
+                && d.replicas.iter().all(|r| {
+                    r.available
+                        && r.in_isr
+                        && r.leo == target
+                        && r.high_watermark == target
+                        && r.log_start_offset == 0
+                });
+            if full && caught {
+                return d;
+            }
+            if start.elapsed() > deadline {
+                panic!(
+                    "[{stage}] not full-ISR + leo=hw={target} within {deadline:?}: \
+                     leader=n{} isr={:?} | {}",
+                    d.segment.leader,
+                    d.segment.isr,
+                    replicas_line(&d)
+                );
+            }
+            sleep(Duration::from_millis(500)).await;
+        }
+    }
+
+    /// Read records from offset 0 up; returns how many are actually readable.
+    async fn read_back_count(
+        writer: &Arc<ClientConnectionManager>,
+        leader: u64,
+        shard_name: &str,
+        want: u64,
+    ) -> u64 {
+        let mut got = 0u64;
+        loop {
+            let req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
+                shard_name.to_string(),
+                ReadType::Offset,
+                false,
+                ReadReqFilter::by_offset(got),
+                ReadReqOptions::new(64 * 1024 * 1024, want),
+            )]));
+            let resp = writer
+                .read_send(leader, StorageEnginePacket::ReadReq(req))
+                .await
+                .unwrap();
+            let n = match resp {
+                StorageEnginePacket::ReadResp(r) => {
+                    if let Some(e) = r.header.error {
+                        panic!("read failed: code={}, msg={}", e.code, e.error);
+                    }
+                    r.body.messages.len() as u64
+                }
+                other => panic!("expected ReadResp, got {other:?}"),
+            };
+            if n == 0 {
+                break;
+            }
+            got += n;
+            if got >= want {
+                break;
+            }
+        }
+        got
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Drill — rolling-restart chaos (10 rounds)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    #[tokio::test]
+    #[ignore = "requires a running 3-node cluster; repeatedly restarts broker processes"]
+    async fn three_replica_chaos_rolling_kill() {
+        const ROUNDS: u64 = 10;
+        const BATCH: u64 = 30;
+
+        let admin = create_test_env().await;
+        assert!(
+            repo_root().join("target/debug/broker-server").exists(),
+            "broker-server binary not found; run `cargo build --bin broker-server` first"
+        );
+
+        let shard_name = unique_id();
+        let config = r#"{"replica_num":3,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}"#.to_string();
+        let create_resp: AdminServerResponse<serde_json::Value> = serde_json::from_str(
+            &admin
+                .create_shard(&ShardCreateReq {
+                    shard_name: shard_name.clone(),
+                    topic_name: None,
+                    desc: None,
+                    config,
+                })
+                .await
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(
             create_resp.code, 0,
             "create_shard failed: {:?}",
             create_resp.error
         );
-
-        // Wait for the shard + segment 0 to be provisioned and the leader elected.
         sleep(Duration::from_secs(10)).await;
 
-        // 2. Get shard: confirm it is genuinely a 3-replica shard and inspect its
-        //    offsets (start / end / high watermark).
-        let shard = get_shard(&admin, &shard_name).await;
-        assert_eq!(
-            shard.shard_info.config.replica_num, REPLICA_NUM as u32,
-            "shard should be configured with {REPLICA_NUM} replicas"
-        );
-        println!(
-            "get_shard '{shard_name}': replica_num={} start_offset={} end_offset={} high_watermark={}",
-            shard.shard_info.config.replica_num,
-            shard.shard_info.offset.start_offset,
-            shard.shard_info.offset.end_offset,
-            shard.shard_info.offset.high_watermark,
-        );
-
-        // 3. Discover the active segment and its leader.
         let segment_seq = active_segment_seq(&admin, &shard_name).await;
-        let detail = segment_detail(&admin, &shard_name, segment_seq).await;
-        assert_eq!(
-            detail.segment.replicas.len(),
-            REPLICA_NUM,
-            "expected {REPLICA_NUM} replicas, got {:?}",
-            detail.segment.replicas
-        );
-        let leader = detail.segment.leader;
-        assert!(leader != 0, "no leader elected for segment");
-        println!(
-            "shard '{shard_name}' seg {segment_seq}: leader=n{leader} replicas={:?} isr={:?}",
-            detail
-                .segment
-                .replicas
-                .iter()
-                .map(|r| r.node_id)
-                .collect::<Vec<_>>(),
-            detail.segment.isr
-        );
-
-        // 4. Write data continuously to the leader (acks=1 default; followers
-        //    replicate asynchronously, which we then observe via segment detail).
         let writer = build_write_client();
-        let total_batches = 10u64;
-        let per_batch = 50u64;
-        let expected_leo = total_batches * per_batch;
-        for batch in 0..total_batches {
-            let mut messages = Vec::with_capacity(per_batch as usize);
-            for i in 0..per_batch {
-                let n = batch * per_batch + i;
-                let record = AdapterWriteRecord::new("", Bytes::from(format!("isr-data-{n}")));
-                messages.push(serialize::serialize(&record).unwrap());
-            }
-            let write_req = WriteReq::new(WriteReqBody::new(shard_name.clone(), messages));
-            let resp = writer
-                .write_send(leader, StorageEnginePacket::WriteReq(write_req))
-                .await
-                .unwrap();
-            match resp {
-                StorageEnginePacket::WriteResp(r) => {
-                    if let Some(e) = r.header.error {
+        let mut cumulative: u64 = 0;
+        let mut last_epoch: u32 = 0;
+        let mut switch_count: u32 = 0;
+
+        for round in 1..=ROUNDS {
+            let victim = ((round - 1) % 3) + 1;
+            // Observe via a node that will survive this round's kill.
+            let observe_node = if victim == 1 { 2 } else { 1 };
+            let obs = AdminHttpClient::new(admin_url(observe_node));
+
+            // ── precondition: cluster fully healthy ──
+            let d0 =
+                wait_full_and_caught_up(&obs, &shard_name, segment_seq, cumulative, "round-start")
+                    .await;
+            let leader = d0.segment.leader;
+
+            // ── (1) full-ISR write ──
+            write_acks_all(&writer, leader, &shard_name, cumulative, BATCH).await;
+            cumulative += BATCH;
+            wait_full_and_caught_up(&obs, &shard_name, segment_seq, cumulative, "after-write-A")
+                .await;
+
+            let was_leader = victim == leader;
+            println!(
+                "===== round {round}: leader=n{leader}, restarting n{victim} \
+                 (was_leader={was_leader}), cumulative={cumulative} ====="
+            );
+
+            // ── (2) kill ──
+            kill_node(victim).await;
+
+            // ── (3) wait: victim leaves ISR; if it was leader, leadership switches ──
+            let new_leader = {
+                let t0 = Instant::now();
+                loop {
+                    let d = checked_detail(&obs, &shard_name, segment_seq).await;
+                    let leader_ok = d.segment.leader != victim && d.segment.leader != 0;
+                    if !d.segment.isr.contains(&victim) && leader_ok {
+                        if was_leader {
+                            assert!(
+                                d.segment.leader_epoch > last_epoch,
+                                "leader switched but epoch did not advance ({last_epoch} -> {})",
+                                d.segment.leader_epoch
+                            );
+                        }
+                        println!(
+                            "  n{victim} left ISR after {:?}: leader=n{} epoch={} isr={:?}",
+                            t0.elapsed(),
+                            d.segment.leader,
+                            d.segment.leader_epoch,
+                            d.segment.isr
+                        );
+                        break d.segment.leader;
+                    }
+                    if t0.elapsed() > Duration::from_secs(55) {
                         panic!(
-                            "write batch {batch} failed: code={}, msg={}",
-                            e.code, e.error
+                            "n{victim} not removed from ISR / leader not switched within 55s: \
+                             leader=n{} isr={:?}",
+                            d.segment.leader, d.segment.isr
                         );
                     }
+                    sleep(Duration::from_secs(1)).await;
                 }
-                other => panic!("expected WriteResp, got {other:?}"),
-            }
-            sleep(Duration::from_millis(200)).await;
-        }
-        println!("wrote {expected_leo} records to leader n{leader}");
+            };
 
-        // 5. Poll segment detail until all replicas join the ISR and catch up.
-        let deadline = Duration::from_secs(30);
-        let start = Instant::now();
-        loop {
-            let d = segment_detail(&admin, &shard_name, segment_seq).await;
-            let leader_leo = d
-                .replicas
-                .iter()
-                .find(|r| r.node_id == leader)
-                .map(|r| r.leo)
-                .unwrap_or(0);
-            let all_in_isr =
-                d.segment.isr.len() == REPLICA_NUM && d.replicas.iter().all(|r| r.in_isr);
-            // Converged = every replica available, caught up to the leader's LEO,
-            // AND its high watermark has propagated up to that committed offset.
-            let all_caught = d.replicas.len() == REPLICA_NUM
-                && d.replicas
-                    .iter()
-                    .all(|r| r.available && r.leo == leader_leo && r.high_watermark == leader_leo);
+            // ── (4) no data loss: survivors still hold all committed data ──
+            {
+                let d = checked_detail(&obs, &shard_name, segment_seq).await;
+                assert_eq!(
+                    replica_ids(&d),
+                    vec![1, 2, 3],
+                    "replica set must stay intact while degraded"
+                );
+                for r in d.replicas.iter().filter(|r| r.node_id != victim) {
+                    assert!(r.available, "survivor n{} unavailable", r.node_id);
+                    assert_eq!(
+                        r.leo, cumulative,
+                        "survivor n{} leo != {cumulative}",
+                        r.node_id
+                    );
+                    assert_eq!(
+                        r.high_watermark, cumulative,
+                        "survivor n{} hw != {cumulative}",
+                        r.node_id
+                    );
+                    assert_eq!(r.log_start_offset, 0, "survivor n{} lso != 0", r.node_id);
+                }
+            }
+
+            // ── (5) degraded write: acks=all must commit on the 2 surviving ISR members ──
+            write_acks_all(&writer, new_leader, &shard_name, cumulative, BATCH).await;
+            cumulative += BATCH;
+            {
+                let t0 = Instant::now();
+                loop {
+                    let d = checked_detail(&obs, &shard_name, segment_seq).await;
+                    let survivors: Vec<_> =
+                        d.replicas.iter().filter(|r| r.node_id != victim).collect();
+                    if survivors.len() == REPLICA_NUM - 1
+                        && survivors.iter().all(|r| {
+                            r.available && r.leo == cumulative && r.high_watermark == cumulative
+                        })
+                    {
+                        break;
+                    }
+                    if t0.elapsed() > Duration::from_secs(20) {
+                        panic!(
+                            "degraded acks=all write did not commit within 20s: {}",
+                            replicas_line(&d)
+                        );
+                    }
+                    sleep(Duration::from_millis(500)).await;
+                }
+                println!("  degraded write committed on 2 survivors at leo=hw={cumulative}");
+            }
+
+            // ── (6) restart + rejoin ──
+            restart_node(victim);
+            let d =
+                wait_full_and_caught_up(&obs, &shard_name, segment_seq, cumulative, "after-rejoin")
+                    .await;
+
+            // ── (7) per-round review conditions ──
+            assert_eq!(
+                replica_ids(&d),
+                vec![1, 2, 3],
+                "replica set must be {{1,2,3}}"
+            );
+            assert_eq!(
+                sorted_isr(&d),
+                vec![1, 2, 3],
+                "ISR must recover to {{1,2,3}}"
+            );
+            // Restarted node must rejoin as follower, not claim leadership.
+            assert_ne!(
+                d.segment.leader, victim,
+                "n{victim} restarted but became leader — should rejoin as follower"
+            );
+            for r in &d.replicas {
+                assert!(r.in_isr, "n{} not in ISR", r.node_id);
+                assert!(r.available, "n{} not available", r.node_id);
+                assert_eq!(r.leo, cumulative, "n{} leo != {cumulative}", r.node_id);
+                assert_eq!(
+                    r.high_watermark, cumulative,
+                    "n{} hw != {cumulative}",
+                    r.node_id
+                );
+                assert_eq!(r.log_start_offset, 0, "n{} lso != 0", r.node_id);
+            }
+
+            assert!(
+                d.segment.leader_epoch >= last_epoch,
+                "leader_epoch went backward: {last_epoch} -> {}",
+                d.segment.leader_epoch
+            );
+            if d.segment.leader_epoch > last_epoch {
+                switch_count += 1;
+            }
+            last_epoch = d.segment.leader_epoch;
+
+            // ── (8) cross-node agreement: leader / epoch / ISR / leo / hw ──
+            {
+                let mut views: Vec<(u64, u64, u32, Vec<u64>, u64, u64)> = Vec::new();
+                for n in NODES {
+                    let dn = checked_detail(
+                        &AdminHttpClient::new(admin_url(n)),
+                        &shard_name,
+                        segment_seq,
+                    )
+                    .await;
+                    let (leo_n, hw_n) = dn
+                        .replicas
+                        .iter()
+                        .find(|r| r.node_id == n)
+                        .map(|r| (r.leo, r.high_watermark))
+                        .unwrap_or((0, 0));
+                    views.push((
+                        n,
+                        dn.segment.leader,
+                        dn.segment.leader_epoch,
+                        sorted_isr(&dn),
+                        leo_n,
+                        hw_n,
+                    ));
+                }
+                let (_, l0, e0, isr0, _, _) = views[0].clone();
+                for (n, l, e, isr, leo_n, hw_n) in &views {
+                    assert_eq!(
+                        *l, l0,
+                        "node{n} sees leader=n{l}, node{} sees n{l0}",
+                        views[0].0
+                    );
+                    assert_eq!(
+                        *e, e0,
+                        "node{n} sees epoch={e}, node{} sees {e0}",
+                        views[0].0
+                    );
+                    assert_eq!(
+                        *isr, isr0,
+                        "node{n} sees isr={isr:?}, node{} sees {isr0:?}",
+                        views[0].0
+                    );
+                    assert_eq!(
+                        *leo_n, cumulative,
+                        "node{n} leo={leo_n} != cumulative={cumulative}"
+                    );
+                    assert_eq!(
+                        *hw_n, cumulative,
+                        "node{n} hw={hw_n} != cumulative={cumulative}"
+                    );
+                }
+            }
+
+            // ── (9) log blacklist scan ──
+            let hits = scan_logs();
+            assert!(
+                hits.is_empty(),
+                "unexpected log lines after round {round}:\n{}",
+                hits.join("\n")
+            );
 
             println!(
-                "[{:?}] leader_leo={leader_leo} isr={} | {}",
-                start.elapsed(),
-                d.segment.isr.len(),
-                replicas_line(&d)
+                "===== round {round} OK: leader=n{} epoch={} isr={:?} \
+                 all leo=hw={cumulative} lso=0 =====",
+                d.segment.leader, d.segment.leader_epoch, d.segment.isr
             );
-
-            if all_in_isr && all_caught && leader_leo >= expected_leo {
-                println!("ISR converged: 3 replicas all at LEO=HW={leader_leo}");
-                break;
-            }
-            if start.elapsed() > deadline {
-                panic!(
-                    "ISR did not converge within {deadline:?}: isr={:?} replicas={:#?}",
-                    d.segment.isr, d.replicas
-                );
-            }
-            sleep(Duration::from_millis(500)).await;
         }
 
-        // 6. Final assertions. Re-read the shard to show offsets / HW advanced.
-        let final_shard = get_shard(&admin, &shard_name).await;
+        // ── final: content read-back from every node ──
+        // Counter checks above only confirm the metadata is correct; this
+        // confirms the data is actually readable on all three replicas.
+        for &n in &NODES {
+            let node_admin = AdminHttpClient::new(admin_url(n));
+            let leader = checked_detail(&node_admin, &shard_name, segment_seq)
+                .await
+                .segment
+                .leader;
+            let read = read_back_count(&writer, leader, &shard_name, cumulative).await;
+            assert_eq!(
+                read, cumulative,
+                "read-back via n{n} returned {read} records, expected {cumulative}"
+            );
+        }
+
+        let hits = scan_logs();
+        assert!(
+            hits.is_empty(),
+            "unexpected log lines at end:\n{}",
+            hits.join("\n")
+        );
+
         println!(
-            "get_shard '{shard_name}' after writes: start_offset={} end_offset={} high_watermark={}",
-            final_shard.shard_info.offset.start_offset,
-            final_shard.shard_info.offset.end_offset,
-            final_shard.shard_info.offset.high_watermark,
-        );
-        // get_shard is served by the admin-entry node (which may be a follower);
-        // its HW must reflect the committed offset now that followers track HW.
-        assert_eq!(
-            final_shard.shard_info.offset.high_watermark, expected_leo,
-            "get_shard HW {} should equal committed LEO {expected_leo}",
-            final_shard.shard_info.offset.high_watermark
-        );
-        assert_eq!(
-            final_shard.shard_info.offset.end_offset,
-            expected_leo - 1,
-            "get_shard end_offset should be {}",
-            expected_leo - 1
+            "CHAOS COMPLETE: {ROUNDS} rounds, {cumulative} committed records read back OK, \
+             {switch_count} leader-epoch switches, all replicas consistent"
         );
 
-        let final_detail = segment_detail(&admin, &shard_name, segment_seq).await;
-        let leader_replica = final_detail
-            .replicas
-            .iter()
-            .find(|r| r.node_id == leader)
-            .expect("leader replica present");
-        let leader_leo = leader_replica.leo;
-        let leader_hw = leader_replica.high_watermark;
-
-        assert_eq!(
-            final_detail.segment.isr.len(),
-            REPLICA_NUM,
-            "all {REPLICA_NUM} replicas must be in ISR, got {:?}",
-            final_detail.segment.isr
-        );
-        for r in &final_detail.replicas {
-            assert!(r.in_isr, "replica n{} not in ISR", r.node_id);
-            assert!(r.available, "replica n{} not available", r.node_id);
-            assert_eq!(
-                r.leo, leader_leo,
-                "replica n{} LEO {} != leader LEO {}",
-                r.node_id, r.leo, leader_leo
-            );
-            // Every replica (leader and followers) must have advanced its HW to
-            // the committed offset — followers learn it from the fetch response.
-            assert_eq!(
-                r.high_watermark, leader_leo,
-                "replica n{} HW {} != committed LEO {}",
-                r.node_id, r.high_watermark, leader_leo
-            );
-        }
-        assert_eq!(
-            leader_hw, leader_leo,
-            "leader HW {leader_hw} should equal committed LEO {leader_leo}"
-        );
-
-        // Cleanup.
         let _ = admin
             .delete_shard(&ShardDeleteReq {
                 shard_name: shard_name.clone(),

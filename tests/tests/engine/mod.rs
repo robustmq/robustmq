@@ -14,8 +14,6 @@
 
 pub mod client_test;
 pub mod isr;
-pub mod isr_chaos;
-pub mod isr_failover;
 pub mod key_compact;
 pub mod message_ttl;
 pub mod read_test;
