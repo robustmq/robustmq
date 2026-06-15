@@ -84,6 +84,11 @@ where
     // retry at their own layer.
     const MIN_ATTEMPTS: usize = 3;
     const RETRY_INTERVAL_MS: u64 = 100;
+    // Per-attempt timeout: prevents a node that is reachable at TCP level but
+    // not responding (e.g. installing a Raft snapshot) from blocking the entire
+    // retry loop.  On timeout the error is treated as a transport error so the
+    // loop continues to the next address.
+    const PER_CALL_TIMEOUT: Duration = Duration::from_secs(5);
     // Try every node at least once before giving up: a write may be pinned to a
     // stale cached leader, and the live leader could be any other node.
     let max_attempts = MIN_ATTEMPTS.max(retry_times()).max(addrs.len());
@@ -110,81 +115,94 @@ where
 
         let mut client = Req::get_client(client_pool, &target_addr);
 
-        match Req::call_once(&mut client, request.clone()).await {
-            Ok(data) => return Ok(data),
-            Err(e) => {
-                let err: CommonError = e.into();
-
-                if err.to_string().contains("forward request to") {
-                    // Not the leader — follow the redirect and cache the real leader.
-                    if let Some(leader_addr) = get_forward_addr(&err) {
-                        info!(
-                            "retry_call {} attempt {}: {} redirected to leader {}",
-                            method, times, target_addr, leader_addr
-                        );
-                        client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
-                        let mut leader_client = Req::get_client(client_pool, &leader_addr);
-                        match Req::call_once(&mut leader_client, request.clone()).await {
-                            Ok(data) => return Ok(data),
-                            Err(le) => {
-                                let le: CommonError = le.into();
-                                if is_transport_error(&le) {
-                                    // The redirected leader is unreachable — drop it
-                                    // so the next attempt sweeps the node list and
-                                    // re-discovers it.
-                                    warn!(
-                                        "retry_call {} attempt {}: redirected leader {} unreachable: {}",
-                                        method, times, leader_addr, le
-                                    );
-                                    client_pool.remove_leader_addr(method);
-                                } else {
-                                    // The leader processed and rejected the request
-                                    // (application error) — authoritative, return now.
-                                    warn!(
-                                        "retry_call {} attempt {}: redirected leader {} rejected the request (not retried): {}",
-                                        method, times, leader_addr, le
-                                    );
-                                    return Err(le);
-                                }
-                            }
-                        }
-                    } else {
-                        warn!(
-                            "retry_call {} attempt {}: {} returned a forward error but no leader addr parsed: {}",
-                            method, times, target_addr, err
-                        );
-                    }
-                } else if is_transport_error(&err) {
-                    // The node is unreachable (down / not yet listening) — sweep on
-                    // to the next node.
-                    warn!(
-                        "retry_call {} attempt {}: {} unreachable: {}",
-                        method, times, target_addr, err
-                    );
-                    if Req::IS_WRITE_REQUEST {
-                        // A write failed against the cached leader (e.g. it crashed
-                        // or a new leader was elected). Drop the stale leader so the
-                        // next attempt round-robins the nodes and re-discovers the
-                        // leader, instead of pinning to the same dead address.
-                        client_pool.remove_leader_addr(method);
-                    }
-                } else {
-                    // The node responded and rejected the request for an
-                    // application reason (e.g. "not enough nodes"). This is an
-                    // authoritative answer — return it immediately instead of
-                    // masking it by retrying into unreachable nodes.
-                    warn!(
-                        "retry_call {} attempt {}: {} rejected the request (not retried): {}",
-                        method, times, target_addr, err
-                    );
-                    return Err(err);
-                }
-                if times >= max_attempts {
-                    return Err(err);
-                }
-                sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
+        let raw = tokio::time::timeout(
+            PER_CALL_TIMEOUT,
+            Req::call_once(&mut client, request.clone()),
+        )
+        .await;
+        let err: CommonError = match raw {
+            Ok(Ok(data)) => return Ok(data),
+            Ok(Err(e)) => e.into(),
+            Err(_elapsed) => {
+                warn!(
+                    "retry_call {} attempt {}/{}: {} did not respond within {:?}",
+                    method, times, max_attempts, target_addr, PER_CALL_TIMEOUT
+                );
+                // Treated as a transport error so the loop continues to the next address.
+                CommonError::CommonError(format!(
+                    "tcp connect error: {} timed out after {:?}",
+                    target_addr, PER_CALL_TIMEOUT
+                ))
             }
+        };
+        if err.to_string().contains("forward request to") {
+            // Not the leader — follow the redirect and cache the real leader.
+            if let Some(leader_addr) = get_forward_addr(&err) {
+                info!(
+                    "retry_call {} attempt {}: {} redirected to leader {}",
+                    method, times, target_addr, leader_addr
+                );
+                client_pool.set_leader_addr(method.to_string(), leader_addr.clone());
+                let mut leader_client = Req::get_client(client_pool, &leader_addr);
+                match Req::call_once(&mut leader_client, request.clone()).await {
+                    Ok(data) => return Ok(data),
+                    Err(le) => {
+                        let le: CommonError = le.into();
+                        if is_transport_error(&le) {
+                            // The redirected leader is unreachable — drop it
+                            // so the next attempt sweeps the node list and
+                            // re-discovers it.
+                            warn!(
+                                "retry_call {} attempt {}: redirected leader {} unreachable: {}",
+                                method, times, leader_addr, le
+                            );
+                            client_pool.remove_leader_addr(method);
+                        } else {
+                            // The leader processed and rejected the request
+                            // (application error) — authoritative, return now.
+                            warn!(
+                                "retry_call {} attempt {}: redirected leader {} rejected the request (not retried): {}",
+                                method, times, leader_addr, le
+                            );
+                            return Err(le);
+                        }
+                    }
+                }
+            } else {
+                warn!(
+                    "retry_call {} attempt {}: {} returned a forward error but no leader addr parsed: {}",
+                    method, times, target_addr, err
+                );
+            }
+        } else if is_transport_error(&err) {
+            // The node is unreachable (down / not yet listening) — sweep on
+            // to the next node.
+            warn!(
+                "retry_call {} attempt {}: {} unreachable: {}",
+                method, times, target_addr, err
+            );
+            if Req::IS_WRITE_REQUEST {
+                // A write failed against the cached leader (e.g. it crashed
+                // or a new leader was elected). Drop the stale leader so the
+                // next attempt round-robins the nodes and re-discovers the
+                // leader, instead of pinning to the same dead address.
+                client_pool.remove_leader_addr(method);
+            }
+        } else {
+            // The node responded and rejected the request for an
+            // application reason (e.g. "not enough nodes"). This is an
+            // authoritative answer — return it immediately instead of
+            // masking it by retrying into unreachable nodes.
+            warn!(
+                "retry_call {} attempt {}: {} rejected the request (not retried): {}",
+                method, times, target_addr, err
+            );
+            return Err(err);
         }
+        if times >= max_attempts {
+            return Err(err);
+        }
+        sleep(Duration::from_millis(RETRY_INTERVAL_MS)).await;
     }
 }
 

@@ -371,6 +371,19 @@ impl<T: FetchTransport + Clone + 'static> ReplicaFetcherThread<T> {
                         shard, segment_seq, old_epoch, resp.current_leader_epoch
                     );
                 }
+                // Re-persist the current leader epoch so that if apply_as_follower
+                // reloads this cache from RocksDB (e.g. on an ISR-membership change
+                // with no epoch change), cache.latest_epoch() still reflects the live
+                // epoch instead of the truncate_epoch we just flushed out.  Without
+                // this, a subsequent apply_as_follower would load latest_epoch=truncate_epoch
+                // and the next truncation-check would send follower_leader_epoch=truncate_epoch,
+                // causing the leader to respond with truncate_offset=start_of_current_epoch
+                // and the follower would re-truncate all records it already replicated.
+                if resp.current_leader_epoch > resp.truncate_epoch as u32 {
+                    state
+                        .cache
+                        .assign(resp.current_leader_epoch, resp.truncate_offset)?;
+                }
             }
         }
         Ok(())
