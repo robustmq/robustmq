@@ -54,6 +54,7 @@ pub struct ReadByRemoteTagParams {
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub shard_name: String,
     pub segment: u32,
+    pub leader_id: u64,
     pub tag: String,
     pub start_offset: Option<u64>,
     pub read_config: AdapterReadConfig,
@@ -116,6 +117,7 @@ pub async fn read_by_tag(
                 client_connection_manager: client_connection_manager.clone(),
                 shard_name: shard_name.to_string(),
                 segment: active_segment.segment_seq,
+                leader_id: active_segment.leader,
                 tag: tag.to_string(),
                 start_offset,
                 read_config: read_config.clone(),
@@ -166,15 +168,14 @@ pub async fn read_by_remote(
     let read_config = &params.read_config;
 
     let read_req = build_req(shard_name, tag, start_offset, read_config, false);
-    let conf = broker_config();
     let resp = client_connection_manager
-        .write_send(conf.broker_id, StorageEnginePacket::ReadReq(read_req))
+        .write_send(params.leader_id, StorageEnginePacket::ReadReq(read_req))
         .await?;
 
     match resp {
         StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
         packet => Err(StorageEngineError::ReceivedPacketError(
-            conf.broker_id,
+            params.leader_id,
             format!("Expected ReadResp, got {:?}", packet),
         )),
     }

@@ -30,7 +30,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 pub struct TcpAcceptorContext {
     pub accept_thread_num: usize,
@@ -91,7 +91,7 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("Accept {} connection:{:?}", network_type, addr);
+                                debug!("Accept {} connection:{:?}", network_type, addr);
                                 // check connection
                                 if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
                                     warn!("{}",e.to_string());

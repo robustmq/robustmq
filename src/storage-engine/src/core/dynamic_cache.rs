@@ -190,6 +190,20 @@ async fn parse_segment(
                 return Ok(());
             }
 
+            // An Update notification can race ahead of the segment's Create on this
+            // node (cache notifications are delivered concurrently, not ordered).
+            // Adopt the segment if its replica state isn't present yet, so the Update
+            // applies cleanly instead of failing with NotSegmentState — which would
+            // otherwise surface as a transient "Segment replicate .. Not Exists" WARN
+            // until reconcile heals it. This mirrors the Create branch and the
+            // reconcile self-heal path.
+            if cache_manager
+                .get_segment_replica(&segment.shard_name, segment.segment_seq)
+                .is_none()
+            {
+                cache_manager.add_segment_replica(&segment.shard_name, segment.segment_seq);
+            }
+
             apply_leader_and_isr(
                 cache_manager,
                 rocksdb_engine_handler,

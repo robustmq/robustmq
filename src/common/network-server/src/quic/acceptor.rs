@@ -27,7 +27,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn acceptor_process(
@@ -69,7 +69,7 @@ pub(crate) async fn acceptor_process(
                         if let Some(incoming) = val{
                             match incoming.await {
                                 Ok(connection) => {
-                                    info!("Accept {} connection:{:?}", network_type, connection.remote_address());
+                                    debug!("Accept {} connection:{:?}", network_type, connection.remote_address());
                                     let client_addr = connection.remote_address();
                                     match connection.accept_bi().await {
                                         Ok((w_stream, r_stream)) => {
