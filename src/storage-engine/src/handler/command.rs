@@ -18,7 +18,7 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::filesegment::write::WriteManager;
-use crate::handler::data::{read_data_req, write_data_req};
+use crate::handler::data::{read_data_req, shard_offset_req, write_data_req};
 use crate::isr::handle_epoch::handle_offsets_for_leader_epoch;
 use crate::isr::handle_fetch::{handle_fetch, FetchEngines};
 use async_trait::async_trait;
@@ -28,8 +28,8 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    ApiKey, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody, RespHeader,
-    StorageEngineNetworkError, WriteRespBody,
+    ApiKey, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody, RespHeader, ShardOffsetResp,
+    ShardOffsetRespBody, StorageEngineNetworkError, WriteRespBody,
 };
 use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -239,6 +239,33 @@ impl Command for StorageEngineHandlerCommand {
                     RobustMQPacket::StorageEngine(StorageEnginePacket::OffsetsForLeaderEpochResp(
                         resp,
                     )),
+                );
+                return Some(response);
+            }
+
+            StorageEnginePacket::ShardOffsetReq(request) => {
+                let body = match shard_offset_req(
+                    &self.cache_manager,
+                    &self.memory_storage_engine,
+                    &self.rocksdb_storage_engine,
+                    &request.body,
+                )
+                .await
+                {
+                    Ok(body) => body,
+                    Err(e) => {
+                        error!("shard_offset_req failed: {}", e);
+                        ShardOffsetRespBody {
+                            error_code: 1,
+                            ..Default::default()
+                        }
+                    }
+                };
+                let resp = ShardOffsetResp::new(body);
+
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::ShardOffsetResp(resp)),
                 );
                 return Some(response);
             }

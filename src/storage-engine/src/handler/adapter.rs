@@ -29,6 +29,7 @@ use crate::{
     filesegment::write::WriteManager,
 };
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration, record_storage_engine_ops_fail,
@@ -42,6 +43,8 @@ use metadata_struct::adapter::adapter_shard::{
 };
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
+use protocol::storage::codec::StorageEnginePacket;
+use protocol::storage::protocol::{ShardOffsetReq, ShardOffsetReqBody, ShardOffsetRespBody};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -92,6 +95,41 @@ impl StorageEngineHandler {
         Ok(())
     }
 
+    /// Query a shard's offsets from its leader (used when this node is not the
+    /// leader and therefore has no local copy of the shard's offset state).
+    async fn shard_offset_remote(
+        &self,
+        leader_id: u64,
+        shard_name: &str,
+        by_timestamp: bool,
+        timestamp: u64,
+    ) -> Result<ShardOffsetRespBody, StorageEngineError> {
+        let req = ShardOffsetReq::new(ShardOffsetReqBody {
+            shard_name: shard_name.to_string(),
+            by_timestamp,
+            timestamp,
+        });
+        let resp = self
+            .client_connection_manager
+            .write_send(leader_id, StorageEnginePacket::ShardOffsetReq(req))
+            .await?;
+        match resp {
+            StorageEnginePacket::ShardOffsetResp(r) => {
+                if r.body.error_code != 0 {
+                    return Err(StorageEngineError::CommonErrorStr(format!(
+                        "Leader {leader_id} failed to resolve offsets for shard {shard_name} (error_code={})",
+                        r.body.error_code
+                    )));
+                }
+                Ok(r.body)
+            }
+            other => Err(StorageEngineError::ReceivedPacketError(
+                leader_id,
+                format!("Expected ShardOffsetResp, got {other}"),
+            )),
+        }
+    }
+
     pub async fn list_shard(
         &self,
         shard: Option<String>,
@@ -111,36 +149,57 @@ impl StorageEngineHandler {
         };
 
         let mut results = Vec::with_capacity(shards.len());
+        let local_broker_id = broker_config().broker_id;
         for shard in shards {
-            let (start_offset, end_offset) = match shard.config.storage_type {
-                StorageType::EngineMemory => {
-                    let o = &self.memory_storage_engine.commit_log_offset;
-                    let end = o
-                        .get_latest_offset(&shard.shard_name)
-                        .unwrap_or(0)
-                        .saturating_sub(1);
-                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
+            // For memory/rocksdb shards, offsets live only on the segment leader.
+            // If this node is not the leader, query the leader instead of reading a
+            // (non-existent) local copy that would resolve to 0.
+            let leader = self
+                .cache_manager
+                .get_active_segment(&shard.shard_name)
+                .map(|s| s.leader);
+            let route_remote = matches!(
+                shard.config.storage_type,
+                StorageType::EngineMemory | StorageType::EngineRocksDB
+            ) && leader.is_some_and(|l| l != local_broker_id);
+
+            let (start_offset, end_offset) = if route_remote {
+                let body = self
+                    .shard_offset_remote(leader.unwrap(), &shard.shard_name, false, 0)
+                    .await
+                    .map_err(|e| CommonError::CommonError(e.to_string()))?;
+                (body.start_offset, body.end_offset)
+            } else {
+                match shard.config.storage_type {
+                    StorageType::EngineMemory => {
+                        let o = &self.memory_storage_engine.commit_log_offset;
+                        let end = o
+                            .get_latest_offset(&shard.shard_name)
+                            .unwrap_or(0)
+                            .saturating_sub(1);
+                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
+                    }
+                    StorageType::EngineRocksDB => {
+                        let o = &self.rocksdb_storage_engine.commitlog_offset;
+                        let end = o
+                            .get_latest_offset(&shard.shard_name)
+                            .unwrap_or(0)
+                            .saturating_sub(1);
+                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
+                    }
+                    StorageType::EngineSegment => {
+                        let o = FileSegmentOffset::new(
+                            self.rocksdb_engine_handler.clone(),
+                            self.cache_manager.clone(),
+                        );
+                        let end = o
+                            .get_latest_offset(&shard.shard_name)
+                            .unwrap_or(0)
+                            .saturating_sub(1);
+                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
+                    }
+                    _ => (0, 0),
                 }
-                StorageType::EngineRocksDB => {
-                    let o = &self.rocksdb_storage_engine.commitlog_offset;
-                    let end = o
-                        .get_latest_offset(&shard.shard_name)
-                        .unwrap_or(0)
-                        .saturating_sub(1);
-                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
-                }
-                StorageType::EngineSegment => {
-                    let o = FileSegmentOffset::new(
-                        self.rocksdb_engine_handler.clone(),
-                        self.cache_manager.clone(),
-                    );
-                    let end = o
-                        .get_latest_offset(&shard.shard_name)
-                        .unwrap_or(0)
-                        .saturating_sub(1);
-                    (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
-                }
-                _ => (0, 0),
             };
 
             let high_watermark = self
@@ -465,6 +524,26 @@ impl StorageEngineHandler {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
+
+        // For memory/rocksdb shards, offsets live only on the segment leader. If
+        // this node is not the leader, ask the leader to resolve the timestamp.
+        if matches!(
+            shard.config.storage_type,
+            StorageType::EngineMemory | StorageType::EngineRocksDB
+        ) {
+            if let Some(leader) = self
+                .cache_manager
+                .get_active_segment(shard_name)
+                .map(|s| s.leader)
+            {
+                if leader != broker_config().broker_id {
+                    let body = self
+                        .shard_offset_remote(leader, shard_name, true, timestamp)
+                        .await?;
+                    return Ok(body.offset);
+                }
+            }
+        }
 
         let result = match shard.config.storage_type {
             StorageType::EngineMemory => {

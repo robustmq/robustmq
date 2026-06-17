@@ -27,6 +27,7 @@ pub enum ApiKey {
     Write,
     Fetch,
     OffsetsForLeaderEpoch,
+    ShardOffset,
 }
 
 impl Default for ApiKey {
@@ -674,6 +675,100 @@ impl OffsetsForLeaderEpochResp {
     pub fn new(body: OffsetsForLeaderEpochRespBody) -> Self {
         Self {
             header: RespHeader::new(ApiKey::OffsetsForLeaderEpoch),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+/// Query a shard's offsets from its leader. `by_timestamp=false` returns the
+/// shard's current start/end offsets; `by_timestamp=true` resolves the offset of
+/// the first record at/after `timestamp`. Used by consumers on non-leader nodes to
+/// resolve a start offset against the node that actually holds the data.
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct ShardOffsetReqBody {
+    pub shard_name: String,
+    pub by_timestamp: bool,
+    pub timestamp: u64,
+}
+
+impl ShardOffsetReqBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, PartialEq)]
+pub struct ShardOffsetReq {
+    pub header: ReqHeader,
+    pub body: ShardOffsetReqBody,
+}
+
+impl ShardOffsetReq {
+    pub fn new(body: ShardOffsetReqBody) -> Self {
+        Self {
+            header: ReqHeader::new(ApiKey::ShardOffset),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct ShardOffsetRespBody {
+    pub start_offset: u64,
+    pub end_offset: u64,
+    /// Offset resolved by timestamp (valid when the request set `by_timestamp`).
+    pub offset: u64,
+    pub error_code: u32,
+}
+
+impl ShardOffsetRespBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct ShardOffsetResp {
+    pub header: RespHeader,
+    pub body: ShardOffsetRespBody,
+}
+
+impl ShardOffsetResp {
+    pub fn new(body: ShardOffsetRespBody) -> Self {
+        Self {
+            header: RespHeader::new(ApiKey::ShardOffset),
             body,
         }
     }
