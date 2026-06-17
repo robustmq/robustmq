@@ -38,11 +38,13 @@ mod tests {
             ..Default::default()
         };
 
+        // The first max_client_connections (20) connections in the window are allowed.
         for _i in 0..20 {
             test_correct_connect(&client_test_properties);
         }
 
-        test_correct_connect(&client_test_properties);
+        // The 21st connection crosses the threshold: check_flapping_detect adds the
+        // client to the blacklist, and the auth check on this same connection rejects it.
         test_fail_connect(&client_test_properties);
 
         close_flapping_detect().await;
@@ -88,9 +90,9 @@ mod tests {
         config.mqtt_flapping_detect.max_client_connections = 20;
         config.mqtt_flapping_detect.ban_time = 1;
 
-        let config_json = serde_json::to_string(&config).unwrap();
+        let config_json = serde_json::to_string(&config.mqtt_flapping_detect).unwrap();
         let request = ClusterConfigSetReq {
-            config_type: "broker".to_string(),
+            config_type: "MqttFlappingDetect".to_string(),
             config: config_json,
         };
 
@@ -107,9 +109,9 @@ mod tests {
         config.mqtt_flapping_detect.max_client_connections = 20;
         config.mqtt_flapping_detect.ban_time = 1;
 
-        let config_json = serde_json::to_string(&config).unwrap();
+        let config_json = serde_json::to_string(&config.mqtt_flapping_detect).unwrap();
         let request = ClusterConfigSetReq {
-            config_type: "broker".to_string(),
+            config_type: "MqttFlappingDetect".to_string(),
             config: config_json,
         };
 
