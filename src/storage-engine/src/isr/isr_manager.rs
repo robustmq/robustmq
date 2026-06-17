@@ -88,6 +88,8 @@ async fn maintain_segments(
     segments: Vec<SegmentIdentity>,
 ) {
     let conf = broker_config();
+    // Re-register at most once per maintenance round to re-sync a drifted broker_epoch.
+    let mut resynced = false;
 
     for segment_iden in segments {
         let Some(segment) = cache_manager.get_segment(&segment_iden) else {
@@ -119,18 +121,40 @@ async fn maintain_segments(
 
         if let Some(new_isr) = new_isr {
             let broker_epoch = cache_manager.broker_cache.get_broker_epoch();
-            propose_isr(client_pool, conf.broker_id, broker_epoch, &segment, new_isr).await;
+            let stale_epoch =
+                propose_isr(client_pool, conf.broker_id, broker_epoch, &segment, new_isr).await;
+            // If meta fenced us with StaleBrokerEpoch, our cached broker_epoch has
+            // drifted from meta's persisted value. Re-register once per round to
+            // re-sync it; otherwise every ISR maintenance round is rejected forever
+            // (and floods the log). The refreshed epoch takes effect next round.
+            if stale_epoch && !resynced {
+                resynced = true;
+                match broker_core::heartbeat::register_node(
+                    client_pool,
+                    &cache_manager.broker_cache,
+                )
+                .await
+                {
+                    Ok(()) => info!(
+                        "re-registered to re-sync broker_epoch after StaleBrokerEpoch (now {})",
+                        cache_manager.broker_cache.get_broker_epoch()
+                    ),
+                    Err(e) => warn!("broker_epoch re-sync re-register failed: {}", e),
+                }
+            }
         }
     }
 }
 
+/// Returns `true` if the proposal was rejected because our broker_epoch is stale
+/// relative to meta's persisted value (so the caller can re-sync by re-registering).
 async fn propose_isr(
     client_pool: &Arc<ClientPool>,
     broker_id: u64,
     broker_epoch: u64,
     segment: &EngineSegment,
     new_isr: Vec<u64>,
-) {
+) -> bool {
     let conf = broker_config();
     let req = UpdateSegmentIsrRequest {
         shard_name: segment.shard_name.clone(),
@@ -147,12 +171,18 @@ async fn propose_isr(
                 "ISR updated for {}/{}: {:?}",
                 segment.shard_name, segment.segment_seq, new_isr
             );
+            false
         }
         Err(e) => {
+            let msg = e.to_string();
+            // MetaServiceError::StaleBrokerEpoch renders as
+            // "... broker_epoch {x} != registered {y}".
+            let stale_epoch = msg.contains("!= registered");
             warn!(
                 "ISR maintain propose failed for {}/{}: {}",
                 segment.shard_name, segment.segment_seq, e
             );
+            stale_epoch
         }
     }
 }

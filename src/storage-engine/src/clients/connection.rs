@@ -25,7 +25,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 use tokio_util::codec::Framed;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 const MAX_RETRY_TIMES: u32 = 10;
 const RETRY_SLEEP_MS: u64 = 100;
@@ -78,7 +78,12 @@ impl NodeConnection {
             match self.try_send_with_connection(&req_packet).await {
                 Ok(response) => return Ok(response),
                 Err(e) => {
-                    warn!(
+                    // Per-attempt retries are logged at debug only: a down/restarting
+                    // peer otherwise floods the log with one WARN per attempt (10x per
+                    // failed send), and the fetcher already logs the final give-up once
+                    // per round. This keeps a persistently-unreachable peer from
+                    // drowning out real warnings.
+                    debug!(
                         "Send failed to node {}: {}, retry {}/{}",
                         self.node_id,
                         e,

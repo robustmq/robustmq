@@ -199,7 +199,7 @@ fn read_frame_process(
                                 }else{
                                     continue;
                                 };
-                                info!("recv packet:{:?}",pack);
+                                debug!("recv packet:{:?}",pack);
                                 match pack{
                                     RobustMQCodecWrapper::MQTT(pk) =>{
                                         read_packet(RobustMQPacket::MQTT(pk.packet), &request_channel, &connection, &network_type).await;

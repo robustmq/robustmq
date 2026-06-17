@@ -151,7 +151,7 @@ fn read_frame_process(
                                 break;
                             }
 
-                            info!("recv packet:{:?}",pack);
+                            debug!("recv packet:{:?}",pack);
                             if let Some(pk) = pack{
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
                                 match pk {
