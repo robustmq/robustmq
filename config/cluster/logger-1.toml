@@ -52,10 +52,13 @@ prefix = "raft"
 suffix = "log"
 max_log_files = 50
 
-[tokio_console]
-grpc_web = true
-kind = "tokio_console"
-bind = "127.0.0.1:5674"
+# tokio-console instrumentation: disabled by default. Its aggregator tracks every
+# task/async-op/resource and burns a full CPU core (HashMap::retain + sip-hash over a
+# growing set) under sustained load, starving the runtime. Enable only for debugging.
+# [tokio_console]
+# grpc_web = true
+# kind = "tokio_console"
+# bind = "127.0.0.1:5674"
 
 [meta]
 kind = "rolling_file"

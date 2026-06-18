@@ -102,15 +102,19 @@ mod tests {
             serde_json::from_str(&config_raw).unwrap();
         let mut meta_runtime = config_resp.data.meta_runtime;
         println!("current meta_runtime: {:#?}", meta_runtime);
+        // group_offset_expire_sec is a cluster-wide, raft-persisted config. Save the
+        // original so we can restore it at the end — leaving it at the test value would
+        // make the GC controller delete every other test's consumer/subscribe group.
+        let original_expire = meta_runtime.group_offset_expire_sec;
 
-        // ── 7. update MetaRuntime group_offset_expire_sec = 30 ───────────────
+        // ── 7. update MetaRuntime group_offset_expire_sec = 120 ──────────────
         meta_runtime.group_offset_expire_sec = 120;
         let set_req = ClusterConfigSetReq {
             config_type: "MetaRuntime".to_string(),
             config: serde_json::to_string(&meta_runtime).unwrap(),
         };
         client.set_cluster_config(&set_req).await.unwrap();
-        println!("updated group_offset_expire_sec to 30");
+        println!("updated group_offset_expire_sec to 120");
 
         // ── 8. wait 40s for GC to expire the group ────────────────────────────
         println!("waiting 150s for group GC...");
@@ -122,6 +126,18 @@ mod tests {
             .await
             .unwrap();
         println!("get group after GC: {:#?}", resp);
+
+        // ── 10. restore the original expiry so later tests aren't affected ────
+        // Done before the assertion so the cluster-wide config is reset even if the
+        // GC assertion below fails.
+        meta_runtime.group_offset_expire_sec = original_expire;
+        let restore_req = ClusterConfigSetReq {
+            config_type: "MetaRuntime".to_string(),
+            config: serde_json::to_string(&meta_runtime).unwrap(),
+        };
+        client.set_cluster_config(&restore_req).await.unwrap();
+        println!("restored group_offset_expire_sec to {original_expire}");
+
         assert!(
             resp.offsets.is_empty(),
             "group should be removed after offset expiry GC"

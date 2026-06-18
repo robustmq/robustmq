@@ -79,6 +79,34 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
+      - name: Cache HuggingFace model files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-fastembed-xenova-all-minilm-l6-v2-v1-${{ runner.os }}
+          restore-keys: |
+            hf-fastembed-xenova-all-minilm-l6-v2-v1-
+
+      - name: Pre-download fastembed embedding model
+        run: |
+          pip install -q huggingface_hub
+          python3 - <<'EOF'
+          import os
+          from huggingface_hub import snapshot_download
+          snapshot_download(
+              repo_id="Xenova/all-MiniLM-L6-v2",
+              allow_patterns=[
+                  "onnx/model_quantized.onnx",
+                  "tokenizer.json",
+                  "config.json",
+                  "special_tokens_map.json",
+                  "tokenizer_config.json",
+              ],
+              cache_dir=os.path.expanduser("~/.cache/huggingface/hub"),
+          )
+          print("fastembed model ready")
+          EOF
+
       - name: Run unit tests
         id: run-tests
         run: make test
