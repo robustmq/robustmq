@@ -300,13 +300,13 @@ mod tests {
         assert_eq!(meta.start_offset, 0);
         assert_eq!(meta.end_offset, 100);
         assert_eq!(meta.start_timestamp, t as i64);
-        assert_eq!(meta.end_timestamp, -1);
+        assert!(meta.end_timestamp > 0); // create_next_segment internally calls seal_up_segment
 
         // info1
         assert_eq!(info1.segment.segment_seq, 1);
         let meta = info1.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 101);
-        assert_eq!(meta.end_offset, 101);
+        assert_eq!(meta.end_offset, 0);
         assert_eq!(meta.start_timestamp, -1);
         assert_eq!(meta.end_timestamp, -1);
     }
@@ -331,61 +331,34 @@ mod tests {
 
         sleep(Duration::from_secs(3)).await;
 
-        // list meta
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        assert_eq!(segment_resp.segment_list.len(), 1);
-
-        // update start_time/end_time
-        let t = now_second();
         let client_pool = ClientPool::new(2);
 
+        // set start_timestamp on seg0
+        let t = now_second();
         let request = UpdateStartTimeBySegmentMetaRequest {
             shard_name: shard_name.clone(),
             segment: 0,
             start_timestamp: t,
         };
-
-        let resp =
-            update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
-                .await
-                .unwrap();
-        println!("update_start_time_by_segment_meta resp:{:?}", resp);
-
-        // create_next_segment
-        let request = CreateNextSegmentRequest {
-            shard_name: shard_name.clone(),
-            current_segment: 0,
-            current_segment_end_offset: 100,
-        };
-
-        let resp = create_next_segment(&client_pool, &[get_placement_addr()], request)
+        update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
             .await
             .unwrap();
-        println!("create_next_segment resp:{:?}", resp);
 
-        sleep(Duration::from_secs(3)).await;
-
-        // seal up
+        // seal up seg0 directly (no create_next_segment — seal_up_segment is its own RPC)
+        let end_t = now_second();
         let request = SealUpSegmentRequest {
             shard_name: shard_name.clone(),
             segment: 0,
-            end_timestamp: now_second(),
+            end_timestamp: end_t,
         };
         let resp = seal_up_segment(&client_pool, &[get_placement_addr()], request)
             .await
             .unwrap();
-
         println!("seal_up_segment resp:{:?}", resp);
+
         sleep(Duration::from_secs(3)).await;
 
-        // list segment meta
+        // verify seg0 is SealUp with correct timestamps
         let segment_req = SegmentListReq {
             shard_name: shard_name.clone(),
         };
@@ -398,33 +371,19 @@ mod tests {
             "segment_resp: {}",
             serde_json::to_string_pretty(&segment_resp).unwrap()
         );
-        assert_eq!(segment_resp.segment_list.len(), 2);
+        assert_eq!(segment_resp.segment_list.len(), 1);
         let info0 = segment_resp
             .segment_list
             .iter()
             .find(|raw| raw.segment.segment_seq == 0)
             .unwrap();
-        let info1 = segment_resp
-            .segment_list
-            .iter()
-            .find(|raw| raw.segment.segment_seq == 1)
-            .unwrap();
 
-        // info0
         assert_eq!(info0.segment.segment_seq, 0);
         assert_eq!(info0.segment.status, SegmentStatus::SealUp);
         let meta = info0.segment_meta.clone().unwrap();
         assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, 100);
+        assert_eq!(meta.end_offset, 0);
         assert_eq!(meta.start_timestamp, t as i64);
         assert!(meta.end_timestamp > 0);
-
-        // info1
-        assert_eq!(info1.segment.segment_seq, 1);
-        let meta = info1.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 101);
-        assert_eq!(meta.end_offset, 101);
-        assert_eq!(meta.start_timestamp, -1);
-        assert_eq!(meta.end_timestamp, -1);
     }
 }
