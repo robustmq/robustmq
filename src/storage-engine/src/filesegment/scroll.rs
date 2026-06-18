@@ -171,14 +171,9 @@ fn trigger_next_segment_scroll0(
 }
 
 fn calc_segment_end_offset(last_offset: u64) -> u64 {
-    // When last_offset is exactly a multiple of the interval (the scroll trigger point),
-    // it is the first offset of the NEW segment — the current segment's last valid offset
-    // is last_offset - 1.
-    if last_offset.is_multiple_of(SEGMENT_SCROLL_OFFSET_INTERVAL) {
-        last_offset - 1
-    } else {
-        (last_offset / SEGMENT_SCROLL_OFFSET_INTERVAL + 1) * SEGMENT_SCROLL_OFFSET_INTERVAL - 1
-    }
+    // The current segment ends at the last offset written in the triggering batch.
+    // The next segment starts at last_offset + 1 (set by create_segment_by_req).
+    last_offset
 }
 
 fn calc_file_rate(file_size: u64, max_size: u64) -> u32 {
@@ -201,9 +196,9 @@ mod tests {
 
     #[test]
     fn calc_segment_end_offset_test() {
-        assert_eq!(calc_segment_end_offset(9999), 9999); // mid-interval → rounds up to boundary
-        assert_eq!(calc_segment_end_offset(10000), 9999); // exact multiple → current segment ends at prev offset
-        assert_eq!(calc_segment_end_offset(10001), 19999); // past boundary → next interval
+        assert_eq!(calc_segment_end_offset(9999), 9999);
+        assert_eq!(calc_segment_end_offset(10000), 10000);
+        assert_eq!(calc_segment_end_offset(10001), 10001);
     }
 
     #[test]

@@ -57,13 +57,19 @@ impl IoWork {
         }
     }
 
-    pub fn get_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        if let Some(offset) = self.offset_data.get(shard_name) {
+    pub fn get_offset(&self, segment_iden: &SegmentIdentity) -> Result<u64, StorageEngineError> {
+        let key = segment_iden.name();
+        if let Some(offset) = self.offset_data.get(&key) {
             return Ok(*offset);
         }
-        let offset = self.segment_offset.get_latest_offset(shard_name)?;
-        self.offset_data.insert(shard_name.to_string(), offset);
-        Ok(offset)
+        // Cache miss: look up the correct next write offset for this segment.
+        // get_segment_next_write_offset returns start_offset for brand-new segments
+        // (end_offset == 0) so a new leader does not restart writing at 0.
+        let result = self
+            .segment_offset
+            .get_segment_next_write_offset(segment_iden)?;
+        self.offset_data.insert(key, result);
+        Ok(result)
     }
 
     pub fn save_offset(
@@ -73,8 +79,7 @@ impl IoWork {
     ) -> Result<(), StorageEngineError> {
         self.segment_offset
             .save_latest_offset(segment_iden, offset)?;
-        self.offset_data
-            .insert(segment_iden.shard_name.to_string(), offset);
+        self.offset_data.insert(segment_iden.name(), offset);
         Ok(())
     }
 }
@@ -119,7 +124,7 @@ pub fn create_io_thread(
                 let start_offset = if let Some(&o) = tmp_offset_info.get(&shard_name) {
                     o
                 } else {
-                    match io_work.get_offset(&shard_name) {
+                    match io_work.get_offset(&channel_data.segment_iden) {
                         Ok(o) => o,
                         Err(ex) => {
                             let segment = channel_data.segment_iden.segment;

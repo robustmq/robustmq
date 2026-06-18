@@ -148,7 +148,7 @@ pub async fn create_segment_metadata(
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
         start_offset,
-        end_offset: start_offset, // When creating a new segment, the end offset is equal to the start offset.
+        end_offset: 0, // 0 means "no upper bound yet"; set by create_next_segment when the segment is sealed.
         start_timestamp: UNINITIALIZED_TIMESTAMP,
         end_timestamp: UNINITIALIZED_TIMESTAMP,
     };

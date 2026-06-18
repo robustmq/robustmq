@@ -17,4 +17,5 @@ pub mod isr;
 pub mod key_compact;
 pub mod message_ttl;
 pub mod read_test;
+pub mod segment_scroll;
 pub mod shard_test;

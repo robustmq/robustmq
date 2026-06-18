@@ -230,6 +230,27 @@ impl SegmentOffset {
 
     // === higher-level: cache-aware offset queries ===
 
+    /// Return the correct "next write offset" for a segment that this node has
+    /// not yet written to.  When `offset_segment_end` is 0 (written by
+    /// parse_segment_meta with the initial end_offset=0), the segment is empty
+    /// on this node and writes must start at `meta.start_offset`, not 0.
+    pub fn get_segment_next_write_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<u64, StorageEngineError> {
+        let end = self.get_end_offset(segment_iden)?;
+        if end > 0 {
+            return Ok(end as u64);
+        }
+        // end_offset is 0 or missing: use start_offset from metadata
+        if let Some(meta) = self.cache_manager.get_segment_meta(segment_iden) {
+            if meta.start_offset > 0 {
+                return Ok(meta.start_offset as u64);
+            }
+        }
+        Ok(0)
+    }
+
     pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
         let segment = self
             .cache_manager
@@ -252,7 +273,11 @@ impl SegmentOffset {
         segment_iden: &SegmentIdentity,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        self.cache_manager.update_end_meta(segment_iden, offset);
+        // Do NOT update the in-memory EngineSegmentMetadata.end_offset here.
+        // end_offset in the DashMap cache must only be set by meta-service notifications
+        // (create_next_segment seals the old segment and notifies the engine). If we
+        // set end_offset = next_write_offset here, is_end_reached fires prematurely on
+        // the very next batch that contains that offset, causing runaway sealing.
         self.save_end_offset(segment_iden, offset as i64)?;
         self.save_end_timestamp(segment_iden, now_second() as i64)?;
         Ok(())
