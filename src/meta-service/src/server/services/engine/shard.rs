@@ -18,7 +18,6 @@ use crate::core::segment::create_segment;
 use crate::core::shard::{create_shard, update_shard_status};
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::journal::shard::ShardStorage;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_journal::{
@@ -67,7 +66,6 @@ pub async fn create_shard_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateShardRequest,
 ) -> Result<CreateShardReply, MetaServiceError> {
@@ -105,7 +103,6 @@ pub async fn create_shard_by_req(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         rocksdb_engine_handler,
         &shard,
         0,
@@ -137,7 +134,6 @@ pub async fn delete_shard_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     req: &DeleteShardRequest,
 ) -> Result<DeleteShardReply, MetaServiceError> {
     if !cache_manager.shard_list.contains_key(&req.shard_name) {
@@ -148,7 +144,6 @@ pub async fn delete_shard_by_req(
         raft_manager,
         cache_manager,
         call_manager,
-        client_pool,
         &req.shard_name,
         EngineShardStatus::PrepareDelete,
     )

@@ -17,8 +17,7 @@ use crate::core::error::StorageEngineError;
 use crate::filesegment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
 use crate::filesegment::offset::FileSegmentOffset;
 use crate::filesegment::scroll::{
-    is_start_or_end_offset, is_trigger_next_segment_scroll, trigger_next_segment_scroll,
-    trigger_update_start_or_end_info,
+    is_trigger_next_segment_scroll, trigger_next_segment_scroll, trigger_update_start_timestamp,
 };
 use crate::filesegment::segment_file::open_segment_write;
 use crate::filesegment::SegmentIdentity;
@@ -42,7 +41,6 @@ use tokio::time::{sleep, timeout};
 use tracing::{error, info};
 use twox_hash::XxHash32;
 
-/// the data to be sent to the segment write thread
 pub struct WriteChannelData {
     pub segment_iden: SegmentIdentity,
     pub data_list: Vec<WriteChannelDataRecord>,
@@ -60,7 +58,6 @@ pub struct WriteChannelDataRecord {
     pub protocol_data: Option<StorageRecordProtocolData>,
 }
 
-/// the response of the write request from the segment write thread
 #[derive(Default, Debug, Clone)]
 pub struct SegmentWriteResp {
     pub offsets: Vec<AdapterWriteRespRow>,
@@ -222,7 +219,15 @@ pub fn create_io_thread(
                 Err(_) => {}
             }
 
+            let first = match timeout(Duration::from_millis(10), data_recv.recv()).await {
+                Ok(Some(data)) => data,
+                Ok(None) => break,
+                Err(_) => continue,
+            };
+
             let mut results = Vec::new();
+            results.push(first);
+
             loop {
                 match data_recv.try_recv() {
                     Ok(data) => {
@@ -236,13 +241,9 @@ pub fn create_io_thread(
                     }
                     Err(e) => {
                         error!("Failed to receive write request data from channel: {}", e);
+                        break;
                     }
                 }
-            }
-
-            if results.is_empty() {
-                sleep(Duration::from_millis(10)).await;
-                continue;
             }
             write_data_list.clear();
             pkid_offset.clear();
@@ -310,7 +311,6 @@ pub fn create_io_thread(
                         protocol_data: row.protocol_data.clone(),
                     });
 
-                    // key index
                     if let Some(key) = row.key.clone() {
                         index_list.push(BuildIndexRaw {
                             index_type: IndexTypeEnum::Key,
@@ -320,7 +320,6 @@ pub fn create_io_thread(
                         });
                     }
 
-                    // tag index
                     if let Some(tags) = row.tags.clone() {
                         for tag in tags.iter() {
                             index_list.push(BuildIndexRaw {
@@ -332,7 +331,6 @@ pub fn create_io_thread(
                         }
                     }
 
-                    // timestamp & offset index
                     if record_offset % 10000 == 0 {
                         index_list.push(BuildIndexRaw {
                             index_type: IndexTypeEnum::Time,
@@ -445,9 +443,6 @@ fn call_error_response(
     }
 }
 
-/// validate whether the data can be written to the segment, write the data to the segment file and update the index
-///
-/// Note that this function will be executed serially by the write thread of the segment
 async fn batch_write(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -483,9 +478,21 @@ async fn batch_write(
         ));
     };
 
+    let is_first_write = cache_manager
+        .get_segment_meta(segment_iden)
+        .map(|meta| offsets.contains(&(meta.start_offset as u64)))
+        .unwrap_or(false);
+
+    if is_first_write {
+        trigger_update_start_timestamp(
+            cache_manager.clone(),
+            client_pool.clone(),
+            segment_iden.clone(),
+        );
+    }
+
     let offset_positions = segment_write.write(data_list).await?;
 
-    // save index
     save_index(
         rocksdb_engine_handler,
         segment_iden,
@@ -493,7 +500,6 @@ async fn batch_write(
         &offset_positions,
     )?;
 
-    // trigger scroll next segment
     if is_trigger_next_segment_scroll(&offsets) {
         if let Err(e) = trigger_next_segment_scroll(
             cache_manager,
@@ -506,16 +512,6 @@ async fn batch_write(
         {
             error!("{}", e);
         }
-    }
-
-    // trigger start/end info update
-    if is_start_or_end_offset(cache_manager, segment_iden, &offsets) {
-        trigger_update_start_or_end_info(
-            cache_manager.clone(),
-            client_pool.clone(),
-            segment_iden.clone(),
-            offsets.clone(),
-        );
     }
 
     let offsets: Vec<AdapterWriteRespRow> = pkid_offset_list

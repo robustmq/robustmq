@@ -20,7 +20,6 @@ use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::connector::MqttConnectorStorage;
 use common_base::utils::serialize::encode_to_bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::connector::MQTTConnector;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
@@ -157,7 +156,6 @@ pub async fn delete_connector_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     mqtt_call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &DeleteConnectorRequest,
 ) -> Result<DeleteConnectorReply, MetaServiceError> {
     let storage = MqttConnectorStorage::new(rocksdb_engine_handler.clone());

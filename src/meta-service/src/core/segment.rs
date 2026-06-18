@@ -24,7 +24,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::raft::route::engine::IsrUpdateOutcome;
 use bytes::Bytes;
 use common_config::storage::StorageType;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::segment::{segment_name, EngineSegment, SegmentStatus};
 use metadata_struct::storage::shard::EngineShard;
 use node_call::NodeCallManager;
@@ -36,12 +35,10 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tracing::info;
 
-#[allow(clippy::too_many_arguments)]
 pub async fn create_segment(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_info: &EngineShard,
     segment_seq: u32,
@@ -71,7 +68,6 @@ pub async fn create_segment(
                     cache_manager,
                     raft_manager,
                     call_manager,
-                    client_pool,
                     &segment,
                     start_offset as i64,
                 )
@@ -87,7 +83,6 @@ pub async fn seal_up_segment(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     segment: &EngineSegment,
     last_timestamp: u64,
 ) -> Result<(), MetaServiceError> {
@@ -110,7 +105,6 @@ pub async fn seal_up_segment(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         &segment.shard_name,
         segment.segment_seq,
         last_timestamp,

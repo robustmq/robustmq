@@ -25,7 +25,6 @@ use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
 use delay_task::manager::DelayTaskManager;
 use delay_task::{DelayTask, DelayTaskData};
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_mqtt::{
@@ -122,7 +121,6 @@ fn read_persist_session(
 pub async fn create_session_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &CreateSessionRequest,
 ) -> Result<CreateSessionReply, MetaServiceError> {
     let routing_key = req

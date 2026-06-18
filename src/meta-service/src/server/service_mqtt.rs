@@ -184,7 +184,6 @@ impl MqttService for GrpcMqttService {
         create_session_by_req(
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -264,7 +263,6 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -431,7 +429,6 @@ impl MqttService for GrpcMqttService {
         set_subscribe_by_req(
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -518,7 +515,6 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await

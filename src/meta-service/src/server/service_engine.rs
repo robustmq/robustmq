@@ -140,7 +140,6 @@ impl EngineService for GrpcEngineService {
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
         )
@@ -160,7 +159,6 @@ impl EngineService for GrpcEngineService {
             &self.raft_manager,
             &self.cache_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -192,7 +190,6 @@ impl EngineService for GrpcEngineService {
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &self.rocksdb_engine_handler,
             &req,
         )
@@ -230,7 +227,6 @@ impl EngineService for GrpcEngineService {
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await
@@ -280,7 +276,6 @@ impl EngineService for GrpcEngineService {
             &self.cache_manager,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await

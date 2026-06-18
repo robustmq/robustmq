@@ -22,7 +22,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use common_base::tools::now_millis;
 use common_base::utils::serialize::encode_to_bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::topic::Topic;
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use node_call::NodeCallManager;
@@ -106,7 +105,6 @@ pub async fn delete_topic_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &DeleteTopicRequest,
 ) -> Result<DeleteTopicReply, MetaServiceError> {
     let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());

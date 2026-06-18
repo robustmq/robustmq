@@ -25,7 +25,6 @@ use crate::{
     storage::mqtt::subscribe::MqttSubscribeStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use metadata_struct::mqtt::subscribe::MqttSubscribe;
 use node_call::NodeCallManager;
@@ -102,7 +101,6 @@ pub fn list_subscribe_by_req(
 pub async fn set_subscribe_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &SetSubscribeRequest,
 ) -> Result<SetSubscribeReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::MqttSetSubscribe, encode_to_bytes(req));

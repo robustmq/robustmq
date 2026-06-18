@@ -21,7 +21,6 @@ use crate::storage::common::config::ResourceConfigStorage;
 use crate::storage::common::offset::OffsetStorage;
 use common_base::tools::now_second;
 use common_base::utils::serialize::encode_to_bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::resource_config::ResourceConfig;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_common::{
@@ -93,7 +92,6 @@ pub async fn heartbeat_by_req(
 pub async fn set_resource_config_by_req(
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     req: &SetResourceConfigRequest,
 ) -> Result<SetResourceConfigReply, MetaServiceError> {
     let data = StorageData::new(StorageDataType::ResourceConfigSet, encode_to_bytes(req));

@@ -4,6 +4,57 @@
 
 ---
 
+## 零、Segment Scroll 重新设计 + Write 优化（当前最高优先级）
+
+> 进度标记：`- [ ]` 待完成 / `- [x]` 已完成
+
+### Scroll 修复任务
+
+- [x] **S1** `scroll.rs:42` 触发条件 `last()` → `any()`
+  - 文件：`src/storage-engine/src/filesegment/scroll.rs`
+  - 改：`offsets.iter().any(|&o| o % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)`
+  - 测试：`filesegment::scroll::tests::is_trigger_scroll_test` ✓
+
+- [x] **S2** Meta 服务新增 `update_active_segment_by_shard`，scroll 时更新 `active_segment_seq`
+  - 文件：`src/meta-service/src/core/shard.rs`、`src/meta-service/src/server/services/engine/segment.rs`
+  - 在 `create_segment_by_req` 创建 N+1 后追加调用，将 `active_segment_seq = N+1` 写入 raft 并广播
+  - 测试：`core::dynamic_cache::tests::shard_update_notification_updates_active_segment_seq` ✓
+
+- [x] **S3** Broker `parse_shard::Update` 实现 `set_shard()`，使 Shard Update 通知生效
+  - 文件：`src/storage-engine/src/core/dynamic_cache.rs`
+  - 改：`BrokerUpdateCacheActionType::Update => {}` → `cache_manager.set_shard(shard)`
+  - 测试：`core::dynamic_cache::tests::shard_update_notification_updates_active_segment_seq` ✓
+
+- [x] **S4** `CreateNextSegmentRequest` 传真实 LEO，不再估算 `+10000`
+  - 文件：`src/storage-engine/src/filesegment/scroll.rs`
+  - 改：直接用 `last_offset`（batch 最大 offset）作为 `current_segment_end_offset`，删除 `SEGMENT_SCROLL_OFFSET_BUFFER` 常量
+  - 测试：`filesegment::scroll::tests` 全部通过 ✓
+
+- [x] **S5** Meta 服务在创建新 segment 时主动 seal 旧 segment，删除 broker 侧基于 offset 匹配的触发逻辑
+  - 文件：`src/meta-service/src/server/services/engine/segment.rs`、`src/storage-engine/src/filesegment/write.rs`
+  - meta `create_segment_by_req` 末尾调用 `seal_up_segment(old_segment, now())`
+  - `write.rs` 删除 `is_start_or_end_offset` / `trigger_update_start_or_end_info` 调用
+  - 测试：`filesegment::write::tests` 全部通过 ✓
+
+- [x] **S6** 新 segment 第一次写入时主动记录 `start_timestamp`
+  - 文件：`src/storage-engine/src/filesegment/scroll.rs`（新增 `trigger_update_start_timestamp`）、`src/storage-engine/src/filesegment/write.rs`
+  - `batch_write` 检测 `is_first_write`（`segment_file_writer` 里首次打开）时调用 `trigger_update_start_timestamp`
+  - 测试：`filesegment::write::tests::write_manager_write_test` ✓
+
+### Write 优化任务
+
+- [x] **W1** 消除 IO 线程 idle 延迟：`try_recv + sleep(10ms)` → `recv().await + drain`
+  - 文件：`src/storage-engine/src/filesegment/write.rs`
+  - 改：先 `timeout(10ms, recv()).await` 等第一条，再 `try_recv` drain 至 100 条
+  - 测试：`filesegment::write::tests::write_manager_write_test` ✓（功能回归通过）
+
+- [ ] **W2** mmap 用 `written_watermark` 替代全量 `clear_cache`
+  - 文件：`src/storage-engine/src/filesegment/segment_file.rs`
+  - 在 `SegmentFile` 增加 `written_watermark: AtomicU64`；`write()` 后更新 watermark 而非清缓存；读时超出 watermark 部分走 write_buffer 或 fallback 到文件读
+  - 测试：写入后立即通过 mmap 路径能读到新记录；大文件不触发全量重新 mmap
+
+---
+
 ## 一、ISR / 复制（最高优先级）
 
 ### P0-1：为 EngineSegment 实现 `ReplicaLog` trait

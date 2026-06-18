@@ -21,7 +21,6 @@ use crate::raft::route::data::{StorageData, StorageDataType};
 use bytes::Bytes;
 use common_base::tools::now_second;
 use common_base::uuid::unique_id;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use node_call::NodeCallManager;
 use std::sync::Arc;
@@ -90,7 +89,6 @@ async fn update_shard<F>(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     update_fn: F,
 ) -> Result<(), MetaServiceError>
@@ -112,7 +110,6 @@ pub async fn update_start_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment_no: u32,
 ) -> Result<(), MetaServiceError> {
@@ -125,33 +122,33 @@ pub async fn update_start_segment_by_shard(
         raft_manager,
         cache_manager,
         call_manager,
-        client_pool,
         shard_name,
         |shard| shard.start_segment_seq = segment_no,
     )
     .await
 }
 
-pub async fn update_last_segment_by_shard(
+pub async fn update_scroll_segment_by_shard(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
-    segment_no: u32,
+    next_segment: u32,
 ) -> Result<(), MetaServiceError> {
     info!(
-        "Updating shard last segment: name={}, segment={}",
-        shard_name, segment_no
+        "Scrolling shard to next segment: name={}, next_segment={}",
+        shard_name, next_segment
     );
 
     update_shard(
         raft_manager,
         cache_manager,
         call_manager,
-        client_pool,
         shard_name,
-        |shard| shard.last_segment_seq = segment_no,
+        |shard| {
+            shard.last_segment_seq = next_segment;
+            shard.active_segment_seq = next_segment;
+        },
     )
     .await
 }
@@ -160,7 +157,6 @@ pub async fn update_shard_status(
     raft_manager: &Arc<MultiRaftManager>,
     cache_manager: &Arc<MetaCacheManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
     status: EngineShardStatus,
 ) -> Result<(), MetaServiceError> {
@@ -173,7 +169,6 @@ pub async fn update_shard_status(
         raft_manager,
         cache_manager,
         call_manager,
-        client_pool,
         shard_name,
         |shard| shard.status = status,
     )

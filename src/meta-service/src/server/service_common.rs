@@ -230,7 +230,6 @@ impl MetaServiceService for GrpcPlacementService {
         set_resource_config_by_req(
             &self.raft_manager,
             &self.mqtt_call_manager,
-            &self.client_pool,
             &req,
         )
         .await

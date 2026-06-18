@@ -32,14 +32,13 @@ use tracing::{error, warn};
 
 const SEGMENT_SCROLL_OFFSET_INTERVAL: u64 = 10000;
 const SEGMENT_SCROLL_SIZE_THRESHOLD: u32 = 90;
-const SEGMENT_SCROLL_OFFSET_BUFFER: u64 = 10000;
 const MAX_RETRY_ATTEMPTS: u32 = 3;
 const RETRY_DELAY_MS: u64 = 1000;
 
 pub fn is_trigger_next_segment_scroll(offsets: &[u64]) -> bool {
     offsets
-        .last()
-        .is_some_and(|&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
+        .iter()
+        .any(|&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
 }
 
 pub fn is_start_or_end_offset(
@@ -75,6 +74,31 @@ pub fn trigger_update_start_or_end_info(
                 segment_iden.shard_name, segment_iden.segment, e
             );
         };
+    });
+}
+
+pub fn trigger_update_start_timestamp(
+    cache_manager: Arc<StorageCacheManager>,
+    client_pool: Arc<ClientPool>,
+    segment_iden: SegmentIdentity,
+) {
+    tokio::spawn(async move {
+        let conf = broker_config();
+        let request = UpdateStartTimeBySegmentMetaRequest {
+            shard_name: segment_iden.shard_name.clone(),
+            segment: segment_iden.segment,
+            start_timestamp: now_second(),
+        };
+        if let Err(e) =
+            update_start_time_by_segment_meta(&client_pool, &conf.get_meta_service_addr(), request)
+                .await
+        {
+            error!(
+                "Failed to record start_timestamp for shard '{}' segment {}: {}",
+                segment_iden.shard_name, segment_iden.segment, e
+            );
+        }
+        cache_manager.update_start_meta(&segment_iden, 0);
     });
 }
 
@@ -171,10 +195,8 @@ fn trigger_next_segment_scroll0(
 ) {
     tokio::spawn(async move {
         let conf = broker_config();
-        let end_offset = last_offset.saturating_add(SEGMENT_SCROLL_OFFSET_BUFFER);
-
         let current_segment = segment_iden.segment.min(i32::MAX as u32) as i32;
-        let end_offset_i64 = end_offset.min(i64::MAX as u64) as i64;
+        let end_offset_i64 = last_offset.min(i64::MAX as u64) as i64;
 
         let request = CreateNextSegmentRequest {
             shard_name: segment_iden.shard_name.clone(),
@@ -195,7 +217,7 @@ fn trigger_next_segment_scroll0(
                             "Failed to create next segment for shard '{}', current segment {}, end offset {} after {} attempts: {}",
                             segment_iden.shard_name,
                             segment_iden.segment,
-                            end_offset,
+                            last_offset,
                             MAX_RETRY_ATTEMPTS,
                             e
                         );
@@ -234,7 +256,15 @@ mod tests {
         assert!(!is_trigger_next_segment_scroll(&[]));
         assert!(is_trigger_next_segment_scroll(&[9999, 10000]));
         assert!(is_trigger_next_segment_scroll(&[20000]));
-        assert!(!is_trigger_next_segment_scroll(&[10000, 20000, 9999]));
+        assert!(is_trigger_next_segment_scroll(&[
+            9998, 9999, 10000, 10001, 10002
+        ]));
+        assert!(is_trigger_next_segment_scroll(&[
+            9970, 9980, 10000, 10050, 10069
+        ]));
+        assert!(!is_trigger_next_segment_scroll(&[9997, 9998, 9999]));
+        assert!(!is_trigger_next_segment_scroll(&[10001, 10002, 10003]));
+        assert!(is_trigger_next_segment_scroll(&[10000, 20000, 9999]));
     }
 
     #[test]
