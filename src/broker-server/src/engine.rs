@@ -28,7 +28,7 @@ use storage_engine::{
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::cache::StorageCacheManager,
-    filesegment::write::WriteManager,
+    filesegment::write_manager::WriteManager,
     handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams},
     isr::fetcher_manager::build_engine_fetcher_manager,
     StorageEngineParams, StorageEngineServer,

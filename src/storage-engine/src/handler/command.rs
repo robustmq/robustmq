@@ -17,7 +17,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
-use crate::filesegment::write::WriteManager;
+use crate::filesegment::write_manager::WriteManager;
 use crate::handler::data::{read_data_req, shard_offset_req, write_data_req};
 use crate::isr::handle_epoch::handle_offsets_for_leader_epoch;
 use crate::isr::handle_fetch::{handle_fetch, FetchEngines};

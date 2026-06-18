@@ -37,7 +37,7 @@ mod tests {
     use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
     use storage_engine::core::cache::StorageCacheManager;
     use storage_engine::core::write::batch_write;
-    use storage_engine::filesegment::write::WriteManager;
+    use storage_engine::filesegment::write_manager::WriteManager;
     use storage_engine::isr::follower::update_follower_progress;
     use tokio::sync::broadcast;
 

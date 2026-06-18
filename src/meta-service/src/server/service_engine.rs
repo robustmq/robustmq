@@ -22,7 +22,6 @@ use crate::server::services::engine::segment::{
 use crate::server::services::engine::shard::{
     create_shard_by_req, delete_shard_by_req, list_shard_by_req,
 };
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_journal::engine_service_server::EngineService;
@@ -45,7 +44,6 @@ pub struct GrpcEngineService {
     cache_manager: Arc<MetaCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     call_manager: Arc<NodeCallManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
@@ -54,14 +52,12 @@ impl GrpcEngineService {
         cache_manager: Arc<MetaCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         call_manager: Arc<NodeCallManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
             raft_manager,
             cache_manager,
             rocksdb_engine_handler,
             call_manager,
-            client_pool,
         }
     }
 

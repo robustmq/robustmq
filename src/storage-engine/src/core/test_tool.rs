@@ -31,7 +31,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::offset::CommitLogOffset;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::segment::create_local_segment;
-use crate::filesegment::offset::FileSegmentOffset;
+use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::SegmentIdentity;
 use broker_core::cache::NodeCacheManager;
 use common_base::tools::now_second;
@@ -141,24 +141,13 @@ pub async fn test_init_segment(
 
     if engine_storage_type == StorageType::EngineSegment {
         let commit_offset =
-            FileSegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+            SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        commit_offset.save_start_offset(&segment_iden, 0).unwrap();
+        commit_offset.save_end_offset(&segment_iden, 0).unwrap();
         commit_offset
-            .segment_offset
-            .save_start_offset(&segment_iden, 0)
-            .unwrap();
-        commit_offset
-            .segment_offset
-            .save_end_offset(&segment_iden, 0)
-            .unwrap();
-
-        commit_offset
-            .segment_offset
             .save_start_timestamp(&segment_iden, 0)
             .unwrap();
-        commit_offset
-            .segment_offset
-            .save_end_timestamp(&segment_iden, 0)
-            .unwrap();
+        commit_offset.save_end_timestamp(&segment_iden, 0).unwrap();
     }
 
     (segment_iden, cache_manager, fold, rocksdb_engine_handler)

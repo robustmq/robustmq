@@ -14,7 +14,7 @@
 
 use crate::core::error::StorageEngineError;
 use crate::filesegment::SegmentIdentity;
-use crate::{core::cache::StorageCacheManager, filesegment::segment_file::SegmentFile};
+use crate::{core::cache::StorageCacheManager, filesegment::file::SegmentFile};
 use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use grpc_clients::meta::storage::call::{
@@ -28,7 +28,7 @@ use protocol::meta::meta_service_journal::{
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use tracing::{error, warn};
+use tracing::error;
 
 const SEGMENT_SCROLL_OFFSET_INTERVAL: u64 = 10000;
 const SEGMENT_SCROLL_SIZE_THRESHOLD: u32 = 90;
@@ -38,43 +38,22 @@ const RETRY_DELAY_MS: u64 = 1000;
 pub fn is_trigger_next_segment_scroll(offsets: &[u64]) -> bool {
     offsets
         .iter()
-        .any(|&offset| offset % SEGMENT_SCROLL_OFFSET_INTERVAL == 0)
+        .any(|&offset| offset.is_multiple_of(SEGMENT_SCROLL_OFFSET_INTERVAL))
 }
 
-pub fn is_start_or_end_offset(
-    cache_manager: &Arc<StorageCacheManager>,
-    segment_iden: &SegmentIdentity,
-    offsets: &[u64],
-) -> bool {
-    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
-        let start_offset = meta.start_offset.max(0) as u64;
-        let end_offset = meta.end_offset.max(0) as u64;
-        return offsets.contains(&start_offset) || offsets.contains(&end_offset);
+pub async fn trigger_seal_segment(client_pool: Arc<ClientPool>, segment_iden: SegmentIdentity) {
+    let conf = broker_config();
+    let request = SealUpSegmentRequest {
+        shard_name: segment_iden.shard_name.clone(),
+        segment: segment_iden.segment,
+        end_timestamp: now_second(),
+    };
+    if let Err(e) = seal_up_segment(&client_pool, &conf.get_meta_service_addr(), request).await {
+        error!(
+            "Failed to seal segment for shard '{}' segment {}: {}",
+            segment_iden.shard_name, segment_iden.segment, e
+        );
     }
-    warn!(
-        "Segment metadata not found for shard '{}' segment {}, expected to exist",
-        segment_iden.shard_name, segment_iden.segment
-    );
-    false
-}
-
-pub fn trigger_update_start_or_end_info(
-    cache_manager: Arc<StorageCacheManager>,
-    client_pool: Arc<ClientPool>,
-    segment_iden: SegmentIdentity,
-    offsets: Vec<u64>,
-) {
-    tokio::spawn(async move {
-        if let Err(e) =
-            trigger_update_start_or_end_info0(&cache_manager, &client_pool, &segment_iden, &offsets)
-                .await
-        {
-            error!(
-                "Failed to update start/end timestamp for shard '{}' segment {}: {}",
-                segment_iden.shard_name, segment_iden.segment, e
-            );
-        };
-    });
 }
 
 pub fn trigger_update_start_timestamp(
@@ -145,48 +124,6 @@ pub async fn trigger_next_segment_scroll(
     Ok(())
 }
 
-async fn trigger_update_start_or_end_info0(
-    cache_manager: &Arc<StorageCacheManager>,
-    client_pool: &Arc<ClientPool>,
-    segment_iden: &SegmentIdentity,
-    offsets: &[u64],
-) -> Result<(), StorageEngineError> {
-    if let Some(meta) = cache_manager.get_segment_meta(segment_iden) {
-        let start_offset = meta.start_offset.max(0) as u64;
-        let end_offset = meta.end_offset.max(0) as u64;
-        let is_start = offsets.contains(&start_offset);
-        let is_end = offsets.contains(&end_offset);
-
-        if is_start || is_end {
-            let conf = broker_config();
-
-            if is_start {
-                let request = UpdateStartTimeBySegmentMetaRequest {
-                    shard_name: segment_iden.shard_name.clone(),
-                    segment: segment_iden.segment,
-                    start_timestamp: now_second(),
-                };
-                update_start_time_by_segment_meta(
-                    client_pool,
-                    &conf.get_meta_service_addr(),
-                    request,
-                )
-                .await?;
-            }
-
-            if is_end {
-                let request = SealUpSegmentRequest {
-                    shard_name: segment_iden.shard_name.clone(),
-                    segment: segment_iden.segment,
-                    end_timestamp: now_second(),
-                };
-                seal_up_segment(client_pool, &conf.get_meta_service_addr(), request).await?;
-            }
-        }
-    }
-    Ok(())
-}
-
 fn trigger_next_segment_scroll0(
     cache_manager: Arc<StorageCacheManager>,
     client_pool: Arc<ClientPool>,
@@ -196,7 +133,7 @@ fn trigger_next_segment_scroll0(
     tokio::spawn(async move {
         let conf = broker_config();
         let current_segment = segment_iden.segment.min(i32::MAX as u32) as i32;
-        let end_offset_i64 = last_offset.min(i64::MAX as u64) as i64;
+        let end_offset_i64 = calc_segment_end_offset(last_offset) as i64;
 
         let request = CreateNextSegmentRequest {
             shard_name: segment_iden.shard_name.clone(),
@@ -233,6 +170,17 @@ fn trigger_next_segment_scroll0(
     });
 }
 
+fn calc_segment_end_offset(last_offset: u64) -> u64 {
+    // When last_offset is exactly a multiple of the interval (the scroll trigger point),
+    // it is the first offset of the NEW segment — the current segment's last valid offset
+    // is last_offset - 1.
+    if last_offset.is_multiple_of(SEGMENT_SCROLL_OFFSET_INTERVAL) {
+        last_offset - 1
+    } else {
+        (last_offset / SEGMENT_SCROLL_OFFSET_INTERVAL + 1) * SEGMENT_SCROLL_OFFSET_INTERVAL - 1
+    }
+}
+
 fn calc_file_rate(file_size: u64, max_size: u64) -> u32 {
     if max_size == 0 {
         return 100;
@@ -246,25 +194,24 @@ mod tests {
     use super::*;
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::{test_build_data_fold, test_build_segment, test_init_conf};
-    use crate::filesegment::segment_file::SegmentFile;
+    use crate::filesegment::file::SegmentFile;
     use broker_core::cache::NodeCacheManager;
     use common_config::broker::default_broker_config;
     use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 
     #[test]
+    fn calc_segment_end_offset_test() {
+        assert_eq!(calc_segment_end_offset(9999), 9999); // mid-interval → rounds up to boundary
+        assert_eq!(calc_segment_end_offset(10000), 9999); // exact multiple → current segment ends at prev offset
+        assert_eq!(calc_segment_end_offset(10001), 19999); // past boundary → next interval
+    }
+
+    #[test]
     fn is_trigger_scroll_test() {
         assert!(!is_trigger_next_segment_scroll(&[]));
-        assert!(is_trigger_next_segment_scroll(&[9999, 10000]));
-        assert!(is_trigger_next_segment_scroll(&[20000]));
-        assert!(is_trigger_next_segment_scroll(&[
-            9998, 9999, 10000, 10001, 10002
-        ]));
-        assert!(is_trigger_next_segment_scroll(&[
-            9970, 9980, 10000, 10050, 10069
-        ]));
-        assert!(!is_trigger_next_segment_scroll(&[9997, 9998, 9999]));
-        assert!(!is_trigger_next_segment_scroll(&[10001, 10002, 10003]));
-        assert!(is_trigger_next_segment_scroll(&[10000, 20000, 9999]));
+        assert!(is_trigger_next_segment_scroll(&[10000]));
+        assert!(!is_trigger_next_segment_scroll(&[9999]));
+        assert!(!is_trigger_next_segment_scroll(&[10001]));
     }
 
     #[test]

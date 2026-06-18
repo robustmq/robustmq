@@ -14,7 +14,7 @@
 
 use crate::commitlog::offset::ShardOffsetState;
 use crate::core::offset_index::SegmentOffsetIndex;
-use crate::filesegment::segment_file::SegmentFile;
+use crate::filesegment::file::SegmentFile;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::SegmentReplicaState;
 use broker_core::cache::NodeCacheManager;

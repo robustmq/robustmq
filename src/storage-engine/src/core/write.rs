@@ -21,7 +21,7 @@ use crate::{
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        write::{WriteChannelDataRecord, WriteManager},
+        write_manager::{WriteChannelDataRecord, WriteManager},
         SegmentIdentity,
     },
     isr::follower::{advance_hw, wait_for_hw},

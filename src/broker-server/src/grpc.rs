@@ -122,7 +122,6 @@ fn get_place_mqtt_handler(place_params: &MetaServiceServerParams) -> GrpcMqttSer
         place_params.delay_task_manager.clone(),
         place_params.node_call_manager.clone(),
         place_params.node_cache.clone(),
-        place_params.client_pool.clone(),
     )
 }
 
@@ -148,7 +147,6 @@ fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngin
         place_params.cache_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.node_call_manager.clone(),
-        place_params.client_pool.clone(),
     )
 }
 

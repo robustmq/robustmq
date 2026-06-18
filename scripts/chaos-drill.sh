@@ -12,18 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Runs a chaos drill (an `#[ignore]` test that kills/restarts the cluster) against a
-# fresh 3-node cluster. The cluster is started directly so each node logs to
-# /tmp/n{1,2,3}.log — the drill tests read those logs for graceful-exit / blacklist checks
-# and restart nodes to the same files.
-#
-# Each attempt starts from a clean slate. Chaos drills are timing-sensitive, so a failed
-# attempt is retried once (DRILL_ATTEMPTS) on a freshly restarted cluster.
-#
-# Usage: scripts/chaos-drill.sh <test-filter>
-#   e.g. scripts/chaos-drill.sh three_replica_chaos_rolling_kill   (ISR replication drill)
-#        scripts/chaos-drill.sh raft_cluster_drill                 (Raft cluster drill)
 
 set -u
 

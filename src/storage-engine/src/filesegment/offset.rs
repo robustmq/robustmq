@@ -16,44 +16,228 @@ use crate::{
     core::{cache::StorageCacheManager, error::StorageEngineError},
     filesegment::{
         index::read::{get_in_segment_by_timestamp, get_index_data_by_timestamp},
-        segment_offset::SegmentOffset,
         SegmentIdentity,
     },
 };
 use common_base::tools::now_second;
 use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
+use rocksdb::WriteBatch;
+use rocksdb_engine::keys::engine::{
+    offset_segment_end, offset_segment_high_watermark, offset_segment_start, timestamp_segment_end,
+    timestamp_segment_start,
+};
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct FileSegmentOffset {
-    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub cache_manager: Arc<StorageCacheManager>,
-    pub segment_offset: SegmentOffset,
+pub struct SegmentOffset {
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    cache_manager: Arc<StorageCacheManager>,
 }
 
-impl FileSegmentOffset {
+impl SegmentOffset {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cache_manager: Arc<StorageCacheManager>,
     ) -> Self {
-        FileSegmentOffset {
-            rocksdb_engine_handler: rocksdb_engine_handler.clone(),
+        SegmentOffset {
+            rocksdb_engine_handler,
             cache_manager,
-            segment_offset: SegmentOffset::new(rocksdb_engine_handler.clone()),
         }
     }
 
-    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        let segment = if let Some(shard) = self.cache_manager.get_active_segment(shard_name) {
-            shard.clone()
-        } else {
-            return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
-        };
+    // === persistence: raw offset / timestamp ===
 
-        // The end offset of the active segment is restored from persistence.
+    pub fn save_start_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        start_offset: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = offset_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            start_offset,
+        )?)
+    }
+
+    pub fn get_start_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = offset_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+        Ok(-1)
+    }
+
+    pub fn save_high_watermark_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        end_offset: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = offset_segment_high_watermark(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            end_offset,
+        )?)
+    }
+
+    pub fn get_high_watermark_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = offset_segment_high_watermark(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+        Ok(-1)
+    }
+
+    pub fn save_end_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+        end_offset: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = offset_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            end_offset,
+        )?)
+    }
+
+    pub fn get_end_offset(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = offset_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+        Ok(-1)
+    }
+
+    pub fn save_start_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+        start_timestamp: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = timestamp_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            start_timestamp,
+        )?)
+    }
+
+    pub fn get_start_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = timestamp_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+        Ok(-1)
+    }
+
+    pub fn save_end_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+        end_timestamp: i64,
+    ) -> Result<(), StorageEngineError> {
+        let key = timestamp_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        Ok(engine_save_by_engine(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+            end_timestamp,
+        )?)
+    }
+
+    pub fn get_end_timestamp(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<i64, StorageEngineError> {
+        let key = timestamp_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        if let Some(res) = engine_get_by_engine::<i64>(
+            &self.rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &key,
+        )? {
+            return Ok(res.data);
+        }
+        Ok(-1)
+    }
+
+    pub fn batch_save_segment_metadata(
+        &self,
+        segment_iden: &SegmentIdentity,
+        start_offset: i64,
+        end_offset: i64,
+        start_timestamp: i64,
+        end_timestamp: i64,
+    ) -> Result<(), StorageEngineError> {
+        use rocksdb_engine::storage::base::batch_encode_data;
+
+        let cf = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+            .ok_or_else(|| {
+                StorageEngineError::CommonErrorStr(format!(
+                    "Column family '{}' not found",
+                    DB_COLUMN_FAMILY_STORAGE_ENGINE
+                ))
+            })?;
+
+        let mut batch = WriteBatch::default();
+        let key = offset_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        batch.put_cf(&cf, key, batch_encode_data(start_offset)?);
+        let key = offset_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        batch.put_cf(&cf, key, batch_encode_data(end_offset)?);
+        let key = timestamp_segment_start(&segment_iden.shard_name, segment_iden.segment);
+        batch.put_cf(&cf, key, batch_encode_data(start_timestamp)?);
+        let key = timestamp_segment_end(&segment_iden.shard_name, segment_iden.segment);
+        batch.put_cf(&cf, key, batch_encode_data(end_timestamp)?);
+
+        Ok(self.rocksdb_engine_handler.write_batch(batch)?)
+    }
+
+    // === higher-level: cache-aware offset queries ===
+
+    pub fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        let segment = self
+            .cache_manager
+            .get_active_segment(shard_name)
+            .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?;
+
         let segment_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
-        let offset = self.segment_offset.get_end_offset(&segment_iden)?;
+        let offset = self.get_end_offset(&segment_iden)?;
         if offset < 0 {
             return Err(StorageEngineError::CommonErrorStr(format!(
                 "Invalid end offset {} for shard '{}' segment {}: offset cannot be negative",
@@ -69,28 +253,25 @@ impl FileSegmentOffset {
         offset: u64,
     ) -> Result<(), StorageEngineError> {
         self.cache_manager.update_end_meta(segment_iden, offset);
-        self.segment_offset
-            .save_end_offset(segment_iden, offset as i64)?;
-        self.segment_offset
-            .save_end_timestamp(segment_iden, now_second() as i64)?;
+        self.save_end_offset(segment_iden, offset as i64)?;
+        self.save_end_timestamp(segment_iden, now_second() as i64)?;
         Ok(())
     }
 
     pub fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        let shard = if let Some(shard) = self.cache_manager.shards.get(shard_name) {
-            shard.clone()
-        } else {
-            return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
-        };
+        let shard = self
+            .cache_manager
+            .shards
+            .get(shard_name)
+            .ok_or_else(|| StorageEngineError::ShardNotExist(shard_name.to_string()))?
+            .clone();
 
         let segment_iden = SegmentIdentity::new(shard_name, shard.start_segment_seq);
-        let meta = if let Some(meta) = self.cache_manager.get_segment_meta(&segment_iden) {
-            meta.clone()
-        } else {
-            return Err(StorageEngineError::SegmentMetaNotExists(
-                segment_iden.name(),
-            ));
-        };
+        let meta = self
+            .cache_manager
+            .get_segment_meta(&segment_iden)
+            .ok_or_else(|| StorageEngineError::SegmentMetaNotExists(segment_iden.name()))?
+            .clone();
 
         if meta.start_offset < 0 {
             return Err(StorageEngineError::CommonErrorStr(format!(
@@ -127,5 +308,40 @@ impl FileSegmentOffset {
                 AdapterOffsetStrategy::Latest => self.get_latest_offset(shard_name),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SegmentOffset;
+    use crate::core::test_tool::test_init_segment;
+    use common_config::storage::StorageType;
+
+    #[tokio::test]
+    async fn start_end_offset_test() {
+        let (segment_iden, cache_manager, _, rocksdb) =
+            test_init_segment(StorageType::EngineSegment).await;
+        let so = SegmentOffset::new(rocksdb, cache_manager);
+
+        so.save_start_offset(&segment_iden, 100).unwrap();
+        assert_eq!(so.get_start_offset(&segment_iden).unwrap(), 100);
+
+        so.save_end_offset(&segment_iden, 1000).unwrap();
+        assert_eq!(so.get_end_offset(&segment_iden).unwrap(), 1000);
+    }
+
+    #[tokio::test]
+    async fn batch_save_segment_metadata_test() {
+        let (segment_iden, cache_manager, _, rocksdb) =
+            test_init_segment(StorageType::EngineSegment).await;
+        let so = SegmentOffset::new(rocksdb, cache_manager);
+
+        so.batch_save_segment_metadata(&segment_iden, 100, 1000, 1609459200, 1609545600)
+            .unwrap();
+
+        assert_eq!(so.get_start_offset(&segment_iden).unwrap(), 100);
+        assert_eq!(so.get_end_offset(&segment_iden).unwrap(), 1000);
+        assert_eq!(so.get_start_timestamp(&segment_iden).unwrap(), 1609459200);
+        assert_eq!(so.get_end_timestamp(&segment_iden).unwrap(), 1609545600);
     }
 }

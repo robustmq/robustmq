@@ -20,8 +20,8 @@ use crate::{
     commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        index::read::get_in_segment_by_offset, offset::FileSegmentOffset,
-        read::segment_read_by_offset, segment_file::open_segment_write, SegmentIdentity,
+        file::open_segment_write, index::read::get_in_segment_by_offset, offset::SegmentOffset,
+        read::segment_read_by_offset, SegmentIdentity,
     },
 };
 use common_config::{broker::broker_config, storage::StorageType};
@@ -208,7 +208,7 @@ fn get_segment_no_by_offset(
                 Ok(segment_no)
             } else {
                 let file_segment_offset =
-                    FileSegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+                    SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
                 let earliest_offset = file_segment_offset.get_earliest_offset(shard_name)?;
                 let latest_offset = file_segment_offset.get_latest_offset(shard_name)?;
                 if offset <= earliest_offset {

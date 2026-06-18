@@ -16,7 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
-use crate::filesegment::offset::FileSegmentOffset;
+use crate::filesegment::offset::SegmentOffset;
 use crate::{
     clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
@@ -26,7 +26,7 @@ use crate::{
         shard::{create_shard_to_place, delete_shard_to_place},
         write::batch_write,
     },
-    filesegment::write::WriteManager,
+    filesegment::write_manager::WriteManager,
 };
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
@@ -188,7 +188,7 @@ impl StorageEngineHandler {
                         (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
                     }
                     StorageType::EngineSegment => {
-                        let o = FileSegmentOffset::new(
+                        let o = SegmentOffset::new(
                             self.rocksdb_engine_handler.clone(),
                             self.cache_manager.clone(),
                         );

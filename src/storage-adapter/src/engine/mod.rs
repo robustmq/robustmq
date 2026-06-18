@@ -22,7 +22,9 @@ use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use storage_engine::handler::adapter::StorageEngineHandler;
+use tokio::time::sleep;
 pub struct EngineStorageAdapter {
     adapter: Arc<StorageEngineHandler>,
 }
@@ -55,7 +57,31 @@ impl StorageAdapter for EngineStorageAdapter {
         shard: &str,
         records: &[AdapterWriteRecord],
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
-        self.adapter.write(shard, records).await
+        let mut pending: Vec<AdapterWriteRecord> = records.to_vec();
+        let mut final_results: Vec<AdapterWriteRespRow> = Vec::with_capacity(records.len());
+
+        loop {
+            let resp = self.adapter.write(shard, &pending).await?;
+
+            let mut overflow_record_ids: Vec<u64> = Vec::new();
+            for row in resp {
+                if row.need_next_segment {
+                    overflow_record_ids.push(row.pkid);
+                } else {
+                    final_results.push(row);
+                }
+            }
+
+            if overflow_record_ids.is_empty() {
+                break;
+            }
+
+            pending.retain(|r| overflow_record_ids.contains(&r.record_id));
+
+            sleep(Duration::from_millis(5)).await;
+        }
+
+        Ok(final_results)
     }
 
     async fn read_by_offset(

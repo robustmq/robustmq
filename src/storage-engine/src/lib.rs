@@ -18,7 +18,7 @@ use crate::clients::manager::ClientConnectionManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::filesegment::expire::start_segment_expire_thread;
-use crate::filesegment::write::WriteManager;
+use crate::filesegment::write_manager::WriteManager;
 use crate::handler::adapter::StorageEngineHandler;
 use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use crate::server::Server;

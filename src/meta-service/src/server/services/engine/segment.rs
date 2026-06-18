@@ -18,7 +18,6 @@ use crate::core::notify::send_notify_by_update_segment;
 use crate::core::segment::{
     create_segment, seal_up_segment, sync_update_segment_isr, update_segment_status,
 };
-use common_base::tools::now_second;
 use crate::core::segment_meta::{
     update_last_offset_by_segment_metadata, update_start_timestamp_by_segment_metadata,
 };
@@ -26,6 +25,7 @@ use crate::core::shard::update_scroll_segment_by_shard;
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
+use common_base::tools::now_second;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_journal::{

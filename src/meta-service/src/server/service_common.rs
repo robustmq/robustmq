@@ -227,14 +227,10 @@ impl MetaServiceService for GrpcPlacementService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        set_resource_config_by_req(
-            &self.raft_manager,
-            &self.mqtt_call_manager,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        set_resource_config_by_req(&self.raft_manager, &self.mqtt_call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn get_resource_config(

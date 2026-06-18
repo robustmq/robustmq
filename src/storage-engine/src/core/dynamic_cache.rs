@@ -16,9 +16,7 @@ use super::cache::StorageCacheManager;
 use crate::{
     commitlog::offset::CommitLogOffset,
     core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    filesegment::{
-        segment_file::open_segment_write, segment_offset::SegmentOffset, SegmentIdentity,
-    },
+    filesegment::{file::open_segment_write, offset::SegmentOffset, SegmentIdentity},
     isr::apply::apply_leader_and_isr,
     isr::fetcher_manager::ReplicaFetcherManager,
 };
@@ -285,7 +283,8 @@ async fn parse_segment_meta(
 
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
-            let segment_index_manager = SegmentOffset::new(rocksdb_engine_handler.clone());
+            let segment_index_manager =
+                SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
             segment_index_manager.batch_save_segment_metadata(
                 &segment_iden,
                 meta.start_offset,
@@ -379,8 +378,8 @@ mod tests {
 
     #[test]
     fn shard_update_notification_updates_active_segment_seq() {
-        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
         use common_base::tools::now_second;
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 
         let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
             BrokerConfig::default(),
@@ -403,10 +402,7 @@ mod tests {
         };
         cache.set_shard(initial_shard);
 
-        assert_eq!(
-            cache.shards.get(&shard_name).unwrap().active_segment_seq,
-            0
-        );
+        assert_eq!(cache.shards.get(&shard_name).unwrap().active_segment_seq, 0);
 
         // Simulate a Shard Update notification after scroll: active_segment_seq = 1
         let updated_shard = EngineShard {

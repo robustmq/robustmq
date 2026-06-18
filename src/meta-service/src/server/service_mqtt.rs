@@ -38,7 +38,6 @@ use crate::server::services::mqtt::user::{
 };
 use broker_core::cache::NodeCacheManager;
 use delay_task::manager::DelayTaskManager;
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttService;
@@ -72,7 +71,6 @@ pub struct GrpcMqttService {
     delay_task_manager: Arc<DelayTaskManager>,
     call_manager: Arc<NodeCallManager>,
     node_cache: Arc<NodeCacheManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl GrpcMqttService {
@@ -83,7 +81,6 @@ impl GrpcMqttService {
         delay_task_manager: Arc<DelayTaskManager>,
         call_manager: Arc<NodeCallManager>,
         node_cache: Arc<NodeCacheManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
             cache_manager,
@@ -91,7 +88,6 @@ impl GrpcMqttService {
             rocksdb_engine_handler,
             delay_task_manager,
             call_manager,
-            client_pool,
             node_cache,
         }
     }
@@ -181,14 +177,10 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_session_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        create_session_by_req(&self.raft_manager, &self.call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn delete_session(
@@ -426,14 +418,10 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        set_subscribe_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        set_subscribe_by_req(&self.raft_manager, &self.call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn delete_subscribe(
