@@ -261,6 +261,14 @@ fi
 
 # Run tests
 echo "Running integration tests..."
+# Integration tests all hit a single shared broker, so they are broker-bound, not
+# CPU-parallel. nextest's default profile uses 14 test threads; on a 4-core CI runner
+# that oversubscribes the CPU ~3.5x and starves the broker, causing request timeouts
+# (e.g. POST /mcp blocking 10s -> mcp_test failures). Scale concurrency to the available
+# cores so tests and the broker are not fighting over the CPU.
+TEST_THREADS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
 cargo nextest run --fail-fast \
+  --test-threads="${TEST_THREADS}" \
   --package grpc-clients \
   --package robustmq-test

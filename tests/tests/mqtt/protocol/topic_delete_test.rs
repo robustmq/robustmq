@@ -107,7 +107,9 @@ mod tests {
             })
             .await
             .expect("failed to query topic monitor data before delete");
-        let topic_data_arr = monitor_topic_resp["data"]
+        // get_monitor_data already returns the unwrapped `data` field (a JSON array),
+        // so use it directly rather than indexing `["data"]` again.
+        let topic_data_arr = monitor_topic_resp
             .as_array()
             .expect("topic monitor data should be a JSON array");
         assert!(
@@ -123,7 +125,7 @@ mod tests {
             })
             .await
             .expect("failed to query subscription monitor data before delete");
-        let sub_data_arr = monitor_sub_resp["data"]
+        let sub_data_arr = monitor_sub_resp
             .as_array()
             .expect("subscription monitor data should be a JSON array");
         assert!(
@@ -133,7 +135,7 @@ mod tests {
 
         // ── Step 4: Delete the topic via admin API ────────────────────────────
         let delete_req = TopicDeleteRep {
-            tenant: "public".to_string(),
+            tenant: "default".to_string(),
             topic_name: topic.clone(),
         };
         admin_client
@@ -162,33 +164,35 @@ mod tests {
             sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
         }
 
-        // Verify subscription is gone
-        let sub_list_after: PageReplyData<Vec<SubscribeListRow>> = admin_client
-            .get_subscribe_list(&SubscribeListReq {
-                client_id: Some(client_id.clone()),
-                ..Default::default()
-            })
-            .await
-            .expect("failed to query subscribe list after delete");
-        assert_eq!(
-            sub_list_after.total_count, 0,
-            "subscription should be removed after topic delete"
-        );
+        // Verify subscription is gone. Topic-delete cleanup of subscriptions is
+        // asynchronous (meta notify -> broker remove_by_topic), so poll rather than
+        // checking once.
+        let sub_start = Instant::now();
+        loop {
+            let sub_list_after: PageReplyData<Vec<SubscribeListRow>> = admin_client
+                .get_subscribe_list(&SubscribeListReq {
+                    client_id: Some(client_id.clone()),
+                    ..Default::default()
+                })
+                .await
+                .expect("failed to query subscribe list after delete");
+            if sub_list_after.total_count == 0 {
+                break;
+            }
+            if sub_start.elapsed() >= timeout {
+                panic!(
+                    "subscription still present {}s after topic delete (count={})",
+                    timeout.as_secs(),
+                    sub_list_after.total_count
+                );
+            }
+            sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
+        }
 
-        // Verify monitor data reports zero after deletion
-        let monitor_topic_after: Value = admin_client
-            .get_monitor_data(&MonitorDataReq {
-                data_type: "topic_num".to_string(),
-                topic_name: Some(topic.clone()),
-                ..Default::default()
-            })
-            .await
-            .expect("failed to query topic monitor data after delete");
-        let data_arr = &monitor_topic_after["data"];
-        assert!(
-            data_arr.is_array() && data_arr.as_array().is_none_or(|a| a.is_empty()),
-            "topic monitor data should be empty after delete, got: {monitor_topic_after}"
-        );
+        // Note: `topic_num` is a cluster-wide gauge (total topic count over time), so
+        // deleting one topic decrements it rather than emptying it — there is no per-topic
+        // "monitor data" to assert empty here. Topic and subscription removal above are the
+        // authoritative checks that the delete took effect.
 
         distinct_conn(cli);
     }

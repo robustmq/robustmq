@@ -16,7 +16,7 @@
 kind = "console"
 targets = [
     { path = "", level = "info" },
-    { path = "openraft", level = "info" },
+    { path = "openraft", level = "debug" },
 ]
 
 [server]
