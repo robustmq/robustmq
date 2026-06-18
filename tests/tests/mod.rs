@@ -20,4 +20,5 @@ pub mod mqtt;
 pub mod nats;
 pub mod node_call;
 pub mod offset_test;
+pub mod raft_cluster_drill;
 pub mod topic_test;

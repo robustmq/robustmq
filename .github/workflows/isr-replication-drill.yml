@@ -1,0 +1,84 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: ISR Replication Drill
+
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/pull_request_template.md"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_BUILD_JOBS: 8
+
+jobs:
+  isr-replication-drill:
+    name: ISR Replication Drill
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler cmake pkg-config libssl-dev libsasl2-dev libcurl4-openssl-dev libzstd-dev
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "integration-tests"
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Run ISR replication chaos drill
+        run: |
+          echo "## 🧨 ISR Replication Drill" >> $GITHUB_STEP_SUMMARY
+          if /bin/bash ./scripts/chaos-drill.sh three_replica_chaos_rolling_kill; then
+            echo "✅ ISR replication drill passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ ISR replication drill failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
