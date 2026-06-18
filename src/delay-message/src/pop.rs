@@ -27,12 +27,19 @@ use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::{broadcast, mpsc};
 use tokio::{select, sync::broadcast as bc};
 use tokio_util::time::DelayQueue;
 use tracing::{debug, error, info, warn};
+
+/// Max number of retry attempts when delivering an expired delay message fails.
+const MAX_DELIVERY_RETRIES: u32 = 15;
+/// Delay between delivery retries — short enough to deliver within typical test/SLA
+/// windows once a transient failure (e.g. leader switch) clears.
+const DELIVERY_RETRY_INTERVAL: Duration = Duration::from_secs(2);
 
 pub(crate) fn spawn_delay_message_pop_threads(
     delay_message_manager: &Arc<DelayMessageManager>,
@@ -114,6 +121,7 @@ async fn run_shard_loop(
                 let delay_message = expired.into_inner();
                 manager.remove_message_key(&delay_message.unique_id);
                 let storage = manager.storage_driver_manager.clone();
+                let retry_manager = manager.clone();
                 tokio::spawn(async move {
                     if let Err(e) = delay_message_process(
                         &storage,
@@ -122,10 +130,30 @@ async fn run_shard_loop(
                     )
                     .await
                     {
-                        error!(
-                            "Failed to process delay message: offset={}, target={}, error={}",
-                            delay_message.offset, delay_message.target_topic_name, e
-                        );
+                        // Delivery failed and the message was NOT deleted. Re-enqueue it for a
+                        // bounded number of retries (transient failures such as a leader switch
+                        // recover within seconds); give up afterwards so a permanently missing
+                        // target shard doesn't cause an unbounded retry loop.
+                        if delay_message.retry_count < MAX_DELIVERY_RETRIES {
+                            let mut retry = delay_message.clone();
+                            retry.retry_count += 1;
+                            warn!(
+                                "Delay message delivery failed (attempt {}/{}), retrying in {:?}: unique_id={}, target={}, error={}",
+                                retry.retry_count, MAX_DELIVERY_RETRIES, DELIVERY_RETRY_INTERVAL,
+                                retry.unique_id, retry.target_topic_name, e
+                            );
+                            retry_manager
+                                .reenqueue_for_retry(retry, DELIVERY_RETRY_INTERVAL)
+                                .await;
+                        } else {
+                            error!(
+                                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
+                                delay_message.retry_count, delay_message.unique_id,
+                                delay_message.target_topic_name, e
+                            );
+                            let _ = delete_delay_index_info(&storage, &delay_message).await;
+                            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
+                        }
                     }
                 });
             }
@@ -140,29 +168,27 @@ pub async fn delay_message_process(
 ) -> Result<(), CommonError> {
     let start = Instant::now();
 
-    match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
-        Ok(offset) => {
-            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-            record_delay_msg_deliver();
-            record_delay_msg_deliver_duration(duration_ms);
+    // Only delete the stored index + message after a *successful* delivery. A transient
+    // failure (target shard leader unreachable, metadata not yet synced) must NOT drop the
+    // message — the caller re-enqueues it for retry. Deleting on failure here permanently
+    // loses the message.
+    let offset =
+        match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
+            Ok(offset) => offset,
+            Err(e) => {
+                record_delay_msg_deliver_fail();
+                return Err(e);
+            }
+        };
 
-            info!(
-                "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, duration_ms={:.2}",
-                delay_info.unique_id,
-                delay_info.target_topic_name,
-                offset,
-                duration_ms
-            );
-        }
-        Err(e) => {
-            record_delay_msg_deliver_fail();
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    record_delay_msg_deliver();
+    record_delay_msg_deliver_duration(duration_ms);
+    info!(
+        "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, duration_ms={:.2}",
+        delay_info.unique_id, delay_info.target_topic_name, offset, duration_ms
+    );
 
-            error!(
-                "Failed to send delay message to target shard. unique_id={}, target_topic={}, offset={}, error={}",
-                delay_info.unique_id, delay_info.target_topic_name, delay_info.offset, e
-            );
-        }
-    };
     delete_delay_index_info(storage_driver_manager, delay_info).await?;
     delete_delay_message(storage_driver_manager, &delay_info.unique_id).await?;
 

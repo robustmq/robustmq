@@ -33,7 +33,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::time::Instant;
 use tokio_util::time::delay_queue;
-use tracing::debug;
+use tracing::{debug, error};
 
 /// Command sent from the manager to the per-shard pop thread.
 pub(crate) enum ShardCmd {
@@ -131,6 +131,7 @@ impl DelayMessageManager {
             target_topic_name: target_topic.to_string(),
             offset,
             target_timestamp,
+            retry_count: 0,
         };
 
         save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
@@ -183,6 +184,7 @@ impl DelayMessageManager {
             target_topic_name: String::new(),
             offset: 0,
             target_timestamp: 0,
+            retry_count: 0,
         };
         delete_delay_index_info(&self.storage_driver_manager, &delay_info).await?;
         delete_delay_message(&self.storage_driver_manager, unique_id).await?;
@@ -258,6 +260,42 @@ impl DelayMessageManager {
         Ok(())
     }
 
+    /// Re-enqueue a delay message for a retry after a transient delivery failure.
+    /// Unlike `send_to_delay_queue`, the delay is the explicit `interval` (the original
+    /// target_timestamp is already in the past), and the key is re-registered so the
+    /// message stays cancellable.
+    pub async fn reenqueue_for_retry(&self, delay_info: DelayMessageIndexInfo, interval: Duration) {
+        let shard_no = self
+            .incr_no
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            % self.delay_queue_num;
+
+        let Some(tx) = self.shard_cmd_tx.get(&shard_no).map(|r| r.clone()) else {
+            error!(
+                "Delay retry failed: shard {} cmd channel not found, unique_id={}",
+                shard_no, delay_info.unique_id
+            );
+            return;
+        };
+
+        let target_instant = Instant::now() + interval;
+        let unique_id = delay_info.unique_id.clone();
+        let (key_tx, key_rx) = oneshot::channel();
+        if tx
+            .send(ShardCmd::Insert(delay_info, target_instant, key_tx))
+            .is_err()
+        {
+            error!(
+                "Delay retry failed: shard {} cmd channel closed, unique_id={}",
+                shard_no, unique_id
+            );
+            return;
+        }
+        if let Ok(key) = key_rx.await {
+            self.message_key_map.insert(unique_id, (shard_no, key));
+        }
+    }
+
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {
         self.delay_queue_pop_thread.insert(shard_no, stop_send);
     }
@@ -275,6 +313,7 @@ mod test {
             target_topic_name: "test_topic".to_string(),
             offset: 12345,
             target_timestamp,
+            retry_count: 0,
         }
     }
 
