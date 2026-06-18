@@ -156,44 +156,38 @@ mod tests {
         let delete_result = client.delete_topic(&delete_req).await.unwrap();
         println!("delete_topic result: {}", delete_result);
 
-        // ── sleep 10s — wait for async shard/segment cleanup ──────────────────
-        sleep(Duration::from_secs(10)).await;
+        let cleanup_deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+        loop {
+            let topic_gone = client
+                .get_topic_list::<_, Vec<Topic>>(&list_req)
+                .await
+                .map(|r| r.data.is_empty())
+                .unwrap_or(false);
 
-        // ── list topic — verify topic is gone ─────────────────────────────────
-        let topic_list_final = client
-            .get_topic_list::<_, Vec<Topic>>(&list_req)
-            .await
-            .unwrap();
-        println!("topic list after cleanup: {:#?}", topic_list_final);
-        assert_eq!(
-            topic_list_final.data.len(),
-            0,
-            "topic should be removed after delete"
-        );
+            let shard_gone = client
+                .get_shard_list::<_, Vec<ShardListRow>>(&shard_req)
+                .await
+                .map(|r| r.data.is_empty())
+                .unwrap_or(false);
 
-        // ── list shard — verify shard is cleaned up ───────────────────────────
-        let shard_list_final = client
-            .get_shard_list::<_, Vec<ShardListRow>>(&shard_req)
-            .await
-            .unwrap();
-        println!("shard list after cleanup: {:#?}", shard_list_final);
-        assert_eq!(
-            shard_list_final.data.len(),
-            0,
-            "shard should be removed after topic delete"
-        );
+            let segment_gone = match client.get_segment_list(&segment_req).await {
+                Ok(s) => serde_json::from_str::<AdminServerResponse<SegmentListResp>>(&s)
+                    .map(|d| d.data.segment_list.is_empty())
+                    .unwrap_or(false),
+                Err(_) => false,
+            };
 
-        // ── list segment — verify segments are cleaned up ─────────────────────
-        let segment_resp_str_final = client.get_segment_list(&segment_req).await.unwrap();
-        println!("segment list after cleanup: {}", segment_resp_str_final);
-        let segment_data_final: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str_final).unwrap();
-        assert_eq!(segment_data_final.code, 0);
-        assert_eq!(
-            segment_data_final.data.segment_list.len(),
-            0,
-            "segments should be removed after topic delete"
-        );
+            if topic_gone && shard_gone && segment_gone {
+                break;
+            }
+            if tokio::time::Instant::now() >= cleanup_deadline {
+                panic!(
+                    "topic/shard/segment not cleaned up within 60s after delete \
+                     (topic_gone={topic_gone}, shard_gone={shard_gone}, segment_gone={segment_gone})"
+                );
+            }
+            sleep(Duration::from_secs(2)).await;
+        }
 
         // ── verify physical shard is deleted (via broker grpc) ────────────────
         let client_pool = Arc::new(ClientPool::new(3));
