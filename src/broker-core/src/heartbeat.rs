@@ -47,8 +47,33 @@ pub async fn register_node_and_start_heartbeat(
 ) {
     let config = broker_config();
 
-    if let Err(e) = register_node(client_pool, cache_manager).await {
-        panic!("Node {} registration failed: {}", config.broker_id, e);
+    let mut last_err = None;
+    for attempt in 1..=30 {
+        match register_node(client_pool, cache_manager).await {
+            Ok(()) => {
+                last_err = None;
+                break;
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("not initialized") || msg.contains("not retried") {
+                    debug!(
+                        "Node {} registration attempt {}/30 failed (peer not ready yet): {}",
+                        config.broker_id, attempt, msg
+                    );
+                    last_err = Some(e);
+                    sleep(Duration::from_secs(2)).await;
+                } else {
+                    panic!("Node {} registration failed: {}", config.broker_id, e);
+                }
+            }
+        }
+    }
+    if let Some(e) = last_err {
+        panic!(
+            "Node {} registration failed after 30 attempts: {}",
+            config.broker_id, e
+        );
     }
     info!("Node {} has been successfully registered", config.broker_id);
 
