@@ -16,6 +16,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::offset::CommitLogOffset;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::filesegment::replica::FileSegmentReplicaLog;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::advance_hw;
 use crate::isr::follower::update_follower_progress;
@@ -35,6 +36,7 @@ use tokio::time::sleep;
 pub struct FetchEngines {
     pub memory: Arc<MemoryStorageEngine>,
     pub rocksdb: Arc<RocksDBStorageEngine>,
+    pub segment: Arc<FileSegmentReplicaLog>,
 }
 
 pub async fn handle_fetch(
@@ -86,6 +88,17 @@ async fn collect(
                     cache_manager,
                     rocksdb_engine_handler,
                     engines.rocksdb.as_ref(),
+                    req.replica_id,
+                    req.replica_broker_epoch,
+                    shard_req,
+                )
+                .await
+            }
+            Some(StorageType::EngineSegment) => {
+                fetch_one_shard(
+                    cache_manager,
+                    rocksdb_engine_handler,
+                    engines.segment.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
                     shard_req,
@@ -373,9 +386,14 @@ mod tests {
     }
 
     fn engines(mem: &Arc<MemoryStorageEngine>) -> FetchEngines {
+        let rocksdb = mem.commit_log_offset.rocksdb_engine_handler.clone();
         FetchEngines {
             memory: mem.clone(),
             rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
+            segment: Arc::new(FileSegmentReplicaLog::new(
+                mem.cache_manager.clone(),
+                rocksdb,
+            )),
         }
     }
 

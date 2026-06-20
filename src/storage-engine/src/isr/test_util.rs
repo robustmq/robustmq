@@ -108,6 +108,10 @@ impl FetchTransport for InProcLeader {
         let engines = FetchEngines {
             memory: self.engine.clone(),
             rocksdb: Arc::new(test_build_rocksdb_engine()),
+            segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                self.engine.cache_manager.clone(),
+                self.engine.commit_log_offset.rocksdb_engine_handler.clone(),
+            )),
         };
         Ok(handle_offsets_for_leader_epoch(
             &engines,

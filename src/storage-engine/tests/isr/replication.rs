@@ -129,9 +129,16 @@ mod tests {
             _: u64,
             req: OffsetsForLeaderEpochReqBody,
         ) -> Result<OffsetsForLeaderEpochRespBody, StorageEngineError> {
+            let db = self.leader.commit_log_offset.rocksdb_engine_handler.clone();
             let engines = FetchEngines {
                 memory: self.leader.clone(),
                 rocksdb: make_rocksdb(&self.leader),
+                segment: Arc::new(
+                    storage_engine::filesegment::replica::FileSegmentReplicaLog::new(
+                        self.leader.cache_manager.clone(),
+                        db,
+                    ),
+                ),
             };
             Ok(handle_offsets_for_leader_epoch(
                 &engines,

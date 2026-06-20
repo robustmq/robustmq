@@ -19,6 +19,7 @@ pub mod file;
 pub mod index;
 pub mod offset;
 pub mod read;
+pub mod replica;
 pub mod scroll;
 pub mod write_io_work;
 pub mod write_manager;

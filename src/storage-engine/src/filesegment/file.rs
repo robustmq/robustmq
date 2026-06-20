@@ -202,6 +202,9 @@ impl SegmentFile {
                 (8 + 4 + 4 + metadata_bytes_len + 4 + protocol_data_len + 4 + data_len) as u64;
         }
         writer.flush().await?;
+        // Invalidate the mmap cache so subsequent reads see the newly appended data.
+        // The cache is rebuilt lazily on the next read via ensure_mmap().
+        self.clear_cache();
         Ok(offset_positions)
     }
 
@@ -221,7 +224,7 @@ impl SegmentFile {
     ///
     /// The records are stored in the segment file in the following format:
     ///
-    ///     [offset: u64][len: u32][data: bytes]
+    /// `[offset: u64][len: u32][data: bytes]`
     ///
     /// We only consider `data` when calculating the size of a record.
     ///

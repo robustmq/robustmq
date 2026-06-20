@@ -21,6 +21,7 @@ use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::write::batch_write;
+use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::write_manager::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_config::storage::StorageType;
@@ -65,6 +66,17 @@ pub async fn shard_offset_req(
                 .saturating_sub(1);
             (o.get_earliest_offset(shard_name).unwrap_or(0), end)
         }
+        StorageType::EngineSegment => {
+            let so = SegmentOffset::new(
+                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
+                cache_manager.clone(),
+            );
+            let end = so
+                .get_latest_offset(shard_name)
+                .unwrap_or(0)
+                .saturating_sub(1);
+            (so.get_earliest_offset(shard_name).unwrap_or(0), end)
+        }
         _ => (0, 0),
     };
 
@@ -87,6 +99,17 @@ pub async fn shard_offset_req(
                         AdapterOffsetStrategy::Earliest,
                     )
                     .await?
+            }
+            StorageType::EngineSegment => {
+                let so = SegmentOffset::new(
+                    rocksdb_storage_engine.rocksdb_engine_handler.clone(),
+                    cache_manager.clone(),
+                );
+                so.get_offset_by_timestamp(
+                    shard_name,
+                    req_body.timestamp,
+                    AdapterOffsetStrategy::Earliest,
+                )?
             }
             _ => 0,
         }

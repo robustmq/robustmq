@@ -68,6 +68,7 @@ pub fn build_storage_engine_params(
         cache_manager.clone(),
         memory_storage_engine.clone(),
         rocksdb_storage_engine.clone(),
+        rocksdb_engine_handler.clone(),
         client_connection_manager.clone(),
     ));
     let storage_engine_handler = Arc::new(StorageEngineHandler::new(StorageEngineHandlerParams {

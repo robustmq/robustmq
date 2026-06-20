@@ -39,11 +39,13 @@ mod tests {
 
     fn make_fetcher_manager(engine: &Arc<MemoryStorageEngine>) -> Arc<ReplicaFetcherManager> {
         let cm = engine.cache_manager.clone();
+        let db = engine.commit_log_offset.rocksdb_engine_handler.clone();
         let client = Arc::new(ClientConnectionManager::new(cm.clone(), 1));
         Arc::new(build_engine_fetcher_manager(
             cm,
             engine.clone(),
             make_rocksdb(engine),
+            db,
             client,
         ))
     }

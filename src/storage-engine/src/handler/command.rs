@@ -203,6 +203,10 @@ impl Command for StorageEngineHandlerCommand {
                 let engines = FetchEngines {
                     memory: self.memory_storage_engine.clone(),
                     rocksdb: self.rocksdb_storage_engine.clone(),
+                    segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                        self.cache_manager.clone(),
+                        self.rocksdb_engine_handler.clone(),
+                    )),
                 };
                 let body = handle_fetch(
                     &engines,
@@ -224,6 +228,10 @@ impl Command for StorageEngineHandlerCommand {
                 let engines = FetchEngines {
                     memory: self.memory_storage_engine.clone(),
                     rocksdb: self.rocksdb_storage_engine.clone(),
+                    segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                        self.cache_manager.clone(),
+                        self.rocksdb_engine_handler.clone(),
+                    )),
                 };
                 let body = handle_offsets_for_leader_epoch(
                     &engines,

@@ -111,6 +111,7 @@ fn leo_for(
     match storage_type_of(cache_manager, shard) {
         Some(StorageType::EngineRocksDB) => engines.rocksdb.latest_offset(shard, segment_seq).ok(),
         Some(StorageType::EngineMemory) => engines.memory.latest_offset(shard, segment_seq).ok(),
+        Some(StorageType::EngineSegment) => engines.segment.latest_offset(shard, segment_seq).ok(),
         _ => None,
     }
 }
@@ -143,6 +144,10 @@ pub fn query_local_replica_state(
             .unwrap_or(0),
         Some(StorageType::EngineMemory) => engines
             .memory
+            .log_start_offset(shard, segment_seq)
+            .unwrap_or(0),
+        Some(StorageType::EngineSegment) => engines
+            .segment
             .log_start_offset(shard, segment_seq)
             .unwrap_or(0),
         _ => 0,
@@ -211,6 +216,10 @@ mod tests {
         let engines = FetchEngines {
             memory,
             rocksdb: Arc::new(test_build_rocksdb_engine()),
+            segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                cm.clone(),
+                db.clone(),
+            )),
         };
         (engines, cm, db)
     }

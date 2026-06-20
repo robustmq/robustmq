@@ -153,6 +153,7 @@ mod tests {
             cm.clone(),
             memory,
             rocksdb,
+            db.clone(),
             client,
         ))
     }

@@ -180,6 +180,7 @@ pub fn build_engine_fetcher_manager(
     cache_manager: Arc<StorageCacheManager>,
     memory: Arc<MemoryStorageEngine>,
     rocksdb: Arc<RocksDBStorageEngine>,
+    rocksdb_engine_handler: Arc<rocksdb_engine::rocksdb::RocksDBEngine>,
     client: Arc<ClientConnectionManager>,
 ) -> ReplicaFetcherManager {
     let num_fetchers = cache_manager
@@ -189,7 +190,16 @@ pub fn build_engine_fetcher_manager(
         .num_replica_fetchers;
     let broker_cache = cache_manager.broker_cache.clone();
     let transport: Arc<dyn FetchTransport> = Arc::new(PacketFetchTransport::new(client));
-    let log: Arc<dyn ReplicaLog> = Arc::new(EngineReplicaLog::new(memory, rocksdb, cache_manager));
+    let segment = Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+        cache_manager.clone(),
+        rocksdb_engine_handler,
+    ));
+    let log: Arc<dyn ReplicaLog> = Arc::new(EngineReplicaLog::new(
+        memory,
+        rocksdb,
+        segment,
+        cache_manager,
+    ));
     ReplicaFetcherManager::new(num_fetchers, transport, log, broker_cache)
 }
 
@@ -205,11 +215,13 @@ mod tests {
 
     fn follower_log(memory: Arc<MemoryStorageEngine>) -> EngineReplicaLog {
         let cache_manager = memory.cache_manager.clone();
-        let rocksdb = Arc::new(RocksDBStorageEngine::new(
+        let db = test_rocksdb_instance();
+        let rocksdb = Arc::new(RocksDBStorageEngine::new(cache_manager.clone(), db.clone()));
+        let segment = Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
             cache_manager.clone(),
-            test_rocksdb_instance(),
+            db,
         ));
-        EngineReplicaLog::new(memory, rocksdb, cache_manager)
+        EngineReplicaLog::new(memory, rocksdb, segment, cache_manager)
     }
 
     #[tokio::test]
