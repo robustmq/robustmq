@@ -84,6 +84,17 @@ impl SegmentOffsetIndex {
             .min_by_key(|r| r.start_offset)
             .map(|r| r.segment_seq)
     }
+
+    pub fn expired_head_seqs(&self, earliest_timestamp: i64) -> Vec<u32> {
+        let mut seqs = Vec::new();
+        for range in &self.ranges {
+            if range.end_timestamp <= 0 || range.end_timestamp >= earliest_timestamp {
+                break;
+            }
+            seqs.push(range.segment_seq);
+        }
+        seqs
+    }
 }
 
 #[cfg(test)]
@@ -119,5 +130,30 @@ mod tests {
         assert_eq!(index.find_segment(2500), Some(2));
         assert_eq!(index.find_segment_by_timestamp(2500), None);
         assert_eq!(index.find_segment_by_timestamp(3500), Some(2));
+    }
+
+    #[test]
+    fn expired_head_seqs_returns_only_sealed_expired_segments() {
+        let mut index = SegmentOffsetIndex::new();
+        index.add(0, 0, 500, 1000);
+        index.add(1, 100, 1000, 2000);
+        index.add(2, 200, 2000, 0);
+        index.sort();
+
+        assert_eq!(index.expired_head_seqs(1500), vec![0]);
+        assert_eq!(index.expired_head_seqs(2500), vec![0, 1]);
+        assert!(index.expired_head_seqs(500).is_empty());
+    }
+
+    #[test]
+    fn expired_head_seqs_stops_at_first_live_segment() {
+        let mut index = SegmentOffsetIndex::new();
+        index.add(0, 0, 100, 1000);
+        index.add(1, 100, 1000, 3000);
+        index.add(2, 200, 3000, 5000);
+        index.sort();
+
+        let expired = index.expired_head_seqs(2000);
+        assert_eq!(expired, vec![0]);
     }
 }

@@ -17,6 +17,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset_manager::ShardOffsetManager;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
@@ -35,9 +36,6 @@ use protocol::storage::protocol::{
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-/// Resolve a shard's offsets locally (this node is the shard leader). Mirrors the
-/// local branches of `list_shard` (start/end) and `get_offset_by_timestamp0`, so a
-/// consumer on a non-leader node gets the same answer it would compute locally.
 pub async fn shard_offset_req(
     cache_manager: &Arc<StorageCacheManager>,
     memory_storage_engine: &Arc<MemoryStorageEngine>,
@@ -49,36 +47,29 @@ pub async fn shard_offset_req(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
     };
 
-    let (start_offset, end_offset) = match shard.config.storage_type {
-        StorageType::EngineMemory => {
-            let o = &memory_storage_engine.commit_log_offset;
-            let end = o
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (o.get_earliest_offset(shard_name).unwrap_or(0), end)
+    let mgr: Box<dyn ShardOffsetManager> = match shard.config.storage_type {
+        StorageType::EngineMemory => Box::new(memory_storage_engine.commit_log_offset.clone()),
+        StorageType::EngineRocksDB => Box::new(rocksdb_storage_engine.commitlog_offset.clone()),
+        StorageType::EngineSegment => Box::new(SegmentOffset::new(
+            rocksdb_storage_engine.rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+        )),
+        _ => {
+            return Ok(ShardOffsetRespBody {
+                start_offset: 0,
+                end_offset: 0,
+                offset: 0,
+                ..Default::default()
+            })
         }
-        StorageType::EngineRocksDB => {
-            let o = &rocksdb_storage_engine.commitlog_offset;
-            let end = o
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (o.get_earliest_offset(shard_name).unwrap_or(0), end)
-        }
-        StorageType::EngineSegment => {
-            let so = SegmentOffset::new(
-                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
-                cache_manager.clone(),
-            );
-            let end = so
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (so.get_earliest_offset(shard_name).unwrap_or(0), end)
-        }
-        _ => (0, 0),
     };
+
+    let end = mgr
+        .get_latest_offset(shard_name)
+        .unwrap_or(0)
+        .saturating_sub(1);
+    let start_offset = mgr.get_earliest_offset(shard_name).unwrap_or(0);
+    let end_offset = end;
 
     let offset = if req_body.by_timestamp {
         match shard.config.storage_type {
@@ -100,18 +91,13 @@ pub async fn shard_offset_req(
                     )
                     .await?
             }
-            StorageType::EngineSegment => {
-                let so = SegmentOffset::new(
-                    rocksdb_storage_engine.rocksdb_engine_handler.clone(),
-                    cache_manager.clone(),
-                );
-                so.get_offset_by_timestamp(
+            _ => mgr
+                .get_offset_by_timestamp(
                     shard_name,
                     req_body.timestamp,
                     AdapterOffsetStrategy::Earliest,
-                )?
-            }
-            _ => 0,
+                )
+                .unwrap_or(0),
         }
     } else {
         0

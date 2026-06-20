@@ -27,6 +27,7 @@ use protocol::broker::broker::{
     SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, ShardSegmentDeleteStatus,
     UpdateCacheReply, UpdateCacheRequest,
 };
+use std::sync::Arc;
 use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
 use storage_engine::isr::handle_epoch::query_local_replica_state;
 use storage_engine::isr::handle_fetch::FetchEngines;
@@ -176,6 +177,12 @@ impl BrokerService for GrpcBrokerService {
         let engines = FetchEngines {
             memory: self.storage_params.memory_storage_engine.clone(),
             rocksdb: self.storage_params.rocksdb_storage_engine.clone(),
+            segment: Arc::new(
+                storage_engine::filesegment::replica::FileSegmentReplicaLog::new(
+                    self.storage_params.cache_manager.clone(),
+                    self.storage_params.rocksdb_engine_handler.clone(),
+                ),
+            ),
         };
         let state = query_local_replica_state(
             &engines,

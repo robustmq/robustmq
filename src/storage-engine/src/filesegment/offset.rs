@@ -27,7 +27,9 @@ use rocksdb_engine::keys::engine::{
     timestamp_segment_start,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::engine::{engine_get_by_engine, engine_save_by_engine};
+use rocksdb_engine::storage::engine::{
+    engine_delete_by_engine, engine_get_by_engine, engine_save_by_engine,
+};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use std::sync::Arc;
 
@@ -195,6 +197,31 @@ impl SegmentOffset {
         Ok(-1)
     }
 
+    /// Delete all RocksDB offset/timestamp keys for `segment_iden`.
+    ///
+    /// Called by `delete_local_segment` to prevent orphaned metadata from
+    /// accumulating after a segment file is removed.
+    pub fn delete_segment_metadata(
+        &self,
+        segment_iden: &SegmentIdentity,
+    ) -> Result<(), StorageEngineError> {
+        let keys = [
+            offset_segment_start(&segment_iden.shard_name, segment_iden.segment),
+            offset_segment_end(&segment_iden.shard_name, segment_iden.segment),
+            offset_segment_high_watermark(&segment_iden.shard_name, segment_iden.segment),
+            timestamp_segment_start(&segment_iden.shard_name, segment_iden.segment),
+            timestamp_segment_end(&segment_iden.shard_name, segment_iden.segment),
+        ];
+        for key in &keys {
+            engine_delete_by_engine(
+                &self.rocksdb_engine_handler,
+                DB_COLUMN_FAMILY_STORAGE_ENGINE,
+                key,
+            )?;
+        }
+        Ok(())
+    }
+
     pub fn batch_save_segment_metadata(
         &self,
         segment_iden: &SegmentIdentity,
@@ -336,6 +363,25 @@ impl SegmentOffset {
     }
 }
 
+impl crate::core::offset_manager::ShardOffsetManager for SegmentOffset {
+    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        self.get_latest_offset(shard_name)
+    }
+
+    fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        self.get_earliest_offset(shard_name)
+    }
+
+    fn get_offset_by_timestamp(
+        &self,
+        shard_name: &str,
+        timestamp: u64,
+        strategy: metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy,
+    ) -> Result<u64, StorageEngineError> {
+        self.get_offset_by_timestamp(shard_name, timestamp, strategy)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SegmentOffset;
@@ -368,5 +414,34 @@ mod tests {
         assert_eq!(so.get_end_offset(&segment_iden).unwrap(), 1000);
         assert_eq!(so.get_start_timestamp(&segment_iden).unwrap(), 1609459200);
         assert_eq!(so.get_end_timestamp(&segment_iden).unwrap(), 1609545600);
+    }
+
+    #[tokio::test]
+    async fn delete_segment_metadata_cleans_all_keys() {
+        let (segment_iden, cache_manager, _, rocksdb) =
+            test_init_segment(StorageType::EngineSegment).await;
+        let so = SegmentOffset::new(rocksdb, cache_manager);
+
+        // Populate all 5 metadata keys.
+        so.batch_save_segment_metadata(&segment_iden, 0, 99, 1000, 2000)
+            .unwrap();
+        so.save_high_watermark_offset(&segment_iden, 80).unwrap();
+
+        // Verify they are present.
+        assert_eq!(so.get_start_offset(&segment_iden).unwrap(), 0);
+        assert_eq!(so.get_end_offset(&segment_iden).unwrap(), 99);
+        assert_eq!(so.get_high_watermark_offset(&segment_iden).unwrap(), 80);
+        assert_eq!(so.get_start_timestamp(&segment_iden).unwrap(), 1000);
+        assert_eq!(so.get_end_timestamp(&segment_iden).unwrap(), 2000);
+
+        // Delete metadata.
+        so.delete_segment_metadata(&segment_iden).unwrap();
+
+        // All keys should now return the "not found" sentinel (-1).
+        assert_eq!(so.get_start_offset(&segment_iden).unwrap(), -1);
+        assert_eq!(so.get_end_offset(&segment_iden).unwrap(), -1);
+        assert_eq!(so.get_high_watermark_offset(&segment_iden).unwrap(), -1);
+        assert_eq!(so.get_start_timestamp(&segment_iden).unwrap(), -1);
+        assert_eq!(so.get_end_timestamp(&segment_iden).unwrap(), -1);
     }
 }

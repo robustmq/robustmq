@@ -16,6 +16,7 @@ use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
 use crate::filesegment::file::{open_segment_write, SegmentFile};
 use crate::filesegment::index::build::delete_segment_index;
+use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
@@ -116,6 +117,22 @@ pub async fn delete_local_segment(
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
         info!("Delete Segment {:?} index, hint:{:?}", segment_iden, e);
+    }
+
+    // delete SegmentOffset metadata (EngineSegment only)
+    let shard_storage_type = cache_manager
+        .shards
+        .get(&segment_iden.shard_name)
+        .map(|s| s.config.storage_type);
+    if matches!(shard_storage_type, Some(StorageType::EngineSegment)) {
+        let segment_offset =
+            SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        if let Err(e) = segment_offset.delete_segment_metadata(segment_iden) {
+            info!(
+                "Delete Segment {:?} offset metadata, hint:{:?}",
+                segment_iden, e
+            );
+        }
     }
 
     // delete local file

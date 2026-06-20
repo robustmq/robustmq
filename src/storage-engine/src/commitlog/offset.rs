@@ -146,6 +146,16 @@ impl CommitLogOffset {
     }
 }
 
+impl crate::core::offset_manager::ShardOffsetManager for CommitLogOffset {
+    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        self.get_latest_offset(shard_name)
+    }
+
+    fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
+        self.get_earliest_offset(shard_name)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

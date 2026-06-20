@@ -285,10 +285,25 @@ async fn parse_segment_meta(
 
             let segment_index_manager =
                 SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+
+            // Preserve the local end_offset when it is higher than the meta-service value.
+            // After a broker crash, local RocksDB retains the pre-crash LEO while the
+            // meta service only knows the value from the last segment seal (scroll). If we
+            // blindly overwrite with the meta value, the writer resumes from a stale offset
+            // and consumers see fewer available records until the next seal.
+            let local_end = segment_index_manager
+                .get_end_offset(&segment_iden)
+                .unwrap_or(-1);
+            let effective_end = if local_end > meta.end_offset {
+                local_end
+            } else {
+                meta.end_offset
+            };
+
             segment_index_manager.batch_save_segment_metadata(
                 &segment_iden,
                 meta.start_offset,
-                meta.end_offset,
+                effective_end,
                 meta.start_timestamp,
                 meta.end_timestamp,
             )?;

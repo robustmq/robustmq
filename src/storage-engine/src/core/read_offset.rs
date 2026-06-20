@@ -172,7 +172,7 @@ async fn read_by_rocksdb(
         .await
 }
 
-async fn read_by_segment(
+pub(crate) async fn read_by_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
@@ -180,18 +180,55 @@ async fn read_by_segment(
     segment: u32,
     read_config: &AdapterReadConfig,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let segment_iden = SegmentIdentity::new(shard_name, segment);
-    let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-    let data_list = segment_read_by_offset(
-        rocksdb_engine_handler,
-        &mut segment_file,
-        &segment_iden,
-        offset,
-        read_config.max_size,
-        read_config.max_record_num,
-    )
-    .await?;
-    Ok(data_list.into_iter().map(|raw| raw.record).collect())
+    let mut results: Vec<StorageRecord> = Vec::new();
+    let mut remaining_records = read_config.max_record_num;
+    let mut remaining_size = read_config.max_size;
+    let mut current_seq = segment;
+    let mut current_offset = offset;
+
+    loop {
+        let segment_iden = SegmentIdentity::new(shard_name, current_seq);
+        let mut segment_file = match open_segment_write(cache_manager, &segment_iden).await {
+            Ok(f) => f,
+            Err(_) => break,
+        };
+
+        let batch = segment_read_by_offset(
+            rocksdb_engine_handler,
+            &mut segment_file,
+            &segment_iden,
+            current_offset,
+            remaining_size,
+            remaining_records,
+        )
+        .await?;
+
+        let count = batch.len() as u64;
+        for raw in batch {
+            remaining_size = remaining_size.saturating_sub(raw.record.data.len() as u64);
+            results.push(raw.record);
+        }
+        remaining_records = remaining_records.saturating_sub(count);
+
+        if count == 0 || remaining_records == 0 || remaining_size == 0 {
+            break;
+        }
+
+        // Continue into the next segment if it exists and is in cache.
+        let next_seq = current_seq + 1;
+        if cache_manager
+            .get_segment(&SegmentIdentity::new(shard_name, next_seq))
+            .is_none()
+        {
+            break;
+        }
+        current_seq = next_seq;
+        // Start at the first record of the next segment (index lookup returns position 0
+        // when no exact-offset match is found, so passing offset 0 reads from the top).
+        current_offset = 0;
+    }
+
+    Ok(results)
 }
 
 fn get_segment_no_by_offset(
@@ -227,5 +264,180 @@ fn get_segment_no_by_offset(
             "Unsupported storage type {:?} for shard {}",
             shard.config.storage_type, shard_name
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_by_segment;
+    use crate::core::segment::create_local_segment;
+    use crate::core::test_tool::test_init_segment;
+    use crate::filesegment::offset::SegmentOffset;
+    use crate::filesegment::replica::FileSegmentReplicaLog;
+    use crate::filesegment::SegmentIdentity;
+    use crate::isr::log::ReplicaLog;
+    use bytes::Bytes;
+    use common_config::storage::StorageType;
+    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use metadata_struct::storage::segment::{EngineSegment, Replica, SegmentStatus};
+    use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+
+    fn record(offset: u64, data: &str, shard: &str, seg: u32) -> StorageRecord {
+        StorageRecord {
+            metadata: StorageRecordMetadata {
+                offset,
+                shard: shard.to_string(),
+                segment: seg,
+                ..Default::default()
+            },
+            data: Bytes::from(data.to_string()),
+            protocol_data: None,
+        }
+    }
+
+    async fn append(log: &FileSegmentReplicaLog, shard: &str, seg: u32, recs: Vec<StorageRecord>) {
+        let base = recs.first().unwrap().metadata.offset;
+        log.append_at(shard, seg, base, recs).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn reads_within_single_segment() {
+        let (iden, cm, fold, db) = test_init_segment(StorageType::EngineSegment).await;
+        let shard = &iden.shard_name;
+
+        let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
+        append(
+            &log,
+            shard,
+            0,
+            vec![record(0, "a", shard, 0), record(1, "b", shard, 0)],
+        )
+        .await;
+
+        let cfg = AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+        let results = read_by_segment(&cm, &db, shard, 0, 0, &cfg).await.unwrap();
+        assert_eq!(results.len(), 2);
+        let _ = fold;
+    }
+
+    #[tokio::test]
+    async fn continues_into_next_segment_when_first_is_exhausted() {
+        let (iden, cm, fold, db) = test_init_segment(StorageType::EngineSegment).await;
+        let shard = &iden.shard_name;
+
+        let seg1 = EngineSegment {
+            shard_name: shard.clone(),
+            segment_seq: 1,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: fold.clone(),
+            }],
+            leader: 1,
+            leader_epoch: 0,
+            status: SegmentStatus::Write,
+            isr: vec![1],
+            ..Default::default()
+        };
+        create_local_segment(&cm, &seg1).await.unwrap();
+        cm.set_segment_meta(EngineSegmentMetadata {
+            shard_name: shard.clone(),
+            segment_seq: 1,
+            start_offset: 2,
+            ..Default::default()
+        });
+        cm.sort_offset_index(shard);
+
+        let so = SegmentOffset::new(db.clone(), cm.clone());
+        let iden1 = SegmentIdentity::new(shard, 1);
+        so.save_start_offset(&iden1, 2).unwrap();
+        so.save_end_offset(&iden1, 2).unwrap();
+
+        let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
+        append(
+            &log,
+            shard,
+            0,
+            vec![record(0, "a", shard, 0), record(1, "b", shard, 0)],
+        )
+        .await;
+        append(
+            &log,
+            shard,
+            1,
+            vec![record(2, "c", shard, 1), record(3, "d", shard, 1)],
+        )
+        .await;
+
+        let cfg = AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        };
+        let results = read_by_segment(&cm, &db, shard, 0, 0, &cfg).await.unwrap();
+        assert_eq!(results.len(), 4, "expected records from both segments");
+        assert_eq!(results[2].data, Bytes::from("c"));
+        assert_eq!(results[3].data, Bytes::from("d"));
+    }
+
+    #[tokio::test]
+    async fn respects_max_record_num_across_segments() {
+        let (iden, cm, fold, db) = test_init_segment(StorageType::EngineSegment).await;
+        let shard = &iden.shard_name;
+
+        let seg1 = EngineSegment {
+            shard_name: shard.clone(),
+            segment_seq: 1,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: fold.clone(),
+            }],
+            leader: 1,
+            leader_epoch: 0,
+            status: SegmentStatus::Write,
+            isr: vec![1],
+            ..Default::default()
+        };
+        create_local_segment(&cm, &seg1).await.unwrap();
+        cm.set_segment_meta(EngineSegmentMetadata {
+            shard_name: shard.clone(),
+            segment_seq: 1,
+            start_offset: 2,
+            ..Default::default()
+        });
+        cm.sort_offset_index(shard);
+
+        let so = SegmentOffset::new(db.clone(), cm.clone());
+        let iden1 = SegmentIdentity::new(shard, 1);
+        so.save_start_offset(&iden1, 2).unwrap();
+        so.save_end_offset(&iden1, 2).unwrap();
+
+        let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
+        append(
+            &log,
+            shard,
+            0,
+            vec![record(0, "a", shard, 0), record(1, "b", shard, 0)],
+        )
+        .await;
+        append(
+            &log,
+            shard,
+            1,
+            vec![record(2, "c", shard, 1), record(3, "d", shard, 1)],
+        )
+        .await;
+
+        let cfg = AdapterReadConfig {
+            max_record_num: 3,
+            max_size: 1024 * 1024,
+        };
+        let results = read_by_segment(&cm, &db, shard, 0, 0, &cfg).await.unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[2].data, Bytes::from("c"));
     }
 }
