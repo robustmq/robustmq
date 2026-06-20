@@ -363,25 +363,6 @@ impl SegmentOffset {
     }
 }
 
-impl crate::core::offset_manager::ShardOffsetManager for SegmentOffset {
-    fn get_latest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        self.get_latest_offset(shard_name)
-    }
-
-    fn get_earliest_offset(&self, shard_name: &str) -> Result<u64, StorageEngineError> {
-        self.get_earliest_offset(shard_name)
-    }
-
-    fn get_offset_by_timestamp(
-        &self,
-        shard_name: &str,
-        timestamp: u64,
-        strategy: metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy,
-    ) -> Result<u64, StorageEngineError> {
-        self.get_offset_by_timestamp(shard_name, timestamp, strategy)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::SegmentOffset;
