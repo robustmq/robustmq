@@ -137,7 +137,7 @@ mod tests {
     fn init_offsets(engine: &crate::commitlog::rocksdb::engine::RocksDBStorageEngine, shard: &str) {
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
     }
 

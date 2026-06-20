@@ -17,11 +17,11 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset::ShardOffset;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
 use crate::core::write::batch_write;
-use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::write_manager::WriteManager;
 use common_base::utils::serialize::{deserialize, serialize};
 use common_config::storage::StorageType;
@@ -64,9 +64,9 @@ pub async fn shard_offset_req(
             (clo.get_earliest_offset(shard_name).unwrap_or(0), end)
         }
         StorageType::EngineSegment => {
-            let so = SegmentOffset::new(
-                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
+            let so = ShardOffset::new(
                 cache_manager.clone(),
+                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
             );
             let end = so
                 .get_latest_offset(shard_name)
@@ -101,16 +101,15 @@ pub async fn shard_offset_req(
                     )
                     .await?
             }
-            StorageType::EngineSegment => SegmentOffset::new(
-                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
-                cache_manager.clone(),
-            )
-            .get_offset_by_timestamp(
-                shard_name,
-                req_body.timestamp,
-                AdapterOffsetStrategy::Earliest,
-            )
-            .unwrap_or(0),
+            StorageType::EngineSegment => {
+                crate::filesegment::read::get_segment_offset_by_timestamp(
+                    cache_manager,
+                    &rocksdb_storage_engine.rocksdb_engine_handler,
+                    shard_name,
+                    req_body.timestamp,
+                    AdapterOffsetStrategy::Earliest,
+                )?
+            }
             _ => 0,
         }
     } else {
@@ -300,8 +299,8 @@ pub async fn read_data_req(
 #[cfg(test)]
 mod tests {
     use crate::commitlog::memory::engine::MemoryStorageEngine;
-    use crate::commitlog::offset::CommitLogOffset;
     use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_init_segment;
     use crate::filesegment::write_manager::WriteManager;
     use crate::handler::data::read_data_req;
@@ -340,8 +339,7 @@ mod tests {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_init_segment(engine_storage_type).await;
 
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let commit_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         commit_offset
             .save_earliest_offset(&segment_iden.shard_name, 0)
             .unwrap();
@@ -350,7 +348,7 @@ mod tests {
             .unwrap();
         cache_manager.save_offset_state(
             segment_iden.shard_name.clone(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
 
         let shard_info = cache_manager.shards.get(&segment_iden.shard_name).unwrap();

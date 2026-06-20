@@ -326,8 +326,8 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::commitlog::offset::CommitLogOffset;
     use crate::core::cache::StorageCacheManager;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_build_rocksdb_engine;
     use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
@@ -341,7 +341,7 @@ mod tests {
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+            ShardOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();

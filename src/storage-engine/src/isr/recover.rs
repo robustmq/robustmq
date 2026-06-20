@@ -187,7 +187,7 @@ mod tests {
 
         cm.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
 
         let recs: Vec<_> = (0..3u64)

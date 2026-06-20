@@ -30,21 +30,23 @@ pub struct ShardOffsetState {
     pub latest_offset: u64,
 }
 
-pub struct CommitLogOffset {
+#[derive(Clone)]
+pub struct ShardOffset {
     pub cache_manager: Arc<StorageCacheManager>,
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
-impl CommitLogOffset {
+
+impl ShardOffset {
     pub fn new(
         cache_manager: Arc<StorageCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
-        CommitLogOffset {
+        ShardOffset {
             cache_manager,
             rocksdb_engine_handler,
         }
     }
-    // ===== latest offset (LEO) =====
+
     pub fn save_latest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
         self.save_offset(&shard_latest_offset(shard), offset)?;
         self.cache_manager.update_latest_offset(shard, offset);
@@ -53,13 +55,11 @@ impl CommitLogOffset {
 
     pub fn get_latest_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
         if let Some(state) = self.cache_manager.get_offset_state(shard) {
-            Ok(state.latest_offset)
-        } else {
-            Ok(self.recover_shard_data(shard)?.latest_offset)
+            return Ok(state.latest_offset);
         }
+        Ok(self.recover_shard_data(shard)?.latest_offset)
     }
 
-    // ===== earliest offset (log start) =====
     pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
         self.save_offset(&shard_earliest_offset(shard), offset)?;
         self.cache_manager.update_earliest_offset(shard, offset);
@@ -68,13 +68,11 @@ impl CommitLogOffset {
 
     pub fn get_earliest_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
         if let Some(state) = self.cache_manager.get_offset_state(shard) {
-            Ok(state.earliest_offset)
-        } else {
-            Ok(self.recover_shard_data(shard)?.earliest_offset)
+            return Ok(state.earliest_offset);
         }
+        Ok(self.recover_shard_data(shard)?.earliest_offset)
     }
 
-    // ===== high watermark（HW） =====
     pub fn save_high_watermark_offset(
         &self,
         shard: &str,
@@ -91,12 +89,11 @@ impl CommitLogOffset {
 
     pub fn get_high_watermark_offset(&self, shard: &str) -> Result<u64, StorageEngineError> {
         if let Some(state) = self.cache_manager.get_offset_state(shard) {
-            Ok(state.high_watermark_offset)
-        } else {
-            Ok(self
-                .load_offset(&shard_high_watermark_offset(shard))?
-                .unwrap_or(0))
+            return Ok(state.high_watermark_offset);
         }
+        Ok(self
+            .load_offset(&shard_high_watermark_offset(shard))?
+            .unwrap_or(0))
     }
 
     fn save_offset(&self, key: &str, offset: u64) -> Result<(), StorageEngineError> {
@@ -119,22 +116,14 @@ impl CommitLogOffset {
     }
 
     fn recover_shard_data(&self, shard: &str) -> Result<ShardOffsetState, StorageEngineError> {
-        let missing = |what: &str| {
-            StorageEngineError::CommonErrorStr(format!(
-                "Failed to recover shard '{shard}': {what} offset not found in storage"
-            ))
-        };
         let earliest_offset = self
             .load_offset(&shard_earliest_offset(shard))?
-            .ok_or_else(|| missing("earliest"))?;
-        let latest_offset = self
-            .load_offset(&shard_latest_offset(shard))?
-            .ok_or_else(|| missing("latest"))?;
+            .unwrap_or(0);
+        let latest_offset = self.load_offset(&shard_latest_offset(shard))?.unwrap_or(0);
         let high_watermark_offset = self
             .load_offset(&shard_high_watermark_offset(shard))?
             .unwrap_or(0)
             .min(latest_offset);
-
         let state = ShardOffsetState {
             earliest_offset,
             latest_offset,
@@ -155,63 +144,45 @@ mod tests {
     use rocksdb_engine::test::test_rocksdb_instance;
     use std::sync::Arc;
 
-    #[tokio::test]
-    async fn test_save_and_read_earliest_offset() {
-        let rocksdb_engine = test_rocksdb_instance();
+    fn make_offset() -> ShardOffset {
+        let rocksdb = test_rocksdb_instance();
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
-
-        let shard_name = "test_shard";
-        let offset = 12345u64;
-
-        offset_manager
-            .save_offset(&shard_earliest_offset(shard_name), offset)
-            .unwrap();
-        let result = offset_manager
-            .load_offset(&shard_earliest_offset(shard_name))
-            .unwrap();
-
-        assert_eq!(result, Some(offset));
+        let cache = Arc::new(StorageCacheManager::new(broker_cache));
+        ShardOffset::new(cache, rocksdb)
     }
 
     #[tokio::test]
-    async fn test_save_and_read_high_watermark_offset() {
-        let rocksdb_engine = test_rocksdb_instance();
-        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
-
-        let shard_name = "test_shard";
-        let offset = 67890u64;
-
-        offset_manager
-            .save_offset(&shard_high_watermark_offset(shard_name), offset)
-            .unwrap();
-        let result = offset_manager
-            .load_offset(&shard_high_watermark_offset(shard_name))
-            .unwrap();
-
-        assert_eq!(result, Some(offset));
+    async fn save_and_get_latest_offset() {
+        let o = make_offset();
+        o.save_latest_offset("s1", 42).unwrap();
+        assert_eq!(o.get_latest_offset("s1").unwrap(), 42);
     }
 
     #[tokio::test]
-    async fn test_save_and_read_latest_offset() {
-        let rocksdb_engine = test_rocksdb_instance();
+    async fn save_and_get_earliest_offset() {
+        let o = make_offset();
+        o.save_earliest_offset("s1", 10).unwrap();
+        assert_eq!(o.get_earliest_offset("s1").unwrap(), 10);
+    }
+
+    #[tokio::test]
+    async fn save_and_get_high_watermark_offset() {
+        let o = make_offset();
+        o.save_high_watermark_offset("s1", 100).unwrap();
+        assert_eq!(o.get_high_watermark_offset("s1").unwrap(), 100);
+    }
+
+    #[tokio::test]
+    async fn recover_from_rocksdb_when_cache_empty() {
+        let rocksdb = test_rocksdb_instance();
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let offset_manager = CommitLogOffset::new(cache_manager, rocksdb_engine.clone());
+        let cache = Arc::new(StorageCacheManager::new(broker_cache));
+        let o1 = ShardOffset::new(cache.clone(), rocksdb.clone());
+        o1.save_latest_offset("s2", 77).unwrap();
+        o1.save_earliest_offset("s2", 5).unwrap();
 
-        let shard_name = "test_shard";
-        let offset = 99999u64;
-
-        offset_manager
-            .save_offset(&shard_latest_offset(shard_name), offset)
-            .unwrap();
-        let result = offset_manager
-            .load_offset(&shard_latest_offset(shard_name))
-            .unwrap();
-
-        assert_eq!(result, Some(offset));
+        let o2 = ShardOffset::new(cache, rocksdb);
+        assert_eq!(o2.get_latest_offset("s2").unwrap(), 77);
+        assert_eq!(o2.get_earliest_offset("s2").unwrap(), 5);
     }
 }

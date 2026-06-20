@@ -15,9 +15,9 @@
 use super::write_manager::{SegmentWriteResp, WriteChannelData};
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset::ShardOffset;
 use crate::filesegment::file::open_segment_write;
 use crate::filesegment::index::build::{save_index, BuildIndexRaw, IndexTypeEnum};
-use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::scroll::{
     is_trigger_next_segment_scroll, trigger_next_segment_scroll, trigger_seal_segment,
     trigger_update_start_timestamp,
@@ -41,7 +41,7 @@ use tracing::{error, info};
 #[derive(Clone)]
 pub struct IoWork {
     offset_data: dashmap::DashMap<String, u64>,
-    segment_offset: SegmentOffset,
+    shard_offset: ShardOffset,
 }
 
 impl IoWork {
@@ -53,7 +53,7 @@ impl IoWork {
         info!("io worker {} start success", io_seq);
         IoWork {
             offset_data: dashmap::DashMap::with_capacity(16),
-            segment_offset: SegmentOffset::new(rocksdb_engine_handler, cache_manager),
+            shard_offset: ShardOffset::new(cache_manager, rocksdb_engine_handler),
         }
     }
 
@@ -62,12 +62,9 @@ impl IoWork {
         if let Some(offset) = self.offset_data.get(&key) {
             return Ok(*offset);
         }
-        // Cache miss: look up the correct next write offset for this segment.
-        // get_segment_next_write_offset returns start_offset for brand-new segments
-        // (end_offset == 0) so a new leader does not restart writing at 0.
         let result = self
-            .segment_offset
-            .get_segment_next_write_offset(segment_iden)?;
+            .shard_offset
+            .get_latest_offset(&segment_iden.shard_name)?;
         self.offset_data.insert(key, result);
         Ok(result)
     }
@@ -77,8 +74,8 @@ impl IoWork {
         segment_iden: &SegmentIdentity,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        self.segment_offset
-            .save_latest_offset(segment_iden, offset)?;
+        self.shard_offset
+            .save_latest_offset(&segment_iden.shard_name, offset)?;
         self.offset_data.insert(segment_iden.name(), offset);
         Ok(())
     }

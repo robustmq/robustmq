@@ -14,9 +14,11 @@
 
 use super::cache::StorageCacheManager;
 use crate::{
-    commitlog::offset::CommitLogOffset,
-    core::{error::StorageEngineError, segment::delete_local_segment, shard::delete_local_shard},
-    filesegment::{file::open_segment_write, offset::SegmentOffset, SegmentIdentity},
+    core::{
+        error::StorageEngineError, offset::ShardOffset, segment::delete_local_segment,
+        shard::delete_local_shard,
+    },
+    filesegment::{file::open_segment_write, SegmentIdentity},
     isr::apply::apply_leader_and_isr,
     isr::fetcher_manager::ReplicaFetcherManager,
 };
@@ -84,17 +86,13 @@ async fn parse_shard(
     match action_type {
         BrokerUpdateCacheActionType::Create => {
             let shard = EngineShard::decode(data)?;
-            if shard.config.storage_type == StorageType::EngineMemory
-                || shard.config.storage_type == StorageType::EngineRocksDB
-            {
-                let commit_offset =
-                    CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
-                commit_offset.save_earliest_offset(&shard.shard_name, 0)?;
-                commit_offset.save_latest_offset(&shard.shard_name, 0)?;
-            }
+            let shard_offset =
+                ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+            shard_offset.save_earliest_offset(&shard.shard_name, 0)?;
+            shard_offset.save_latest_offset(&shard.shard_name, 0)?;
             cache_manager.save_offset_state(
                 shard.shard_name.clone(),
-                crate::commitlog::offset::ShardOffsetState::default(),
+                crate::core::offset::ShardOffsetState::default(),
             );
             cache_manager.set_shard(shard);
         }
@@ -166,21 +164,17 @@ async fn parse_segment(
                 segment_file.try_create().await?;
             }
 
-            if shard.config.storage_type == StorageType::EngineMemory
-                || shard.config.storage_type == StorageType::EngineRocksDB
-            {
-                // Only initialize offsets for a segment that is genuinely new on
-                // this node. A leader switch / ISR recovery / rebalance re-sends the
-                // segment to nodes that ALREADY hold its data as a "Create"; resetting
-                // offsets there would wipe the committed log's bookkeeping
-                // (latest_offset -> 0) and make the new leader truncate committed data.
-                // If offset state already exists, leave it untouched.
-                if cache_manager.get_offset_state(&shard.shard_name).is_none() {
-                    let commit_log_offset =
-                        CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
-                    commit_log_offset.save_earliest_offset(&shard.shard_name, 0)?;
-                    commit_log_offset.save_latest_offset(&shard.shard_name, 0)?;
-                }
+            // Only initialize offsets for a segment that is genuinely new on
+            // this node. A leader switch / ISR recovery / rebalance re-sends the
+            // segment to nodes that ALREADY hold its data as a "Create"; resetting
+            // offsets there would wipe the committed log's bookkeeping
+            // (latest_offset -> 0) and make the new leader truncate committed data.
+            // If offset state already exists, leave it untouched.
+            if cache_manager.get_offset_state(&shard.shard_name).is_none() {
+                let shard_offset =
+                    ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+                shard_offset.save_earliest_offset(&shard.shard_name, 0)?;
+                shard_offset.save_latest_offset(&shard.shard_name, 0)?;
             }
         }
 
@@ -225,6 +219,25 @@ async fn parse_segment(
             let segment = EngineSegment::decode(data)?;
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
             delete_local_segment(cache_manager, rocksdb_engine_handler, &segment_iden).await?;
+
+            let shard = cache_manager
+                .shards
+                .get(&segment.shard_name)
+                .map(|s| s.clone());
+            if let Some(shard) = shard {
+                if shard.config.storage_type == StorageType::EngineSegment {
+                    let start_seq = shard.start_segment_seq;
+                    let next_iden = SegmentIdentity::new(&segment.shard_name, start_seq);
+                    if let Some(meta) = cache_manager.get_segment_meta(&next_iden) {
+                        let shard_offset =
+                            ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+                        let _ = shard_offset.save_earliest_offset(
+                            &segment.shard_name,
+                            meta.start_offset.max(0) as u64,
+                        );
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -256,7 +269,7 @@ fn is_stale_segment_notification(
 
 async fn parse_segment_meta(
     cache_manager: &Arc<StorageCacheManager>,
-    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    _rocksdb_engine_handler: &Arc<RocksDBEngine>,
     action_type: BrokerUpdateCacheActionType,
     data: &[u8],
 ) -> Result<(), StorageEngineError> {
@@ -283,32 +296,7 @@ async fn parse_segment_meta(
 
             let segment_iden = SegmentIdentity::new(&meta.shard_name, meta.segment_seq);
 
-            let segment_index_manager =
-                SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
-
-            // Preserve the local end_offset when it is higher than the meta-service value.
-            // After a broker crash, local RocksDB retains the pre-crash LEO while the
-            // meta service only knows the value from the last segment seal (scroll). If we
-            // blindly overwrite with the meta value, the writer resumes from a stale offset
-            // and consumers see fewer available records until the next seal.
-            let local_end = segment_index_manager
-                .get_end_offset(&segment_iden)
-                .unwrap_or(-1);
-            let effective_end = if local_end > meta.end_offset {
-                local_end
-            } else {
-                meta.end_offset
-            };
-
-            segment_index_manager.batch_save_segment_metadata(
-                &segment_iden,
-                meta.start_offset,
-                effective_end,
-                meta.start_timestamp,
-                meta.end_timestamp,
-            )?;
             cache_manager.set_segment_meta(meta);
-
             cache_manager.sort_offset_index(&segment_iden.shard_name);
         }
 

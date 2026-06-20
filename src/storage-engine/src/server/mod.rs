@@ -35,7 +35,6 @@ use rate_limit::global::GlobalRateLimiterManager;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-pub mod inner;
 
 pub struct ServerParams {
     pub client_pool: Arc<ClientPool>,

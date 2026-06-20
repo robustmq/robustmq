@@ -203,7 +203,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        commitlog::offset::CommitLogOffset,
+        core::offset::ShardOffset,
         core::{cache::StorageCacheManager, test_tool::test_build_memory_engine},
     };
     use broker_core::cache::NodeCacheManager;
@@ -217,7 +217,7 @@ mod tests {
         let shard_name = unique_id();
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let commit_offset = CommitLogOffset::new(
+        let commit_offset = ShardOffset::new(
             cache_manager.clone(),
             engine.commit_log_offset.rocksdb_engine_handler.clone(),
         );

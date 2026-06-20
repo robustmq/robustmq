@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::offset::ShardOffset;
 use crate::{
     clients::{
         manager::ClientConnectionManager,
@@ -20,7 +21,7 @@ use crate::{
     commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        file::open_segment_write, index::read::get_in_segment_by_offset, offset::SegmentOffset,
+        file::open_segment_write, index::read::get_in_segment_by_offset,
         read::segment_read_by_offset, SegmentIdentity,
     },
 };
@@ -245,7 +246,7 @@ fn get_segment_no_by_offset(
                 Ok(segment_no)
             } else {
                 let file_segment_offset =
-                    SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+                    ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
                 let earliest_offset = file_segment_offset.get_earliest_offset(shard_name)?;
                 let latest_offset = file_segment_offset.get_latest_offset(shard_name)?;
                 if offset <= earliest_offset {
@@ -272,9 +273,7 @@ mod tests {
     use super::read_by_segment;
     use crate::core::segment::create_local_segment;
     use crate::core::test_tool::test_init_segment;
-    use crate::filesegment::offset::SegmentOffset;
     use crate::filesegment::replica::FileSegmentReplicaLog;
-    use crate::filesegment::SegmentIdentity;
     use crate::isr::log::ReplicaLog;
     use bytes::Bytes;
     use common_config::storage::StorageType;
@@ -352,11 +351,6 @@ mod tests {
         });
         cm.sort_offset_index(shard);
 
-        let so = SegmentOffset::new(db.clone(), cm.clone());
-        let iden1 = SegmentIdentity::new(shard, 1);
-        so.save_start_offset(&iden1, 2).unwrap();
-        so.save_end_offset(&iden1, 2).unwrap();
-
         let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
         append(
             &log,
@@ -410,11 +404,6 @@ mod tests {
             ..Default::default()
         });
         cm.sort_offset_index(shard);
-
-        let so = SegmentOffset::new(db.clone(), cm.clone());
-        let iden1 = SegmentIdentity::new(shard, 1);
-        so.save_start_offset(&iden1, 2).unwrap();
-        so.save_end_offset(&iden1, 2).unwrap();
 
         let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
         append(

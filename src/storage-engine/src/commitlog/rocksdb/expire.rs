@@ -163,8 +163,8 @@ impl RocksDBStorageEngine {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commitlog::{offset::CommitLogOffset, rocksdb::engine::RocksDBStorageEngine},
-        core::cache::StorageCacheManager,
+        commitlog::rocksdb::engine::RocksDBStorageEngine,
+        core::{cache::StorageCacheManager, offset::ShardOffset},
     };
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
@@ -185,7 +185,7 @@ mod tests {
             BrokerConfig::default(),
         ))));
 
-        let commit_offset = CommitLogOffset::new(cache_manager.clone(), db.clone());
+        let commit_offset = ShardOffset::new(cache_manager.clone(), db.clone());
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();

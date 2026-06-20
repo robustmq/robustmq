@@ -15,12 +15,13 @@
 use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
-    core::{cache::StorageCacheManager, error::StorageEngineError},
+    core::{cache::StorageCacheManager, error::StorageEngineError, offset::ShardOffset},
     filesegment::{
         file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
     },
 };
+use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
@@ -105,13 +106,44 @@ pub async fn segment_read_by_tag(
     Ok(all_results)
 }
 
+pub fn get_segment_offset_by_timestamp(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+    timestamp: u64,
+    strategy: AdapterOffsetStrategy,
+) -> Result<u64, StorageEngineError> {
+    use crate::filesegment::index::read::{
+        get_in_segment_by_timestamp, get_index_data_by_timestamp,
+    };
+
+    if let Some(segment) = get_in_segment_by_timestamp(cache_manager, shard_name, timestamp as i64)?
+    {
+        let segment_iden = SegmentIdentity::new(shard_name, segment);
+        if let Some(index_data) =
+            get_index_data_by_timestamp(rocksdb_engine_handler, &segment_iden, timestamp)?
+        {
+            return Ok(index_data.offset);
+        }
+        return Err(StorageEngineError::CommonErrorStr(format!(
+            "No index data found for timestamp {} in segment {}",
+            timestamp, segment
+        )));
+    }
+    let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    match strategy {
+        AdapterOffsetStrategy::Earliest => shard_offset.get_earliest_offset(shard_name),
+        AdapterOffsetStrategy::Latest => shard_offset.get_latest_offset(shard_name),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{sync::Arc, time::Duration};
 
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
-        commitlog::offset::CommitLogOffset,
+        core::offset::ShardOffset,
         core::{cache::StorageCacheManager, test_tool::test_init_segment},
         filesegment::{
             file::SegmentFile,
@@ -181,8 +213,7 @@ mod tests {
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let commit_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         commit_offset
             .save_earliest_offset(&segment_iden.shard_name, 0)
             .unwrap();

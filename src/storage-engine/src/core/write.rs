@@ -235,7 +235,7 @@ async fn write_segment_to_local(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commitlog::offset::CommitLogOffset;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_init_segment;
     use crate::isr::follower::update_follower_progress;
     use bytes::Bytes;
@@ -255,7 +255,7 @@ mod tests {
     async fn env() -> Env {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_init_segment(StorageType::EngineMemory).await;
-        let offset = CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         offset
             .save_earliest_offset(&segment_iden.shard_name, 0)
             .unwrap();
@@ -264,7 +264,7 @@ mod tests {
             .unwrap();
         cache_manager.save_offset_state(
             segment_iden.shard_name.clone(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         cache_manager.add_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 

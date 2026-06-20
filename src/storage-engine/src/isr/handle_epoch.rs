@@ -203,7 +203,7 @@ mod tests {
         cm.add_segment_replica("s", 0);
         cm.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         let records: Vec<_> = (0..leo).map(|o| record(o, "v")).collect();
         if !records.is_empty() {

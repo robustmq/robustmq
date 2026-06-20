@@ -34,8 +34,8 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-    use storage_engine::commitlog::offset::ShardOffsetState;
     use storage_engine::core::error::StorageEngineError;
+    use storage_engine::core::offset::ShardOffsetState;
     use storage_engine::isr::fetcher::{
         FetchTransport, ReplicaFetcherThread, SegmentFetchState, SegmentMap,
     };

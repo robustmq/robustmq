@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::commitlog::memory::engine::MemoryStorageEngine;
-use crate::commitlog::offset::CommitLogOffset;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::core::offset::ShardOffset;
 use crate::filesegment::replica::FileSegmentReplicaLog;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::advance_hw;
@@ -208,8 +208,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    let commit_log_offset =
-        CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let commit_log_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
     let Some(hw) = advance_hw(
         cache_manager,
         &commit_log_offset,
@@ -274,7 +273,7 @@ mod tests {
         engine.cache_manager.add_segment_replica("s", 0);
         engine.cache_manager.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         engine
             .append_at(
@@ -361,7 +360,7 @@ mod tests {
         mem.cache_manager.add_segment_replica("s", 0);
         mem.cache_manager.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         if !records.is_empty() {
             mem.append_at("s", 0, 0, records).await.unwrap();
@@ -459,7 +458,7 @@ mod tests {
             mem.cache_manager.add_segment_replica(shard, 0);
             mem.cache_manager.save_offset_state(
                 shard.to_string(),
-                crate::commitlog::offset::ShardOffsetState::default(),
+                crate::core::offset::ShardOffsetState::default(),
             );
         }
         mem.append_at("s1", 0, 0, vec![record(0, "a"), record(1, "b")])

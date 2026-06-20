@@ -37,9 +37,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-use storage_engine::commitlog::offset::CommitLogOffset;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
+use storage_engine::core::offset::ShardOffset;
 use storage_engine::filesegment::write_manager::WriteManager;
 use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
 
@@ -175,7 +175,7 @@ pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_
             segment_seq: 0,
             ..Default::default()
         });
-    let commit_offset = CommitLogOffset::new(
+    let commit_offset = ShardOffset::new(
         storage_driver_manager
             .engine_storage_handler
             .cache_manager

@@ -28,7 +28,7 @@ mod tests {
     use rocksdb_engine::test::test_rocksdb_instance;
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-    use storage_engine::commitlog::offset::ShardOffsetState;
+    use storage_engine::core::offset::ShardOffsetState;
     use storage_engine::isr::apply::apply_leader_and_isr;
     use storage_engine::isr::fetcher_manager::{
         build_engine_fetcher_manager, ReplicaFetcherManager,

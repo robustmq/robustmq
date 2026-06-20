@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::offset::CommitLogOffset, core::cache::StorageCacheManager};
+use crate::core::{cache::StorageCacheManager, offset::ShardOffset};
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
@@ -43,7 +43,7 @@ impl ShardState {
 pub struct MemoryStorageEngine {
     pub shards: DashMap<String, Arc<ShardState>>,
     pub config: StorageDriverMemoryConfig,
-    pub commit_log_offset: Arc<CommitLogOffset>,
+    pub commit_log_offset: Arc<ShardOffset>,
     pub cache_manager: Arc<StorageCacheManager>,
 }
 
@@ -56,7 +56,7 @@ impl MemoryStorageEngine {
         MemoryStorageEngine {
             shards: DashMap::with_capacity(8),
             config,
-            commit_log_offset: Arc::new(CommitLogOffset::new(
+            commit_log_offset: Arc::new(ShardOffset::new(
                 cache_manager.clone(),
                 rocksdb_engine_handler.clone(),
             )),

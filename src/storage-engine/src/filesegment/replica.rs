@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::offset::CommitLogOffset;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset::ShardOffset;
 use crate::filesegment::file::{data_file_segment, open_segment_write};
 use crate::filesegment::index::build::{
     delete_segment_index, save_index, BuildIndexRaw, IndexTypeEnum,
 };
-use crate::filesegment::offset::SegmentOffset;
 use crate::filesegment::read::segment_read_by_offset;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::log::ReplicaLog;
@@ -38,8 +37,7 @@ use tracing::warn;
 pub struct FileSegmentReplicaLog {
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    segment_offset: SegmentOffset,
-    commit_log_offset: CommitLogOffset,
+    shard_offset: ShardOffset,
 }
 
 impl FileSegmentReplicaLog {
@@ -47,15 +45,11 @@ impl FileSegmentReplicaLog {
         cache_manager: Arc<StorageCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
-        let segment_offset =
-            SegmentOffset::new(rocksdb_engine_handler.clone(), cache_manager.clone());
-        let commit_log_offset =
-            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         FileSegmentReplicaLog {
             cache_manager,
             rocksdb_engine_handler,
-            segment_offset,
-            commit_log_offset,
+            shard_offset,
         }
     }
 }
@@ -78,9 +72,7 @@ impl ReplicaLog for FileSegmentReplicaLog {
             return Ok(());
         }
         let segment_iden = SegmentIdentity::new(shard, segment_seq);
-        let leo = self
-            .segment_offset
-            .get_segment_next_write_offset(&segment_iden)?;
+        let leo = self.shard_offset.get_latest_offset(shard)?;
 
         if base_offset != leo {
             return Err(StorageEngineError::CommonErrorStr(format!(
@@ -134,8 +126,7 @@ impl ReplicaLog for FileSegmentReplicaLog {
 
         // Advance LEO = offset of the last record + 1.
         let new_leo = records.last().map(|r| r.metadata.offset + 1).unwrap_or(leo);
-        self.segment_offset
-            .save_latest_offset(&segment_iden, new_leo)?;
+        self.shard_offset.save_latest_offset(shard, new_leo)?;
 
         Ok(())
     }
@@ -161,10 +152,8 @@ impl ReplicaLog for FileSegmentReplicaLog {
         Ok(results.into_iter().map(|r| r.record).collect())
     }
 
-    fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        let segment_iden = SegmentIdentity::new(shard, segment_seq);
-        self.segment_offset
-            .get_segment_next_write_offset(&segment_iden)
+    fn latest_offset(&self, shard: &str, _segment_seq: u32) -> Result<u64, StorageEngineError> {
+        self.shard_offset.get_latest_offset(shard)
     }
 
     /// Truncate the segment file to keep records with offset ≤ `offset`.
@@ -200,8 +189,7 @@ impl ReplicaLog for FileSegmentReplicaLog {
         }
 
         // New LEO = offset + 1 (records [start_offset .. offset] survive).
-        self.segment_offset
-            .save_latest_offset(&segment_iden, offset + 1)?;
+        self.shard_offset.save_latest_offset(shard, offset + 1)?;
 
         Ok(())
     }
@@ -226,22 +214,19 @@ impl ReplicaLog for FileSegmentReplicaLog {
             );
         }
 
-        // Reset LEO to the segment's start offset.
-        let start = self
-            .segment_offset
-            .get_start_offset(&segment_iden)
-            .map(|v| v.max(0) as u64)
-            .unwrap_or(0);
-        self.segment_offset
-            .save_latest_offset(&segment_iden, start)?;
+        // Reset LEO to 0 (clearing a segment resets the write pointer).
+        self.shard_offset.save_latest_offset(shard, 0)?;
 
         Ok(())
     }
 
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
         let segment_iden = SegmentIdentity::new(shard, segment_seq);
-        let v = self.segment_offset.get_start_offset(&segment_iden)?;
-        Ok(v.max(0) as u64)
+        Ok(self
+            .cache_manager
+            .get_segment_meta(&segment_iden)
+            .map(|m| m.start_offset.max(0) as u64)
+            .unwrap_or(0))
     }
 
     /// Update the follower's local HW.
@@ -249,7 +234,7 @@ impl ReplicaLog for FileSegmentReplicaLog {
     /// Written to `CommitLogOffset` (same key the leader uses for acks=all
     /// waits) so that the HW broadcast wakes any pending `wait_for_hw` futures.
     fn update_high_watermark(&self, shard: &str, hw: u64) -> Result<(), StorageEngineError> {
-        self.commit_log_offset
+        self.shard_offset
             .save_high_watermark_offset(shard, hw)
             .map(|_| ())
     }

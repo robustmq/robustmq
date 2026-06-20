@@ -52,7 +52,7 @@ pub fn init_offsets(engine: &MemoryStorageEngine, shards: &[&str]) {
         });
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
     }
 }
@@ -139,7 +139,7 @@ pub async fn leader_with(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader 
         engine.cache_manager.add_segment_replica(shard, 0);
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         if !records.is_empty() {
             engine

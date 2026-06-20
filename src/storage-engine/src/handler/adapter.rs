@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
+use crate::core::offset::ShardOffset;
 use crate::core::read_key::{read_by_key, ReadByKeyParams};
 use crate::core::read_offset::{read_by_offset, ReadByOffsetParams};
 use crate::core::read_tag::{read_by_tag, ReadByTagParams};
-use crate::filesegment::offset::SegmentOffset;
 use crate::{
     clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
@@ -188,9 +188,9 @@ impl StorageEngineHandler {
                         (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
                     }
                     StorageType::EngineSegment => {
-                        let o = SegmentOffset::new(
-                            self.rocksdb_engine_handler.clone(),
+                        let o = ShardOffset::new(
                             self.cache_manager.clone(),
+                            self.rocksdb_engine_handler.clone(),
                         );
                         let end = o
                             .get_latest_offset(&shard.shard_name)
@@ -559,8 +559,13 @@ impl StorageEngineHandler {
             }
 
             StorageType::EngineSegment => {
-                // self.get_shard_offset_by_timestamp_by_segment(shard_name, timestamp, strategy)?
-                0
+                crate::filesegment::read::get_segment_offset_by_timestamp(
+                    &self.cache_manager,
+                    &self.rocksdb_engine_handler,
+                    shard_name,
+                    timestamp,
+                    strategy,
+                )?
             }
 
             _ => {
