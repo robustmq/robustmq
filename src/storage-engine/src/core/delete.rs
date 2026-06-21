@@ -13,29 +13,42 @@
 // limitations under the License.
 
 use super::cache::StorageCacheManager;
-use crate::core::offset::ShardOffset;
-use crate::core::segment::delete_local_segment;
-use crate::filesegment::file::data_fold_shard;
+use crate::commitlog::memory::engine::MemoryStorageEngine;
+use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::filesegment::SegmentIdentity;
+use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use common_base::tools::loop_select_ticket;
-use common_config::{broker::broker_config, storage::StorageType};
+use common_config::storage::StorageType;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::{fs::remove_dir_all, path::Path, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{error, info};
 
-const DELETE_WORKER_INTERVAL_MS: u64 = 1000;
+const DELETE_WORKER_INTERVAL_MS: u64 = 5000;
 
 pub async fn start_delete_worker(
     cache_manager: Arc<StorageCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    memory_engine: Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
+    fetcher_manager: Arc<ReplicaFetcherManager>,
     stop_sx: &broadcast::Sender<bool>,
 ) {
     let ac_fn = || {
         let cache_manager = cache_manager.clone();
         let rocksdb_engine_handler = rocksdb_engine_handler.clone();
+        let memory_engine = memory_engine.clone();
+        let rocksdb_storage_engine = rocksdb_storage_engine.clone();
+        let fetcher_manager = fetcher_manager.clone();
         async move {
-            run_once(&cache_manager, &rocksdb_engine_handler).await;
+            run_once(
+                &cache_manager,
+                &rocksdb_engine_handler,
+                &memory_engine,
+                &rocksdb_storage_engine,
+                &fetcher_manager,
+            )
+            .await;
             Ok(())
         }
     };
@@ -45,74 +58,119 @@ pub async fn start_delete_worker(
 async fn run_once(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    memory_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
 ) {
     let (shards, segments) = cache_manager.take_pending_deletes();
 
     for seg_iden in segments {
-        delete_segment(cache_manager, rocksdb_engine_handler, &seg_iden).await;
+        delete_segment(
+            cache_manager,
+            rocksdb_engine_handler,
+            memory_engine,
+            rocksdb_storage_engine,
+            fetcher_manager,
+            &seg_iden,
+        )
+        .await;
     }
 
     for shard_name in shards {
-        delete_shard(cache_manager, rocksdb_engine_handler, &shard_name).await;
+        delete_shard(
+            cache_manager,
+            rocksdb_engine_handler,
+            memory_engine,
+            rocksdb_storage_engine,
+            fetcher_manager,
+            &shard_name,
+        )
+        .await;
     }
 }
 
 async fn delete_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    memory_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
     seg_iden: &SegmentIdentity,
 ) {
-    if let Err(e) = delete_local_segment(cache_manager, rocksdb_engine_handler, seg_iden).await {
-        error!("Failed to delete segment {}: {}", seg_iden.name(), e);
-        return;
-    }
+    fetcher_manager.remove_segment(&seg_iden.shard_name, seg_iden.segment);
 
-    // For EngineSegment shards, advance earliest_offset to the new start segment.
-    if let Some(shard) = cache_manager.shards.get(&seg_iden.shard_name) {
-        if shard.config.storage_type == StorageType::EngineSegment {
-            let next_iden = SegmentIdentity::new(&seg_iden.shard_name, shard.start_segment_seq);
-            if let Some(meta) = cache_manager.get_segment_meta(&next_iden) {
-                let shard_offset =
-                    ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
-                let _ = shard_offset
-                    .save_earliest_offset(&seg_iden.shard_name, meta.start_offset.max(0) as u64);
+    let storage_type = cache_manager
+        .shards
+        .get(&seg_iden.shard_name)
+        .map(|s| s.config.storage_type)
+        .unwrap_or_default();
+
+    match storage_type {
+        StorageType::EngineMemory => {
+            memory_engine.delete_by_segment(&seg_iden.shard_name, seg_iden.segment);
+        }
+        StorageType::EngineRocksDB => {
+            if let Err(e) =
+                rocksdb_storage_engine.delete_by_segment(&seg_iden.shard_name, seg_iden.segment)
+            {
+                error!("delete rocksdb segment {}: {}", seg_iden.name(), e);
+                return;
             }
         }
+        StorageType::EngineSegment => {
+            if let Err(e) = crate::filesegment::delete::delete_by_segment(
+                cache_manager,
+                rocksdb_engine_handler,
+                seg_iden,
+            )
+            .await
+            {
+                error!("delete file segment {}: {}", seg_iden.name(), e);
+                return;
+            }
+        }
+        _ => {}
     }
+
+    cache_manager.delete_segment(seg_iden);
+    info!("segment {} deleted", seg_iden.name());
 }
 
 async fn delete_shard(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    memory_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    fetcher_manager: &Arc<ReplicaFetcherManager>,
     shard_name: &str,
 ) {
-    if !cache_manager.shards.contains_key(shard_name) {
+    let Some(shard) = cache_manager.shards.get(shard_name).map(|s| s.clone()) else {
         return;
-    }
+    };
 
-    for segment in cache_manager.get_segments_list_by_shard(shard_name) {
-        let seg_iden = SegmentIdentity::new(shard_name, segment.segment_seq);
-        if let Err(e) = delete_local_segment(cache_manager, rocksdb_engine_handler, &seg_iden).await
-        {
-            error!(
-                "Failed to delete segment {} during shard delete: {}",
-                seg_iden.name(),
-                e
-            );
-            return;
+    fetcher_manager.remove_shard(shard_name);
+
+    match shard.config.storage_type {
+        StorageType::EngineMemory => {
+            memory_engine.delete_by_shard(shard_name);
         }
-    }
-
-    let conf = broker_config();
-    for data_fold in conf.storage_runtime.data_path.iter() {
-        let shard_fold = data_fold_shard(shard_name, data_fold);
-        if Path::new(&shard_fold).exists() {
-            if let Err(e) = remove_dir_all(&shard_fold) {
-                info!("Remove shard dir {}: {}", shard_fold, e);
+        StorageType::EngineRocksDB => {
+            if let Err(e) = rocksdb_storage_engine.delete_by_shard(shard_name) {
+                error!("delete rocksdb shard {}: {}", shard_name, e);
+                return;
             }
         }
+        StorageType::EngineSegment => {
+            crate::filesegment::delete::delete_by_shard(
+                cache_manager,
+                rocksdb_engine_handler,
+                shard_name,
+            )
+            .await;
+        }
+        _ => {}
     }
 
     cache_manager.delete_shard(shard_name);
-    info!("Shard {} deleted successfully", shard_name);
+    info!("shard {} deleted", shard_name);
 }

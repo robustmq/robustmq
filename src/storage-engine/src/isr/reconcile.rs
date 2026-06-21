@@ -235,9 +235,6 @@ async fn apply_segment(
     fetcher_manager: &Arc<ReplicaFetcherManager>,
     segment: EngineSegment,
 ) {
-    // Ensure the per-segment replica state exists before applying; apply_leader_and_isr
-    // requires it (NotSegmentState otherwise). Idempotent.
-    cache_manager.add_segment_replica(&segment.shard_name, segment.segment_seq);
     cache_manager.set_segment(&segment);
     if let Err(e) = apply_leader_and_isr(
         cache_manager,

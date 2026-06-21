@@ -12,9 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod delete;
-pub mod engine;
-pub mod expire;
-pub mod read;
-pub mod replica;
-pub mod write;
+use super::engine::MemoryStorageEngine;
+
+impl MemoryStorageEngine {
+    /// Drop all in-memory data for `shard_name`.
+    pub fn delete_by_shard(&self, shard_name: &str) {
+        self.shards.remove(shard_name);
+    }
+
+    /// Memory storage is shard-level; individual segment deletion is a no-op.
+    pub fn delete_by_segment(&self, _shard_name: &str, _segment_seq: u32) {}
+}

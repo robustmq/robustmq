@@ -27,9 +27,21 @@ pub fn shard_record_key_prefix(shard: &str, segment_seq: u32) -> String {
     format!("{}record/{}/{:010}/", PREFIX_STORAGE, shard, segment_seq)
 }
 
+/// Prefix covering all record keys for every segment in `shard`.
+#[inline(always)]
+pub fn shard_record_shard_prefix(shard: &str) -> String {
+    format!("{}record/{}/", PREFIX_STORAGE, shard)
+}
+
 #[inline(always)]
 pub fn shard_segment_leo_key(shard: &str, segment_seq: u32) -> String {
     format!("{}record-leo/{}/{:010}", PREFIX_STORAGE, shard, segment_seq)
+}
+
+/// Prefix covering all LEO keys for every segment in `shard`.
+#[inline(always)]
+pub fn shard_segment_leo_shard_prefix(shard: &str) -> String {
+    format!("{}record-leo/{}/", PREFIX_STORAGE, shard)
 }
 
 #[inline(always)]

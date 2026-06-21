@@ -109,9 +109,7 @@ pub async fn delete_local_segment(
         return Ok(());
     };
 
-    // delete segment by cache
     cache_manager.delete_segment(segment_iden);
-    cache_manager.remove_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {

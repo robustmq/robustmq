@@ -227,9 +227,11 @@ impl StorageEngineServer {
             },
         );
 
-        // delete worker — drains pending-delete queues every second
         let cache_manager = self.cache_manager.clone();
         let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let memory_engine = self.memory_storage_engine.clone();
+        let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
+        let fetcher_manager = self.fetcher_manager.clone();
         let stop_sx = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::StorageEngineDeleteWorker.to_string(),
@@ -237,6 +239,9 @@ impl StorageEngineServer {
                 crate::core::delete::start_delete_worker(
                     cache_manager,
                     rocksdb_engine_handler,
+                    memory_engine,
+                    rocksdb_storage_engine,
+                    fetcher_manager,
                     &stop_sx,
                 )
                 .await;

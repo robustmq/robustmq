@@ -14,6 +14,7 @@
 
 use metadata_struct::storage::segment::{segment_name, EngineSegment};
 
+pub mod delete;
 pub mod expire;
 pub mod file;
 pub mod index;

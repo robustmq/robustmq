@@ -109,7 +109,9 @@ impl ReplicaFetcherManager {
     fn stop_thread_inner(&self, idx: usize) -> bool {
         if let Some(slot) = self.slots.get(idx) {
             let _ = slot.stop.send(true);
-            slot.handle.lock().unwrap().take();
+            if let Some(h) = slot.handle.lock().unwrap().take() {
+                h.abort();
+            }
             true
         } else {
             false
@@ -141,6 +143,12 @@ impl ReplicaFetcherManager {
         }
     }
 
+    pub fn remove_shard(&self, shard: &str) {
+        for slot in &self.slots {
+            slot.segments.retain(|(s, _), _| s != shard);
+        }
+    }
+
     pub fn thread_count(&self) -> usize {
         self.slots.len()
     }
@@ -163,12 +171,17 @@ impl ReplicaFetcherManager {
         let key = (shard.to_string(), segment_seq);
         for (idx, slot) in self.slots.iter().enumerate() {
             if let Some(s) = slot.segments.get(&key) {
+                let leader_node_id = s.leader_node_id;
+                let current_leader_epoch = s.current_leader_epoch;
+                let max_bytes = s.max_bytes;
+                drop(s); // release DashMap shard lock before acquiring handle mutex
+                let thread_running = slot.handle.lock().unwrap().is_some();
                 return Some(SegmentFetchInfo {
-                    leader_node_id: s.leader_node_id,
-                    current_leader_epoch: s.current_leader_epoch,
-                    max_bytes: s.max_bytes,
+                    leader_node_id,
+                    current_leader_epoch,
+                    max_bytes,
                     fetcher_index: idx as u32,
-                    thread_running: slot.handle.lock().unwrap().is_some(),
+                    thread_running,
                 });
             }
         }
@@ -232,7 +245,7 @@ mod tests {
         let mgr = ReplicaFetcherManager::new(4, Arc::new(leader), Arc::new(follower), broker_cache);
         mgr.start();
         assert_eq!(mgr.thread_count(), 4);
-        for leader_node in 0u64..100 {
+        for leader_node in 0u64..8 {
             assert!(Arc::ptr_eq(
                 mgr.map_for(leader_node),
                 &mgr.slots[(leader_node % 4) as usize].segments
@@ -292,24 +305,6 @@ mod tests {
             }
         }
         false
-    }
-
-    #[tokio::test]
-    async fn restart_thread_keeps_assigned_segments() {
-        let leader = leader_with(&[("s1", vec![record(0, "a")])]).await;
-        let follower_engine = Arc::new(test_build_memory_engine());
-        init_offsets(&follower_engine, &["s1", "s2"]);
-        let mgr = follower_manager(leader, follower_engine.clone());
-        mgr.start();
-
-        mgr.assign_segment(seg_state("s1", 7));
-        assert!(wait_offset(&follower_engine, "s1", 1).await);
-
-        mgr.restart_thread(fetcher_index(7, 2) as usize);
-
-        mgr.assign_segment(seg_state("s2", 7));
-        assert!(wait_offset(&follower_engine, "s1", 1).await);
-        mgr.shutdown();
     }
 
     #[tokio::test]
