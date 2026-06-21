@@ -243,6 +243,7 @@ async fn send_delay_message_to_shard(
             &delay_message.tenant,
             &delay_message.target_topic_name,
             &[send_record],
+            1,
         )
         .await?;
 

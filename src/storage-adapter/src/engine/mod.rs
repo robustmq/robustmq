@@ -56,12 +56,13 @@ impl StorageAdapter for EngineStorageAdapter {
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         let mut pending: Vec<AdapterWriteRecord> = records.to_vec();
         let mut final_results: Vec<AdapterWriteRespRow> = Vec::with_capacity(records.len());
 
         loop {
-            let resp = self.adapter.write(shard, &pending).await?;
+            let resp = self.adapter.write(shard, &pending, acks).await?;
 
             let mut overflow_record_ids: Vec<u64> = Vec::new();
             for row in resp {

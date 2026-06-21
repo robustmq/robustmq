@@ -31,7 +31,7 @@ pub(crate) async fn save_delay_task_index(
         AdapterWriteRecord::new(DELAY_TASK_INDEX_TOPIC, data).with_key(task.task_id.clone());
 
     let result = storage_driver_manager
-        .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record])
+        .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record], 1)
         .await?;
 
     let resp = result.first().ok_or_else(|| {

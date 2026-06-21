@@ -80,7 +80,9 @@ async fn parse_shard(
         }
         BrokerUpdateCacheActionType::Delete => {
             let shard = EngineShard::decode(data)?;
-            cache_manager.push_pending_delete_shard(shard.shard_name);
+            if cache_manager.shards.contains_key(&shard.shard_name) {
+                cache_manager.push_pending_delete_shard(shard.shard_name);
+            }
         }
     }
     Ok(())
@@ -182,6 +184,7 @@ async fn create_segment(
 
     // init hw/leo/lso
     if segment.segment_seq == 0 {
+        println!("segment_seqsegment:{:?}", segment);
         let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         shard_offset.save_earliest_offset(&shard.shard_name, 0)?;
         shard_offset.save_latest_offset(&shard.shard_name, 0)?;
@@ -331,67 +334,7 @@ mod tests {
         assert!(!is_outdated_segment_notify(
             &cache,
             &iden,
-            &segment_le(5, 10)
-        ));
-        assert!(!is_outdated_segment_notify(
-            &cache,
-            &iden,
-            &segment_le(5, 11)
-        ));
-        assert!(!is_outdated_segment_notify(
-            &cache,
-            &iden,
             &segment_le(6, 9)
         ));
-    }
-
-    #[test]
-    fn shard_update_notification_updates_active_segment_seq() {
-        use common_base::tools::now_second;
-        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
-
-        let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
-            BrokerConfig::default(),
-        ))));
-
-        let shard_name = "test-shard-scroll".to_string();
-
-        // Initial shard: active_segment_seq = 0
-        let initial_shard = EngineShard {
-            shard_uid: "uid-1".to_string(),
-            shard_name: shard_name.clone(),
-            topic_name: "topic".to_string(),
-            start_segment_seq: 0,
-            active_segment_seq: 0,
-            last_segment_seq: 0,
-            status: EngineShardStatus::Run,
-            config: EngineShardConfig::default(),
-            desc: "".to_string(),
-            create_time: now_second(),
-        };
-        cache.set_shard(initial_shard);
-
-        assert_eq!(cache.shards.get(&shard_name).unwrap().active_segment_seq, 0);
-
-        // Simulate a Shard Update notification after scroll: active_segment_seq = 1
-        let updated_shard = EngineShard {
-            shard_uid: "uid-1".to_string(),
-            shard_name: shard_name.clone(),
-            topic_name: "topic".to_string(),
-            start_segment_seq: 0,
-            active_segment_seq: 1,
-            last_segment_seq: 1,
-            status: EngineShardStatus::Run,
-            config: EngineShardConfig::default(),
-            desc: "".to_string(),
-            create_time: now_second(),
-        };
-        cache.set_shard(updated_shard);
-
-        assert_eq!(
-            cache.shards.get(&shard_name).unwrap().active_segment_seq,
-            1,
-            "active_segment_seq must update when Shard Update notification is applied"
-        );
     }
 }

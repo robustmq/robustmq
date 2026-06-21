@@ -97,7 +97,7 @@ pub async fn persistent_save_qos2_message(
     qos2_msg: Qos2TemporaryMessage,
 ) -> Result<u64, MqttBrokerError> {
     let resp = storage_driver_manager
-        .write(&qos2_msg.tenant, &qos2_msg.topic, &[qos2_msg.record])
+        .write(&qos2_msg.tenant, &qos2_msg.topic, &[qos2_msg.record], 1)
         .await?;
 
     let write_resp = if let Some(data) = resp.first() {

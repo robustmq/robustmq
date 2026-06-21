@@ -58,6 +58,7 @@ pub trait StorageAdapter {
         &self,
         shard: &str,
         data: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError>;
 
     async fn read_by_offset(

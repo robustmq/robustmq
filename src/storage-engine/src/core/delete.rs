@@ -97,8 +97,10 @@ async fn delete_segment(
     fetcher_manager: &Arc<ReplicaFetcherManager>,
     seg_iden: &SegmentIdentity,
 ) {
+    // clean isr fetch
     fetcher_manager.remove_segment(&seg_iden.shard_name, seg_iden.segment);
 
+    // clean data
     let storage_type = cache_manager
         .shards
         .get(&seg_iden.shard_name)
@@ -132,6 +134,7 @@ async fn delete_segment(
         _ => {}
     }
 
+    // clean cache
     cache_manager.delete_segment(seg_iden);
     info!("segment {} deleted", seg_iden.name());
 }
@@ -148,8 +151,10 @@ async fn delete_shard(
         return;
     };
 
+    // clean isr fetch
     fetcher_manager.remove_shard(shard_name);
 
+    // clean data
     match shard.config.storage_type {
         StorageType::EngineMemory => {
             memory_engine.delete_by_shard(shard_name);
@@ -171,6 +176,7 @@ async fn delete_shard(
         _ => {}
     }
 
+    // clean cache
     cache_manager.delete_shard(shard_name);
     info!("shard {} deleted", shard_name);
 }

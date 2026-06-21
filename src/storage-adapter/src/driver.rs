@@ -113,6 +113,7 @@ impl StorageDriverManager {
         tenant: &str,
         topic_name: &str,
         data: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
 
@@ -127,7 +128,7 @@ impl StorageDriverManager {
             .get(&(partition as u32))
             .cloned()
             .unwrap_or_else(|| Topic::build_storage_name(&topic.topic_id, partition as u32));
-        driver.write(&partition_name, data).await
+        driver.write(&partition_name, data, acks).await
     }
 
     pub async fn read_by_offset(

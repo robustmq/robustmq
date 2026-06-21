@@ -45,7 +45,7 @@ impl LastWillStorage {
         let data = last_will.encode()?;
         let record = AdapterWriteRecord::new(LAST_WILL_MESSAGE_TOPIC, data).with_key(&key);
         self.storage_driver_manager
-            .write(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &[record])
+            .write(DEFAULT_TENANT, LAST_WILL_MESSAGE_TOPIC, &[record], 1)
             .await?;
         Ok(())
     }

@@ -213,6 +213,7 @@ impl StorageEngineHandler {
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         let start = std::time::Instant::now();
         let result = batch_write(
@@ -223,7 +224,7 @@ impl StorageEngineHandler {
             &self.client_connection_manager,
             shard,
             records,
-            1,
+            acks,
             0,
         )
         .await;

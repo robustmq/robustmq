@@ -45,7 +45,7 @@ impl RetainStorage {
         let data = retain_message.encode()?;
         let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(&key);
         self.storage_driver_manager
-            .write(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[record])
+            .write(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[record], 1)
             .await?;
         Ok(())
     }

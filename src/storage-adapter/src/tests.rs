@@ -78,7 +78,7 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
         .with_tags(vec!["b".to_string(), "c".to_string()]);
 
     let offsets: Vec<u64> = adapter
-        .write(&shard_name, &[r1, r2])
+        .write(&shard_name, &[r1, r2], 1)
         .await
         .unwrap()
         .iter()
@@ -170,7 +170,7 @@ pub async fn test_timestamp_index_with_multiple_entries(adapter: ArcStorageAdapt
         records.push(r);
     }
 
-    let offsets = adapter.write(&shard_name, &records).await.unwrap();
+    let offsets = adapter.write(&shard_name, &records, 1).await.unwrap();
     assert_eq!(offsets.len(), 15000);
     assert_eq!(offsets[0].offset, 0);
     assert_eq!(offsets[14999].offset, 14999);

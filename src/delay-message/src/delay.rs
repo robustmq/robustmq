@@ -26,10 +26,11 @@ pub(crate) async fn save_delay_message(
     storage_driver_manager: &Arc<StorageDriverManager>,
     delay_message_id: &str,
     mut data: AdapterWriteRecord,
+    acks: i8,
 ) -> Result<u64, CommonError> {
     data.key = Some(delay_message_id.to_string());
     let result = storage_driver_manager
-        .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[data])
+        .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[data], acks)
         .await?;
 
     let resp = if let Some(row) = result.first() {
@@ -70,13 +71,14 @@ pub(crate) async fn delete_delay_message(
 pub async fn save_delay_index_info(
     storage_driver_manager: &Arc<StorageDriverManager>,
     delay_info: &DelayMessageIndexInfo,
+    acks: i8,
 ) -> Result<(), CommonError> {
     let data = serialize(&delay_info)?;
     let record = AdapterWriteRecord::new(DELAY_QUEUE_INDEX_TOPIC, data)
         .with_key(delay_info.unique_id.clone());
 
     let result = storage_driver_manager
-        .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[record])
+        .write(DEFAULT_TENANT, DELAY_QUEUE_INDEX_TOPIC, &[record], acks)
         .await?;
 
     let resp = if let Some(row) = result.first() {

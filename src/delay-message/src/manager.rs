@@ -123,7 +123,7 @@ impl DelayMessageManager {
 
         let delay_message_id = unique_id();
         let offset =
-            save_delay_message(&self.storage_driver_manager, &delay_message_id, data).await?;
+            save_delay_message(&self.storage_driver_manager, &delay_message_id, data, 1).await?;
 
         let delay_index_info = DelayMessageIndexInfo {
             unique_id: delay_message_id.clone(),
@@ -134,7 +134,7 @@ impl DelayMessageManager {
             retry_count: 0,
         };
 
-        save_delay_index_info(&self.storage_driver_manager, &delay_index_info).await?;
+        save_delay_index_info(&self.storage_driver_manager, &delay_index_info, 1).await?;
 
         self.send_to_delay_queue(&delay_index_info).await?;
 
