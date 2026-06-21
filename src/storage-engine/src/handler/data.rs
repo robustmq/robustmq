@@ -46,40 +46,22 @@ pub async fn shard_offset_req(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
     };
 
-    let (start_offset, end_offset) = match shard.config.storage_type {
-        StorageType::EngineMemory => {
-            let clo = &memory_storage_engine.commit_log_offset;
-            let end = clo
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (clo.get_earliest_offset(shard_name).unwrap_or(0), end)
-        }
-        StorageType::EngineRocksDB => {
-            let clo = &rocksdb_storage_engine.commitlog_offset;
-            let end = clo
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (clo.get_earliest_offset(shard_name).unwrap_or(0), end)
-        }
-        StorageType::EngineSegment => {
-            let so = ShardOffset::new(
-                cache_manager.clone(),
-                rocksdb_storage_engine.rocksdb_engine_handler.clone(),
-            );
-            let end = so
-                .get_latest_offset(shard_name)
-                .unwrap_or(0)
-                .saturating_sub(1);
-            (so.get_earliest_offset(shard_name).unwrap_or(0), end)
-        }
-        _ => {
-            return Ok(ShardOffsetRespBody {
-                ..Default::default()
-            })
-        }
-    };
+    let active_segment = cache_manager
+        .get_active_segment(shard_name)
+        .ok_or_else(|| StorageEngineError::NotAvailableSegments(shard_name.to_string()))?;
+    if !active_segment.is_leader() {
+        return Err(StorageEngineError::NotLeader(active_segment.name()));
+    }
+
+    let shard_offsets = ShardOffset::new(
+        cache_manager.clone(),
+        rocksdb_storage_engine.rocksdb_engine_handler.clone(),
+    )
+    .get_shard_offsets(shard_name)?;
+
+    let start_offset = shard_offsets.earliest_offset;
+    let end_offset = shard_offsets.latest_offset.saturating_sub(1);
+    let high_watermark = shard_offsets.high_watermark_offset;
 
     let offset = if req_body.by_timestamp {
         match shard.config.storage_type {
@@ -110,7 +92,7 @@ pub async fn shard_offset_req(
                     AdapterOffsetStrategy::Earliest,
                 )?
             }
-            _ => 0,
+            t => return Err(StorageEngineError::UnsupportedStorageType(format!("{t:?}"))),
         }
     } else {
         0
@@ -119,6 +101,7 @@ pub async fn shard_offset_req(
     Ok(ShardOffsetRespBody {
         start_offset,
         end_offset,
+        high_watermark,
         offset,
         error_code: 0,
     })
@@ -238,6 +221,7 @@ pub async fn read_data_req(
                     shard_name: raw.shard_name.clone(),
                     offset,
                     read_config,
+                    single_segment: raw.batch_call_source,
                 })
                 .await?
             }

@@ -226,6 +226,22 @@ impl StorageEngineServer {
                 .await;
             },
         );
+
+        // delete worker — drains pending-delete queues every second
+        let cache_manager = self.cache_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let stop_sx = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::StorageEngineDeleteWorker.to_string(),
+            async move {
+                crate::core::delete::start_delete_worker(
+                    cache_manager,
+                    rocksdb_engine_handler,
+                    &stop_sx,
+                )
+                .await;
+            },
+        );
     }
 
     async fn waiting_stop(&self) {

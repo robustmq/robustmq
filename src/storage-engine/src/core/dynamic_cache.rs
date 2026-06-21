@@ -14,10 +14,7 @@
 
 use super::cache::StorageCacheManager;
 use crate::{
-    core::{
-        error::StorageEngineError, offset::ShardOffset, segment::delete_local_segment,
-        shard::delete_local_shard,
-    },
+    core::{error::StorageEngineError, offset::ShardOffset},
     filesegment::{file::open_segment_write, SegmentIdentity},
     isr::apply::apply_leader_and_isr,
     isr::fetcher_manager::ReplicaFetcherManager,
@@ -102,11 +99,7 @@ async fn parse_shard(
         }
         BrokerUpdateCacheActionType::Delete => {
             let shard = EngineShard::decode(data)?;
-            delete_local_shard(
-                cache_manager.clone(),
-                rocksdb_engine_handler.clone(),
-                shard.shard_name,
-            );
+            cache_manager.push_pending_delete_shard(shard.shard_name);
         }
     }
     Ok(())
@@ -185,13 +178,6 @@ async fn parse_segment(
                 return Ok(());
             }
 
-            // An Update notification can race ahead of the segment's Create on this
-            // node (cache notifications are delivered concurrently, not ordered).
-            // Adopt the segment if its replica state isn't present yet, so the Update
-            // applies cleanly instead of failing with NotSegmentState — which would
-            // otherwise surface as a transient "Segment replicate .. Not Exists" WARN
-            // until reconcile heals it. This mirrors the Create branch and the
-            // reconcile self-heal path.
             if cache_manager
                 .get_segment_replica(&segment.shard_name, segment.segment_seq)
                 .is_none()
@@ -218,26 +204,7 @@ async fn parse_segment(
         BrokerUpdateCacheActionType::Delete => {
             let segment = EngineSegment::decode(data)?;
             let segment_iden = SegmentIdentity::new(&segment.shard_name, segment.segment_seq);
-            delete_local_segment(cache_manager, rocksdb_engine_handler, &segment_iden).await?;
-
-            let shard = cache_manager
-                .shards
-                .get(&segment.shard_name)
-                .map(|s| s.clone());
-            if let Some(shard) = shard {
-                if shard.config.storage_type == StorageType::EngineSegment {
-                    let start_seq = shard.start_segment_seq;
-                    let next_iden = SegmentIdentity::new(&segment.shard_name, start_seq);
-                    if let Some(meta) = cache_manager.get_segment_meta(&next_iden) {
-                        let shard_offset =
-                            ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
-                        let _ = shard_offset.save_earliest_offset(
-                            &segment.shard_name,
-                            meta.start_offset.max(0) as u64,
-                        );
-                    }
-                }
-            }
+            cache_manager.push_pending_delete_segment(segment_iden);
         }
     }
     Ok(())

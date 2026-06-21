@@ -92,6 +92,9 @@ pub enum StorageEngineError {
     #[error("Current node is not the Leader of Segment {0}")]
     NotLeader(String),
 
+    #[error("Segment {0} is not on this broker, please retry with the correct broker")]
+    SegmentNotOnThisBroker(String),
+
     #[error("Segment file {0} does not exist, maybe it hasn't been initialized yet.")]
     SegmentFileNotExists(String),
 
@@ -154,6 +157,9 @@ pub enum StorageEngineError {
     #[error("RocksDBStorage Storage type of storage does not support this X operation.")]
     NotSupportRocksDBStorageType(String),
 
+    #[error("Storage type {0:?} is not supported for this operation")]
+    UnsupportedStorageType(String),
+
     #[error("Segment {0} append at offset {1} is out of order, expected {2}")]
     OutOfOrder(String, u64, u64),
 
@@ -192,6 +198,7 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::NotFoundConnectionInCache(_) => "NotFoundConnectionInCache".to_string(),
         StorageEngineError::SegmentStatusError(_, _) => "SegmentStatusError".to_string(),
         StorageEngineError::NotLeader(_) => "NotLeader".to_string(),
+        StorageEngineError::SegmentNotOnThisBroker(_) => "SegmentNotOnThisBroker".to_string(),
         StorageEngineError::SegmentFileNotExists(_) => "SegmentFileNotExists".to_string(),
         StorageEngineError::SegmentDataDirectoryNotFound(_, _) => {
             "SegmentDataDirectoryNotFound".to_string()
@@ -218,6 +225,7 @@ pub fn get_journal_server_code(e: &StorageEngineError) -> String {
         StorageEngineError::ConnectionIsOccupied(_) => "ConnectionIsOccupied".to_string(),
         StorageEngineError::NoAvailableConn(_) => "NoAvailableConn".to_string(),
         StorageEngineError::NodeNotFound(_) => "NodeNotFound".to_string(),
+        StorageEngineError::UnsupportedStorageType(_) => "UnsupportedStorageType".to_string(),
         StorageEngineError::OutOfOrder(_, _, _) => "OutOfOrder".to_string(),
         StorageEngineError::OffsetOutOfRange(_, _, _, _) => "OffsetOutOfRange".to_string(),
         StorageEngineError::NotSegmentState(_, _) => "StorageEngineError".to_string(),

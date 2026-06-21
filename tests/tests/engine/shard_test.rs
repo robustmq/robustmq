@@ -85,9 +85,7 @@ mod tests {
             shard.shard_info.config.storage_type,
             StorageType::EngineSegment
         );
-        let metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend::StorageEngine(
-            engine_shard,
-        ) = &shard.shard_info.extend;
+        let engine_shard = &shard.shard_info.shard;
         assert_eq!(engine_shard.start_segment_seq, 0);
         assert_eq!(engine_shard.active_segment_seq, 0);
         assert_eq!(engine_shard.last_segment_seq, 0);

@@ -14,7 +14,6 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use super::segment::delete_local_segment;
 use crate::filesegment::file::data_fold_shard;
 use crate::filesegment::SegmentIdentity;
 use common_config::{broker::broker_config, storage::StorageType};
@@ -24,55 +23,11 @@ use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     CreateShardRequest, DeleteShardRequest, ListShardRequest,
 };
-use rocksdb_engine::rocksdb::RocksDBEngine;
-use std::fs::remove_dir_all;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error, info};
-
-pub fn delete_local_shard(
-    cache_manager: Arc<StorageCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    shard_name: String,
-) {
-    if !cache_manager.shards.contains_key(&shard_name) {
-        return;
-    }
-
-    tokio::spawn(async move {
-        // delete segment
-        for segment in cache_manager.get_segments_list_by_shard(&shard_name) {
-            let segment_iden = SegmentIdentity::new(&shard_name, segment.segment_seq);
-            if let Err(e) =
-                delete_local_segment(&cache_manager, &rocksdb_engine_handler, &segment_iden).await
-            {
-                error!("{}", e);
-                return;
-            }
-        }
-
-        // delete file
-        let conf = broker_config();
-        for data_fold in conf.storage_runtime.data_path.iter() {
-            let shard_fold_name = data_fold_shard(&shard_name, data_fold);
-            if Path::new(&shard_fold_name).exists() {
-                match remove_dir_all(shard_fold_name) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        info!("{}", e);
-                    }
-                }
-            }
-        }
-
-        // delete shard
-        cache_manager.delete_shard(&shard_name);
-
-        info!("Shard {} deleted successfully", shard_name);
-    });
-}
+use tracing::{debug, info};
 
 pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError> {
     let conf = broker_config();
@@ -86,16 +41,7 @@ pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError
     Ok(true)
 }
 
-/// Whether the shard is provisioned in this broker's local cache: the shard and
-/// its segment-0 are present and (for segment storage) segment-0 metadata exists.
-///
-/// This intentionally does NOT require the local broker to be segment-0's leader.
-/// Leader/replica placement is load-balanced across the cluster, so the broker
-/// that requests shard creation is frequently neither the leader nor a replica;
-/// requiring local leadership here would make it wait forever. Shard, segment and
-/// segment metadata are all broadcast to every node via cache notifications, so
-/// any node can confirm provisioning from its local cache.
-fn shard_provisioned(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterShardInfo) -> bool {
+fn is_shard_ready(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterShardInfo) -> bool {
     let shard_name = &shard.shard_name;
     if !cache_manager.shards.contains_key(shard_name) {
         return false;
@@ -104,11 +50,10 @@ fn shard_provisioned(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterSh
     if cache_manager.get_segment(&segment_iden).is_none() {
         return false;
     }
-    match shard.config.storage_type {
-        StorageType::EngineSegment => cache_manager.get_segment_meta(&segment_iden).is_some(),
-        StorageType::EngineMemory | StorageType::EngineRocksDB => true,
-        _ => false,
+    if shard.config.storage_type == StorageType::EngineSegment {
+        return cache_manager.get_segment_meta(&segment_iden).is_some();
     }
+    true
 }
 
 pub async fn create_shard_to_place(
@@ -120,8 +65,7 @@ pub async fn create_shard_to_place(
 
     let shard_name = &shard.shard_name;
 
-    // Idempotent ensure: already provisioned in local cache, nothing to do.
-    if shard_provisioned(cache_manager, shard) {
+    if is_shard_ready(cache_manager, shard) {
         debug!(
             "Shard {} already provisioned, skipping creation",
             shard_name
@@ -136,6 +80,7 @@ pub async fn create_shard_to_place(
         shard_config: shard.config.encode()?,
         desc: shard.desc.to_string(),
     };
+
     grpc_clients::meta::storage::call::create_shard(
         client_pool,
         &conf.get_meta_service_addr(),
@@ -147,7 +92,7 @@ pub async fn create_shard_to_place(
     const SHARD_READY_TIMEOUT_SECS: u64 = 10;
     let wait_result = timeout(Duration::from_secs(SHARD_READY_TIMEOUT_SECS), async {
         loop {
-            if shard_provisioned(cache_manager, shard) {
+            if is_shard_ready(cache_manager, shard) {
                 return;
             }
             sleep(Duration::from_millis(100)).await;
@@ -220,8 +165,7 @@ pub fn is_support_storage_type(storage_type: StorageType) -> Result<(), StorageE
         return Ok(());
     }
 
-    Err(StorageEngineError::CommonErrorStr(format!(
-        "Unsupported storage type '{:?}'. Supported types are: EngineMemory, EngineRocksDB, EngineSegment",
-        storage_type
+    Err(StorageEngineError::UnsupportedStorageType(format!(
+        "{storage_type:?}"
     )))
 }

@@ -13,24 +13,21 @@
 // limitations under the License.
 
 use crate::{
-    clients::{
-        manager::ClientConnectionManager,
-        packet::{build_read_req, read_resp_parse},
-    },
+    clients::{manager::ClientConnectionManager, packet::build_read_req},
     commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
+        remote_read::remote_read_by_tag,
         segment::segment_validator,
     },
     filesegment::{read::segment_read_by_tag, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
-use protocol::storage::{
-    codec::StorageEnginePacket,
-    protocol::{ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
+use protocol::storage::protocol::{
+    ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -46,18 +43,6 @@ pub struct ReadByTagParams {
     pub start_offset: Option<u64>,
     pub read_config: AdapterReadConfig,
     pub batch_call_source: bool,
-}
-
-pub struct ReadByRemoteTagParams {
-    pub cache_manager: Arc<StorageCacheManager>,
-    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub client_connection_manager: Arc<ClientConnectionManager>,
-    pub shard_name: String,
-    pub segment: u32,
-    pub leader_id: u64,
-    pub tag: String,
-    pub start_offset: Option<u64>,
-    pub read_config: AdapterReadConfig,
 }
 
 pub async fn read_by_tag(
@@ -111,17 +96,16 @@ pub async fn read_by_tag(
                 _ => Vec::new(),
             }
         } else {
-            read_by_remote(ReadByRemoteTagParams {
-                cache_manager: cache_manager.clone(),
-                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
-                client_connection_manager: client_connection_manager.clone(),
-                shard_name: shard_name.to_string(),
-                segment: active_segment.segment_seq,
-                leader_id: active_segment.leader,
-                tag: tag.to_string(),
+            remote_read_by_tag(
+                client_connection_manager,
+                cache_manager,
+                &segment_iden,
+                active_segment.leader,
+                shard_name,
+                tag,
                 start_offset,
-                read_config: read_config.clone(),
-            })
+                read_config,
+            )
             .await?
         };
         return Ok(results);
@@ -156,29 +140,6 @@ pub async fn read_by_tag(
     }
 
     Ok(Vec::new())
-}
-
-pub async fn read_by_remote(
-    params: ReadByRemoteTagParams,
-) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let client_connection_manager = &params.client_connection_manager;
-    let shard_name = params.shard_name.as_str();
-    let tag = params.tag.as_str();
-    let start_offset = params.start_offset;
-    let read_config = &params.read_config;
-
-    let read_req = build_req(shard_name, tag, start_offset, read_config, false);
-    let resp = client_connection_manager
-        .write_send(params.leader_id, StorageEnginePacket::ReadReq(read_req))
-        .await?;
-
-    match resp {
-        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            params.leader_id,
-            format!("Expected ReadResp, got {:?}", packet),
-        )),
-    }
 }
 
 fn build_req(

@@ -24,7 +24,6 @@ mod tests {
     use grpc_clients::broker::common::call::broker_get_shard_segment_delete_status;
     use grpc_clients::meta::mqtt::call::placement_list_topic;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend;
     use metadata_struct::mqtt::topic::Topic as MqttTopic;
     use metadata_struct::storage::segment::SegmentStatus;
     use metadata_struct::storage::shard::{
@@ -112,8 +111,7 @@ mod tests {
         );
         assert_eq!(shard_detail.config.retention_sec, DEFAULT_RETENTION_SEC);
 
-        // extend: StorageEngine variant, initial seq values, status=Run
-        let AdapterShardDetailExtend::StorageEngine(engine_shard) = &shard_detail.extend;
+        let engine_shard = &shard_detail.shard;
         assert_eq!(engine_shard.start_segment_seq, 0);
         assert_eq!(engine_shard.active_segment_seq, 0);
         assert_eq!(engine_shard.last_segment_seq, 0);

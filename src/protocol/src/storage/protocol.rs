@@ -742,6 +742,7 @@ impl ShardOffsetReq {
 pub struct ShardOffsetRespBody {
     pub start_offset: u64,
     pub end_offset: u64,
+    pub high_watermark: u64,
     /// Offset resolved by timestamp (valid when the request set `by_timestamp`).
     pub offset: u64,
     pub error_code: u32,

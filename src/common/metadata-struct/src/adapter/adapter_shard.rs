@@ -28,14 +28,9 @@ pub struct AdapterShardDetail {
     pub shard_name: String,
     pub topic_name: String,
     pub config: EngineShardConfig,
-    pub extend: AdapterShardDetailExtend,
+    pub shard: EngineShard,
     pub offset: AdapterShardDetailOffset,
     pub desc: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AdapterShardDetailExtend {
-    StorageEngine(EngineShard),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

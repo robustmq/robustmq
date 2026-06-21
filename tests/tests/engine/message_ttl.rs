@@ -48,6 +48,12 @@ mod tests {
         message_ttl_test(config).await;
     }
 
+    #[tokio::test]
+    async fn message_ttl_test_by_filesegment() {
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
+        message_ttl_test(config).await;
+    }
+
     async fn message_ttl_test(config: String) {
         let client = create_test_env().await;
         let shard_name = unique_id();

@@ -38,9 +38,7 @@ use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::adapter_offset::{AdapterOffsetStrategy, AdapterShardInfo};
 use metadata_struct::adapter::adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow};
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-use metadata_struct::adapter::adapter_shard::{
-    AdapterShardDetail, AdapterShardDetailExtend, AdapterShardDetailOffset,
-};
+use metadata_struct::adapter::adapter_shard::{AdapterShardDetail, AdapterShardDetailOffset};
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
 use protocol::storage::codec::StorageEnginePacket;
@@ -151,69 +149,43 @@ impl StorageEngineHandler {
         let mut results = Vec::with_capacity(shards.len());
         let local_broker_id = broker_config().broker_id;
         for shard in shards {
-            // For memory/rocksdb shards, offsets live only on the segment leader.
-            // If this node is not the leader, query the leader instead of reading a
-            // (non-existent) local copy that would resolve to 0.
             let leader = self
                 .cache_manager
                 .get_active_segment(&shard.shard_name)
-                .map(|s| s.leader);
-            let route_remote = matches!(
-                shard.config.storage_type,
-                StorageType::EngineMemory | StorageType::EngineRocksDB
-            ) && leader.is_some_and(|l| l != local_broker_id);
+                .ok_or_else(|| {
+                    CommonError::CommonError(format!(
+                        "No active segment for shard {}",
+                        shard.shard_name
+                    ))
+                })?
+                .leader;
 
-            let (start_offset, end_offset) = if route_remote {
+            let (start_offset, end_offset, high_watermark) = if leader != local_broker_id {
                 let body = self
-                    .shard_offset_remote(leader.unwrap(), &shard.shard_name, false, 0)
+                    .shard_offset_remote(leader, &shard.shard_name, false, 0)
                     .await
                     .map_err(|e| CommonError::CommonError(e.to_string()))?;
-                (body.start_offset, body.end_offset)
+                (body.start_offset, body.end_offset, body.high_watermark)
             } else {
-                match shard.config.storage_type {
-                    StorageType::EngineMemory => {
-                        let o = &self.memory_storage_engine.commit_log_offset;
-                        let end = o
-                            .get_latest_offset(&shard.shard_name)
-                            .unwrap_or(0)
-                            .saturating_sub(1);
-                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
-                    }
-                    StorageType::EngineRocksDB => {
-                        let o = &self.rocksdb_storage_engine.commitlog_offset;
-                        let end = o
-                            .get_latest_offset(&shard.shard_name)
-                            .unwrap_or(0)
-                            .saturating_sub(1);
-                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
-                    }
-                    StorageType::EngineSegment => {
-                        let o = ShardOffset::new(
-                            self.cache_manager.clone(),
-                            self.rocksdb_engine_handler.clone(),
-                        );
-                        let end = o
-                            .get_latest_offset(&shard.shard_name)
-                            .unwrap_or(0)
-                            .saturating_sub(1);
-                        (o.get_earliest_offset(&shard.shard_name).unwrap_or(0), end)
-                    }
-                    _ => (0, 0),
-                }
+                let offsets = ShardOffset::new(
+                    self.cache_manager.clone(),
+                    self.rocksdb_engine_handler.clone(),
+                )
+                .get_shard_offsets(&shard.shard_name)
+                .map_err(|e| CommonError::CommonError(e.to_string()))?;
+                (
+                    offsets.earliest_offset,
+                    offsets.latest_offset.saturating_sub(1),
+                    offsets.high_watermark_offset,
+                )
             };
-
-            let high_watermark = self
-                .cache_manager
-                .get_offset_state(&shard.shard_name)
-                .map(|s| s.high_watermark_offset)
-                .unwrap_or(0);
 
             results.push(AdapterShardDetail {
                 shard_name: shard.shard_name.clone(),
                 topic_name: shard.topic_name.clone(),
                 config: shard.config.clone(),
                 desc: shard.desc.clone(),
-                extend: AdapterShardDetailExtend::StorageEngine(shard),
+                shard,
                 offset: AdapterShardDetailOffset {
                     start_offset,
                     end_offset,
@@ -283,6 +255,7 @@ impl StorageEngineHandler {
             shard_name: shard.to_string(),
             offset,
             read_config: read_config.clone(),
+            single_segment: false,
         })
         .await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;

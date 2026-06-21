@@ -56,6 +56,7 @@ pub enum TaskKind {
     StorageEngineConnGC,
     StorageEngineIsrMaintain,
     StorageEngineMetadataReconcile,
+    StorageEngineDeleteWorker,
     NATSClientKeepAlive,
     NATSSubscribeParse,
     NATSSubscribePush,
@@ -107,6 +108,7 @@ impl std::fmt::Display for TaskKind {
             TaskKind::StorageEngineMetadataReconcile => {
                 write!(f, "StorageEngineMetadataReconcile")
             }
+            TaskKind::StorageEngineDeleteWorker => write!(f, "StorageEngineDeleteWorker"),
             TaskKind::NATSClientKeepAlive => write!(f, "NATSClientKeepAlive"),
             TaskKind::NATSSubscribeParse => write!(f, "NATSSubscribeParse"),
             TaskKind::NATSSubscribePush => write!(f, "NATSSubscribePush"),

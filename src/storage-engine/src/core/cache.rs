@@ -23,7 +23,7 @@ use dashmap::DashMap;
 use metadata_struct::storage::segment::EngineSegment;
 use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
 use metadata_struct::storage::shard::EngineShard;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::watch;
 
 #[derive(Clone)]
@@ -64,6 +64,10 @@ pub struct StorageCacheManager {
     // Segments that need an immediate reconcile (set by fetch handler on UnknownLeaderEpoch).
     // Value is the timestamp (seconds) of the last trigger, used for rate-limiting.
     pub reconcile_needed: DashMap<(String, u32), u64>,
+
+    // Pending deletes — drained by the delete worker (delete.rs) every second.
+    pub pending_delete_shards: Arc<Mutex<Vec<String>>>,
+    pub pending_delete_segments: Arc<Mutex<Vec<SegmentIdentity>>>,
 }
 
 impl StorageCacheManager {
@@ -89,7 +93,23 @@ impl StorageCacheManager {
             segment_replica_states: DashMap::with_capacity(8),
             hw_watchers: DashMap::with_capacity(8),
             reconcile_needed: DashMap::with_capacity(8),
+            pending_delete_shards: Arc::new(Mutex::new(Vec::new())),
+            pending_delete_segments: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    pub fn push_pending_delete_shard(&self, shard_name: String) {
+        self.pending_delete_shards.lock().unwrap().push(shard_name);
+    }
+
+    pub fn push_pending_delete_segment(&self, seg_iden: SegmentIdentity) {
+        self.pending_delete_segments.lock().unwrap().push(seg_iden);
+    }
+
+    pub fn take_pending_deletes(&self) -> (Vec<String>, Vec<SegmentIdentity>) {
+        let shards = std::mem::take(&mut *self.pending_delete_shards.lock().unwrap());
+        let segments = std::mem::take(&mut *self.pending_delete_segments.lock().unwrap());
+        (shards, segments)
     }
 
     pub fn mark_reconcile_needed(&self, shard: &str, segment_seq: u32, min_interval_sec: u64) {

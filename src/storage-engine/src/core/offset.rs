@@ -96,6 +96,13 @@ impl ShardOffset {
             .unwrap_or(0))
     }
 
+    pub fn get_shard_offsets(&self, shard: &str) -> Result<ShardOffsetState, StorageEngineError> {
+        if let Some(state) = self.cache_manager.get_offset_state(shard) {
+            return Ok(state);
+        }
+        self.recover_shard_data(shard)
+    }
+
     fn save_offset(&self, key: &str, offset: u64) -> Result<(), StorageEngineError> {
         engine_save_by_engine(
             &self.rocksdb_engine_handler,
@@ -118,11 +125,13 @@ impl ShardOffset {
     fn recover_shard_data(&self, shard: &str) -> Result<ShardOffsetState, StorageEngineError> {
         let earliest_offset = self
             .load_offset(&shard_earliest_offset(shard))?
-            .unwrap_or(0);
-        let latest_offset = self.load_offset(&shard_latest_offset(shard))?.unwrap_or(0);
+            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))?;
+        let latest_offset = self
+            .load_offset(&shard_latest_offset(shard))?
+            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))?;
         let high_watermark_offset = self
             .load_offset(&shard_high_watermark_offset(shard))?
-            .unwrap_or(0)
+            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))?
             .min(latest_offset);
         let state = ShardOffsetState {
             earliest_offset,

@@ -15,7 +15,10 @@
 use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
-    core::{cache::StorageCacheManager, error::StorageEngineError, offset::ShardOffset},
+    core::{
+        cache::StorageCacheManager, error::StorageEngineError, message_ttl::is_record_expired,
+        offset::ShardOffset,
+    },
     filesegment::{
         file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
@@ -25,9 +28,6 @@ use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
-/// handle read requests by offset
-///
-/// Use index (if there's any) to find the last nearest start byte position given the offset
 pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &mut SegmentFile,
@@ -47,12 +47,13 @@ pub async fn segment_read_by_offset(
     let res = segment_file
         .read_by_offset(start_position, offset, max_size, max_record)
         .await?;
+    let res: Vec<ReadData> = res
+        .into_iter()
+        .filter(|r| !is_record_expired(&r.record.metadata))
+        .collect();
     Ok(res)
 }
 
-/// handle read requests by key
-///
-/// Use index (if there's any) to find all start byte positions of the records with the given key
 pub async fn segment_read_by_key(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -64,7 +65,12 @@ pub async fn segment_read_by_key(
     if let Some(index) = index_data {
         let segment_iden = SegmentIdentity::new(shard_name, index.segment);
         let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-        return segment_file.read_by_positions(vec![index.position]).await;
+        let res = segment_file.read_by_positions(vec![index.position]).await?;
+        let res: Vec<ReadData> = res
+            .into_iter()
+            .filter(|r| !is_record_expired(&r.record.metadata))
+            .collect();
+        return Ok(res);
     }
     Ok(Vec::new())
 }
@@ -100,7 +106,11 @@ pub async fn segment_read_by_tag(
         let segment_iden = SegmentIdentity::new(shard_name, segment_no);
         let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         let data_list = segment_file.read_by_positions(positions).await?;
-        all_results.extend(data_list);
+        all_results.extend(
+            data_list
+                .into_iter()
+                .filter(|r| !is_record_expired(&r.record.metadata)),
+        );
     }
 
     Ok(all_results)
