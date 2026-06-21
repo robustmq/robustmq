@@ -81,7 +81,7 @@ impl ShardOffset {
         let advanced = self
             .cache_manager
             .update_high_watermark_offset(shard, offset);
-        if advanced {
+        if offset == 0 || advanced {
             self.save_offset(&shard_high_watermark_offset(shard), offset)?;
         }
         Ok(advanced)
