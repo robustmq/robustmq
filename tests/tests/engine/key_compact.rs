@@ -15,13 +15,12 @@
 #[cfg(test)]
 mod tests {
     use crate::engine::common::{
-        admin_client, create_shard, engine_client, read_messages_raw, write_messages,
+        admin_client, create_shard, engine_client, read_messages, write_messages,
     };
     use bytes::Bytes;
-    use common_base::utils::serialize::{self, deserialize};
+    use common_base::utils::serialize;
     use common_base::uuid::unique_id;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::record::StorageRecord;
     use protocol::storage::protocol::{ReadReqFilter, ReadType};
 
     #[tokio::test]
@@ -61,7 +60,7 @@ mod tests {
         write_messages(&conn, &shard_name, messages).await;
 
         // Read by key — expect exactly 1 record: the last written value.
-        let raw = read_messages_raw(
+        let records = read_messages(
             &conn,
             &shard_name,
             ReadType::Key,
@@ -74,9 +73,12 @@ mod tests {
         )
         .await;
 
-        assert_eq!(raw.len(), 1, "key compact should return exactly 1 message");
-        let record: StorageRecord = deserialize(&raw[0]).unwrap();
-        assert_eq!(record.metadata.key.as_deref(), Some("status"));
-        assert_eq!(record.data, Bytes::from("value-3"));
+        assert_eq!(
+            records.len(),
+            1,
+            "key compact should return exactly 1 message"
+        );
+        assert_eq!(records[0].metadata.key.as_deref(), Some("status"));
+        assert_eq!(records[0].data, Bytes::from("value-3"));
     }
 }

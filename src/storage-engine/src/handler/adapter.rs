@@ -41,8 +41,7 @@ use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::adapter_shard::{AdapterShardDetail, AdapterShardDetailOffset};
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
-use protocol::storage::codec::StorageEnginePacket;
-use protocol::storage::protocol::{ShardOffsetReq, ShardOffsetReqBody, ShardOffsetRespBody};
+use protocol::storage::protocol::{ShardOffsetReqBody, ShardOffsetRespBody};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -103,31 +102,23 @@ impl StorageEngineHandler {
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
     ) -> Result<ShardOffsetRespBody, StorageEngineError> {
-        let req = ShardOffsetReq::new(ShardOffsetReqBody {
+        let body = ShardOffsetReqBody {
             shard_name: shard_name.to_string(),
             by_timestamp,
             timestamp,
             strategy: strategy as u8,
-        });
+        };
         let resp = self
             .client_connection_manager
-            .write_send(leader_id, StorageEnginePacket::ShardOffsetReq(req))
+            .send_shard_offset(leader_id, body)
             .await?;
-        match resp {
-            StorageEnginePacket::ShardOffsetResp(r) => {
-                if r.body.error_code != 0 {
-                    return Err(StorageEngineError::CommonErrorStr(format!(
-                        "Leader {leader_id} failed to resolve offsets for shard {shard_name} (error_code={})",
-                        r.body.error_code
-                    )));
-                }
-                Ok(r.body)
-            }
-            other => Err(StorageEngineError::ReceivedPacketError(
-                leader_id,
-                format!("Expected ShardOffsetResp, got {other}"),
-            )),
+        if resp.error_code != 0 {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "Leader {leader_id} failed to resolve offsets for shard {shard_name} (error_code={})",
+                resp.error_code
+            )));
         }
+        Ok(resp)
     }
 
     pub async fn list_shard(

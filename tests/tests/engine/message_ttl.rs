@@ -15,14 +15,13 @@
 #[cfg(test)]
 mod tests {
     use crate::engine::common::{
-        admin_client, create_shard, engine_client, read_messages_raw, write_messages,
+        admin_client, create_shard, engine_client, read_messages, write_messages,
     };
     use bytes::Bytes;
     use common_base::tools::now_second;
-    use common_base::utils::serialize::{self, deserialize};
+    use common_base::utils::serialize;
     use common_base::uuid::unique_id;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-    use metadata_struct::storage::record::StorageRecord;
     use protocol::storage::protocol::{ReadReqFilter, ReadType};
 
     #[tokio::test]
@@ -67,7 +66,7 @@ mod tests {
         write_messages(&conn, &shard_name, messages).await;
 
         // Read from offset 0 — only the non-expired record should be returned.
-        let raw = read_messages_raw(
+        let records = read_messages(
             &conn,
             &shard_name,
             ReadType::Offset,
@@ -77,12 +76,11 @@ mod tests {
         .await;
 
         assert_eq!(
-            raw.len(),
+            records.len(),
             1,
             "expected 1 non-expired message, got {}",
-            raw.len()
+            records.len()
         );
-        let record: StorageRecord = deserialize(&raw[0]).unwrap();
-        assert_eq!(record.data, Bytes::from("alive"));
+        assert_eq!(records[0].data, Bytes::from("alive"));
     }
 }

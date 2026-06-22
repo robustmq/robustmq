@@ -16,16 +16,17 @@ use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use common_base::tools::now_second;
 use futures::{SinkExt, StreamExt};
-use parking_lot::Mutex;
 use protocol::codec::{RobustMQCodec, RobustMQCodecWrapper};
 use protocol::robust::RobustMQProtocol;
 use protocol::storage::codec::StorageEnginePacket;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use tokio::time::{sleep, timeout};
 use tokio_util::codec::Framed;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 const MAX_RETRY_TIMES: u32 = 10;
 const RETRY_SLEEP_MS: u64 = 100;
@@ -33,13 +34,16 @@ const REQUEST_TIMEOUT_SECS: u64 = 30;
 
 pub struct ClientConnection {
     pub stream: Framed<TcpStream, RobustMQCodec>,
-    pub last_active_time: u64,
 }
 
 pub struct NodeConnection {
     pub node_id: u64,
     cache_manager: Arc<StorageCacheManager>,
+    // Tokio async mutex: held for the full duration of a send so concurrent
+    // callers on the same slot queue rather than racing to create new connections.
     connection: Mutex<Option<ClientConnection>>,
+    // Updated after every successful recv; read by GC without taking the mutex.
+    last_active_secs: AtomicU64,
 }
 
 impl NodeConnection {
@@ -48,6 +52,7 @@ impl NodeConnection {
             node_id,
             cache_manager,
             connection: Mutex::new(None),
+            last_active_secs: AtomicU64::new(0),
         }
     }
 
@@ -62,68 +67,55 @@ impl NodeConnection {
         .await?
     }
 
+    // Holds the mutex for the entire send: connect if needed, send, recv.
+    // On I/O error the broken connection is cleared so the next attempt reconnects.
     async fn send0(
         &self,
         req_packet: StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let mut times = 0;
-        loop {
-            if times >= MAX_RETRY_TIMES {
-                return Err(StorageEngineError::SendRequestError(
-                    self.node_id,
-                    format!("exceeded max retry times ({})", MAX_RETRY_TIMES),
-                ));
+        let mut guard = self.connection.lock().await;
+
+        for attempt in 0..MAX_RETRY_TIMES {
+            if guard.is_none() {
+                match self.open().await {
+                    Ok(stream) => *guard = Some(ClientConnection { stream }),
+                    Err(e) => {
+                        debug!(
+                            "Connect to node {} failed ({}/{}): {}",
+                            self.node_id,
+                            attempt + 1,
+                            MAX_RETRY_TIMES,
+                            e
+                        );
+                        sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
+                        continue;
+                    }
+                }
             }
 
-            match self.try_send_with_connection(&req_packet).await {
-                Ok(response) => return Ok(response),
+            match self
+                .send_and_recv(guard.as_mut().unwrap(), &req_packet)
+                .await
+            {
+                Ok(resp) => return Ok(resp),
                 Err(e) => {
-                    // Per-attempt retries are logged at debug only: a down/restarting
-                    // peer otherwise floods the log with one WARN per attempt (10x per
-                    // failed send), and the fetcher already logs the final give-up once
-                    // per round. This keeps a persistently-unreachable peer from
-                    // drowning out real warnings.
+                    *guard = None; // clear broken connection; next iteration reconnects
                     debug!(
-                        "Send failed to node {}: {}, retry {}/{}",
+                        "Send to node {} failed ({}/{}): {}",
                         self.node_id,
-                        e,
-                        times + 1,
-                        MAX_RETRY_TIMES
+                        attempt + 1,
+                        MAX_RETRY_TIMES,
+                        e
                     );
-                    times += 1;
                     sleep(Duration::from_millis(RETRY_SLEEP_MS)).await;
                 }
             }
         }
-    }
 
-    async fn try_send_with_connection(
-        &self,
-        req_packet: &StorageEnginePacket,
-    ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let mut conn = {
-            let mut guard = self.connection.lock();
-            guard.take()
-        };
-
-        if conn.is_none() {
-            self.ensure_connection().await?;
-            let mut guard = self.connection.lock();
-            conn = guard.take();
-        }
-
-        let mut conn = conn.ok_or_else(|| StorageEngineError::NoAvailableConn(self.node_id))?;
-
-        let result = self.send_and_recv(&mut conn, req_packet).await;
-
-        match result {
-            Ok(response) => {
-                let mut guard = self.connection.lock();
-                *guard = Some(conn);
-                Ok(response)
-            }
-            Err(e) => Err(e),
-        }
+        Err(StorageEngineError::SendRequestError(
+            self.node_id,
+            format!("exceeded max retry times ({})", MAX_RETRY_TIMES),
+        ))
     }
 
     async fn send_and_recv(
@@ -131,47 +123,29 @@ impl NodeConnection {
         conn: &mut ClientConnection,
         req_packet: &StorageEnginePacket,
     ) -> Result<StorageEnginePacket, StorageEngineError> {
-        let wrapper = RobustMQCodecWrapper::StorageEngine(req_packet.clone());
         conn.stream
-            .send(wrapper)
+            .send(RobustMQCodecWrapper::StorageEngine(req_packet.clone()))
             .await
             .map_err(|e| StorageEngineError::CommonErrorStr(format!("Send error: {}", e)))?;
 
         match conn.stream.next().await {
             Some(Ok(response)) => {
-                conn.last_active_time = now_second();
+                self.last_active_secs.store(now_second(), Ordering::Relaxed);
                 match response {
                     RobustMQCodecWrapper::StorageEngine(pkg) => Ok(pkg),
                     _ => Err(StorageEngineError::CommonErrorStr(
-                        "Received unexpected packet type, expected StorageEngine packet"
-                            .to_string(),
+                        "Received unexpected packet type".to_string(),
                     )),
                 }
             }
             Some(Err(e)) => Err(StorageEngineError::CommonErrorStr(format!(
-                "Received packet error: {}",
+                "Recv error: {}",
                 e
             ))),
             None => Err(StorageEngineError::CommonErrorStr(
                 "Connection closed unexpectedly".to_string(),
             )),
         }
-    }
-
-    async fn ensure_connection(&self) -> Result<(), StorageEngineError> {
-        {
-            if self.connection.lock().is_some() {
-                return Ok(());
-            }
-        }
-
-        let stream = self.open().await?;
-        let mut conn_guard = self.connection.lock();
-        *conn_guard = Some(ClientConnection {
-            stream,
-            last_active_time: now_second(),
-        });
-        Ok(())
     }
 
     async fn open(&self) -> Result<Framed<TcpStream, RobustMQCodec>, StorageEngineError> {
@@ -191,39 +165,20 @@ impl NodeConnection {
         ))
     }
 
-    pub async fn connect(&self) -> Result<(), StorageEngineError> {
-        let stream = self.open().await?;
-        let new_conn = ClientConnection {
-            stream,
-            last_active_time: now_second(),
-        };
-
-        let mut conn_guard = self.connection.lock();
-        if conn_guard.is_some() {
-            warn!("Replaced existing connection on node {}", self.node_id);
+    // Returns None if the connection has never been used (last_active_secs == 0).
+    pub fn get_last_active_time(&self) -> Option<u64> {
+        match self.last_active_secs.load(Ordering::Relaxed) {
+            0 => None,
+            t => Some(t),
         }
-        *conn_guard = Some(new_conn);
-
-        Ok(())
-    }
-
-    pub async fn get_last_active_time(&self) -> Option<u64> {
-        let conn_guard = self.connection.lock();
-        conn_guard.as_ref().map(|c| c.last_active_time)
     }
 
     pub async fn close_connection(&self) -> Result<(), StorageEngineError> {
-        let conn = {
-            let mut guard = self.connection.lock();
-            guard.take()
-        };
-
-        if let Some(mut conn) = conn {
+        if let Some(mut conn) = self.connection.lock().await.take() {
             if let Err(e) = conn.stream.close().await {
                 error!("Failed to close connection to node {}: {}", self.node_id, e);
             }
         }
-
         Ok(())
     }
 }

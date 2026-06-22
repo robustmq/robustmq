@@ -50,10 +50,8 @@ mod tests {
     use common_config::config::BrokerConfig;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::storage::codec::StorageEnginePacket;
     use protocol::storage::protocol::{
-        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
-        WriteReqBody,
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReqBody,
     };
     use std::path::{Path, PathBuf};
     use std::process::Command;
@@ -264,21 +262,10 @@ mod tests {
         }
         let mut body = WriteReqBody::new(shard_name.to_string(), messages);
         body.acks = -1;
-        let resp = writer
-            .write_send(leader, StorageEnginePacket::WriteReq(WriteReq::new(body)))
+        writer
+            .send_write_body(leader, body)
             .await
-            .unwrap();
-        match resp {
-            StorageEnginePacket::WriteResp(r) => {
-                if let Some(e) = r.header.error {
-                    panic!(
-                        "write to n{leader} failed: code={}, msg={}",
-                        e.code, e.error
-                    );
-                }
-            }
-            other => panic!("expected WriteResp, got {other:?}"),
-        }
+            .unwrap_or_else(|e| panic!("write to n{leader} failed: {e}"));
     }
 
     /// Poll until all 3 replicas are in ISR, available, and leo==hw==target, lso==0.
@@ -335,19 +322,11 @@ mod tests {
                 ReadReqFilter::by_offset(got),
                 ReadReqOptions::new(64 * 1024 * 1024, want),
             )]));
-            let resp = writer
-                .read_send(leader, StorageEnginePacket::ReadReq(req))
+            let records = writer
+                .send_read(leader, req)
                 .await
-                .unwrap();
-            let n = match resp {
-                StorageEnginePacket::ReadResp(r) => {
-                    if let Some(e) = r.header.error {
-                        panic!("read failed: code={}, msg={}", e.code, e.error);
-                    }
-                    r.body.messages.len() as u64
-                }
-                other => panic!("expected ReadResp, got {other:?}"),
-            };
+                .unwrap_or_else(|e| panic!("read from n{leader} failed: {e}"));
+            let n = records.len() as u64;
             if n == 0 {
                 break;
             }
@@ -420,17 +399,9 @@ mod tests {
                         vec![serialize::serialize(&record).unwrap()],
                     );
                     body.acks = 1;
-                    if let Ok(StorageEnginePacket::WriteResp(r)) = writer
-                        .write_send(
-                            d.segment.leader,
-                            StorageEnginePacket::WriteReq(WriteReq::new(body)),
-                        )
-                        .await
-                    {
-                        if r.header.error.is_none() {
-                            cumulative += 1;
-                            break;
-                        }
+                    if writer.send_write_body(d.segment.leader, body).await.is_ok() {
+                        cumulative += 1;
+                        break;
                     }
                 }
                 assert!(

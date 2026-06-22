@@ -47,8 +47,7 @@ mod tests {
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::meta::node::BrokerNode;
     use metadata_struct::storage::segment::SegmentStatus;
-    use protocol::storage::codec::StorageEnginePacket;
-    use protocol::storage::protocol::{WriteReq, WriteReqBody};
+    use protocol::storage::protocol::WriteReqBody;
     use std::collections::HashSet;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
@@ -152,18 +151,10 @@ mod tests {
             .collect();
         let mut body = WriteReqBody::new(shard_name.to_string(), messages);
         body.acks = 1;
-        let resp = writer
-            .write_send(leader, StorageEnginePacket::WriteReq(WriteReq::new(body)))
+        writer
+            .send_write_body(leader, body)
             .await
-            .unwrap();
-        match resp {
-            StorageEnginePacket::WriteResp(r) => {
-                if let Some(e) = r.header.error {
-                    panic!("write to n{leader} failed: code={} msg={}", e.code, e.error);
-                }
-            }
-            other => panic!("expected WriteResp, got {other:?}"),
-        }
+            .unwrap_or_else(|e| panic!("write to n{leader} failed: {e}"));
     }
 
     // ═════════════════════════════════════════════════════════════════════════

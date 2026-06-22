@@ -22,14 +22,12 @@ mod tests {
     use admin_server::engine::record::RecordDeleteByOffsetsReq;
     use bytes::Bytes;
     use common_base::http_response::AdminServerResponse;
-    use common_base::utils::serialize::{self, deserialize};
+    use common_base::utils::serialize;
     use common_base::uuid::unique_id;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::storage::record::StorageRecord;
-    use protocol::storage::codec::StorageEnginePacket;
     use protocol::storage::protocol::{
-        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
-        WriteReqBody,
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use storage_engine::clients::manager::ClientConnectionManager;
 
@@ -41,23 +39,15 @@ mod tests {
             let record = AdapterWriteRecord::new("", Bytes::from(format!("data-{}", i)));
             messages.push(serialize::serialize(&record).unwrap());
         }
-        let req = WriteReq::new(WriteReqBody::new(shard_name.to_string(), messages));
-        let resp = conn
-            .write_send(ENGINE_NODE_ID, StorageEnginePacket::WriteReq(req))
+        let mut offsets: Vec<u64> = conn
+            .send_write(ENGINE_NODE_ID, shard_name, messages)
             .await
-            .expect("write_send failed");
-        match resp {
-            StorageEnginePacket::WriteResp(r) => {
-                if let Some(err) = r.header.error {
-                    panic!("WriteResp error: {}:{}", err.code, err.error);
-                }
-                let mut offsets: Vec<u64> =
-                    r.body.status[0].messages.iter().map(|m| m.offset).collect();
-                offsets.sort();
-                offsets
-            }
-            other => panic!("expected WriteResp, got {}", other),
-        }
+            .expect("send_write failed")
+            .iter()
+            .map(|r| r.offset)
+            .collect();
+        offsets.sort();
+        offsets
     }
 
     async fn read_by_offset(
@@ -73,23 +63,9 @@ mod tests {
             ReadReqFilter::by_offset(offset),
             ReadReqOptions::new(1024 * 1024, max_record),
         )]));
-        let resp = conn
-            .read_send(ENGINE_NODE_ID, StorageEnginePacket::ReadReq(req))
+        conn.send_read(ENGINE_NODE_ID, req)
             .await
-            .expect("read_send failed");
-        match resp {
-            StorageEnginePacket::ReadResp(r) => {
-                if let Some(err) = r.header.error {
-                    panic!("ReadResp(Offset) error: {}:{}", err.code, err.error);
-                }
-                r.body
-                    .messages
-                    .iter()
-                    .map(|b| deserialize::<StorageRecord>(b).expect("deserialize failed"))
-                    .collect()
-            }
-            other => panic!("expected ReadResp, got {}", other),
-        }
+            .expect("send_read failed")
     }
 
     #[tokio::test]

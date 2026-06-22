@@ -25,8 +25,6 @@ mod tests {
     use common_base::utils::serialize;
     use common_base::uuid::unique_id;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-    use protocol::storage::codec::StorageEnginePacket;
-    use protocol::storage::protocol::{WriteReq, WriteReqBody};
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -36,20 +34,11 @@ mod tests {
     ) -> u64 {
         let record = AdapterWriteRecord::new("", Bytes::from("msg"));
         let msg = serialize::serialize(&record).unwrap();
-        let req = WriteReq::new(WriteReqBody::new(shard_name.to_string(), vec![msg]));
-        let resp = conn
-            .write_send(ENGINE_NODE_ID, StorageEnginePacket::WriteReq(req))
+        let rows = conn
+            .send_write(ENGINE_NODE_ID, shard_name, vec![msg])
             .await
-            .expect("write_send failed");
-        match resp {
-            StorageEnginePacket::WriteResp(r) => {
-                if let Some(err) = r.header.error {
-                    panic!("WriteResp error: {}:{}", err.code, err.error);
-                }
-                r.body.status[0].messages[0].offset
-            }
-            other => panic!("expected WriteResp, got {}", other),
-        }
+            .expect("send_write failed");
+        rows[0].offset
     }
 
     async fn query_offset(

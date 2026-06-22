@@ -19,9 +19,8 @@ mod tests {
     use broker_core::cache::NodeCacheManager;
     use common_config::config::BrokerConfig;
     use metadata_struct::meta::node::BrokerNode;
-    use protocol::storage::{
-        codec::StorageEnginePacket,
-        protocol::{ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
+    use protocol::storage::protocol::{
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use storage_engine::{
         clients::manager::ClientConnectionManager, core::cache::StorageCacheManager,
@@ -39,7 +38,7 @@ mod tests {
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let client = Arc::new(ClientConnectionManager::new(cache_manager.clone(), 2));
 
-        let read_req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
+        let req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
             "test-shard".to_string(),
             ReadType::Offset,
             false,
@@ -47,12 +46,10 @@ mod tests {
             ReadReqOptions::new(1024 * 1024, 10),
         )]));
 
-        let res = client
-            .read_send(node_id, StorageEnginePacket::ReadReq(read_req))
-            .await;
+        let res = client.send_read(node_id, req).await;
 
         match &res {
-            Ok(resp) => println!("Success: {:?}", resp),
+            Ok(records) => println!("Success: {} records", records.len()),
             Err(e) => println!("Error: {:?}", e),
         }
 

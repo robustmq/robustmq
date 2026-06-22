@@ -18,14 +18,12 @@ mod tests {
 
     use crate::engine::common::{admin_client, create_shard, engine_client, ENGINE_NODE_ID};
     use bytes::Bytes;
-    use common_base::utils::serialize::{self, deserialize};
+    use common_base::utils::serialize;
     use common_base::uuid::unique_id;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::storage::record::StorageRecord;
-    use protocol::storage::codec::StorageEnginePacket;
     use protocol::storage::protocol::{
-        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
-        WriteReqBody,
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
     };
     use storage_engine::clients::manager::ClientConnectionManager;
 
@@ -41,24 +39,12 @@ mod tests {
                 .with_tags(vec![tag.to_string()]);
             messages.push(serialize::serialize(&record).unwrap());
         }
-
-        let req = WriteReq::new(WriteReqBody::new(shard_name.to_string(), messages));
-        let resp = conn
-            .write_send(ENGINE_NODE_ID, StorageEnginePacket::WriteReq(req))
+        let rows = conn
+            .send_write(ENGINE_NODE_ID, shard_name, messages)
             .await
-            .expect("write_send failed");
-
-        match resp {
-            StorageEnginePacket::WriteResp(r) => {
-                if let Some(err) = r.header.error {
-                    panic!("WriteResp error: {}:{}", err.code, err.error);
-                }
-                let status = &r.body.status[0];
-                assert_eq!(status.messages.len(), 6);
-                status.messages.iter().map(|m| m.offset).collect()
-            }
-            other => panic!("expected WriteResp, got {}", other),
-        }
+            .expect("send_write failed");
+        assert_eq!(rows.len(), 6);
+        rows.iter().map(|r| r.offset).collect()
     }
 
     async fn read_by_tag(
@@ -73,24 +59,9 @@ mod tests {
             ReadReqFilter::by_tag(tag.to_string()),
             ReadReqOptions::new(1024 * 1024, 100),
         )]));
-        let resp = conn
-            .read_send(ENGINE_NODE_ID, StorageEnginePacket::ReadReq(req))
+        conn.send_read(ENGINE_NODE_ID, req)
             .await
-            .expect("read_send failed");
-
-        match resp {
-            StorageEnginePacket::ReadResp(r) => {
-                if let Some(err) = r.header.error {
-                    panic!("ReadResp(Tag) error: {}:{}", err.code, err.error);
-                }
-                r.body
-                    .messages
-                    .iter()
-                    .map(|b| deserialize::<StorageRecord>(b).expect("deserialize failed"))
-                    .collect()
-            }
-            other => panic!("expected ReadResp, got {}", other),
-        }
+            .expect("send_read failed")
     }
 
     #[tokio::test]

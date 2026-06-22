@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    clients::{
-        manager::ClientConnectionManager,
-        packet::{build_write_req, write_resp_parse},
-    },
+    clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
@@ -31,7 +28,6 @@ use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
-use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::DEFAULT_WRITE_TIMEOUT_MS;
 use std::sync::Arc;
 use tracing::warn;
@@ -161,18 +157,9 @@ async fn write_data_to_remote(
         .iter()
         .map(serialize)
         .collect::<Result<Vec<_>, _>>()?;
-    let write_req = build_write_req(shard_name.to_string(), messages);
-    let resp = client_connection_manager
-        .write_send(target_broker_id, StorageEnginePacket::WriteReq(write_req))
-        .await?;
-
-    match resp {
-        StorageEnginePacket::WriteResp(resp) => Ok(write_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            target_broker_id,
-            format!("Expected WriteResp, got {:?}", packet),
-        )),
-    }
+    client_connection_manager
+        .send_write(target_broker_id, shard_name, messages)
+        .await
 }
 
 async fn write_memory_to_local(

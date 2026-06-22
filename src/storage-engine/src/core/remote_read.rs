@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    clients::{
-        manager::ClientConnectionManager,
-        packet::{build_read_req, read_resp_parse},
-    },
+    clients::{manager::ClientConnectionManager, packet::build_read_req},
     core::{cache::StorageCacheManager, error::StorageEngineError},
     filesegment::SegmentIdentity,
 };
@@ -24,10 +21,7 @@ use common_config::broker::broker_config;
 use metadata_struct::storage::{
     adapter_read_config::AdapterReadConfig, record::StorageRecord, segment::EngineSegment,
 };
-use protocol::storage::{
-    codec::StorageEnginePacket,
-    protocol::{ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
-};
+use protocol::storage::protocol::{ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType};
 use std::sync::Arc;
 
 const REMOTE_READ_MAX_RETRIES: usize = 6;
@@ -172,17 +166,9 @@ async fn do_send(
     target_broker_id: u64,
     messages: Vec<ReadReqMessage>,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let read_req = build_read_req(messages);
-    let resp = client_connection_manager
-        .write_send(target_broker_id, StorageEnginePacket::ReadReq(read_req))
-        .await?;
-    match resp {
-        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            target_broker_id,
-            format!("Expected ReadResp, got {:?}", packet),
-        )),
-    }
+    client_connection_manager
+        .send_read(target_broker_id, build_read_req(messages))
+        .await
 }
 
 pub(super) fn pick_replica_exclude_all(segment: &EngineSegment, exclude: &[u64]) -> u64 {
