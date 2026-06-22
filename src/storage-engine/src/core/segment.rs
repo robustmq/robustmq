@@ -132,21 +132,6 @@ pub async fn delete_local_segment(
     Ok(())
 }
 
-pub async fn segment_already_delete(
-    cache_manager: &Arc<StorageCacheManager>,
-    shard_name: &str,
-    segment: u32,
-) -> Result<bool, StorageEngineError> {
-    let segment_iden = SegmentIdentity {
-        shard_name: shard_name.to_string(),
-        segment,
-    };
-
-    let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-
-    Ok(!segment_file.exists())
-}
-
 /// Create a new local segment file from `JournalSegment`.
 pub async fn create_local_segment(
     cache_manager: &Arc<StorageCacheManager>,

@@ -14,7 +14,6 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
-use crate::filesegment::file::data_fold_shard;
 use crate::filesegment::SegmentIdentity;
 use common_config::{broker::broker_config, storage::StorageType};
 use grpc_clients::pool::ClientPool;
@@ -23,23 +22,10 @@ use metadata_struct::storage::shard::EngineShard;
 use protocol::meta::meta_service_journal::{
     CreateShardRequest, DeleteShardRequest, ListShardRequest,
 };
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, info};
-
-pub fn shard_already_delete(shard_name: &str) -> Result<bool, StorageEngineError> {
-    let conf = broker_config();
-    for data_fold in conf.storage_runtime.data_path.iter() {
-        let shard_fold_name = data_fold_shard(shard_name, data_fold);
-        if Path::new(&shard_fold_name).exists() {
-            return Ok(false);
-        }
-    }
-
-    Ok(true)
-}
 
 fn is_shard_ready(cache_manager: &Arc<StorageCacheManager>, shard: &AdapterShardInfo) -> bool {
     let shard_name = &shard.shard_name;

@@ -15,11 +15,14 @@
 use super::cache::StorageCacheManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
+use crate::filesegment::file::{data_file_segment, data_fold_shard};
 use crate::filesegment::SegmentIdentity;
 use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use common_base::tools::loop_select_ticket;
+use common_config::broker::broker_config;
 use common_config::storage::StorageType;
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{error, info};
@@ -179,4 +182,36 @@ async fn delete_shard(
     // clean cache
     cache_manager.delete_shard(shard_name);
     info!("shard {} deleted", shard_name);
+}
+
+pub fn shard_already_delete(cache_manager: &Arc<StorageCacheManager>, shard_name: &str) -> bool {
+    if cache_manager.shards.contains_key(shard_name) {
+        return false;
+    }
+    let conf = broker_config();
+    for data_fold in &conf.storage_runtime.data_path {
+        if Path::new(&data_fold_shard(shard_name, data_fold)).exists() {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn segment_already_delete(
+    cache_manager: &Arc<StorageCacheManager>,
+    shard_name: &str,
+    segment_seq: u32,
+) -> bool {
+    let segment_iden = SegmentIdentity::new(shard_name, segment_seq);
+    if cache_manager.get_segment(&segment_iden).is_some() {
+        return false;
+    }
+    let conf = broker_config();
+    for data_fold in &conf.storage_runtime.data_path {
+        let shard_fold = data_fold_shard(shard_name, data_fold);
+        if Path::new(&data_file_segment(&shard_fold, segment_seq)).exists() {
+            return false;
+        }
+    }
+    true
 }

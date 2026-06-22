@@ -332,11 +332,17 @@ impl StorageCacheManager {
     // ── Pending Deletes ──────────────────────────────────────────────────────
 
     pub fn push_pending_delete_shard(&self, shard_name: String) {
-        self.pending_delete_shards.lock().unwrap().push(shard_name);
+        let mut q = self.pending_delete_shards.lock().unwrap();
+        if !q.contains(&shard_name) {
+            q.push(shard_name);
+        }
     }
 
     pub fn push_pending_delete_segment(&self, seg_iden: SegmentIdentity) {
-        self.pending_delete_segments.lock().unwrap().push(seg_iden);
+        let mut q = self.pending_delete_segments.lock().unwrap();
+        if !q.contains(&seg_iden) {
+            q.push(seg_iden);
+        }
     }
 
     pub fn take_pending_deletes(&self) -> (Vec<String>, Vec<SegmentIdentity>) {

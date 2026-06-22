@@ -28,7 +28,7 @@ use protocol::broker::broker::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 use std::sync::Arc;
-use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
+use storage_engine::core::delete::{segment_already_delete, shard_already_delete};
 use storage_engine::isr::handle_epoch::query_local_replica_state;
 use storage_engine::isr::handle_fetch::FetchEngines;
 use storage_engine::StorageEngineParams;
@@ -124,11 +124,8 @@ impl BrokerService for GrpcBrokerService {
                     &item.shard_name,
                     segment_seq,
                 )
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
             } else {
-                shard_already_delete(&item.shard_name)
-                    .map_err(|e| Status::internal(e.to_string()))?
+                shard_already_delete(&self.storage_params.cache_manager, &item.shard_name)
             };
 
             results.push(ShardSegmentDeleteStatus {

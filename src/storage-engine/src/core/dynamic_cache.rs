@@ -184,7 +184,6 @@ async fn create_segment(
 
     // init hw/leo/lso
     if segment.segment_seq == 0 {
-        println!("segment_seqsegment:{:?}", segment);
         let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         shard_offset.save_earliest_offset(&shard.shard_name, 0)?;
         shard_offset.save_latest_offset(&shard.shard_name, 0)?;

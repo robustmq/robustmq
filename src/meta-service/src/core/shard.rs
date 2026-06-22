@@ -24,7 +24,7 @@ use common_base::uuid::unique_id;
 use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
 use node_call::NodeCallManager;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 pub async fn create_shard(
     cache_manager: &Arc<MetaCacheManager>,
@@ -75,8 +75,21 @@ pub async fn delete_shard_by_real(
 
     info!("Deleting shard: name={}", shard_name);
 
+    let mut failed = false;
     for segment in cache_manager.get_segment_list_by_shard(shard_name) {
-        delete_segment_by_real(cache_manager, raft_manager, &segment).await?;
+        if let Err(e) = delete_segment_by_real(cache_manager, raft_manager, &segment).await {
+            warn!(
+                "Failed to delete segment {}/{}: {}",
+                shard_name, segment.segment_seq, e
+            );
+            failed = true;
+        }
+    }
+    if failed {
+        return Err(MetaServiceError::CommonError(format!(
+            "Some segments of shard {} failed to delete, will retry next round",
+            shard_name
+        )));
     }
 
     sync_delete_shard_info(raft_manager, &shard).await?;

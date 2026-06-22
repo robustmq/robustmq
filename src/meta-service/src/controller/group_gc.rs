@@ -32,7 +32,7 @@ use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 // Scan every 10 seconds
-const GROUP_GC_INTERVAL_MS: u64 = 10 * 1000;
+const GROUP_GC_INTERVAL_MS: u64 = 60 * 1000;
 
 pub async fn start_group_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
