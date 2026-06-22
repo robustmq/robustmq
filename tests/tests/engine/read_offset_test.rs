@@ -115,40 +115,40 @@ mod tests {
         let shard_name = unique_id();
 
         create_shard(&admin, &shard_name, config).await;
-        let offsets = write_records(&conn, &shard_name).await;
 
-        // offsets should be 0,1,2,3,4
+        // EngineSegment 的 WriteResp 中 messages 顺序由 HashMap 迭代决定，不保证与写入顺序一致。
+        // 排序后验证连续性，取 base 作为后续 read 的起始 offset。
+        let mut offsets = write_records(&conn, &shard_name).await;
+        offsets.sort();
+
         assert_eq!(offsets.len(), WRITE_COUNT);
+        let base = offsets[0];
         for (i, &off) in offsets.iter().enumerate() {
-            assert_eq!(off, i as u64, "expected offset {} got {}", i, off);
+            assert_eq!(off, base + i as u64);
         }
 
-        // read from offset 0 → all 5 records
-        let records = read_by_offset(&conn, &shard_name, 0, WRITE_COUNT as u64).await;
+        // read from base → all WRITE_COUNT records
+        let records = read_by_offset(&conn, &shard_name, base, WRITE_COUNT as u64).await;
         assert_eq!(
             records.len(),
             WRITE_COUNT,
-            "read from 0 should return all records"
+            "read from base should return all records"
         );
         for (i, rec) in records.iter().enumerate() {
-            assert_eq!(rec.metadata.offset, i as u64);
+            assert_eq!(rec.metadata.offset, base + i as u64);
         }
 
-        // read from offset 2 → 3 records (offset 2,3,4)
-        let records = read_by_offset(&conn, &shard_name, 2, WRITE_COUNT as u64).await;
-        assert_eq!(
-            records.len(),
-            3,
-            "read from offset 2 should return 3 records"
-        );
-        assert_eq!(records[0].metadata.offset, 2);
-        assert_eq!(records[1].metadata.offset, 3);
-        assert_eq!(records[2].metadata.offset, 4);
+        // read from base+2 → 3 records
+        let records = read_by_offset(&conn, &shard_name, base + 2, WRITE_COUNT as u64).await;
+        assert_eq!(records.len(), 3, "read from base+2 should return 3 records");
+        assert_eq!(records[0].metadata.offset, base + 2);
+        assert_eq!(records[1].metadata.offset, base + 3);
+        assert_eq!(records[2].metadata.offset, base + 4);
 
-        // read with max_record=2 from offset 0 → only 2 records
-        let records = read_by_offset(&conn, &shard_name, 0, 2).await;
+        // max_record=2 from base → only 2 records
+        let records = read_by_offset(&conn, &shard_name, base, 2).await;
         assert_eq!(records.len(), 2, "max_record=2 should limit to 2");
-        assert_eq!(records[0].metadata.offset, 0);
-        assert_eq!(records[1].metadata.offset, 1);
+        assert_eq!(records[0].metadata.offset, base);
+        assert_eq!(records[1].metadata.offset, base + 1);
     }
 }

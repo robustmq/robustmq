@@ -117,9 +117,13 @@ mod tests {
         let shard_name = unique_id();
 
         create_shard(&admin, &shard_name, config).await;
-        write_tagged_records(&conn, &shard_name).await;
+        let mut offsets = write_tagged_records(&conn, &shard_name).await;
+        // response order is non-deterministic for EngineSegment; sort to get contiguous range
+        offsets.sort();
+        assert_eq!(offsets.len(), 6);
+        let base = offsets[0];
 
-        // "tag-a" → 3 records (offsets 0,1,2)
+        // "tag-a" → first 3 records (base, base+1, base+2)
         let records = read_by_tag(&conn, &shard_name, "tag-a").await;
         assert_eq!(records.len(), 3, "tag-a should return 3 records");
         for rec in &records {
@@ -129,12 +133,13 @@ mod tests {
                 "record should have tag-a"
             );
             assert!(
-                rec.metadata.offset < 3,
-                "tag-a records should be at offsets 0–2"
+                rec.metadata.offset < base + 3,
+                "tag-a records should be at offsets base..base+2, got {}",
+                rec.metadata.offset
             );
         }
 
-        // "tag-b" → 3 records (offsets 3,4,5)
+        // "tag-b" → last 3 records (base+3, base+4, base+5)
         let records = read_by_tag(&conn, &shard_name, "tag-b").await;
         assert_eq!(records.len(), 3, "tag-b should return 3 records");
         for rec in &records {
@@ -144,8 +149,9 @@ mod tests {
                 "record should have tag-b"
             );
             assert!(
-                rec.metadata.offset >= 3,
-                "tag-b records should be at offsets 3–5"
+                rec.metadata.offset >= base + 3,
+                "tag-b records should be at offsets base+3..base+5, got {}",
+                rec.metadata.offset
             );
         }
 

@@ -23,6 +23,11 @@ use common_base::http_response::AdminServerResponse;
 use common_config::config::BrokerConfig;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::meta::node::BrokerNode;
+use protocol::storage::codec::StorageEnginePacket;
+use protocol::storage::protocol::{
+    ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
+    WriteReqBody,
+};
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::core::cache::StorageCacheManager;
 use tokio::time::sleep;
@@ -96,6 +101,60 @@ pub async fn get_shard_list(client: &AdminHttpClient, shard_name: &str) -> Vec<S
         .await
         .expect("get_shard_list failed")
         .data
+}
+
+/// Send messages and return the number written. Panics on any protocol or engine error.
+pub async fn write_messages(
+    conn: &Arc<ClientConnectionManager>,
+    shard_name: &str,
+    messages: Vec<Vec<u8>>,
+) -> usize {
+    let count = messages.len();
+    let req = WriteReq::new(WriteReqBody::new(shard_name.to_string(), messages));
+    let resp = conn
+        .write_send(ENGINE_NODE_ID, StorageEnginePacket::WriteReq(req))
+        .await
+        .expect("write_send failed");
+    match resp {
+        StorageEnginePacket::WriteResp(r) => {
+            if let Some(err) = r.header.error {
+                panic!("WriteResp error: {}:{}", err.code, err.error);
+            }
+            assert_eq!(r.body.status[0].messages.len(), count);
+            count
+        }
+        other => panic!("expected WriteResp, got {}", other),
+    }
+}
+
+/// Send a read request and return raw message bytes. Panics on any protocol or engine error.
+pub async fn read_messages_raw(
+    conn: &Arc<ClientConnectionManager>,
+    shard_name: &str,
+    read_type: ReadType,
+    filter: ReadReqFilter,
+    max_record: u64,
+) -> Vec<Vec<u8>> {
+    let req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
+        shard_name.to_string(),
+        read_type,
+        false,
+        filter,
+        ReadReqOptions::new(1024 * 1024, max_record),
+    )]));
+    let resp = conn
+        .read_send(ENGINE_NODE_ID, StorageEnginePacket::ReadReq(req))
+        .await
+        .expect("read_send failed");
+    match resp {
+        StorageEnginePacket::ReadResp(r) => {
+            if let Some(err) = r.header.error {
+                panic!("ReadResp error: {}:{}", err.code, err.error);
+            }
+            r.body.messages
+        }
+        other => panic!("expected ReadResp, got {}", other),
+    }
 }
 
 pub async fn get_segment_list(
