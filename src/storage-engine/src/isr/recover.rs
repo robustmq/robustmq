@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::memory::engine::MemoryStorageEngine;
-use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset::{ShardOffset, ShardOffsetState};
 use crate::filesegment::SegmentIdentity;
 use crate::isr::leader_epoch::LeaderEpochCache;
-use crate::isr::log::ReplicaLog;
 use common_config::storage::StorageType;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -26,8 +24,6 @@ use tracing::warn;
 
 pub async fn recover_local_segments(
     cache_manager: &Arc<StorageCacheManager>,
-    memory: &Arc<MemoryStorageEngine>,
-    rocksdb: &Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
 ) {
     let segments: Vec<(String, u32)> = cache_manager
@@ -36,7 +32,7 @@ pub async fn recover_local_segments(
         .filter(|s| {
             matches!(
                 s.config.storage_type,
-                StorageType::EngineMemory | StorageType::EngineRocksDB
+                StorageType::EngineMemory | StorageType::EngineRocksDB | StorageType::EngineSegment
             )
         })
         .filter_map(|s| {
@@ -48,15 +44,8 @@ pub async fn recover_local_segments(
         .collect();
 
     for (shard, segment_seq) in segments {
-        if let Err(e) = recover_one_segment(
-            cache_manager,
-            memory,
-            rocksdb,
-            rocksdb_engine_handler,
-            &shard,
-            segment_seq,
-        )
-        .await
+        if let Err(e) =
+            recover_one_segment(cache_manager, rocksdb_engine_handler, &shard, segment_seq).await
         {
             warn!(
                 "recover segment {}/{} on startup: {}",
@@ -76,46 +65,28 @@ fn recover_leader_epoch_cache(
     Ok(())
 }
 
-fn recover_hw(persisted_hw: u64, local_leo: u64) -> u64 {
-    persisted_hw.min(local_leo)
-}
-
 async fn recover_one_segment(
     cache_manager: &Arc<StorageCacheManager>,
-    memory: &Arc<MemoryStorageEngine>,
-    rocksdb: &Arc<RocksDBStorageEngine>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard: &str,
     segment_seq: u32,
 ) -> Result<(), StorageEngineError> {
     cache_manager.add_segment_replica(shard, segment_seq);
-    let is_rocksdb = cache_manager
-        .shards
-        .get(shard)
-        .map(|s| s.config.storage_type == StorageType::EngineRocksDB)
-        .unwrap_or(false);
 
-    let (leo, log_start) = if is_rocksdb {
-        (
-            rocksdb.latest_offset(shard, segment_seq)?,
-            rocksdb.log_start_offset(shard, segment_seq).unwrap_or(0),
-        )
-    } else {
-        (
-            memory.latest_offset(shard, segment_seq)?,
-            memory.log_start_offset(shard, segment_seq).unwrap_or(0),
-        )
+    let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let state = match shard_offset.get_shard_offsets(shard) {
+        Ok(s) => s,
+        Err(StorageEngineError::NotOffsetState(_)) => {
+            let default = ShardOffsetState::default();
+            cache_manager.save_offset_state(shard.to_string(), default.clone());
+            default
+        }
+        Err(e) => return Err(e),
     };
 
-    let mut cache = LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
-    recover_leader_epoch_cache(&mut cache, leo, log_start)?;
-
-    let persisted_hw = cache_manager
-        .get_offset_state(shard)
-        .map(|s| s.high_watermark_offset)
-        .unwrap_or(0);
-    let hw = recover_hw(persisted_hw, leo);
-    cache_manager.update_high_watermark_offset(shard, hw);
+    let mut epoch_cache =
+        LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
+    recover_leader_epoch_cache(&mut epoch_cache, state.latest_offset, state.earliest_offset)?;
 
     Ok(())
 }
@@ -144,26 +115,20 @@ mod tests {
         assert_eq!(c.end_offset_for(2), None);
     }
 
-    #[test]
-    fn hw_clamped_to_leo() {
-        assert_eq!(recover_hw(8, 5), 5);
-        assert_eq!(recover_hw(3, 5), 3);
-    }
-
     #[tokio::test]
     async fn recover_local_segments_trims_phantom_epoch() {
-        use crate::core::test_tool::{
-            test_build_memory_engine, test_build_rocksdb_engine, test_init_conf,
-        };
-        use bytes::Bytes;
-        use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+        use crate::core::offset::ShardOffset;
+        use crate::core::test_tool::test_init_conf;
+        use broker_core::cache::NodeCacheManager;
+        use common_config::config::BrokerConfig;
         use metadata_struct::storage::segment::Replica;
         use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
 
         test_init_conf();
-        let memory = Arc::new(test_build_memory_engine());
-        let cm = memory.cache_manager.clone();
         let db = test_rocksdb_instance();
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
+        let cm = Arc::new(crate::core::cache::StorageCacheManager::new(broker_cache));
+
         cm.set_shard(EngineShard {
             shard_name: "s".to_string(),
             config: EngineShardConfig {
@@ -185,23 +150,10 @@ mod tests {
             ..Default::default()
         });
 
-        cm.save_offset_state(
-            "s".to_string(),
-            crate::core::offset::ShardOffsetState::default(),
-        );
-
-        let recs: Vec<_> = (0..3u64)
-            .map(|o| StorageRecord {
-                metadata: StorageRecordMetadata {
-                    offset: o,
-                    ..Default::default()
-                },
-                protocol_data: None,
-                data: Bytes::from("v"),
-            })
-            .collect();
-        memory.append_at("s", 0, 0, recs).await.unwrap();
-        assert_eq!(memory.latest_offset("s", 0).unwrap(), 3);
+        let shard_offset = ShardOffset::new(cm.clone(), db.clone());
+        shard_offset.save_earliest_offset("s", 0).unwrap();
+        shard_offset.save_latest_offset("s", 3).unwrap();
+        shard_offset.save_high_watermark_offset("s", 0).unwrap();
 
         {
             let mut c = LeaderEpochCache::load(db.clone(), "s", 0).unwrap();
@@ -209,8 +161,7 @@ mod tests {
             c.assign(2, 9).unwrap();
         }
 
-        let rocksdb = Arc::new(test_build_rocksdb_engine());
-        recover_local_segments(&cm, &memory, &rocksdb, &db).await;
+        recover_local_segments(&cm, &db).await;
 
         let c = LeaderEpochCache::load(db, "s", 0).unwrap();
         assert_eq!(c.latest_epoch(), 1);

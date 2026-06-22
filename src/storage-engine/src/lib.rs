@@ -112,8 +112,6 @@ impl StorageEngineServer {
     pub async fn start(&self) -> Result<(), std::io::Error> {
         crate::isr::recover::recover_local_segments(
             &self.cache_manager,
-            &self.memory_storage_engine,
-            &self.rocksdb_storage_engine,
             &self.rocksdb_engine_handler,
         )
         .await;
