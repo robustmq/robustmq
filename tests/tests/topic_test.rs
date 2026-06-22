@@ -209,27 +209,37 @@ mod tests {
         );
 
         // ── verify meta topic is deleted (via placement grpc) ─────────────────
-        let topic_list_req = ListTopicRequest {
-            tenant: tenant.clone(),
-            topic_name: topic_name.clone(),
-        };
-        let mut topic_stream =
-            placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
-                .await
-                .unwrap();
-        let mut found_in_meta = false;
-        while let Some(reply) = topic_stream.message().await.unwrap() {
-            if let Ok(t) = MqttTopic::decode(&reply.topic) {
-                if t.topic_name == topic_name {
-                    found_in_meta = true;
-                    break;
+        // The meta controller runs every 5 s and only removes the topic from raft
+        // after all shards are confirmed deleted (second MqttDeleteTopic write).
+        // Poll until the topic is gone from placement or timeout.
+        let meta_deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            let topic_list_req = ListTopicRequest {
+                tenant: tenant.clone(),
+                topic_name: topic_name.clone(),
+            };
+            let mut topic_stream =
+                placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
+                    .await
+                    .unwrap();
+            let mut found_in_meta = false;
+            while let Some(reply) = topic_stream.message().await.unwrap() {
+                if let Ok(t) = MqttTopic::decode(&reply.topic) {
+                    if t.topic_name == topic_name {
+                        found_in_meta = true;
+                        break;
+                    }
                 }
             }
+            if !found_in_meta {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < meta_deadline,
+                "meta topic '{}' should be deleted within 30s after physical shard deletion",
+                topic_name
+            );
+            sleep(Duration::from_secs(2)).await;
         }
-        assert!(
-            !found_in_meta,
-            "meta topic '{}' should be deleted after topic delete",
-            topic_name
-        );
     }
 }
