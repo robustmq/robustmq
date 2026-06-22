@@ -57,10 +57,36 @@ mod tests {
         Arc<RocksDBEngine>,
         Arc<ReplicaFetcherManager>,
     ) {
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
         let engine = make_engine();
         let cm = engine.cache_manager.clone();
         let mgr = make_fetcher_manager(&engine);
         set_broker_id(&cm, 1);
+        cm.set_shard(EngineShard {
+            shard_name: "t6-shard".to_string(),
+            config: EngineShardConfig::default(),
+            ..Default::default()
+        });
+        cm.set_segment(&EngineSegment {
+            shard_name: "t6-shard".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 0,
+            replicas: vec![
+                Replica {
+                    replica_seq: 0,
+                    node_id: 1,
+                    fold: String::new(),
+                },
+                Replica {
+                    replica_seq: 1,
+                    node_id: 2,
+                    fold: String::new(),
+                },
+            ],
+            isr: vec![1, 2],
+            ..Default::default()
+        });
         cm.add_segment_replica("t6-shard", 0);
         cm.save_offset_state("t6-shard".to_string(), ShardOffsetState::default());
         (engine, test_rocksdb_instance(), mgr)

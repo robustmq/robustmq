@@ -253,6 +253,17 @@ async fn read_multi_segment(
         .active_segment_seq;
 
     loop {
+        let remaining = read_config
+            .max_record_num
+            .saturating_sub(results.len() as u64);
+        if remaining == 0 {
+            break;
+        }
+        let seg_config = AdapterReadConfig {
+            max_record_num: remaining,
+            max_size: read_config.max_size,
+        };
+
         let segment_iden = SegmentIdentity::new(shard_name, current_seq);
         let cur_segment = cache_manager
             .get_segment(&segment_iden)
@@ -265,7 +276,7 @@ async fn read_multi_segment(
                     rocksdb_engine_handler,
                     &segment_iden,
                     current_offset,
-                    read_config,
+                    &seg_config,
                 )
                 .await?;
                 results.extend(batch);
@@ -277,7 +288,7 @@ async fn read_multi_segment(
                     cur_segment.leader,
                     shard_name,
                     current_offset,
-                    read_config,
+                    &seg_config,
                     true,
                 )
                 .await?;
@@ -292,7 +303,7 @@ async fn read_multi_segment(
                 rocksdb_engine_handler,
                 &segment_iden,
                 current_offset,
-                read_config,
+                &seg_config,
             )
             .await?;
             if batch.is_empty() {
@@ -316,7 +327,7 @@ async fn read_multi_segment(
                 initial_target,
                 shard_name,
                 req_offset,
-                read_config,
+                &seg_config,
                 true,
             )
             .await?;
@@ -484,6 +495,10 @@ mod tests {
             start_offset: 2,
             ..Default::default()
         });
+        // segment 1 is now the active segment
+        let mut updated_shard = cm.shards.get(shard).unwrap().clone();
+        updated_shard.active_segment_seq = 1;
+        cm.set_shard(updated_shard);
         cm.sort_offset_index(shard);
 
         let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());
@@ -541,6 +556,10 @@ mod tests {
             start_offset: 2,
             ..Default::default()
         });
+        // segment 1 is now the active segment
+        let mut updated_shard = cm.shards.get(shard).unwrap().clone();
+        updated_shard.active_segment_seq = 1;
+        cm.set_shard(updated_shard);
         cm.sort_offset_index(shard);
 
         let log = FileSegmentReplicaLog::new(cm.clone(), db.clone());

@@ -57,7 +57,8 @@ impl ShardOffset {
         if let Some(state) = self.cache_manager.get_offset_state(shard) {
             return Ok(state.latest_offset);
         }
-        Ok(self.recover_shard_data(shard)?.latest_offset)
+        self.load_offset(&shard_latest_offset(shard))?
+            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))
     }
 
     pub fn save_earliest_offset(&self, shard: &str, offset: u64) -> Result<(), StorageEngineError> {
@@ -70,7 +71,8 @@ impl ShardOffset {
         if let Some(state) = self.cache_manager.get_offset_state(shard) {
             return Ok(state.earliest_offset);
         }
-        Ok(self.recover_shard_data(shard)?.earliest_offset)
+        self.load_offset(&shard_earliest_offset(shard))?
+            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))
     }
 
     pub fn save_high_watermark_offset(
@@ -81,7 +83,8 @@ impl ShardOffset {
         let advanced = self
             .cache_manager
             .update_high_watermark_offset(shard, offset);
-        if offset == 0 || advanced {
+        // Save when: initializing (offset=0), HW advanced, or no cache entry yet
+        if offset == 0 || advanced || self.cache_manager.get_offset_state(shard).is_none() {
             self.save_offset(&shard_high_watermark_offset(shard), offset)?;
         }
         Ok(advanced)

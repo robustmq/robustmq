@@ -186,6 +186,16 @@ pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_
             .rocksdb_engine_handler
             .clone(),
     );
+    storage_driver_manager
+        .engine_storage_handler
+        .cache_manager
+        .save_offset_state(
+            shard_name.clone(),
+            storage_engine::core::offset::ShardOffsetState::default(),
+        );
     commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
     commit_offset.save_latest_offset(&shard_name, 0).unwrap();
+    commit_offset
+        .save_high_watermark_offset(&shard_name, 0)
+        .unwrap();
 }

@@ -282,11 +282,19 @@ async fn parse_segment_meta(
 mod tests {
     use super::is_outdated_segment_notify;
     use crate::core::cache::StorageCacheManager;
+    use crate::core::test_tool::test_init_conf;
     use crate::filesegment::SegmentIdentity;
     use broker_core::cache::NodeCacheManager;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::segment::EngineSegment;
     use std::sync::Arc;
+
+    fn make_cache() -> Arc<StorageCacheManager> {
+        test_init_conf();
+        Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
+            BrokerConfig::default(),
+        ))))
+    }
 
     fn segment(epoch: u32) -> EngineSegment {
         EngineSegment {
@@ -309,9 +317,7 @@ mod tests {
 
     #[test]
     fn segment_epoch_monotonic_filter() {
-        let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
-            BrokerConfig::default(),
-        ))));
+        let cache = make_cache();
         let iden = SegmentIdentity::new("s1", 0);
 
         assert!(!is_outdated_segment_notify(&cache, &iden, &segment(0)));
@@ -324,9 +330,7 @@ mod tests {
 
     #[test]
     fn leader_epoch_filter_within_same_segment_epoch() {
-        let cache = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
-            BrokerConfig::default(),
-        ))));
+        let cache = make_cache();
         let iden = SegmentIdentity::new("s1", 0);
         cache.set_segment(&segment_le(5, 10));
 

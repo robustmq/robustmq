@@ -152,6 +152,24 @@ mod tests {
     }
 
     fn setup(cm: &Arc<StorageCacheManager>) {
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+        cm.set_shard(EngineShard {
+            shard_name: "s".to_string(),
+            config: EngineShardConfig::default(),
+            ..Default::default()
+        });
+        cm.set_segment(&EngineSegment {
+            shard_name: "s".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 0,
+            replicas: vec![Replica {
+                node_id: 1,
+                ..Default::default()
+            }],
+            isr: vec![1],
+            ..Default::default()
+        });
         cm.save_offset_state(
             "s".to_string(),
             crate::core::offset::ShardOffsetState::default(),

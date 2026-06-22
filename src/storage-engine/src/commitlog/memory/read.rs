@@ -199,31 +199,27 @@ impl MemoryStorageEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use super::*;
-    use crate::{
-        core::offset::ShardOffset,
-        core::{cache::StorageCacheManager, test_tool::test_build_memory_engine},
-    };
-    use broker_core::cache::NodeCacheManager;
+    use crate::core::test_tool::test_build_memory_engine;
     use common_base::uuid::unique_id;
-    use common_config::config::BrokerConfig;
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 
     #[tokio::test]
     async fn test_batch_write_and_read_by_offset() {
         let engine = test_build_memory_engine();
         let shard_name = unique_id();
-        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
-        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
-        let commit_offset = ShardOffset::new(
-            cache_manager.clone(),
-            engine.commit_log_offset.rocksdb_engine_handler.clone(),
-        );
+        let cache_manager = engine.cache_manager.clone();
+        let commit_offset = engine.commit_log_offset.clone();
 
+        cache_manager.save_offset_state(
+            shard_name.clone(),
+            crate::core::offset::ShardOffsetState::default(),
+        );
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
+        commit_offset
+            .save_high_watermark_offset(&shard_name, 0)
+            .unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| {
