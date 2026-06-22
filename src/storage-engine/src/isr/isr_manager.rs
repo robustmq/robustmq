@@ -268,38 +268,41 @@ mod tests {
     }
 
     #[test]
-    fn shrink_drops_lagging_follower() {
+    fn isr_membership_changes() {
+        // shrink: n2 active (last_fetch_ts=100), n3 lagged (last_fetch_ts=0) → drop n3
         let st = state();
         update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
         update_follower_progress(&st, 3, 1, 50, 100, 0).unwrap();
+        assert_eq!(
+            compute_new_isr(&st, &[1, 2, 3], &[1, 2, 3], 1, 100, 10000, 100),
+            Some(vec![1, 2])
+        );
 
-        let new_isr = compute_new_isr(&st, &[1, 2, 3], &[1, 2, 3], 1, 100, 10000, 100);
-        assert_eq!(new_isr, Some(vec![1, 2]));
-    }
-
-    #[test]
-    fn no_change_when_all_caught_up() {
+        // expand: n2 caught up but not yet in ISR → add n2
         let st = state();
         update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
-
-        let new_isr = compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 100);
-        assert_eq!(new_isr, None);
+        assert_eq!(
+            compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100),
+            Some(vec![1, 2])
+        );
     }
 
     #[test]
-    fn expand_adds_caught_up_replica() {
+    fn isr_unchanged() {
+        // all caught up: ISR already correct → no proposal
         let st = state();
         update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
+        assert_eq!(
+            compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 100),
+            None
+        );
 
-        let new_isr = compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100);
-        assert_eq!(new_isr, Some(vec![1, 2]));
-    }
-
-    #[test]
-    fn never_caught_up_replica_excluded() {
-        let st = state();
-        let new_isr = compute_new_isr(&st, &[1], &[1, 2], 1, 100, 10000, 100);
-        assert_eq!(new_isr, None);
+        // never fetched: follower without progress stays out of ISR
+        let empty = state();
+        assert_eq!(
+            compute_new_isr(&empty, &[1], &[1, 2], 1, 100, 10000, 100),
+            None
+        );
     }
 
     // Regression: a follower that was fully caught up (leo == leader_leo) but then

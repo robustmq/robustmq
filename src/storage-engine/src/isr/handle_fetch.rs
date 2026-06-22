@@ -288,28 +288,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn leader_serves_records_and_empty_tail() {
-        let engine = setup_leader().await;
-        let cm = &engine.cache_manager;
-        let db = &engine.commit_log_offset.rocksdb_engine_handler;
-
-        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
-        assert_eq!(resp.records.len(), 2);
-        assert_eq!(resp.leader_leo, 3);
-
-        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 3)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
-        assert!(resp.records.is_empty());
-    }
-
-    #[tokio::test]
-    async fn fences_reject() {
+    async fn fetch_one_shard_responses() {
         let engine = setup_leader().await;
         let cm = &engine.cache_manager;
         let db = &engine.commit_log_offset.rocksdb_engine_handler;
         let code = |r: FetchShardResp| r.error_code;
 
+        // success: read 2 records from offset 1, empty tail at leo
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 1)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
+        assert_eq!(resp.records.len(), 2);
+        assert_eq!(resp.leader_leo, 3);
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 3)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
+        assert!(resp.records.is_empty());
+
+        // error paths
         let mut missing = shard_req(3, 0);
         missing.shard_name = "missing".to_string();
         assert_eq!(
@@ -333,8 +327,6 @@ mod tests {
             code(fetch_one_shard(cm, db, &engine, 2, 3, &shard_req(3, 1)).await),
             FetchErrorCode::StaleBrokerEpoch.as_u32()
         );
-
-        // UnknownLeaderEpoch marks the segment for an immediate reconcile.
         assert!(cm.take_reconcile_needed().contains(&("s".to_string(), 0)));
     }
 
@@ -397,7 +389,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn long_poll_times_out_empty() {
+    async fn long_poll_behavior() {
+        // no data arrives before timeout → empty
         let mem = leader_shard_memory(vec![]).await;
         let resp = handle_fetch(
             &engines(&mem),
@@ -406,12 +399,9 @@ mod tests {
             &fetch_req(0, 1, 30),
         )
         .await;
-        assert_eq!(resp.shards.len(), 1);
         assert!(resp.shards[0].records.is_empty());
-    }
 
-    #[tokio::test]
-    async fn long_poll_picks_up_late_append() {
+        // data written mid-wait → picked up after sleep
         let mem = leader_shard_memory(vec![]).await;
         let writer = mem.clone();
         tokio::spawn(async move {

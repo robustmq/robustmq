@@ -76,11 +76,15 @@ impl ReplicaLog for EngineReplicaLog {
                     .append_at(shard, segment_seq, base_offset, records)
                     .await
             }
-            _ => {
+            StorageType::EngineMemory => {
                 self.memory
                     .append_at(shard, segment_seq, base_offset, records)
                     .await
             }
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for replica append on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -102,11 +106,15 @@ impl ReplicaLog for EngineReplicaLog {
                     .read_from(shard, segment_seq, offset, max_bytes)
                     .await
             }
-            _ => {
+            StorageType::EngineMemory => {
                 self.memory
                     .read_from(shard, segment_seq, offset, max_bytes)
                     .await
             }
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for replica read on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -114,7 +122,11 @@ impl ReplicaLog for EngineReplicaLog {
         match self.storage_type_of(shard)? {
             StorageType::EngineRocksDB => self.rocksdb.latest_offset(shard, segment_seq),
             StorageType::EngineSegment => self.segment.latest_offset(shard, segment_seq),
-            _ => self.memory.latest_offset(shard, segment_seq),
+            StorageType::EngineMemory => self.memory.latest_offset(shard, segment_seq),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for latest_offset on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -131,7 +143,11 @@ impl ReplicaLog for EngineReplicaLog {
             StorageType::EngineSegment => {
                 self.segment.truncate_to(shard, segment_seq, offset).await
             }
-            _ => self.memory.truncate_to(shard, segment_seq, offset).await,
+            StorageType::EngineMemory => self.memory.truncate_to(shard, segment_seq, offset).await,
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for truncate_to on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -139,7 +155,11 @@ impl ReplicaLog for EngineReplicaLog {
         match self.storage_type_of(shard)? {
             StorageType::EngineRocksDB => self.rocksdb.clear(shard, segment_seq).await,
             StorageType::EngineSegment => self.segment.clear(shard, segment_seq).await,
-            _ => self.memory.clear(shard, segment_seq).await,
+            StorageType::EngineMemory => self.memory.clear(shard, segment_seq).await,
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for clear on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -147,7 +167,11 @@ impl ReplicaLog for EngineReplicaLog {
         match self.storage_type_of(shard)? {
             StorageType::EngineRocksDB => self.rocksdb.log_start_offset(shard, segment_seq),
             StorageType::EngineSegment => self.segment.log_start_offset(shard, segment_seq),
-            _ => self.memory.log_start_offset(shard, segment_seq),
+            StorageType::EngineMemory => self.memory.log_start_offset(shard, segment_seq),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for log_start_offset on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -155,7 +179,11 @@ impl ReplicaLog for EngineReplicaLog {
         match self.storage_type_of(shard)? {
             StorageType::EngineRocksDB => self.rocksdb.update_high_watermark(shard, hw),
             StorageType::EngineSegment => self.segment.update_high_watermark(shard, hw),
-            _ => self.memory.update_high_watermark(shard, hw),
+            StorageType::EngineMemory => self.memory.update_high_watermark(shard, hw),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for update_high_watermark on shard {}",
+                other, shard
+            ))),
         }
     }
 }

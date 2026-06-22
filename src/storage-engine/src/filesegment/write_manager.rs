@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::write_io_work::{create_io_thread, IoWork};
+use super::write_io_work::create_io_thread;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
 use crate::filesegment::SegmentIdentity;
@@ -81,18 +81,13 @@ impl WriteManager {
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         for i in 0..self.io_num {
             let (data_sender, data_recv) = mpsc::channel::<WriteChannelData>(1000);
-            let io_work = Arc::new(IoWork::new(
-                self.rocksdb_engine_handler.clone(),
-                self.cache_manager.clone(),
-                i,
-            ));
             create_io_thread(
-                io_work,
                 self.rocksdb_engine_handler.clone(),
                 self.cache_manager.clone(),
                 self.client_pool.clone(),
                 data_recv,
                 stop_send.clone(),
+                i,
             );
             self.io_thread.insert(i, data_sender);
         }
