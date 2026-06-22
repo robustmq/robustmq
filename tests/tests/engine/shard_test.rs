@@ -16,372 +16,226 @@
 mod tests {
     use std::time::Duration;
 
-    use crate::common::get_placement_addr;
-    use crate::mqtt::protocol::common::create_test_env;
-    use admin_server::engine::segment::{SegmentListReq, SegmentListResp};
-    use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
+    use crate::engine::common::{
+        admin_client, create_shard, get_segment_list, get_shard_list, grpc_pool, meta_addr,
+        poll_until,
+    };
+    use admin_server::engine::shard::ShardDeleteReq;
+    use common_base::http_response::AdminServerResponse;
+    use common_base::tools::now_second;
     use common_base::uuid::unique_id;
-    use common_base::{http_response::AdminServerResponse, tools::now_second};
     use common_config::storage::StorageType;
     use grpc_clients::meta::storage::call::{
-        create_next_segment, seal_up_segment, update_start_time_by_segment_meta,
+        create_next_segment, delete_segment, update_start_time_by_segment_meta,
     };
-    use grpc_clients::pool::ClientPool;
     use metadata_struct::storage::segment::SegmentStatus;
     use metadata_struct::storage::shard::EngineShardStatus;
     use protocol::meta::meta_service_journal::{
-        CreateNextSegmentRequest, SealUpSegmentRequest, UpdateStartTimeBySegmentMetaRequest,
+        CreateNextSegmentRequest, DeleteSegmentRaw, DeleteSegmentRequest,
+        UpdateStartTimeBySegmentMetaRequest,
     };
-    use tokio::time::sleep;
 
-    fn check_response(result: &str, operation: &str) {
-        let resp: AdminServerResponse<serde_json::Value> = serde_json::from_str(result).unwrap();
-        println!(
-            "{} response: code={}, error={:?}",
-            operation, resp.code, resp.error
-        );
-        if resp.code != 0 {
-            panic!(
-                "{} failed: code={}, error={}",
-                operation,
-                resp.code,
-                resp.error.unwrap_or_default()
-            );
-        }
-    }
+    const SHARD_CONFIG: &str = r#"{
+        "replica_num": 1,
+        "max_segment_size": 1073741824,
+        "retention_sec": 86400,
+        "storage_type": "EngineSegment"
+    }"#;
 
     #[tokio::test]
-    async fn shard_test() {
-        let client = create_test_env().await;
+    async fn shard_lifecycle() {
+        let client = admin_client();
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
-        let create_result = client
-            .create_shard(&ShardCreateReq {
-                shard_name: shard_name.clone(),
-                topic_name: None,
-                desc: None,
-                config,
-            })
-            .await
-            .unwrap();
-        check_response(&create_result, "create_shard");
+        create_shard(&client, &shard_name, SHARD_CONFIG).await;
 
-        let list_req = ShardListReq {
-            shard_name: Some(shard_name.clone()),
-            ..Default::default()
-        };
-        let shard_list = client
-            .get_shard_list::<_, Vec<ShardListRow>>(&list_req)
-            .await
-            .unwrap();
-        println!("get_shard_list result: {:#?}", shard_list);
-        assert_eq!(shard_list.data.len(), 1);
-        let shard = &shard_list.data[0];
-        assert_eq!(shard.shard_info.config.replica_num, 1);
-        assert_eq!(shard.shard_info.config.max_segment_size, Some(1073741824));
-        assert_eq!(shard.shard_info.config.retention_sec, 86400);
-        assert_eq!(
-            shard.shard_info.config.storage_type,
-            StorageType::EngineSegment
+        let shards = get_shard_list(&client, &shard_name).await;
+        assert_eq!(shards.len(), 1, "expected exactly one shard after create");
+
+        let row = &shards[0].shard_info;
+        assert_eq!(row.shard_name, shard_name);
+        assert_eq!(row.config.replica_num, 1);
+        assert_eq!(row.config.max_segment_size, Some(1073741824));
+        assert_eq!(row.config.retention_sec, 86400);
+        assert_eq!(row.config.storage_type, StorageType::EngineSegment);
+
+        let shard = &row.shard;
+        assert!(!shard.shard_uid.is_empty(), "shard_uid must not be empty");
+        assert_eq!(shard.shard_name, shard_name);
+        assert_eq!(shard.status, EngineShardStatus::Run);
+        assert_eq!(shard.start_segment_seq, 0);
+        assert_eq!(shard.active_segment_seq, 0);
+        assert_eq!(shard.last_segment_seq, 0);
+
+        let segments = get_segment_list(&client, &shard_name).await;
+        assert_eq!(segments.len(), 1, "expected segment-0 auto-created");
+
+        let seg = &segments[0].segment;
+        assert_eq!(seg.segment_seq, 0);
+        assert_eq!(seg.shard_name, shard_name);
+        assert_eq!(seg.status, SegmentStatus::Write);
+        assert!(
+            !seg.replicas.is_empty(),
+            "segment must have at least one replica"
         );
-        let engine_shard = &shard.shard_info.shard;
-        assert_eq!(engine_shard.start_segment_seq, 0);
-        assert_eq!(engine_shard.active_segment_seq, 0);
-        assert_eq!(engine_shard.last_segment_seq, 0);
-        assert_eq!(engine_shard.status, EngineShardStatus::Run);
 
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!("get_segment_list data: {:#?}", segment_resp);
-        assert_eq!(segment_resp.segment_list.len(), 1);
-        assert_eq!(segment_resp.segment_list[0].segment.segment_seq, 0);
+        let meta = segments[0]
+            .segment_meta
+            .as_ref()
+            .expect("segment-0 must have metadata");
+        assert_eq!(meta.segment_seq, 0);
+        assert_eq!(meta.start_offset, 0);
+        assert_eq!(meta.end_offset, 0);
+        assert_eq!(meta.start_timestamp, -1);
+        assert_eq!(meta.end_timestamp, -1);
 
-        let delete_result = client
+        let resp = client
             .delete_shard(&ShardDeleteReq {
                 shard_name: shard_name.clone(),
             })
             .await
-            .unwrap();
-        check_response(&delete_result, "delete_shard");
-
-        sleep(Duration::from_secs(20)).await;
-        let shard_list_after_delete = client
-            .get_shard_list::<_, Vec<ShardListRow>>(&list_req)
-            .await
-            .unwrap();
-        println!(
-            "get_shard_list after delete: {:#?}",
-            shard_list_after_delete
+            .expect("delete_shard http failed");
+        let resp_val: AdminServerResponse<serde_json::Value> =
+            serde_json::from_str(&resp).expect("parse delete response");
+        assert_eq!(
+            resp_val.code, 0,
+            "delete_shard failed: {:?}",
+            resp_val.error
         );
-        assert_eq!(shard_list_after_delete.data.len(), 0);
 
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list_after_delete");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!("get_segment_list after delete data: {:#?}", segment_resp);
-        assert_eq!(segment_resp.segment_list.len(), 0);
+        let shard_gone = poll_until(Duration::from_secs(30), Duration::from_secs(2), || async {
+            get_shard_list(&client, &shard_name).await.is_empty()
+        })
+        .await;
+        assert!(shard_gone, "shard still present after 30s");
+
+        let segments_gone = poll_until(Duration::from_secs(30), Duration::from_secs(2), || async {
+            get_segment_list(&client, &shard_name).await.is_empty()
+        })
+        .await;
+        assert!(segments_gone, "segments still present after 30s");
     }
 
     #[tokio::test]
-    pub async fn update_start_or_end_test() {
-        let client = create_test_env().await;
+    async fn segment_lifecycle() {
+        let client = admin_client();
+        let pool = grpc_pool();
         let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
 
-        // create shard
-        let create_result = client
-            .create_shard(&ShardCreateReq {
+        create_shard(&client, &shard_name, SHARD_CONFIG).await;
+
+        let seg0_ready = poll_until(
+            Duration::from_secs(10),
+            Duration::from_millis(500),
+            || async { !get_segment_list(&client, &shard_name).await.is_empty() },
+        )
+        .await;
+        assert!(seg0_ready, "segment-0 did not appear within 10s");
+
+        let segments = get_segment_list(&client, &shard_name).await;
+        assert_eq!(segments.len(), 1);
+        let seg0 = &segments[0];
+        assert_eq!(seg0.segment.segment_seq, 0);
+        assert_eq!(seg0.segment.status, SegmentStatus::Write);
+        let meta0 = seg0.segment_meta.as_ref().expect("seg-0 must have meta");
+        assert_eq!(meta0.start_offset, 0);
+        assert_eq!(meta0.end_offset, 0);
+        assert_eq!(meta0.start_timestamp, -1);
+        assert_eq!(meta0.end_timestamp, -1);
+
+        let t_start = now_second();
+        update_start_time_by_segment_meta(
+            &pool,
+            &[meta_addr()],
+            UpdateStartTimeBySegmentMetaRequest {
                 shard_name: shard_name.clone(),
-                topic_name: None,
-                desc: None,
-                config,
-            })
-            .await
-            .unwrap();
-        check_response(&create_result, "create_shard");
+                segment: 0,
+                start_timestamp: t_start,
+            },
+        )
+        .await
+        .expect("update_start_time failed");
 
-        sleep(Duration::from_secs(3)).await;
+        const END_OFFSET: i64 = 99;
+        create_next_segment(
+            &pool,
+            &[meta_addr()],
+            CreateNextSegmentRequest {
+                shard_name: shard_name.clone(),
+                current_segment: 0,
+                current_segment_end_offset: END_OFFSET,
+            },
+        )
+        .await
+        .expect("create_next_segment failed");
 
-        // list meta
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!("get_segment_list data: {:#?}", segment_resp);
-        assert_eq!(segment_resp.segment_list.len(), 1);
-        let segment = segment_resp.segment_list.first().unwrap();
-        assert_eq!(segment.segment.segment_seq, 0);
-        let meta = segment.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 0);
+        let seg1_ready = poll_until(
+            Duration::from_secs(10),
+            Duration::from_millis(500),
+            || async { get_segment_list(&client, &shard_name).await.len() >= 2 },
+        )
+        .await;
+        assert!(seg1_ready, "segment-1 did not appear within 10s");
+
+        let segments = get_segment_list(&client, &shard_name).await;
+        assert_eq!(segments.len(), 2);
+
+        let seg0 = segments
+            .iter()
+            .find(|r| r.segment.segment_seq == 0)
+            .expect("segment-0 not found");
+        assert_eq!(seg0.segment.status, SegmentStatus::SealUp);
+        let meta0 = seg0.segment_meta.as_ref().expect("seg-0 must have meta");
+        assert_eq!(meta0.start_offset, 0);
+        assert_eq!(meta0.end_offset, END_OFFSET);
+        assert_eq!(meta0.start_timestamp, t_start as i64);
+        assert!(meta0.end_timestamp > 0, "seg-0 end_timestamp must be set");
+
+        let seg1 = segments
+            .iter()
+            .find(|r| r.segment.segment_seq == 1)
+            .expect("segment-1 not found");
+        assert_eq!(seg1.segment.status, SegmentStatus::Write);
+        assert_eq!(seg1.segment.shard_name, shard_name);
+        assert!(!seg1.segment.replicas.is_empty());
+        let meta1 = seg1.segment_meta.as_ref().expect("seg-1 must have meta");
+        assert_eq!(meta1.start_offset, END_OFFSET + 1);
+        assert_eq!(meta1.end_offset, 0);
+        assert_eq!(meta1.start_timestamp, -1);
+        assert_eq!(meta1.end_timestamp, -1);
+
+        delete_segment(
+            &pool,
+            &[meta_addr()],
+            DeleteSegmentRequest {
+                segment_list: vec![DeleteSegmentRaw {
+                    shard_name: shard_name.clone(),
+                    segment: 0,
+                }],
+            },
+        )
+        .await
+        .expect("delete_segment failed");
+
+        let seg0_gone = poll_until(Duration::from_secs(30), Duration::from_secs(2), || async {
+            let list = get_segment_list(&client, &shard_name).await;
+            list.len() == 1 && list[0].segment.segment_seq == 1
+        })
+        .await;
+        assert!(seg0_gone, "segment-0 still present after 30s");
+
+        let segments = get_segment_list(&client, &shard_name).await;
+        assert_eq!(segments.len(), 1);
+        let remaining = &segments[0];
+        assert_eq!(remaining.segment.segment_seq, 1);
+        assert_eq!(remaining.segment.status, SegmentStatus::Write);
+        let meta = remaining
+            .segment_meta
+            .as_ref()
+            .expect("seg-1 must have meta");
+        assert_eq!(meta.start_offset, END_OFFSET + 1);
         assert_eq!(meta.end_offset, 0);
         assert_eq!(meta.start_timestamp, -1);
         assert_eq!(meta.end_timestamp, -1);
-
-        // update start_time/end_time
-        let t = now_second();
-        let request = UpdateStartTimeBySegmentMetaRequest {
-            shard_name: shard_name.clone(),
-            segment: 0,
-            start_timestamp: t,
-        };
-        let client_pool = ClientPool::new(2);
-
-        println!("request:{:?}", request);
-        update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
-            .await
-            .unwrap();
-
-        sleep(Duration::from_secs(3)).await;
-
-        // list segment meta
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!("get_segment_list data: {:#?}", segment_resp);
-        assert_eq!(segment_resp.segment_list.len(), 1);
-        let segment = segment_resp.segment_list.first().unwrap();
-        assert_eq!(segment.segment.segment_seq, 0);
-        let meta = segment.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, 0);
-        assert_eq!(meta.start_timestamp, t as i64);
-        assert_eq!(meta.end_timestamp, -1);
-    }
-
-    #[tokio::test]
-    pub async fn create_next_segment_test() {
-        let client = create_test_env().await;
-        let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
-
-        // create shard
-        let create_result = client
-            .create_shard(&ShardCreateReq {
-                shard_name: shard_name.clone(),
-                topic_name: None,
-                desc: None,
-                config,
-            })
-            .await
-            .unwrap();
-        check_response(&create_result, "create_shard");
-
-        sleep(Duration::from_secs(3)).await;
-
-        // list meta
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        assert_eq!(segment_resp.segment_list.len(), 1);
-
-        // update start_time/end_time
-        let t = now_second();
-        let client_pool = ClientPool::new(2);
-
-        let request = UpdateStartTimeBySegmentMetaRequest {
-            shard_name: shard_name.clone(),
-            segment: 0,
-            start_timestamp: t,
-        };
-
-        let resp =
-            update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
-                .await
-                .unwrap();
-        println!("update_start_time_by_segment_meta resp:{:?}", resp);
-
-        // create_next_segment
-        let request = CreateNextSegmentRequest {
-            shard_name: shard_name.clone(),
-            current_segment: 0,
-            current_segment_end_offset: 100,
-        };
-
-        let resp = create_next_segment(&client_pool, &[get_placement_addr()], request)
-            .await
-            .unwrap();
-        println!("create_next_segment resp:{:?}", resp);
-
-        sleep(Duration::from_secs(3)).await;
-
-        // list segment meta
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!(
-            "segment_resp: {}",
-            serde_json::to_string_pretty(&segment_resp).unwrap()
-        );
-        assert_eq!(segment_resp.segment_list.len(), 2);
-        let info0 = segment_resp
-            .segment_list
-            .iter()
-            .find(|raw| raw.segment.segment_seq == 0)
-            .unwrap();
-        let info1 = segment_resp
-            .segment_list
-            .iter()
-            .find(|raw| raw.segment.segment_seq == 1)
-            .unwrap();
-
-        // info0
-        assert_eq!(info0.segment.segment_seq, 0);
-        let meta = info0.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, 100);
-        assert_eq!(meta.start_timestamp, t as i64);
-        assert!(meta.end_timestamp > 0); // create_next_segment internally calls seal_up_segment
-
-        // info1
-        assert_eq!(info1.segment.segment_seq, 1);
-        let meta = info1.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 101);
-        assert_eq!(meta.end_offset, 0);
-        assert_eq!(meta.start_timestamp, -1);
-        assert_eq!(meta.end_timestamp, -1);
-    }
-
-    #[tokio::test]
-    pub async fn seal_up_segment_test() {
-        let client = create_test_env().await;
-        let shard_name = unique_id();
-        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#.to_string();
-
-        // create shard
-        let create_result = client
-            .create_shard(&ShardCreateReq {
-                shard_name: shard_name.clone(),
-                topic_name: None,
-                desc: None,
-                config,
-            })
-            .await
-            .unwrap();
-        check_response(&create_result, "create_shard");
-
-        sleep(Duration::from_secs(3)).await;
-
-        let client_pool = ClientPool::new(2);
-
-        // set start_timestamp on seg0
-        let t = now_second();
-        let request = UpdateStartTimeBySegmentMetaRequest {
-            shard_name: shard_name.clone(),
-            segment: 0,
-            start_timestamp: t,
-        };
-        update_start_time_by_segment_meta(&client_pool, &[get_placement_addr()], request)
-            .await
-            .unwrap();
-
-        // seal up seg0 directly (no create_next_segment — seal_up_segment is its own RPC)
-        let end_t = now_second();
-        let request = SealUpSegmentRequest {
-            shard_name: shard_name.clone(),
-            segment: 0,
-            end_timestamp: end_t,
-        };
-        let resp = seal_up_segment(&client_pool, &[get_placement_addr()], request)
-            .await
-            .unwrap();
-        println!("seal_up_segment resp:{:?}", resp);
-
-        sleep(Duration::from_secs(3)).await;
-
-        // verify seg0 is SealUp with correct timestamps
-        let segment_req = SegmentListReq {
-            shard_name: shard_name.clone(),
-        };
-        let segment_resp_str = client.get_segment_list(&segment_req).await.unwrap();
-        check_response(&segment_resp_str, "get_segment_list");
-        let segment_data: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str).unwrap();
-        let segment_resp = segment_data.data;
-        println!(
-            "segment_resp: {}",
-            serde_json::to_string_pretty(&segment_resp).unwrap()
-        );
-        assert_eq!(segment_resp.segment_list.len(), 1);
-        let info0 = segment_resp
-            .segment_list
-            .iter()
-            .find(|raw| raw.segment.segment_seq == 0)
-            .unwrap();
-
-        assert_eq!(info0.segment.segment_seq, 0);
-        assert_eq!(info0.segment.status, SegmentStatus::SealUp);
-        let meta = info0.segment_meta.clone().unwrap();
-        assert_eq!(meta.start_offset, 0);
-        assert_eq!(meta.end_offset, 0);
-        assert_eq!(meta.start_timestamp, t as i64);
-        assert!(meta.end_timestamp > 0);
     }
 }

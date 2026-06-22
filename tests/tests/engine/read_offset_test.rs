@@ -1,0 +1,154 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::engine::common::{admin_client, create_shard, engine_client, ENGINE_NODE_ID};
+    use bytes::Bytes;
+    use common_base::utils::serialize::{self, deserialize};
+    use common_base::uuid::unique_id;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use metadata_struct::storage::record::StorageRecord;
+    use protocol::storage::codec::StorageEnginePacket;
+    use protocol::storage::protocol::{
+        ReadReq, ReadReqBody, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType, WriteReq,
+        WriteReqBody,
+    };
+    use storage_engine::clients::manager::ClientConnectionManager;
+
+    const WRITE_COUNT: usize = 5;
+
+    async fn write_records(conn: &Arc<ClientConnectionManager>, shard_name: &str) -> Vec<u64> {
+        let mut messages = Vec::with_capacity(WRITE_COUNT);
+        for i in 0..WRITE_COUNT {
+            let record = AdapterWriteRecord::new("", Bytes::from(format!("data-{}", i)));
+            messages.push(serialize::serialize(&record).unwrap());
+        }
+
+        let req = WriteReq::new(WriteReqBody::new(shard_name.to_string(), messages));
+        let resp = conn
+            .write_send(ENGINE_NODE_ID, StorageEnginePacket::WriteReq(req))
+            .await
+            .expect("write_send failed");
+
+        match resp {
+            StorageEnginePacket::WriteResp(r) => {
+                if let Some(err) = r.header.error {
+                    panic!("WriteResp error: {}:{}", err.code, err.error);
+                }
+                let status = &r.body.status[0];
+                assert_eq!(status.shard_name, shard_name);
+                assert_eq!(status.messages.len(), WRITE_COUNT);
+                status.messages.iter().map(|m| m.offset).collect()
+            }
+            other => panic!("expected WriteResp, got {}", other),
+        }
+    }
+
+    async fn read_by_offset(
+        conn: &Arc<ClientConnectionManager>,
+        shard_name: &str,
+        offset: u64,
+        max_record: u64,
+    ) -> Vec<StorageRecord> {
+        let req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
+            shard_name.to_string(),
+            ReadType::Offset,
+            false,
+            ReadReqFilter::by_offset(offset),
+            ReadReqOptions::new(1024 * 1024, max_record),
+        )]));
+        let resp = conn
+            .read_send(ENGINE_NODE_ID, StorageEnginePacket::ReadReq(req))
+            .await
+            .expect("read_send failed");
+
+        match resp {
+            StorageEnginePacket::ReadResp(r) => {
+                if let Some(err) = r.header.error {
+                    panic!("ReadResp(Offset) error: {}:{}", err.code, err.error);
+                }
+                r.body
+                    .messages
+                    .iter()
+                    .map(|b| deserialize::<StorageRecord>(b).expect("deserialize failed"))
+                    .collect()
+            }
+            other => panic!("expected ReadResp, got {}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn read_offset_by_segment() {
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineSegment"}"#;
+        run_read_offset_test(config).await;
+    }
+
+    #[tokio::test]
+    async fn read_offset_by_memory() {
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineMemory"}"#;
+        run_read_offset_test(config).await;
+    }
+
+    #[tokio::test]
+    async fn read_offset_by_rocksdb() {
+        let config = r#"{"replica_num":1,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}"#;
+        run_read_offset_test(config).await;
+    }
+
+    async fn run_read_offset_test(config: &str) {
+        let admin = admin_client();
+        let conn = engine_client();
+        let shard_name = unique_id();
+
+        create_shard(&admin, &shard_name, config).await;
+        let offsets = write_records(&conn, &shard_name).await;
+
+        // offsets should be 0,1,2,3,4
+        assert_eq!(offsets.len(), WRITE_COUNT);
+        for (i, &off) in offsets.iter().enumerate() {
+            assert_eq!(off, i as u64, "expected offset {} got {}", i, off);
+        }
+
+        // read from offset 0 → all 5 records
+        let records = read_by_offset(&conn, &shard_name, 0, WRITE_COUNT as u64).await;
+        assert_eq!(
+            records.len(),
+            WRITE_COUNT,
+            "read from 0 should return all records"
+        );
+        for (i, rec) in records.iter().enumerate() {
+            assert_eq!(rec.metadata.offset, i as u64);
+        }
+
+        // read from offset 2 → 3 records (offset 2,3,4)
+        let records = read_by_offset(&conn, &shard_name, 2, WRITE_COUNT as u64).await;
+        assert_eq!(
+            records.len(),
+            3,
+            "read from offset 2 should return 3 records"
+        );
+        assert_eq!(records[0].metadata.offset, 2);
+        assert_eq!(records[1].metadata.offset, 3);
+        assert_eq!(records[2].metadata.offset, 4);
+
+        // read with max_record=2 from offset 0 → only 2 records
+        let records = read_by_offset(&conn, &shard_name, 0, 2).await;
+        assert_eq!(records.len(), 2, "max_record=2 should limit to 2");
+        assert_eq!(records[0].metadata.offset, 0);
+        assert_eq!(records[1].metadata.offset, 1);
+    }
+}
