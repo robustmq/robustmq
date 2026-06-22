@@ -24,6 +24,35 @@ pub struct RecordDeleteByKeysReq {
     pub keys: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RecordDeleteByOffsetsReq {
+    pub shard_name: String,
+    pub offsets: Vec<u64>,
+}
+
+pub async fn record_delete_by_offsets(
+    State(state): State<Arc<HttpState>>,
+    Json(params): Json<RecordDeleteByOffsetsReq>,
+) -> String {
+    if params.shard_name.is_empty() {
+        return error_response("shard_name cannot be empty".to_string());
+    }
+    if params.offsets.is_empty() {
+        return error_response("offsets cannot be empty".to_string());
+    }
+
+    if let Err(e) = state
+        .engine_context
+        .engine_adapter_handler
+        .delete_by_offsets(&params.shard_name, &params.offsets)
+        .await
+    {
+        return error_response(e.to_string());
+    }
+
+    success_response("success")
+}
+
 pub async fn record_delete_by_keys(
     State(state): State<Arc<HttpState>>,
     Json(params): Json<RecordDeleteByKeysReq>,

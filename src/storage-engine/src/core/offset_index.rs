@@ -78,9 +78,14 @@ impl SegmentOffsetIndex {
     }
 
     pub fn find_segment_by_timestamp(&self, timestamp: i64) -> Option<u32> {
+        // end_timestamp <= 0 means the segment is still open (active); no upper-bound check.
         self.ranges
             .iter()
-            .filter(|r| r.start_timestamp <= timestamp && timestamp <= r.end_timestamp)
+            .filter(|r| {
+                r.start_timestamp > 0
+                    && r.start_timestamp <= timestamp
+                    && (r.end_timestamp <= 0 || timestamp <= r.end_timestamp)
+            })
             .min_by_key(|r| r.start_offset)
             .map(|r| r.segment_seq)
     }

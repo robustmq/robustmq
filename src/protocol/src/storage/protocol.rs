@@ -699,6 +699,8 @@ pub struct ShardOffsetReqBody {
     pub shard_name: String,
     pub by_timestamp: bool,
     pub timestamp: u64,
+    /// Fallback strategy when no exact timestamp match: 0=Earliest, 1=Latest.
+    pub strategy: u8,
 }
 
 impl ShardOffsetReqBody {

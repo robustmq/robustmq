@@ -101,11 +101,13 @@ impl StorageEngineHandler {
         shard_name: &str,
         by_timestamp: bool,
         timestamp: u64,
+        strategy: AdapterOffsetStrategy,
     ) -> Result<ShardOffsetRespBody, StorageEngineError> {
         let req = ShardOffsetReq::new(ShardOffsetReqBody {
             shard_name: shard_name.to_string(),
             by_timestamp,
             timestamp,
+            strategy: strategy as u8,
         });
         let resp = self
             .client_connection_manager
@@ -162,7 +164,13 @@ impl StorageEngineHandler {
 
             let (start_offset, end_offset, high_watermark) = if leader != local_broker_id {
                 let body = self
-                    .shard_offset_remote(leader, &shard.shard_name, false, 0)
+                    .shard_offset_remote(
+                        leader,
+                        &shard.shard_name,
+                        false,
+                        0,
+                        AdapterOffsetStrategy::Earliest,
+                    )
                     .await
                     .map_err(|e| CommonError::CommonError(e.to_string()))?;
                 (body.start_offset, body.end_offset, body.high_watermark)
@@ -512,7 +520,7 @@ impl StorageEngineHandler {
             {
                 if leader != broker_config().broker_id {
                     let body = self
-                        .shard_offset_remote(leader, shard_name, true, timestamp)
+                        .shard_offset_remote(leader, shard_name, true, timestamp, strategy.clone())
                         .await?;
                     return Ok(body.offset);
                 }
@@ -533,6 +541,31 @@ impl StorageEngineHandler {
             }
 
             StorageType::EngineSegment => {
+                use crate::filesegment::index::read::get_in_segment_by_timestamp;
+                use crate::filesegment::SegmentIdentity;
+
+                // Find which segment owns this timestamp; route to that segment's leader.
+                let target_segment =
+                    get_in_segment_by_timestamp(&self.cache_manager, shard_name, timestamp as i64)?;
+
+                if let Some(seg_seq) = target_segment {
+                    let seg_iden = SegmentIdentity::new(shard_name, seg_seq);
+                    if let Some(seg) = self.cache_manager.get_segment(&seg_iden) {
+                        if seg.leader != broker_config().broker_id {
+                            let body = self
+                                .shard_offset_remote(
+                                    seg.leader,
+                                    shard_name,
+                                    true,
+                                    timestamp,
+                                    strategy.clone(),
+                                )
+                                .await?;
+                            return Ok(body.offset);
+                        }
+                    }
+                }
+
                 crate::filesegment::read::get_segment_offset_by_timestamp(
                     &self.cache_manager,
                     &self.rocksdb_engine_handler,

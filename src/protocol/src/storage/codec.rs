@@ -427,10 +427,9 @@ fn decode_shard_offset_resp(
 ) -> Result<Option<StorageEnginePacket>, StorageError> {
     use super::protocol::ShardOffsetRespBody;
     match ShardOffsetRespBody::decode(body_bytes) {
-        Ok(body) => Ok(Some(StorageEnginePacket::ShardOffsetResp(ShardOffsetResp {
-            header,
-            body,
-        }))),
+        Ok(body) => Ok(Some(StorageEnginePacket::ShardOffsetResp(
+            ShardOffsetResp { header, body },
+        ))),
         Err(e) => Err(StorageError::DecodeBodyError(
             "shard_offset_resp".to_string(),
             e.to_string(),

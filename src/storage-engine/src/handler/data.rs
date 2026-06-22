@@ -46,11 +46,16 @@ pub async fn shard_offset_req(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
     };
 
-    let active_segment = cache_manager
-        .get_active_segment(shard_name)
-        .ok_or_else(|| StorageEngineError::NotAvailableSegments(shard_name.to_string()))?;
-    if !active_segment.is_leader() {
-        return Err(StorageEngineError::NotLeader(active_segment.name()));
+    // For EngineSegment, the caller routes to the specific segment's leader, which may
+    // differ from the active-segment leader. Skip the active-segment leader check in
+    // that case; for Memory/RocksDB the active segment IS the only segment, so check.
+    if !matches!(shard.config.storage_type, StorageType::EngineSegment) {
+        let active_segment = cache_manager
+            .get_active_segment(shard_name)
+            .ok_or_else(|| StorageEngineError::NotAvailableSegments(shard_name.to_string()))?;
+        if !active_segment.is_leader() {
+            return Err(StorageEngineError::NotLeader(active_segment.name()));
+        }
     }
 
     let shard_offsets = ShardOffset::new(
@@ -63,24 +68,22 @@ pub async fn shard_offset_req(
     let end_offset = shard_offsets.latest_offset.saturating_sub(1);
     let high_watermark = shard_offsets.high_watermark_offset;
 
+    let strategy = if req_body.strategy == 1 {
+        AdapterOffsetStrategy::Latest
+    } else {
+        AdapterOffsetStrategy::Earliest
+    };
+
     let offset = if req_body.by_timestamp {
         match shard.config.storage_type {
             StorageType::EngineMemory => {
                 memory_storage_engine
-                    .get_offset_by_timestamp(
-                        shard_name,
-                        req_body.timestamp,
-                        AdapterOffsetStrategy::Earliest,
-                    )
+                    .get_offset_by_timestamp(shard_name, req_body.timestamp, strategy)
                     .await?
             }
             StorageType::EngineRocksDB => {
                 rocksdb_storage_engine
-                    .get_offset_by_timestamp(
-                        shard_name,
-                        req_body.timestamp,
-                        AdapterOffsetStrategy::Earliest,
-                    )
+                    .get_offset_by_timestamp(shard_name, req_body.timestamp, strategy)
                     .await?
             }
             StorageType::EngineSegment => {
@@ -89,7 +92,7 @@ pub async fn shard_offset_req(
                     &rocksdb_storage_engine.rocksdb_engine_handler,
                     shard_name,
                     req_body.timestamp,
-                    AdapterOffsetStrategy::Earliest,
+                    strategy,
                 )?
             }
             t => return Err(StorageEngineError::UnsupportedStorageType(format!("{t:?}"))),
