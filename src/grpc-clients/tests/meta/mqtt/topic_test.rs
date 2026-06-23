@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
     use grpc_clients::meta::mqtt::call::{
@@ -85,26 +85,30 @@ mod tests {
         mqtt_topic: Topic,
         contain: bool,
     ) {
-        let request = ListTopicRequest {
-            tenant: "".to_string(),
-            topic_name,
-        };
-        let mut data_stream = placement_list_topic(client_pool, addrs, request)
-            .await
-            .unwrap();
-
-        let mut flag: bool = false;
-        while let Some(data) = data_stream.message().await.unwrap() {
-            let topic = Topic::decode(&data.topic).unwrap();
-            if topic == mqtt_topic {
-                flag = true;
+        let ok = wait_until(|| async {
+            let request = ListTopicRequest {
+                tenant: "".to_string(),
+                topic_name: topic_name.clone(),
+            };
+            let mut data_stream = match placement_list_topic(client_pool, addrs, request).await {
+                Ok(s) => s,
+                Err(_) => return false,
+            };
+            let mut flag: bool = false;
+            while let Ok(Some(data)) = data_stream.message().await {
+                if let Ok(topic) = Topic::decode(&data.topic) {
+                    if topic == mqtt_topic {
+                        flag = true;
+                    }
+                }
             }
-        }
+            flag == contain
+        })
+        .await;
 
-        if contain {
-            assert!(flag);
-        } else {
-            assert!(!flag);
-        }
+        assert!(
+            ok,
+            "topic {topic_name} contain={contain} expectation not met"
+        );
     }
 }

@@ -18,7 +18,7 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::filesegment::write_manager::WriteManager;
-use crate::handler::data::{read_data_req, shard_offset_req, write_data_req};
+use crate::handler::data::{delete_data_req, read_data_req, shard_offset_req, write_data_req};
 use crate::isr::handle_epoch::handle_offsets_for_leader_epoch;
 use crate::isr::handle_fetch::{handle_fetch, FetchEngines};
 use async_trait::async_trait;
@@ -28,8 +28,8 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    ApiKey, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody, RespHeader, ShardOffsetResp,
-    ShardOffsetRespBody, StorageEngineNetworkError, WriteRespBody,
+    ApiKey, DeleteResp, DeleteRespBody, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody,
+    RespHeader, ShardOffsetResp, ShardOffsetRespBody, StorageEngineNetworkError, WriteRespBody,
 };
 use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -274,6 +274,29 @@ impl Command for StorageEngineHandlerCommand {
                 let response = ResponsePackage::new(
                     tcp_connection.connection_id,
                     RobustMQPacket::StorageEngine(StorageEnginePacket::ShardOffsetResp(resp)),
+                );
+                return Some(response);
+            }
+
+            StorageEnginePacket::DeleteReq(request) => {
+                let body = match delete_data_req(
+                    &self.cache_manager,
+                    &self.memory_storage_engine,
+                    &self.rocksdb_storage_engine,
+                    &request.body,
+                )
+                .await
+                {
+                    Ok(()) => DeleteRespBody { error_code: 0 },
+                    Err(e) => {
+                        error!("delete_data_req failed: {}", e);
+                        DeleteRespBody { error_code: 1 }
+                    }
+                };
+                let resp = DeleteResp::new(body);
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::DeleteResp(resp)),
                 );
                 return Some(response);
             }

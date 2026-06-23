@@ -95,11 +95,17 @@ pub async fn get_shard_list(client: &AdminHttpClient, shard_name: &str) -> Vec<S
         shard_name: Some(shard_name.to_string()),
         ..Default::default()
     };
-    client
-        .get_shard_list::<_, Vec<ShardListRow>>(&req)
-        .await
-        .expect("get_shard_list failed")
-        .data
+    let mut last_err = String::new();
+    for _ in 0..50 {
+        match client.get_shard_list::<_, Vec<ShardListRow>>(&req).await {
+            Ok(r) => return r.data,
+            Err(e) => {
+                last_err = format!("{e:?}");
+                sleep(Duration::from_millis(300)).await;
+            }
+        }
+    }
+    panic!("get_shard_list failed after retries: {last_err}");
 }
 
 /// Send messages and return the number written. Panics on any protocol or engine error.

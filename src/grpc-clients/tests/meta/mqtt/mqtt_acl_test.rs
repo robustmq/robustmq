@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
     use grpc_clients::meta::mqtt::call::{create_acl, delete_acl, list_acl};
     use grpc_clients::pool::ClientPool;
     use metadata_struct::auth::acl::{
@@ -45,55 +45,42 @@ mod tests {
         };
         create_acl(&client_pool, &addrs, request).await.unwrap();
 
-        let request = ListAclRequest {
-            tenant: "default".to_string(),
-        };
-
-        match list_acl(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.acls {
-                    let tmp = SecurityAcl::decode(&raw).unwrap();
-                    if tmp.name == acl.name {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
+        let present = wait_until(|| async {
+            let request = ListAclRequest {
+                tenant: "default".to_string(),
+            };
+            match list_acl(&client_pool, &addrs, request).await {
+                Ok(data) => data
+                    .acls
+                    .iter()
+                    .filter_map(|raw| SecurityAcl::decode(raw).ok())
+                    .any(|tmp| tmp.name == acl.name),
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(present, "created acl {} not visible", acl.name);
 
         let request = DeleteAclRequest {
             tenant: acl.tenant.clone(),
             name: acl.name.clone(),
         };
-        match delete_acl(&client_pool, &addrs, request).await {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        delete_acl(&client_pool, &addrs, request).await.unwrap();
 
-        let request = ListAclRequest {
-            tenant: "default".to_string(),
-        };
-
-        match list_acl(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.acls {
-                    let tmp = SecurityAcl::decode(&raw).unwrap();
-                    if tmp.name == acl.name {
-                        flag = true;
-                    }
-                }
-                assert!(!flag);
+        let absent = wait_until(|| async {
+            let request = ListAclRequest {
+                tenant: "default".to_string(),
+            };
+            match list_acl(&client_pool, &addrs, request).await {
+                Ok(data) => !data
+                    .acls
+                    .iter()
+                    .filter_map(|raw| SecurityAcl::decode(raw).ok())
+                    .any(|tmp| tmp.name == acl.name),
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(absent, "deleted acl {} still visible", acl.name);
     }
 }

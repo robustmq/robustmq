@@ -16,7 +16,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
     use common_base::role::{ROLE_BROKER, ROLE_ENGINE, ROLE_META};
     use common_base::tools::now_second;
     use common_base::uuid::unique_id;
@@ -96,19 +96,29 @@ mod tests {
         .unwrap();
 
         // list after create — should return exactly 1
-        let data = placement_list_share_group(
-            &client_pool,
-            &addrs,
-            ListShareGroupRequest {
-                tenant: tenant.clone(),
-                group: group_name.clone(),
-            },
-        )
-        .await
-        .unwrap();
-        assert_eq!(data.groups.len(), 1);
-        let leader = ShareGroup::decode(data.groups.first().unwrap()).unwrap();
-        assert_eq!(leader.group_name, group_name);
-        assert_eq!(leader.leader_broker, node_id);
+        let ok = wait_until(|| async {
+            let data = match placement_list_share_group(
+                &client_pool,
+                &addrs,
+                ListShareGroupRequest {
+                    tenant: tenant.clone(),
+                    group: group_name.clone(),
+                },
+            )
+            .await
+            {
+                Ok(d) => d,
+                Err(_) => return false,
+            };
+            if data.groups.len() != 1 {
+                return false;
+            }
+            match ShareGroup::decode(data.groups.first().unwrap()) {
+                Ok(leader) => leader.group_name == group_name && leader.leader_broker == node_id,
+                Err(_) => false,
+            }
+        })
+        .await;
+        assert!(ok, "created share group {group_name} not visible");
     }
 }

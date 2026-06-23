@@ -14,6 +14,7 @@
 
 use crate::core::cache::NatsCacheManager;
 use crate::core::error::NatsBrokerError;
+use crate::core::subject::try_get_or_init_subject;
 use crate::core::tenant::get_tenant;
 use crate::handler::command::NatsProcessContext;
 use crate::storage::mail::Mq9MailStorage;
@@ -110,6 +111,17 @@ pub async fn process_create(
     Mq9MailStorage::new(ctx.client_pool.clone())
         .create(&mail)
         .await?;
+
+    try_get_or_init_subject(
+        &ctx.cache_manager,
+        &ctx.storage_driver_manager,
+        &ctx.client_pool,
+        &ctx.subscribe_manager,
+        &get_tenant(),
+        &mail_address,
+        true,
+    )
+    .await?;
 
     Ok(MailboxCreateReply {
         error: String::new(),

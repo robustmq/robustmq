@@ -67,3 +67,24 @@ pub fn seq_num() -> u64 {
 pub fn get_placement_addr() -> String {
     "127.0.0.1:1228".to_string()
 }
+
+// Poll `check` until it returns true or the deadline (15s) elapses.
+// Metadata create/delete propagates asynchronously to the node a read may hit,
+// so a read issued right after a successful write can momentarily see stale state.
+#[allow(dead_code)]
+pub async fn wait_until<F, Fut>(mut check: F) -> bool
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(15);
+    loop {
+        if check().await {
+            return true;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+    }
+}

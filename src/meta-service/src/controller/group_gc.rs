@@ -15,6 +15,7 @@
 use crate::core::notify::send_notify_by_delete_group_offset;
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
+use crate::storage::common::config::ResourceConfigStorage;
 use crate::storage::common::offset::OffsetStorage;
 use crate::storage::common::share_group::ShareGroupStorage;
 use broker_core::cache::NodeCacheManager;
@@ -22,6 +23,7 @@ use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::error::ResultCommonError;
 use common_base::tools::{loop_select_ticket, now_second};
+use common_config::config::MetaRuntime;
 use node_call::NodeCallManager;
 use prost::Message as _;
 use protocol::meta::meta_service_common::DeleteShareGroupRequest;
@@ -32,7 +34,28 @@ use tokio::sync::broadcast;
 use tracing::{info, warn};
 
 // Scan every 10 seconds
-const GROUP_GC_INTERVAL_MS: u64 = 60 * 1000;
+const GROUP_GC_INTERVAL_MS: u64 = 10 * 1000;
+
+// Read group_offset_expire_sec from the raft-committed cluster config (local rocksdb) rather
+// than the in-memory node_cache: GC deletes only succeed on the raft leader, and the leader's
+// node_cache is only refreshed by a best-effort notify that may never arrive. The committed
+// config is replicated to every node's rocksdb, so the leader always reads the correct value.
+fn resolve_expire_sec(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    node_cache: &Arc<NodeCacheManager>,
+) -> u64 {
+    let storage = ResourceConfigStorage::new(rocksdb_engine_handler.clone());
+    let resource_key = vec!["cluster".to_string(), "MetaRuntime".to_string()];
+    if let Ok(Some(data)) = storage.get(resource_key) {
+        if let Ok(meta_runtime) = serde_json::from_slice::<MetaRuntime>(&data) {
+            return meta_runtime.group_offset_expire_sec;
+        }
+    }
+    node_cache
+        .get_cluster_config()
+        .meta_runtime
+        .group_offset_expire_sec
+}
 
 pub async fn start_group_gc_thread(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -42,10 +65,7 @@ pub async fn start_group_gc_thread(
     stop_send: broadcast::Sender<bool>,
 ) {
     let ac_fn = async || -> ResultCommonError {
-        let expire_sec = node_cache
-            .get_cluster_config()
-            .meta_runtime
-            .group_offset_expire_sec;
+        let expire_sec = resolve_expire_sec(&rocksdb_engine_handler, &node_cache);
         if let Err(e) = gc_expired_groups(
             &rocksdb_engine_handler,
             &raft_manager,

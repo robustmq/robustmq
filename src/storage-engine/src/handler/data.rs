@@ -29,8 +29,8 @@ use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use protocol::storage::protocol::{
-    ReadReqBody, ReadType, ShardOffsetReqBody, ShardOffsetRespBody, StorageEngineNetworkError,
-    WriteRespMessage, WriteRespMessageStatus,
+    DeleteReqBody, ReadReqBody, ReadType, ShardOffsetReqBody, ShardOffsetRespBody,
+    StorageEngineNetworkError, WriteRespMessage, WriteRespMessageStatus,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -118,6 +118,53 @@ fn params_validator(
         return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
     }
 
+    Ok(())
+}
+
+/// Apply a delete locally on this (leader) node. Forwarded here by a non-leader
+/// node via the engine protocol; never re-forwards.
+pub async fn delete_data_req(
+    cache_manager: &Arc<StorageCacheManager>,
+    memory_storage_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    body: &DeleteReqBody,
+) -> Result<(), StorageEngineError> {
+    let shard_name = body.shard_name.as_str();
+    let Some(shard) = cache_manager.shards.get(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
+    };
+
+    match shard.config.storage_type {
+        StorageType::EngineMemory => {
+            for key in &body.keys {
+                memory_storage_engine.delete_by_key(shard_name, key).await?;
+            }
+            for &offset in &body.offsets {
+                memory_storage_engine
+                    .delete_by_offset(shard_name, offset)
+                    .await?;
+            }
+        }
+        StorageType::EngineRocksDB => {
+            if !body.keys.is_empty() {
+                let key_refs: Vec<&str> = body.keys.iter().map(|s| s.as_str()).collect();
+                rocksdb_storage_engine
+                    .delete_by_keys(shard_name, &key_refs)
+                    .await?;
+            }
+            if !body.offsets.is_empty() {
+                rocksdb_storage_engine
+                    .delete_by_offsets(shard_name, &body.offsets)
+                    .await?;
+            }
+        }
+        _ => {
+            return Err(StorageEngineError::CommonErrorStr(format!(
+                "delete is not supported for storage type {:?}",
+                shard.config.storage_type
+            )))
+        }
+    }
     Ok(())
 }
 

@@ -23,9 +23,9 @@ use dashmap::DashMap;
 use metadata_struct::storage::{adapter_read_config::AdapterWriteRespRow, record::StorageRecord};
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    FetchReqBody, FetchRespBody, OffsetsForLeaderEpochReq, OffsetsForLeaderEpochReqBody,
-    OffsetsForLeaderEpochRespBody, ReadReq, ShardOffsetReq, ShardOffsetReqBody,
-    ShardOffsetRespBody, WriteReq, WriteReqBody,
+    DeleteReq, DeleteReqBody, DeleteRespBody, FetchReqBody, FetchRespBody,
+    OffsetsForLeaderEpochReq, OffsetsForLeaderEpochReqBody, OffsetsForLeaderEpochRespBody, ReadReq,
+    ShardOffsetReq, ShardOffsetReqBody, ShardOffsetRespBody, WriteReq, WriteReqBody,
 };
 use std::sync::Arc;
 use tracing::error;
@@ -108,6 +108,24 @@ impl ClientConnectionManager {
             other => Err(StorageEngineError::ReceivedPacketError(
                 node_id,
                 format!("Expected ShardOffsetResp, got {other}"),
+            )),
+        }
+    }
+
+    pub async fn send_delete(
+        &self,
+        node_id: u64,
+        body: DeleteReqBody,
+    ) -> Result<DeleteRespBody, StorageEngineError> {
+        let req = DeleteReq::new(body);
+        let resp = self
+            .write_send(node_id, StorageEnginePacket::DeleteReq(req))
+            .await?;
+        match resp {
+            StorageEnginePacket::DeleteResp(r) => Ok(r.body),
+            other => Err(StorageEngineError::ReceivedPacketError(
+                node_id,
+                format!("Expected DeleteResp, got {other}"),
             )),
         }
     }

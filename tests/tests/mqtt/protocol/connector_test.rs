@@ -107,10 +107,19 @@ mod tests {
             tenant: DEFAULT_TENANT.to_string(),
             connector_name: connector_name.clone(),
         };
-        let results = admin_client
-            .get_connector_detail::<ConnectorDetailReq, ConnectorDetailResp>(&request)
-            .await
-            .unwrap();
-        assert!(results.send_success_total >= 1);
+        let mut sent = false;
+        for _ in 0..50 {
+            if let Ok(results) = admin_client
+                .get_connector_detail::<ConnectorDetailReq, ConnectorDetailResp>(&request)
+                .await
+            {
+                if results.send_success_total >= 1 {
+                    sent = true;
+                    break;
+                }
+            }
+            sleep(Duration::from_millis(300)).await;
+        }
+        assert!(sent, "connector should report >=1 successful send");
     }
 }

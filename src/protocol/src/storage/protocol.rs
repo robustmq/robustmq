@@ -28,6 +28,7 @@ pub enum ApiKey {
     Fetch,
     OffsetsForLeaderEpoch,
     ShardOffset,
+    Delete,
 }
 
 impl Default for ApiKey {
@@ -772,6 +773,92 @@ impl ShardOffsetResp {
     pub fn new(body: ShardOffsetRespBody) -> Self {
         Self {
             header: RespHeader::new(ApiKey::ShardOffset),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct DeleteReqBody {
+    pub shard_name: String,
+    pub keys: Vec<String>,
+    pub offsets: Vec<u64>,
+}
+
+impl DeleteReqBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, PartialEq)]
+pub struct DeleteReq {
+    pub header: ReqHeader,
+    pub body: DeleteReqBody,
+}
+
+impl DeleteReq {
+    pub fn new(body: DeleteReqBody) -> Self {
+        Self {
+            header: ReqHeader::new(ApiKey::Delete),
+            body,
+        }
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct DeleteRespBody {
+    pub error_code: u32,
+}
+
+impl DeleteRespBody {
+    pub fn encode(&self) -> Vec<u8> {
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .unwrap()
+            .to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Ok(rkyv::from_bytes::<Self, rkyv::rancor::Error>(bytes)?)
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
+pub struct DeleteResp {
+    pub header: RespHeader,
+    pub body: DeleteRespBody,
+}
+
+impl DeleteResp {
+    pub fn new(body: DeleteRespBody) -> Self {
+        Self {
+            header: RespHeader::new(ApiKey::Delete),
             body,
         }
     }

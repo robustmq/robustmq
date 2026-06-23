@@ -188,6 +188,7 @@ mod tests {
         // 1. Create mailbox
         let mb = call_tool(&client, "mq9_create_mailbox", json!({})).await;
         let addr = mb["mail_address"].as_str().unwrap().to_string();
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
         // 2. Send two messages
         let r1 = call_tool(

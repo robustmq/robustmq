@@ -41,7 +41,7 @@ use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::adapter::adapter_shard::{AdapterShardDetail, AdapterShardDetailOffset};
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::shard::EngineShard;
-use protocol::storage::protocol::{ShardOffsetReqBody, ShardOffsetRespBody};
+use protocol::storage::protocol::{DeleteReqBody, ShardOffsetReqBody, ShardOffsetRespBody};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
@@ -390,6 +390,38 @@ impl StorageEngineHandler {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
 
+        // For memory/rocksdb shards the data lives on the segment leader. If this node
+        // is not the leader, forward the delete; otherwise it is a no-op on local-empty state.
+        if matches!(
+            shard.config.storage_type,
+            StorageType::EngineMemory | StorageType::EngineRocksDB
+        ) {
+            if let Some(leader) = self
+                .cache_manager
+                .get_active_segment(shard_name)
+                .map(|s| s.leader)
+            {
+                if leader != broker_config().broker_id {
+                    let body = DeleteReqBody {
+                        shard_name: shard_name.to_string(),
+                        keys: keys.iter().map(|k| k.to_string()).collect(),
+                        offsets: Vec::new(),
+                    };
+                    let resp = self
+                        .client_connection_manager
+                        .send_delete(leader, body)
+                        .await?;
+                    if resp.error_code != 0 {
+                        return Err(StorageEngineError::CommonErrorStr(format!(
+                            "Leader {leader} failed to delete keys for shard {shard_name} (error_code={})",
+                            resp.error_code
+                        )));
+                    }
+                    return Ok(());
+                }
+            }
+        }
+
         match shard.config.storage_type {
             StorageType::EngineMemory => {
                 for key in keys {
@@ -456,6 +488,36 @@ impl StorageEngineHandler {
         let Some(shard) = self.cache_manager.shards.get(shard_name) else {
             return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
         };
+
+        if matches!(
+            shard.config.storage_type,
+            StorageType::EngineMemory | StorageType::EngineRocksDB
+        ) {
+            if let Some(leader) = self
+                .cache_manager
+                .get_active_segment(shard_name)
+                .map(|s| s.leader)
+            {
+                if leader != broker_config().broker_id {
+                    let body = DeleteReqBody {
+                        shard_name: shard_name.to_string(),
+                        keys: Vec::new(),
+                        offsets: offsets.to_vec(),
+                    };
+                    let resp = self
+                        .client_connection_manager
+                        .send_delete(leader, body)
+                        .await?;
+                    if resp.error_code != 0 {
+                        return Err(StorageEngineError::CommonErrorStr(format!(
+                            "Leader {leader} failed to delete offsets for shard {shard_name} (error_code={})",
+                            resp.error_code
+                        )));
+                    }
+                    return Ok(());
+                }
+            }
+        }
 
         match shard.config.storage_type {
             StorageType::EngineMemory => {

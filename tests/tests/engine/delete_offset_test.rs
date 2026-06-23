@@ -111,7 +111,14 @@ mod tests {
         assert_eq!(v.code, 0, "delete_record_by_offsets failed: {:?}", v.error);
 
         // read from base → only 3 records remain (base, base+2, base+4)
-        let records = read_by_offset(&conn, &shard_name, base, WRITE_COUNT as u64).await;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        let records = loop {
+            let r = read_by_offset(&conn, &shard_name, base, WRITE_COUNT as u64).await;
+            if r.len() == 3 || tokio::time::Instant::now() >= deadline {
+                break r;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        };
         assert_eq!(records.len(), 3, "3 records should remain after deleting 2");
 
         let remaining_offsets: Vec<u64> = records.iter().map(|r| r.metadata.offset).collect();

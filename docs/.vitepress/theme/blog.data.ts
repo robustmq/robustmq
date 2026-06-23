@@ -3,7 +3,7 @@ import path from 'path'
 import { execFileSync } from 'child_process'
 
 // Pinned post number (change to pin a different post)
-const PINNED_POST_NUMBER = 97
+const PINNED_POST_NUMBER = 111
 
 interface BlogPost {
   title: string

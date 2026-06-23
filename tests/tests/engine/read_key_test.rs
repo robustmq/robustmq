@@ -151,7 +151,14 @@ mod tests {
         let v: AdminServerResponse<serde_json::Value> = serde_json::from_str(&resp).unwrap();
         assert_eq!(v.code, 0, "delete_record_by_keys failed: {:?}", v.error);
 
-        let records = read_by_key(&conn, &shard_name, "key-3").await;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        let records = loop {
+            let r = read_by_key(&conn, &shard_name, "key-3").await;
+            if r.is_empty() || tokio::time::Instant::now() >= deadline {
+                break r;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        };
         assert_eq!(records.len(), 0, "key-3 should be gone after delete");
 
         for i in 0..WRITE_COUNT {

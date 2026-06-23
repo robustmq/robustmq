@@ -27,7 +27,7 @@ mod tests {
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
 
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
 
     #[tokio::test]
 
@@ -55,23 +55,22 @@ mod tests {
             .await
             .unwrap();
 
-        let request: ListUserRequest = ListUserRequest {
-            tenant: "default".to_string(),
-            user_name: mqtt_user.username.clone(),
-        };
-
-        let data = placement_list_user(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-
-        let mut flag: bool = false;
-        for raw in data.users {
-            let user = SecurityUser::decode(&raw).unwrap();
-            if mqtt_user == user {
-                flag = true;
+        let present = wait_until(|| async {
+            let request = ListUserRequest {
+                tenant: "default".to_string(),
+                user_name: mqtt_user.username.clone(),
+            };
+            match placement_list_user(&client_pool, &addrs, request).await {
+                Ok(data) => data
+                    .users
+                    .iter()
+                    .filter_map(|raw| SecurityUser::decode(raw).ok())
+                    .any(|user| mqtt_user == user),
+                Err(_) => false,
             }
-        }
-        assert!(flag);
+        })
+        .await;
+        assert!(present, "created user {} not visible", mqtt_user.username);
 
         let request: DeleteUserRequest = DeleteUserRequest {
             tenant: "default".to_string(),
@@ -82,22 +81,21 @@ mod tests {
             .await
             .unwrap();
 
-        let request: ListUserRequest = ListUserRequest {
-            tenant: "default".to_string(),
-            user_name: mqtt_user.username.clone(),
-        };
-
-        let data = placement_list_user(&client_pool, &addrs, request)
-            .await
-            .unwrap();
-
-        let mut flag: bool = false;
-        for raw in data.users {
-            let user = SecurityUser::decode(&raw).unwrap();
-            if mqtt_user == user {
-                flag = true;
+        let absent = wait_until(|| async {
+            let request = ListUserRequest {
+                tenant: "default".to_string(),
+                user_name: mqtt_user.username.clone(),
+            };
+            match placement_list_user(&client_pool, &addrs, request).await {
+                Ok(data) => !data
+                    .users
+                    .iter()
+                    .filter_map(|raw| SecurityUser::decode(raw).ok())
+                    .any(|user| mqtt_user == user),
+                Err(_) => false,
             }
-        }
-        assert!(!flag);
+        })
+        .await;
+        assert!(absent, "deleted user {} still visible", mqtt_user.username);
     }
 }
