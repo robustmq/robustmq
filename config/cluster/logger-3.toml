@@ -16,6 +16,7 @@
 kind = "console"
 targets = [
     { path = "", level = "info" },
+    { path = "async_nats", level = "warn" },
     { path = "openraft", level = "debug" },
 ]
 
@@ -23,6 +24,7 @@ targets = [
 kind = "rolling_file"
 targets = [
     { path = "", level = "info" },
+    { path = "async_nats", level = "warn" },
     { path = "openraft", level = "info" },
 ]
 rotation = "daily"
