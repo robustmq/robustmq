@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 980" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <rect width="1500" height="980" fill="#ffffff"/>
+
+  <!-- title -->
+  <text x="750" y="64" text-anchor="middle" font-size="40" fill="#2b2b33">RobustMQ Architecture</text>
+  <text x="750" y="100" text-anchor="middle" font-size="19" fill="#8a8a99">One dataset, many protocol views. From devices to big data, to AI agents.</text>
+
+  <!-- center flow guides (main stack) -->
+  <g stroke="#cdbdf0" stroke-width="2">
+    <line x1="625" y1="270" x2="625" y2="294"/>
+    <line x1="625" y1="382" x2="625" y2="406"/>
+    <line x1="625" y1="484" x2="625" y2="508"/>
+    <line x1="625" y1="722" x2="625" y2="746"/>
+  </g>
+
+  <!-- meta dependency connectors -->
+  <g stroke="#cdbdf0" stroke-width="2" stroke-dasharray="4 4">
+    <line x1="1140" y1="210" x2="1180" y2="210"/>
+    <line x1="1140" y1="600" x2="1180" y2="600"/>
+  </g>
+
+  <!-- ============ Meta Service (independent control plane) ============ -->
+  <rect x="1180" y="150" width="210" height="572" rx="16" fill="#f4f5f8" stroke="#dde0e8" filter="url(#sh)"/>
+  <circle cx="1285" cy="184" r="6" fill="#1ba784"/>
+  <text x="1285" y="216" text-anchor="middle" font-size="19" font-weight="700" fill="#2b2b33">Meta Service</text>
+  <text x="1285" y="238" text-anchor="middle" font-size="13" fill="#9aa0ad">Raft</text>
+  <line x1="1212" y1="260" x2="1358" y2="260" stroke="#e3e5ec"/>
+  <text x="1285" y="298" text-anchor="middle" font-size="14" font-weight="600" fill="#5b5b67">Control plane</text>
+  <g font-size="13.5" fill="#7c828f">
+    <text x="1285" y="332" text-anchor="middle">membership</text>
+    <text x="1285" y="358" text-anchor="middle">leader election</text>
+    <text x="1285" y="384" text-anchor="middle">metadata store</text>
+  </g>
+  <line x1="1212" y1="412" x2="1358" y2="412" stroke="#e3e5ec"/>
+  <text x="1285" y="690" text-anchor="middle" font-size="12.5" fill="#9aa0ad">Broker &amp; Storage Engine</text>
+  <text x="1285" y="708" text-anchor="middle" font-size="12.5" fill="#9aa0ad">both depend on it</text>
+
+  <!-- ============ Band 1: Protocol layer ============ -->
+  <rect x="110" y="150" width="1030" height="120" rx="16" fill="#ffffff" stroke="#e8e8ee" filter="url(#sh)"/>
+  <text x="146" y="203" font-size="19" font-weight="600" fill="#2b2b33">Protocols</text>
+  <text x="146" y="226" font-size="12" fill="#a6a6b2">protocol views</text>
+
+  <g>
+    <rect x="350" y="187" width="145" height="46" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="372" cy="210" r="5" fill="#1ba784"/>
+    <text x="388" y="215" font-size="15" fill="#2b2b33"><tspan font-weight="600">MQTT</tspan><tspan fill="#1ba784"> · trial</tspan></text>
+
+    <rect x="506" y="187" width="145" height="46" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="528" cy="210" r="5" fill="#f5a623"/>
+    <text x="544" y="215" font-size="15" fill="#2b2b33"><tspan font-weight="600">Kafka</tspan><tspan fill="#f5a623"> · H2</tspan></text>
+
+    <rect x="662" y="187" width="145" height="46" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="684" cy="210" r="5" fill="#f5a623"/>
+    <text x="700" y="215" font-size="15" fill="#2b2b33"><tspan font-weight="600">AMQP</tspan><tspan fill="#f5a623"> · early</tspan></text>
+
+    <rect x="818" y="187" width="145" height="46" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="840" cy="210" r="5" fill="#f5a623"/>
+    <text x="856" y="215" font-size="15" fill="#2b2b33"><tspan font-weight="600">NATS</tspan><tspan fill="#f5a623"> · early</tspan></text>
+
+    <rect x="974" y="187" width="145" height="46" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="996" cy="210" r="5" fill="#1ba784"/>
+    <text x="1012" y="215" font-size="15" fill="#2b2b33"><tspan font-weight="600">mq9</tspan><tspan fill="#1ba784"> · ready</tspan></text>
+  </g>
+
+  <!-- ============ Band 2: processing ============ -->
+  <rect x="110" y="294" width="1030" height="88" rx="16" fill="#ffffff" stroke="#e8e8ee" filter="url(#sh)"/>
+  <text x="146" y="333" font-size="19" font-weight="600" fill="#2b2b33">Data Integration</text>
+  <text x="146" y="356" font-size="12" fill="#a6a6b2">rule engine · connectors</text>
+  <g>
+    <rect x="350" y="316" width="180" height="44" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="372" cy="338" r="5" fill="#1ba784"/>
+    <text x="388" y="343" font-size="15" fill="#2b2b33">Rule Engine</text>
+
+    <rect x="548" y="316" width="160" height="44" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="570" cy="338" r="5" fill="#1ba784"/>
+    <text x="586" y="343" font-size="15" fill="#2b2b33">Connectors</text>
+
+    <rect x="726" y="316" width="394" height="44" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="748" cy="338" r="5" fill="#f5a623"/>
+    <text x="764" y="343" font-size="15" fill="#2b2b33">LanceDB vector / full-text search</text>
+  </g>
+
+  <!-- ============ Band 3: storage adapter ============ -->
+  <rect x="110" y="406" width="1030" height="78" rx="16" fill="#ffffff" stroke="#e8e8ee" filter="url(#sh)"/>
+  <text x="146" y="440" font-size="19" font-weight="600" fill="#2b2b33">Storage Adapter</text>
+  <text x="146" y="463" font-size="12" fill="#a6a6b2">unified API</text>
+  <rect x="350" y="423" width="770" height="44" rx="10" fill="#fafafd" stroke="#e8e8ee"/>
+  <text x="370" y="450" font-size="15" fill="#5b5b67">Unified read / write API · one dataset shared across all protocols</text>
+
+  <!-- ============ Band 4: storage engine (core) ============ -->
+  <rect x="110" y="508" width="1030" height="214" rx="16" fill="#f6f2fd" stroke="#d9c9f5" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="110" y="508" width="6" height="214" rx="3" fill="#6d28d9"/>
+  <text x="146" y="556" font-size="22" font-weight="700" fill="#5b21b6">Storage Engine</text>
+  <text x="146" y="580" font-size="13" fill="#7c5cc4">ISR replication · v1</text>
+  <text x="146" y="600" font-size="13" fill="#7c5cc4">ReplicaLog abstraction</text>
+
+  <g>
+    <rect x="350" y="540" width="240" height="52" rx="10" fill="#ffffff" stroke="#d9c9f5"/>
+    <circle cx="374" cy="566" r="5" fill="#1ba784"/>
+    <text x="390" y="571" font-size="16" font-weight="600" fill="#2b2b33">Memory</text>
+
+    <rect x="615" y="540" width="240" height="52" rx="10" fill="#ffffff" stroke="#d9c9f5"/>
+    <circle cx="639" cy="566" r="5" fill="#1ba784"/>
+    <text x="655" y="571" font-size="16" font-weight="600" fill="#2b2b33">RocksDB</text>
+
+    <rect x="880" y="540" width="240" height="52" rx="10" fill="#ffffff" stroke="#d9c9f5"/>
+    <circle cx="904" cy="566" r="5" fill="#1ba784"/>
+    <text x="920" y="571" font-size="16" font-weight="600" fill="#2b2b33">File Segment</text>
+  </g>
+
+  <g font-size="13" fill="#6d5a9c">
+    <rect x="350" y="612" width="160" height="34" rx="17" fill="#efe7fb" stroke="#e0d3f7"/>
+    <text x="430" y="634" text-anchor="middle">leader / follower</text>
+    <rect x="525" y="612" width="110" height="34" rx="17" fill="#efe7fb" stroke="#e0d3f7"/>
+    <text x="580" y="634" text-anchor="middle">acks=all</text>
+    <rect x="650" y="612" width="195" height="34" rx="17" fill="#efe7fb" stroke="#e0d3f7"/>
+    <text x="747" y="634" text-anchor="middle">leader_epoch fencing</text>
+    <rect x="860" y="612" width="140" height="34" rx="17" fill="#efe7fb" stroke="#e0d3f7"/>
+    <text x="930" y="634" text-anchor="middle">auto failover</text>
+  </g>
+  <text x="350" y="690" font-size="12.5" fill="#9a8cc0">H1's biggest effort: three engines rewritten, key layout redesigned, offsets/HW persisted, verified by chaos drills.</text>
+
+  <!-- ============ Band 5: persistence ============ -->
+  <rect x="110" y="746" width="1030" height="96" rx="16" fill="#ffffff" stroke="#e8e8ee" filter="url(#sh)"/>
+  <text x="146" y="790" font-size="19" font-weight="600" fill="#2b2b33">Persistence</text>
+  <text x="146" y="813" font-size="12" fill="#a6a6b2">storage backends</text>
+  <g>
+    <rect x="350" y="772" width="210" height="44" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="372" cy="794" r="5" fill="#1ba784"/>
+    <text x="388" y="799" font-size="15" fill="#2b2b33">Local Disk</text>
+
+    <rect x="576" y="772" width="300" height="44" rx="10" fill="#ffffff" stroke="#e8e8ee"/>
+    <circle cx="598" cy="794" r="5" fill="#f5a623"/>
+    <text x="614" y="799" font-size="15" fill="#2b2b33">Object Storage (S3) · H2</text>
+  </g>
+
+  <!-- legend + tagline -->
+  <g font-size="14">
+    <circle cx="118" cy="900" r="6" fill="#1ba784"/>
+    <text x="132" y="905" fill="#6b6b77">ready / trial</text>
+    <circle cx="262" cy="900" r="6" fill="#f5a623"/>
+    <text x="276" y="905" fill="#6b6b77">exploring / planned (H2)</text>
+  </g>
+  <text x="1390" y="905" text-anchor="end" font-size="15" font-style="italic" fill="#a0a0ac">Unified storage, many protocol views. Slow and solid.</text>
+</svg>
