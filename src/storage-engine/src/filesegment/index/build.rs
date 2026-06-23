@@ -17,7 +17,8 @@ use crate::filesegment::SegmentIdentity;
 use common_base::utils::serialize::serialize;
 use rocksdb::WriteBatch;
 use rocksdb_engine::keys::engine::{
-    index_key_key, index_position_key, index_tag_key, index_timestamp_key, segment_base,
+    key_index_key, key_index_prefix, position_index_key, segment_prefix,
+    segment_timestamp_index_key, tag_index_key, tag_index_prefix,
 };
 use rocksdb_engine::{
     rocksdb::RocksDBEngine,
@@ -91,12 +92,12 @@ pub fn save_index(
                 };
                 let serialized_data = serialize(&index_data)?;
                 let key =
-                    index_position_key(&segment_iden.shard_name, segment_iden.segment, data.offset);
+                    position_index_key(&segment_iden.shard_name, segment_iden.segment, data.offset);
                 batch.put_cf(&cf, key.as_bytes(), &serialized_data);
             }
             IndexTypeEnum::Key => {
                 if let Some(k) = &data.key {
-                    let key = index_key_key(&segment_iden.shard_name, k.clone());
+                    let key = key_index_key(&segment_iden.shard_name, k);
                     let index_data = IndexData {
                         segment: segment_iden.segment,
                         offset: data.offset,
@@ -116,14 +117,17 @@ pub fn save_index(
                         timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
-                    let key = index_tag_key(&segment_iden.shard_name, t.clone(), data.offset);
+                    let key = tag_index_key(&segment_iden.shard_name, t, data.offset);
                     batch.put_cf(&cf, key.as_bytes(), &serialized_data);
                 }
             }
             IndexTypeEnum::Time => {
                 if let Some(t) = data.timestamp {
-                    let key =
-                        index_timestamp_key(&segment_iden.shard_name, segment_iden.segment, t);
+                    let key = segment_timestamp_index_key(
+                        &segment_iden.shard_name,
+                        segment_iden.segment,
+                        t,
+                    );
                     let index_data = IndexData {
                         segment: segment_iden.segment,
                         offset: data.offset,
@@ -149,7 +153,7 @@ pub fn delete_segment_index(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_iden: &SegmentIdentity,
 ) -> Result<(), StorageEngineError> {
-    let prefix_key_name = segment_base(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key_name = segment_prefix(&segment_iden.shard_name, segment_iden.segment);
     let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -172,6 +176,42 @@ pub fn delete_segment_index(
     let mut batch = WriteBatch::default();
     for raw in data.iter() {
         batch.delete_cf(&cf, raw.key().as_bytes());
+    }
+    rocksdb_engine_handler.write_batch(batch)?;
+    Ok(())
+}
+
+/// Delete the shard-level key/tag index entries that point into `segment_seq`.
+///
+/// Key/tag indices are shard-scoped (one prefix scan serves reads across all
+/// segments), so a single segment delete cannot range-delete them; instead we
+/// scan and drop the entries whose `IndexData.segment` matches.
+pub fn delete_shard_index_for_segment(
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+    segment_seq: u32,
+) -> Result<(), StorageEngineError> {
+    let cf = rocksdb_engine_handler
+        .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
+        .ok_or_else(|| {
+            StorageEngineError::CommonErrorStr(format!(
+                "Column family '{}' not found",
+                DB_COLUMN_FAMILY_STORAGE_ENGINE
+            ))
+        })?;
+
+    let mut batch = WriteBatch::default();
+    for prefix in [key_index_prefix(shard_name), tag_index_prefix(shard_name)] {
+        let data = engine_list_by_prefix_to_map_by_engine::<IndexData>(
+            rocksdb_engine_handler,
+            DB_COLUMN_FAMILY_STORAGE_ENGINE,
+            &prefix,
+        )?;
+        for raw in data.iter() {
+            if raw.value().data.segment == segment_seq {
+                batch.delete_cf(&cf, raw.key().as_bytes());
+            }
+        }
     }
     rocksdb_engine_handler.write_batch(batch)?;
     Ok(())

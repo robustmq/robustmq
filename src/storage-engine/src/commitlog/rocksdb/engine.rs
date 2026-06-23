@@ -16,7 +16,7 @@ use crate::core::error::StorageEngineError;
 use crate::core::{cache::StorageCacheManager, offset::ShardOffset};
 use dashmap::DashMap;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -47,11 +47,11 @@ impl RocksDBStorageEngine {
 
     pub fn get_cf(&self) -> Result<Arc<rocksdb::BoundColumnFamily<'_>>, StorageEngineError> {
         self.rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_BROKER)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
             .ok_or_else(|| {
                 StorageEngineError::CommonErrorStr(format!(
                     "Column family '{}' not found",
-                    DB_COLUMN_FAMILY_BROKER
+                    DB_COLUMN_FAMILY_STORAGE_ENGINE
                 ))
             })
     }

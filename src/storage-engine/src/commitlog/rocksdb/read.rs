@@ -22,8 +22,7 @@ use metadata_struct::storage::{
     record::StorageRecord,
 };
 use rocksdb_engine::keys::engine::{
-    key_index_key, shard_record_key, shard_record_key_prefix, tag_index_tag_prefix,
-    timestamp_index_prefix,
+    key_index_key, record_key, record_prefix, tag_index_tag_prefix, timestamp_index_prefix,
 };
 
 impl RocksDBStorageEngine {
@@ -46,7 +45,7 @@ impl RocksDBStorageEngine {
 
             let batch_end = cursor.saturating_add(100).min(end_offset.saturating_add(1));
             let keys: Vec<String> = (cursor..batch_end)
-                .map(|i| shard_record_key(shard, 0, i))
+                .map(|i| record_key(shard, 0, i))
                 .collect();
 
             let cf = self.get_cf()?;
@@ -114,7 +113,7 @@ impl RocksDBStorageEngine {
         // Build record keys from offsets
         let keys: Vec<String> = offsets
             .iter()
-            .map(|off| shard_record_key(shard, 0, *off))
+            .map(|off| record_key(shard, 0, *off))
             .collect();
 
         // Batch read records; apply max_record_num/max_size limits here,
@@ -162,10 +161,10 @@ impl RocksDBStorageEngine {
         };
 
         let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = self.get_cf()?;
-        let shard_record_key = shard_record_key(shard, 0, index.offset);
+        let record_key = record_key(shard, 0, index.offset);
         let Some(record) = self
             .rocksdb_engine_handler
-            .read::<StorageRecord>(cf, &shard_record_key)?
+            .read::<StorageRecord>(cf, &record_key)?
         else {
             return Ok(Vec::new());
         };
@@ -278,11 +277,11 @@ impl RocksDBStorageEngine {
     ) -> Result<Option<u64>, StorageEngineError> {
         let cf = self.get_cf()?;
         let seek_key = if let Some(si) = start_index {
-            shard_record_key(shard, 0, si.offset)
+            record_key(shard, 0, si.offset)
         } else {
-            shard_record_key_prefix(shard, 0)
+            record_prefix(shard, 0)
         };
-        let prefix = shard_record_key_prefix(shard, 0);
+        let prefix = record_prefix(shard, 0);
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
         iter.seek(&seek_key);

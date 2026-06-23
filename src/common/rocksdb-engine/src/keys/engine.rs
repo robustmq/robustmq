@@ -12,155 +12,149 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{PREFIX_ENGINE, PREFIX_STORAGE};
+use super::PREFIX_ENGINE;
 
 // =====================================================================
-// Engine namespace (PREFIX_ENGINE = "/engine/") — file-segment engine:
-// per-segment metadata, position/timestamp indexes and leader epochs.
+// All storage-engine keys live under a single namespace, organised so
+// that every key for a shard nests under `shard_prefix(shard)` and every
+// per-segment key nests under `segment_prefix(shard, segment)`:
+//
+//   /engine/{shard}/
+//       meta/{earliest,latest,high-watermark}
+//       index/key/{key}                          (shard-level)
+//       index/tag/{tag}/{offset}                 (shard-level)
+//       index/timestamp/{ts}/{offset}            (shard-level)
+//       segment/{segment}/
+//           record/{offset}
+//           position/{offset}
+//           timestamp/{time}
+//           leader-epoch/{epoch}
+//
+// Cleanup is therefore a single prefix delete: a whole shard via
+// `shard_prefix`, one segment via `segment_prefix`. Adding a new key type
+// under these prefixes needs no change to the delete paths.
 // =====================================================================
 
-// Base prefixes.
+// Roots.
 #[inline]
-fn shard_base(shard: &str) -> String {
+pub fn shard_prefix(shard: &str) -> String {
     format!("{}{}/", PREFIX_ENGINE, shard)
 }
 
 #[inline]
-pub fn segment_base(shard: &str, segment: u32) -> String {
-    format!("{}segment/{}/{:010}/", PREFIX_ENGINE, shard, segment)
+pub fn segment_prefix(shard: &str, segment: u32) -> String {
+    format!("{}{}/segment/{:010}/", PREFIX_ENGINE, shard, segment)
 }
 
-// Shard offset markers (earliest / high-watermark / latest).
+// Shard meta (offset markers).
+#[inline]
 pub fn shard_earliest_offset(shard: &str) -> String {
-    format!("{}earliest/offset", shard_base(shard))
+    format!("{}meta/earliest", shard_prefix(shard))
 }
 
-pub fn shard_high_watermark_offset(shard: &str) -> String {
-    format!("{}high_watermark/offset", shard_base(shard))
-}
-
+#[inline]
 pub fn shard_latest_offset(shard: &str) -> String {
-    format!("{}latest/offset", shard_base(shard))
+    format!("{}meta/latest", shard_prefix(shard))
 }
 
-// Segment position index (offset -> file position).
-pub fn index_position_key(shard: &str, segment: u32, offset: u64) -> String {
-    format!("{}position/{:020}", segment_base(shard, segment), offset)
+#[inline]
+pub fn shard_high_watermark_offset(shard: &str) -> String {
+    format!("{}meta/high-watermark", shard_prefix(shard))
 }
 
-pub fn index_position_key_prefix(shard: &str, segment: u32) -> String {
-    format!("{}position/", segment_base(shard, segment))
-}
-
-// Segment timestamp index (time -> offset).
-pub fn index_timestamp_key(shard: &str, segment: u32, time_sec: u64) -> String {
-    format!("{}timestamp/{:020}", segment_base(shard, segment), time_sec)
-}
-
-pub fn index_timestamp_key_prefix(shard: &str, segment: u32) -> String {
-    format!("{}timestamp/", segment_base(shard, segment))
-}
-
-// Leader epoch history (per segment).
-pub fn leader_epoch_entry_key(shard: &str, segment: u32, epoch: u32) -> String {
-    format!("{}leader-epoch/{:010}", segment_base(shard, segment), epoch)
-}
-
-pub fn leader_epoch_prefix(shard: &str, segment: u32) -> String {
-    format!("{}leader-epoch/", segment_base(shard, segment))
-}
-
-// Shard-level tag / key indexes.
-pub fn index_tag_key(shard: &str, tag: String, offset: u64) -> String {
-    format!("{}tag/{}/{:020}", shard_base(shard), tag, offset)
-}
-
-pub fn index_tag_key_prefix(shard: &str, tag: &str) -> String {
-    format!("{}tag/{}/", shard_base(shard), tag)
-}
-
-pub fn index_key_key(shard: &str, key: String) -> String {
-    format!("{}key/{}", shard_base(shard), key)
-}
-
-// =====================================================================
-// Storage namespace (PREFIX_STORAGE = "/storage/") — commitlog records
-// (memory / rocksdb): record bytes, segment LEO and key/tag/timestamp
-// indexes.
-// =====================================================================
-
-// Record bytes.
-#[inline(always)]
-pub fn shard_record_key(shard: &str, segment_seq: u32, record_offset: u64) -> String {
-    format!(
-        "{}record/{}/{:010}/{:020}",
-        PREFIX_STORAGE, shard, segment_seq, record_offset
-    )
-}
-
-#[inline(always)]
-pub fn shard_record_key_prefix(shard: &str, segment_seq: u32) -> String {
-    format!("{}record/{}/{:010}/", PREFIX_STORAGE, shard, segment_seq)
-}
-
-#[inline(always)]
-pub fn shard_record_shard_prefix(shard: &str) -> String {
-    format!("{}record/{}/", PREFIX_STORAGE, shard)
-}
-
-// Segment LEO (log end offset).
-#[inline(always)]
-pub fn shard_segment_leo_key(shard: &str, segment_seq: u32) -> String {
-    format!("{}record-leo/{}/{:010}", PREFIX_STORAGE, shard, segment_seq)
-}
-
-#[inline(always)]
-pub fn shard_segment_leo_shard_prefix(shard: &str) -> String {
-    format!("{}record-leo/{}/", PREFIX_STORAGE, shard)
-}
-
-// Key index (record key -> offset).
-#[inline(always)]
+// Shard-level key index (record key -> offset; used for compaction).
+#[inline]
 pub fn key_index_key(shard: &str, record_key: &str) -> String {
-    format!("{}index/key/{}/{}", PREFIX_STORAGE, shard, record_key)
+    format!("{}index/key/{}", shard_prefix(shard), record_key)
 }
 
-#[inline(always)]
+#[inline]
 pub fn key_index_prefix(shard: &str) -> String {
-    format!("{}index/key/{}/", PREFIX_STORAGE, shard)
+    format!("{}index/key/", shard_prefix(shard))
 }
 
-// Tag index (tag -> offsets).
-#[inline(always)]
+// Shard-level tag index (tag -> offsets).
+#[inline]
 pub fn tag_index_key(shard: &str, tag: &str, offset: u64) -> String {
-    format!(
-        "{}index/tag/{}/{}/{:020}",
-        PREFIX_STORAGE, shard, tag, offset
-    )
+    format!("{}index/tag/{}/{:020}", shard_prefix(shard), tag, offset)
 }
 
-#[inline(always)]
-pub fn tag_index_prefix(shard: &str) -> String {
-    format!("{}index/tag/{}/", PREFIX_STORAGE, shard)
-}
-
-#[inline(always)]
+#[inline]
 pub fn tag_index_tag_prefix(shard: &str, tag: &str) -> String {
-    format!("{}index/tag/{}/{}/", PREFIX_STORAGE, shard, tag)
+    format!("{}index/tag/{}/", shard_prefix(shard), tag)
 }
 
-// Timestamp index (timestamp -> offsets).
-#[inline(always)]
+#[inline]
+pub fn tag_index_prefix(shard: &str) -> String {
+    format!("{}index/tag/", shard_prefix(shard))
+}
+
+// Shard-level timestamp index (timestamp -> offsets).
+#[inline]
 pub fn timestamp_index_key(shard: &str, timestamp: u64, offset: u64) -> String {
     format!(
-        "{}index/timestamp/{}/{:020}/{:020}",
-        PREFIX_STORAGE, shard, timestamp, offset
+        "{}index/timestamp/{:020}/{:020}",
+        shard_prefix(shard),
+        timestamp,
+        offset
     )
 }
 
-#[inline(always)]
+#[inline]
 pub fn timestamp_index_prefix(shard: &str) -> String {
-    format!("{}index/timestamp/{}/", PREFIX_STORAGE, shard)
+    format!("{}index/timestamp/", shard_prefix(shard))
+}
+
+// Segment-level record bytes (commitlog).
+#[inline]
+pub fn record_key(shard: &str, segment: u32, offset: u64) -> String {
+    format!("{}record/{:020}", segment_prefix(shard, segment), offset)
+}
+
+#[inline]
+pub fn record_prefix(shard: &str, segment: u32) -> String {
+    format!("{}record/", segment_prefix(shard, segment))
+}
+
+// Segment-level position index (filesegment; offset -> file position).
+#[inline]
+pub fn position_index_key(shard: &str, segment: u32, offset: u64) -> String {
+    format!("{}position/{:020}", segment_prefix(shard, segment), offset)
+}
+
+#[inline]
+pub fn position_index_prefix(shard: &str, segment: u32) -> String {
+    format!("{}position/", segment_prefix(shard, segment))
+}
+
+// Segment-level timestamp index (filesegment; time -> offset).
+#[inline]
+pub fn segment_timestamp_index_key(shard: &str, segment: u32, time_sec: u64) -> String {
+    format!(
+        "{}timestamp/{:020}",
+        segment_prefix(shard, segment),
+        time_sec
+    )
+}
+
+#[inline]
+pub fn segment_timestamp_index_prefix(shard: &str, segment: u32) -> String {
+    format!("{}timestamp/", segment_prefix(shard, segment))
+}
+
+// Segment-level leader epoch history.
+#[inline]
+pub fn leader_epoch_key(shard: &str, segment: u32, epoch: u32) -> String {
+    format!(
+        "{}leader-epoch/{:010}",
+        segment_prefix(shard, segment),
+        epoch
+    )
+}
+
+#[inline]
+pub fn leader_epoch_prefix(shard: &str, segment: u32) -> String {
+    format!("{}leader-epoch/", segment_prefix(shard, segment))
 }
 
 #[cfg(test)]
@@ -169,44 +163,47 @@ mod tests {
 
     #[test]
     fn test_all_key_formats() {
-        let cases: [(_, &'static str); 11] = [
+        let cases: [(_, &'static str); 17] = [
+            (shard_prefix("s1"), "/engine/s1/"),
+            (segment_prefix("s1", 3), "/engine/s1/segment/0000000003/"),
+            (shard_earliest_offset("s1"), "/engine/s1/meta/earliest"),
+            (shard_latest_offset("s1"), "/engine/s1/meta/latest"),
             (
-                shard_record_key("shard1", 0, 123),
-                "/storage/record/shard1/0000000000/00000000000000000123",
+                shard_high_watermark_offset("s1"),
+                "/engine/s1/meta/high-watermark",
+            ),
+            (key_index_key("s1", "k1"), "/engine/s1/index/key/k1"),
+            (key_index_prefix("s1"), "/engine/s1/index/key/"),
+            (
+                tag_index_key("s1", "t1", 7),
+                "/engine/s1/index/tag/t1/00000000000000000007",
+            ),
+            (tag_index_tag_prefix("s1", "t1"), "/engine/s1/index/tag/t1/"),
+            (tag_index_prefix("s1"), "/engine/s1/index/tag/"),
+            (
+                timestamp_index_key("s1", 100, 7),
+                "/engine/s1/index/timestamp/00000000000000000100/00000000000000000007",
+            ),
+            (timestamp_index_prefix("s1"), "/engine/s1/index/timestamp/"),
+            (
+                record_key("s1", 3, 7),
+                "/engine/s1/segment/0000000003/record/00000000000000000007",
             ),
             (
-                shard_record_key_prefix("shard1", 0),
-                "/storage/record/shard1/0000000000/",
+                record_prefix("s1", 3),
+                "/engine/s1/segment/0000000003/record/",
             ),
             (
-                shard_record_shard_prefix("shard1"),
-                "/storage/record/shard1/",
+                position_index_key("s1", 3, 7),
+                "/engine/s1/segment/0000000003/position/00000000000000000007",
             ),
             (
-                shard_segment_leo_key("shard1", 0),
-                "/storage/record-leo/shard1/0000000000",
+                segment_timestamp_index_key("s1", 3, 100),
+                "/engine/s1/segment/0000000003/timestamp/00000000000000000100",
             ),
             (
-                shard_segment_leo_shard_prefix("shard1"),
-                "/storage/record-leo/shard1/",
-            ),
-            (
-                key_index_key("shard1", "mykey"),
-                "/storage/index/key/shard1/mykey",
-            ),
-            (key_index_prefix("shard1"), "/storage/index/key/shard1/"),
-            (
-                tag_index_key("shard1", "tag1", 456),
-                "/storage/index/tag/shard1/tag1/00000000000000000456",
-            ),
-            (
-                tag_index_tag_prefix("shard1", "tag1"),
-                "/storage/index/tag/shard1/tag1/",
-            ),
-            (tag_index_prefix("shard1"), "/storage/index/tag/shard1/"),
-            (
-                timestamp_index_key("shard1", 1234567890, 100),
-                "/storage/index/timestamp/shard1/00000000001234567890/00000000000000000100",
+                leader_epoch_key("s1", 3, 5),
+                "/engine/s1/segment/0000000003/leader-epoch/0000000005",
             ),
         ];
 

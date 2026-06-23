@@ -18,7 +18,7 @@ use crate::filesegment::index::build::IndexData;
 use crate::filesegment::SegmentIdentity;
 use common_base::{error::common::CommonError, utils::serialize};
 use rocksdb_engine::keys::engine::{
-    index_key_key, index_position_key_prefix, index_tag_key_prefix, index_timestamp_key_prefix,
+    key_index_key, position_index_prefix, segment_timestamp_index_prefix, tag_index_tag_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
@@ -65,7 +65,7 @@ pub fn get_index_data_by_offset(
     segment_iden: &SegmentIdentity,
     start_offset: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = index_position_key_prefix(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key = position_index_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -109,7 +109,7 @@ pub fn get_index_data_by_tag(
     tag: &str,
     record_num: usize,
 ) -> Result<Vec<IndexData>, StorageEngineError> {
-    let prefix_key = index_tag_key_prefix(shard_name, tag);
+    let prefix_key = tag_index_tag_prefix(shard_name, tag);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -157,7 +157,7 @@ pub fn get_index_data_by_timestamp(
     segment_iden: &SegmentIdentity,
     start_timestamp: u64,
 ) -> Result<Option<IndexData>, StorageEngineError> {
-    let prefix_key = index_timestamp_key_prefix(&segment_iden.shard_name, segment_iden.segment);
+    let prefix_key = segment_timestamp_index_prefix(&segment_iden.shard_name, segment_iden.segment);
     let cf = get_storage_cf(rocksdb_engine_handler)?;
 
     let mut iter = rocksdb_engine_handler.db.raw_iterator_cf(&cf);
@@ -200,6 +200,6 @@ pub fn get_index_data_by_key(
     key: String,
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let cf = get_storage_cf(rocksdb_engine_handler)?;
-    let key = index_key_key(shard_name, key);
+    let key = key_index_key(shard_name, &key);
     Ok(rocksdb_engine_handler.read::<IndexData>(cf, &key)?)
 }

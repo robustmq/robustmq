@@ -27,9 +27,7 @@ use metadata_struct::storage::{
     convert::convert_adapter_record_to_storage,
 };
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::engine::{
-    key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
-};
+use rocksdb_engine::keys::engine::{key_index_key, record_key, tag_index_key, timestamp_index_key};
 
 impl RocksDBStorageEngine {
     pub async fn write(
@@ -100,9 +98,9 @@ impl RocksDBStorageEngine {
             let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             // save message (now storing StorageEngineRecord)
-            let shard_record_key = shard_record_key(shard_name, 0, offset);
+            let record_key = record_key(shard_name, 0, offset);
             let serialized_msg = serialize::serialize(&engine_record)?;
-            batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
+            batch.put_cf(&cf, record_key.as_bytes(), &serialized_msg);
 
             // save index
             let offset_info = IndexInfo {
@@ -185,7 +183,7 @@ impl RocksDBStorageEngine {
         let mut batch = WriteBatch::default();
 
         for &offset in offsets {
-            let record_key = shard_record_key(shard, 0, offset);
+            let record_key = record_key(shard, 0, offset);
             let Some(record) = self
                 .rocksdb_engine_handler
                 .read::<metadata_struct::storage::record::StorageRecord>(

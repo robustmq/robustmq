@@ -22,9 +22,7 @@ use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
 };
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::engine::{
-    key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
-};
+use rocksdb_engine::keys::engine::{key_index_key, record_key, tag_index_key, timestamp_index_key};
 use tokio::sync::broadcast;
 
 impl RocksDBStorageEngine {
@@ -109,7 +107,7 @@ impl RocksDBStorageEngine {
         while current_offset < new_earliest_offset {
             let batch_end = (current_offset + BATCH_SIZE).min(new_earliest_offset);
             let keys: Vec<String> = (current_offset..batch_end)
-                .map(|off| shard_record_key(&shard.shard_name, 0, off))
+                .map(|off| record_key(&shard.shard_name, 0, off))
                 .collect();
 
             let records = self
