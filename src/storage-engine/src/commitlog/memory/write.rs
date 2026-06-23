@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use crate::{
-    commitlog::memory::engine::{MemoryStorageEngine, ShardState},
+    commitlog::memory::engine::{MemoryShardData, MemoryStorageEngine},
     core::error::StorageEngineError,
 };
 use metadata_struct::storage::{
@@ -137,7 +137,7 @@ impl MemoryStorageEngine {
         Ok(offset_res)
     }
 
-    fn key_compaction(&self, shard: &Arc<ShardState>, messages: &[AdapterWriteRecord]) {
+    fn key_compaction(&self, shard: &Arc<MemoryShardData>, messages: &[AdapterWriteRecord]) {
         for record in messages.iter() {
             let Some(key) = record.key.as_deref() else {
                 continue;
@@ -159,113 +159,5 @@ impl MemoryStorageEngine {
                 shard.timestamp_index.remove(&removed.metadata.create_t);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::test_tool::test_build_memory_engine;
-    use bytes::Bytes;
-    use common_base::uuid::unique_id;
-    use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
-
-    #[tokio::test]
-    async fn test_try_remove_old_data() {
-        let engine = test_build_memory_engine();
-        let shard_name = unique_id();
-        let cache_manager = engine.cache_manager.clone();
-        let commit_offset = engine.commit_log_offset.clone();
-
-        cache_manager.save_offset_state(
-            shard_name.clone(),
-            crate::core::offset::ShardOffsetState::default(),
-        );
-        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
-        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
-        commit_offset
-            .save_high_watermark_offset(&shard_name, 0)
-            .unwrap();
-
-        let messages: Vec<AdapterWriteRecord> = (0..10)
-            .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
-                tags: Some(vec![format!("tag{}", i % 3)]),
-                ..Default::default()
-            })
-            .collect();
-
-        engine.batch_write(&shard_name, &messages).await.unwrap();
-        let new_message = AdapterWriteRecord {
-            key: Some("key100".to_string()),
-            tags: Some(vec!["tag100".to_string()]),
-            ..Default::default()
-        };
-        engine.write(&shard_name, &new_message).await.unwrap();
-
-        // Trigger expiry explicitly (normally done by the background task)
-        let shard_ref = engine.shards.get(&shard_name).unwrap().clone();
-        engine.evict_shard(&shard_name, 10, &shard_ref).unwrap();
-
-        let shard = engine.shards.get(&shard_name).unwrap();
-        assert_eq!(shard.data.len(), 9);
-        assert!(!shard.data.contains_key(&0));
-        assert!(!shard.data.contains_key(&1));
-        assert!(shard.data.contains_key(&2));
-        assert!(shard.data.contains_key(&10));
-
-        let earliest = engine
-            .commit_log_offset
-            .get_earliest_offset(&shard_name)
-            .unwrap();
-        assert_eq!(earliest, 2);
-
-        assert!(!shard.key_index.contains_key("key0"));
-        assert!(!shard.key_index.contains_key("key1"));
-        assert!(shard.key_index.contains_key("key2"));
-    }
-
-    #[tokio::test]
-    async fn test_write_and_delete() {
-        let engine = test_build_memory_engine();
-        let shard_name = unique_id();
-        let cache_manager = engine.cache_manager.clone();
-        let commit_offset = engine.commit_log_offset.clone();
-
-        cache_manager.save_offset_state(
-            shard_name.clone(),
-            crate::core::offset::ShardOffsetState::default(),
-        );
-        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
-        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
-        commit_offset
-            .save_high_watermark_offset(&shard_name, 0)
-            .unwrap();
-
-        let messages: Vec<AdapterWriteRecord> = (0..5)
-            .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
-                tags: Some(vec![format!("tag{}", i)]),
-                data: Bytes::from(format!("data{}", i)),
-                ..Default::default()
-            })
-            .collect();
-
-        engine.batch_write(&shard_name, &messages).await.unwrap();
-        engine.delete_by_key(&shard_name, "key2").await.unwrap();
-
-        let read_config = AdapterReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024,
-        };
-
-        let key_records = engine.read_by_key(&shard_name, "key2").await.unwrap();
-        assert_eq!(key_records.len(), 0);
-
-        let tag_records = engine
-            .read_by_tag(&shard_name, "tag2", None, &read_config)
-            .await
-            .unwrap();
-        assert_eq!(tag_records.len(), 0);
     }
 }

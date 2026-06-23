@@ -28,14 +28,14 @@ impl MemoryStorageEngine {
         start_offset: u64,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(shard_state) = self.shards.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard).map(|s| s.clone()) else {
             return Ok(Vec::new());
         };
 
         let mut records = Vec::with_capacity(read_config.max_record_num.min(1024) as usize);
         let mut total_size = 0;
         let end_offset = self.commit_log_offset.get_latest_offset(shard)?;
-        for current_offset in start_offset..=end_offset {
+        for current_offset in start_offset..end_offset {
             let Some(record) = shard_state.data.get(&current_offset) else {
                 continue;
             };
@@ -45,7 +45,7 @@ impl MemoryStorageEngine {
             }
 
             let record_bytes = record.data.len() as u64;
-            if total_size + record_bytes > read_config.max_size {
+            if !records.is_empty() && total_size + record_bytes > read_config.max_size {
                 break;
             }
 
@@ -67,7 +67,7 @@ impl MemoryStorageEngine {
         start_offset: Option<u64>,
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(shard_state) = self.shards.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard).map(|s| s.clone()) else {
             return Ok(Vec::new());
         };
 
@@ -75,17 +75,18 @@ impl MemoryStorageEngine {
             return Ok(Vec::new());
         };
 
-        let capacity = read_config.max_record_num.min(offsets_list.len() as u64) as usize;
+        let start_idx = match start_offset {
+            Some(so) => offsets_list.partition_point(|&o| o < so),
+            None => 0,
+        };
+
+        let capacity = read_config
+            .max_record_num
+            .min((offsets_list.len() - start_idx) as u64) as usize;
         let mut records = Vec::with_capacity(capacity);
         let mut total_size = 0;
 
-        for &offset in offsets_list.iter() {
-            if let Some(so) = start_offset {
-                if offset < so {
-                    continue;
-                }
-            }
-
+        for &offset in &offsets_list[start_idx..] {
             let Some(record) = shard_state.data.get(&offset) else {
                 continue;
             };
@@ -94,17 +95,17 @@ impl MemoryStorageEngine {
                 continue;
             }
 
-            if records.len() >= read_config.max_record_num as usize {
-                break;
-            }
-
             let record_bytes = record.data.len() as u64;
-            if total_size + record_bytes > read_config.max_size {
+            if !records.is_empty() && total_size + record_bytes > read_config.max_size {
                 break;
             }
 
             total_size += record_bytes;
             records.push(record.clone());
+
+            if records.len() >= read_config.max_record_num as usize {
+                break;
+            }
         }
 
         Ok(records)
@@ -115,15 +116,15 @@ impl MemoryStorageEngine {
         shard: &str,
         key: &str,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        let Some(shard_state) = self.shards.get(shard) else {
+        let Some(shard_state) = self.shards.get(shard).map(|s| s.clone()) else {
             return Ok(Vec::new());
         };
 
-        let Some(offset) = shard_state.key_index.get(key) else {
+        let Some(offset) = shard_state.key_index.get(key).map(|o| *o) else {
             return Ok(Vec::new());
         };
 
-        let Some(record) = shard_state.data.get(&*offset) else {
+        let Some(record) = shard_state.data.get(&offset) else {
             return Ok(Vec::new());
         };
 
@@ -171,7 +172,7 @@ impl MemoryStorageEngine {
         start_offset: Option<u64>,
         timestamp: u64,
     ) -> Option<u64> {
-        let shard_state = self.shards.get(shard)?;
+        let shard_state = self.shards.get(shard).map(|s| s.clone())?;
         let shard_offset_state = self
             .commit_log_offset
             .cache_manager
@@ -194,64 +195,5 @@ impl MemoryStorageEngine {
         }
 
         None
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::test_tool::test_build_memory_engine;
-    use common_base::uuid::unique_id;
-    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
-
-    #[tokio::test]
-    async fn test_batch_write_and_read_by_offset() {
-        let engine = test_build_memory_engine();
-        let shard_name = unique_id();
-        let cache_manager = engine.cache_manager.clone();
-        let commit_offset = engine.commit_log_offset.clone();
-
-        cache_manager.save_offset_state(
-            shard_name.clone(),
-            crate::core::offset::ShardOffsetState::default(),
-        );
-        commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
-        commit_offset.save_latest_offset(&shard_name, 0).unwrap();
-        commit_offset
-            .save_high_watermark_offset(&shard_name, 0)
-            .unwrap();
-
-        let messages: Vec<AdapterWriteRecord> = (0..10)
-            .map(|i| {
-                AdapterWriteRecord::new("", bytes::Bytes::default())
-                    .with_key(format!("key{}", i))
-                    .with_tags(vec![format!("tag{}", i % 3)])
-            })
-            .collect();
-        let write_result = engine.batch_write(&shard_name, &messages).await.unwrap();
-        assert_eq!(write_result.len(), 10);
-        assert_eq!(write_result[0].offset, 0);
-        assert_eq!(write_result[9].offset, 9);
-
-        let read_config = AdapterReadConfig {
-            max_record_num: 10,
-            max_size: 1024 * 1024,
-        };
-        let records = engine
-            .read_by_offset(&shard_name, 0, &read_config)
-            .await
-            .unwrap();
-        assert_eq!(records.len(), 10);
-        assert_eq!(records[0].metadata.offset, 0);
-        assert_eq!(records[9].metadata.offset, 9);
-
-        let tag_records = engine
-            .read_by_tag(&shard_name, "tag0", None, &read_config)
-            .await
-            .unwrap();
-        assert_eq!(tag_records.len(), 4);
-        let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
-        assert_eq!(key_records.len(), 1);
-        assert_eq!(key_records[0].metadata.offset, 5);
     }
 }

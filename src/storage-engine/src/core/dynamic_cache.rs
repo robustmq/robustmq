@@ -182,8 +182,14 @@ async fn create_segment(
     // add segment to cache
     cache_manager.set_segment(&segment);
 
-    // init hw/leo/lso
-    if segment.segment_seq == 0 {
+    // init hw/leo/lso — but only when the offset state has never been set.
+    // meta sends BrokerUpdateCacheActionType::Create for *every* segment change
+    // (including leader switches), so this handler fires on a node that already
+    // holds replicated data.  Unconditionally resetting to 0 would clobber the
+    // LEO and cause the new leader to record epoch-start = 0, making every
+    // follower truncate its entire log.  Skip the init when an entry already
+    // exists in the cache (the node has been running and tracking offsets).
+    if segment.segment_seq == 0 && cache_manager.get_offset_state(&shard.shard_name).is_none() {
         let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         shard_offset.save_earliest_offset(&shard.shard_name, 0)?;
         shard_offset.save_latest_offset(&shard.shard_name, 0)?;

@@ -14,6 +14,13 @@
 
 use super::PREFIX_META;
 
+// =====================================================================
+// Meta namespace (PREFIX_META = "/meta/") — cluster control-plane state
+// replicated via Raft: nodes, config, offsets, journal metadata, tenants
+// and all per-protocol (MQTT / NATS / MQ9) resource records.
+// =====================================================================
+
+// Cluster nodes.
 #[inline]
 pub fn key_node(node_id: u64) -> String {
     format!("{}clusters/node/{}", PREFIX_META, node_id)
@@ -30,11 +37,13 @@ pub fn key_node_epoch(node_id: u64) -> String {
     format!("{}clusters/node_epoch/{}", PREFIX_META, node_id)
 }
 
+// Resource config.
 #[inline]
 pub fn key_resource_config(resource_key: &str) -> String {
     format!("{}config/{}", PREFIX_META, resource_key)
 }
 
+// Consumer group offsets.
 #[inline]
 pub fn key_offset(tenant: &str, group: &str, shard_name: &str) -> String {
     format!("{}offset/{}/{}/{}", PREFIX_META, tenant, group, shard_name)
@@ -50,6 +59,7 @@ pub fn key_offset_prefix_all() -> String {
     format!("{}offset/", PREFIX_META)
 }
 
+// Journal: shards.
 #[inline]
 pub fn key_shard(shard_name: &str) -> String {
     format!("{}journal/shard/{}", PREFIX_META, shard_name)
@@ -60,6 +70,7 @@ pub fn key_all_shard() -> &'static str {
     "/meta/journal/shard/"
 }
 
+// Journal: segments.
 #[inline]
 pub fn key_segment(shard_name: &str, segment_seq: u32) -> String {
     format!(
@@ -78,6 +89,7 @@ pub fn key_segment_shard_prefix(shard_name: &str) -> String {
     format!("{}journal/segment/{}/", PREFIX_META, shard_name)
 }
 
+// Journal: segment metadata.
 #[inline]
 pub fn key_segment_metadata(shard_name: &str, segment_seq: u32) -> String {
     format!(
@@ -96,6 +108,7 @@ pub fn key_segment_metadata_shard_prefix(shard_name: &str) -> String {
     format!("{}journal/segment_meta/{}/", PREFIX_META, shard_name)
 }
 
+// Tenants.
 #[inline]
 pub fn storage_key_tenant(tenant_name: &str) -> String {
     format!("{}tenant/{}", PREFIX_META, tenant_name)
@@ -106,6 +119,7 @@ pub fn storage_key_tenant_prefix() -> String {
     format!("{}tenant/", PREFIX_META)
 }
 
+// MQTT: users.
 #[inline]
 pub fn storage_key_mqtt_user(tenant: &str, user_name: &str) -> String {
     format!("{}mqtt/user/{}/{}", PREFIX_META, tenant, user_name)
@@ -121,6 +135,7 @@ pub fn storage_key_mqtt_user_prefix() -> String {
     format!("{}mqtt/user/", PREFIX_META)
 }
 
+// MQTT: topics.
 #[inline]
 pub fn storage_key_mqtt_topic(tenant: &str, topic_name: &str) -> String {
     format!("{}mqtt/topic/{}/{}", PREFIX_META, tenant, topic_name)
@@ -136,6 +151,7 @@ pub fn storage_key_mqtt_topic_cluster_prefix() -> String {
     format!("{}mqtt/topic/", PREFIX_META)
 }
 
+// MQTT: sessions.
 #[inline]
 pub fn storage_key_mqtt_session(tenant: &str, client_id: &str) -> String {
     format!("{}mqtt/session/{}/{}", PREFIX_META, tenant, client_id)
@@ -151,16 +167,7 @@ pub fn storage_key_mqtt_session_tenant_prefix(tenant: &str) -> String {
     format!("{}mqtt/session/{}/", PREFIX_META, tenant)
 }
 
-#[inline]
-pub fn storage_key_mqtt_last_will(client_id: &str) -> String {
-    format!("{}mqtt/last_will/{}", PREFIX_META, client_id)
-}
-
-#[inline]
-pub fn storage_key_mqtt_last_will_prefix() -> String {
-    format!("{}mqtt/last_will/", PREFIX_META)
-}
-
+// MQTT: shared-subscription groups and members.
 #[inline]
 pub fn storage_key_share_group(tenant: &str, group_name: &str) -> String {
     format!(
@@ -199,6 +206,7 @@ pub fn storage_key_share_group_member_prefix(broker_id: u64, connect_id: u64) ->
     )
 }
 
+// MQTT: subscriptions.
 #[inline]
 pub fn storage_key_mqtt_subscribe(client_id: &str, path: &str) -> String {
     format!("{}mqtt/subscribe/{}/{}", PREFIX_META, client_id, path)
@@ -214,6 +222,7 @@ pub fn storage_key_mqtt_subscribe_prefix() -> String {
     format!("{}mqtt/subscribe/", PREFIX_META)
 }
 
+// MQTT: connectors.
 #[inline]
 pub fn storage_key_mqtt_connector(connector_name: &str) -> String {
     format!("{}mqtt/connector/{}", PREFIX_META, connector_name)
@@ -224,6 +233,7 @@ pub fn storage_key_mqtt_connector_prefix() -> String {
     format!("{}mqtt/connector/", PREFIX_META)
 }
 
+// MQTT: schemas.
 #[inline]
 pub fn storage_key_mqtt_schema(tenant: &str, schema_name: &str) -> String {
     format!("{}mqtt/schema/{}/{}", PREFIX_META, tenant, schema_name)
@@ -239,6 +249,7 @@ pub fn storage_key_mqtt_schema_prefix() -> String {
     format!("{}mqtt/schema/", PREFIX_META)
 }
 
+// MQTT: schema bindings.
 #[inline]
 pub fn storage_key_mqtt_schema_bind(
     tenant: &str,
@@ -272,6 +283,7 @@ pub fn storage_key_mqtt_schema_bind_prefix() -> String {
     format!("{}mqtt/schema_bind/", PREFIX_META)
 }
 
+// MQTT: ACLs.
 #[inline]
 pub fn storage_key_mqtt_acl(tenant: &str, name: &str) -> String {
     format!("{}mqtt/acl/{}/{}", PREFIX_META, tenant, name)
@@ -287,6 +299,7 @@ pub fn storage_key_mqtt_acl_prefix() -> String {
     format!("{}mqtt/acl/", PREFIX_META)
 }
 
+// MQTT: blacklist.
 #[inline]
 pub fn storage_key_mqtt_blacklist(tenant: &str, name: &str) -> String {
     format!("{}mqtt/blacklist/{}/{}", PREFIX_META, tenant, name)
@@ -302,6 +315,7 @@ pub fn storage_key_mqtt_blacklist_prefix() -> String {
     format!("{}mqtt/blacklist/", PREFIX_META)
 }
 
+// MQTT: topic rewrite rules.
 #[inline]
 pub fn storage_key_mqtt_topic_rewrite_rule(tenant: &str, name: &str) -> String {
     format!("{}mqtt/topic_rewrite_rule/{}/{}", PREFIX_META, tenant, name)
@@ -317,6 +331,7 @@ pub fn storage_key_mqtt_topic_rewrite_rule_tenant_prefix(tenant: &str) -> String
     format!("{}mqtt/topic_rewrite_rule/{}/", PREFIX_META, tenant)
 }
 
+// MQTT: auto-subscribe rules.
 #[inline]
 pub fn storage_key_mqtt_auto_subscribe_rule(tenant: &str, name: &str) -> String {
     format!(
@@ -335,6 +350,7 @@ pub fn storage_key_mqtt_auto_subscribe_rule_tenant_prefix(tenant: &str) -> Strin
     format!("{}mqtt/auto_subscribe_rule/{}/", PREFIX_META, tenant)
 }
 
+// MQTT: retain messages.
 #[inline]
 pub fn storage_key_mqtt_retain_message(tenant: &str, topic_name: &str) -> String {
     format!(
@@ -353,6 +369,7 @@ pub fn storage_key_mqtt_retain_message_prefix() -> String {
     format!("{}mqtt/retain_message/", PREFIX_META)
 }
 
+// NATS: subscriptions.
 #[inline]
 pub fn storage_key_nats_subscribe(broker_id: u64, connect_id: u64, sid: &str) -> String {
     format!(
@@ -371,6 +388,7 @@ pub fn storage_key_nats_subscribe_prefix() -> String {
     format!("{}nats/subscribe/", PREFIX_META)
 }
 
+// MQ9: mailboxes.
 #[inline]
 pub fn storage_key_mq9_mail(tenant: &str, mail_address: &str) -> String {
     format!("{}mq9/mail/{}/{}", PREFIX_META, tenant, mail_address)
@@ -386,6 +404,7 @@ pub fn storage_key_mq9_mail_prefix() -> String {
     format!("{}mq9/mail/", PREFIX_META)
 }
 
+// MQ9: agents.
 #[inline]
 pub fn storage_key_mq9_agent(tenant: &str, name: &str) -> String {
     format!("{}mq9/agent/{}/{}", PREFIX_META, tenant, name)
@@ -401,6 +420,7 @@ pub fn storage_key_mq9_agent_prefix() -> String {
     format!("{}mq9/agent/", PREFIX_META)
 }
 
+// Cluster: topic-deletion tombstones.
 #[inline]
 pub fn storage_key_cluster_delete_topic(topic_id: &str) -> String {
     format!("{}cluster/delete-topic/{}", PREFIX_META, topic_id)

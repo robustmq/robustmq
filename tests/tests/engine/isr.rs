@@ -227,6 +227,24 @@ mod tests {
             .join(" ")
     }
 
+    fn strip_ansi(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut chars = s.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' && chars.peek() == Some(&'[') {
+                chars.next();
+                for c2 in chars.by_ref() {
+                    if c2.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
     fn scan_logs() -> Vec<String> {
         let mut hits = Vec::new();
         for id in NODES {
@@ -236,8 +254,7 @@ mod tests {
             };
             for line in content.lines() {
                 if LOG_BLACKLIST.iter().any(|p| line.contains(p)) {
-                    let clean: String = line.replace('\u{1b}', "").replace("[0m", "");
-                    hits.push(format!("n{id}: {}", clean.trim()));
+                    hits.push(format!("n{id}: {}", strip_ansi(line).trim()));
                 }
             }
         }
@@ -309,12 +326,17 @@ mod tests {
     /// Read records from offset 0 up; returns how many are actually readable.
     async fn read_back_count(
         writer: &Arc<ClientConnectionManager>,
-        leader: u64,
+        node_id: u64,
         shard_name: &str,
         want: u64,
     ) -> u64 {
+        let deadline = Instant::now() + Duration::from_secs(60);
         let mut got = 0u64;
         loop {
+            assert!(
+                Instant::now() < deadline,
+                "read_back_count timed out at got={got}/{want} from n{node_id}"
+            );
             let req = ReadReq::new(ReadReqBody::new(vec![ReadReqMessage::new(
                 shard_name.to_string(),
                 ReadType::Offset,
@@ -323,9 +345,9 @@ mod tests {
                 ReadReqOptions::new(64 * 1024 * 1024, want),
             )]));
             let records = writer
-                .send_read(leader, req)
+                .send_read(node_id, req)
                 .await
-                .unwrap_or_else(|e| panic!("read from n{leader} failed: {e}"));
+                .unwrap_or_else(|e| panic!("read from n{node_id} failed: {e}"));
             let n = records.len() as u64;
             if n == 0 {
                 break;
@@ -355,7 +377,9 @@ mod tests {
         );
 
         let shard_name = unique_id();
-        let config = r#"{"replica_num":3,"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}"#.to_string();
+        let config = format!(
+            r#"{{"replica_num":{REPLICA_NUM},"max_segment_size":1073741824,"retention_sec":86400,"storage_type":"EngineRocksDB"}}"#
+        );
         let create_resp: AdminServerResponse<serde_json::Value> = serde_json::from_str(
             &admin
                 .create_shard(&ShardCreateReq {
@@ -455,6 +479,13 @@ mod tests {
                     let d = checked_detail(&obs, &shard_name, segment_seq).await;
                     let leader_ok = d.segment.leader != victim && d.segment.leader != 0;
                     if !d.segment.isr.contains(&victim) && leader_ok {
+                        assert_eq!(
+                            d.segment.isr.len(),
+                            REPLICA_NUM - 1,
+                            "expected ISR size {} after killing n{victim}, got {:?}",
+                            REPLICA_NUM - 1,
+                            d.segment.isr
+                        );
                         if was_leader {
                             assert!(
                                 d.segment.leader_epoch > last_epoch,
@@ -498,6 +529,7 @@ mod tests {
                         assert!(!r.available, "dead n{victim} still shows available");
                     } else {
                         assert!(r.available, "survivor n{} unavailable", r.node_id);
+                        assert!(r.in_isr, "survivor n{} not in ISR", r.node_id);
                         assert_eq!(
                             r.leo, cumulative,
                             "survivor n{} leo != {cumulative}",
@@ -655,19 +687,19 @@ mod tests {
             );
         }
 
-        // ── final: content read-back from every node ──
-        // Counter checks above only confirm the metadata is correct; this
-        // confirms the data is actually readable on all three replicas.
-        for &n in &NODES {
-            let node_admin = AdminHttpClient::new(admin_url(n));
-            let leader = checked_detail(&node_admin, &shard_name, segment_seq)
+        // ── final: content read-back from the leader ──
+        // Counter checks above confirm metadata; this confirms the data is actually
+        // readable. All nodes agreed on the same leader in step (8), so one read
+        // suffices for content integrity.
+        {
+            let leader = checked_detail(&admin, &shard_name, segment_seq)
                 .await
                 .segment
                 .leader;
             let read = read_back_count(&writer, leader, &shard_name, cumulative).await;
             assert_eq!(
                 read, cumulative,
-                "read-back via n{n} returned {read} records, expected {cumulative}"
+                "read-back from n{leader} returned {read} records, expected {cumulative}"
             );
         }
 

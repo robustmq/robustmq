@@ -21,7 +21,7 @@ use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::segment_name;
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{shard_record_key, shard_record_key_prefix};
+use rocksdb_engine::keys::engine::{shard_record_key, shard_record_key_prefix};
 
 #[async_trait]
 impl ReplicaLog for RocksDBStorageEngine {

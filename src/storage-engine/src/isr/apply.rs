@@ -14,10 +14,13 @@
 
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::core::offset::ShardOffset;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::fetcher::SegmentFetchState;
 use crate::isr::fetcher_manager::ReplicaFetcherManager;
+use crate::isr::follower::FollowerProgress;
 use crate::isr::leader_epoch::LeaderEpochCache;
+use common_base::tools::now_second;
 use common_config::broker::broker_config;
 use metadata_struct::storage::segment::EngineSegment;
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -84,15 +87,57 @@ fn apply_as_leader(
 
     fetcher_manager.remove_segment(shard, segment_seq);
 
-    if leader_epoch_changed {
-        let leo = cache_manager
-            .get_offset_state(shard)
-            .map(|s| s.latest_offset)
-            .ok_or_else(|| StorageEngineError::NotOffsetState(shard.to_string()))?;
+    // Use ShardOffset (cache + RocksDB fallback) so that nodes which restarted
+    // and had their cache_manager.offset_state repopulated only from RocksDB
+    // (via the reconcile path, which never calls save_offset_state) still get
+    // the correct LEO here.  cache_manager.get_offset_state is cache-only and
+    // returns None when the cache was never populated after a restart.
+    let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let leo = shard_offset.get_latest_offset(shard)?;
+
+    // Always keep the epoch cache current.  assign() is idempotent (no-op when
+    // the epoch is already recorded), so calling it on every apply_as_leader
+    // invocation is safe.  We CANNOT gate this on leader_epoch_changed because
+    // of a reconcile-vs-notification race: reconcile calls set_segment() before
+    // apply_leader_and_isr(), so by the time we read local_leader_epoch from the
+    // cache it already equals segment.leader_epoch → leader_epoch_changed=false
+    // even though this is the very first time this node is leader for this epoch.
+    {
         let mut epoch_cache =
             LeaderEpochCache::load(rocksdb_engine_handler.clone(), shard, segment_seq)?;
         epoch_cache.assign(segment.leader_epoch, leo)?;
+    }
+
+    if leader_epoch_changed {
         state.clear();
+    }
+
+    // When the state is empty this node just became leader (or restarted as leader) and
+    // no follower has fetched from it yet. Seed ISR members with last_fetch_ts = now() so
+    // that ISR maintenance gives them replica_lag_time_max_ms to reconnect before evicting
+    // them. Without this, the new leader starts with an empty SegmentReplicaState and the
+    // first ISR maintenance pass immediately removes all followers — even though they are
+    // alive and will start fetching once they learn the new leader address. The leader-switch
+    // gap (heartbeat_timeout_ms ≫ replica_lag_time_max_ms) makes this race reliable.
+    //
+    // Use the leader's current leo as the seeded leo: all ISR members were caught up
+    // before the switch, so this is their expected position (until their first real fetch
+    // updates the entry with the actual value).
+    if state.is_empty() {
+        let now = now_second();
+        let broker_id = broker_config().broker_id;
+        for &follower_id in &segment.isr {
+            if follower_id != broker_id {
+                state.insert(
+                    follower_id,
+                    FollowerProgress {
+                        last_fetch_ts: now,
+                        leo,
+                        follower_broker_epoch: 0,
+                    },
+                );
+            }
+        }
     }
 
     Ok(())

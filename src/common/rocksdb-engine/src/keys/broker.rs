@@ -14,6 +14,12 @@
 
 use super::PREFIX_BROKER;
 
+// =====================================================================
+// Broker namespace (PREFIX_BROKER = "/broker/") — broker-local runtime
+// records: system alarms and audit/observability logs.
+// =====================================================================
+
+// System alarm events.
 pub fn system_event_key(alarm_name: &str, create_time: i64) -> String {
     format!(
         "{}system_alarm/{}/{}",
@@ -25,6 +31,7 @@ pub fn system_event_prefix_key() -> String {
     format!("{}system_alarm/", PREFIX_BROKER)
 }
 
+// Ban (blacklist) audit log.
 pub fn ban_log_key(tenant: &str, ban_type: &str, resource_name: &str, create_time: i64) -> String {
     format!(
         "{}ban_log/{}/{}/{}/{}",
@@ -40,6 +47,7 @@ pub fn ban_log_prefix_key_by_tenant(tenant: &str) -> String {
     format!("{}ban_log/{}/", PREFIX_BROKER, tenant)
 }
 
+// Slow-subscription audit log.
 pub fn slow_sub_log_key(tenant: &str, client_id: &str, topic_name: &str) -> String {
     format!(
         "{}slow_sub_log/{}/{}/{}",

@@ -22,7 +22,7 @@ use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
 };
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{
+use rocksdb_engine::keys::engine::{
     key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
 };
 use tokio::sync::broadcast;

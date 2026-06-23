@@ -14,7 +14,7 @@
 
 use super::engine::RocksDBStorageEngine;
 use crate::core::error::StorageEngineError;
-use rocksdb_engine::keys::storage::{
+use rocksdb_engine::keys::engine::{
     key_index_prefix, shard_record_key_prefix, shard_record_shard_prefix, shard_segment_leo_key,
     shard_segment_leo_shard_prefix, tag_index_prefix, timestamp_index_prefix,
 };
@@ -29,6 +29,7 @@ impl RocksDBStorageEngine {
         self.rocksdb_engine_handler
             .delete_prefix(cf.clone(), &shard_segment_leo_shard_prefix(shard_name))
             .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?;
+
         self.rocksdb_engine_handler
             .delete_prefix(cf.clone(), &key_index_prefix(shard_name))
             .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?;
@@ -58,6 +59,7 @@ impl RocksDBStorageEngine {
                 &shard_record_key_prefix(shard_name, segment_seq),
             )
             .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?;
+
         self.rocksdb_engine_handler
             .delete(cf, &shard_segment_leo_key(shard_name, segment_seq))
             .map_err(|e| StorageEngineError::CommonErrorStr(e.to_string()))?;

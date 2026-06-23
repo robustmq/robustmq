@@ -15,11 +15,9 @@
 use super::engine::MemoryStorageEngine;
 
 impl MemoryStorageEngine {
-    /// Drop all in-memory data for `shard_name`.
     pub fn delete_by_shard(&self, shard_name: &str) {
         self.shards.remove(shard_name);
     }
 
-    /// Memory storage is shard-level; individual segment deletion is a no-op.
     pub fn delete_by_segment(&self, _shard_name: &str, _segment_seq: u32) {}
 }

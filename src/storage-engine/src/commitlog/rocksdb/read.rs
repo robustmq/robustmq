@@ -21,7 +21,7 @@ use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
     record::StorageRecord,
 };
-use rocksdb_engine::keys::storage::{
+use rocksdb_engine::keys::engine::{
     key_index_key, shard_record_key, shard_record_key_prefix, tag_index_tag_prefix,
     timestamp_index_prefix,
 };
