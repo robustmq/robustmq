@@ -53,12 +53,13 @@ pub async fn delete_by_segment(
         Err(e) => info!("delete segment file {}, hint: {}", seg_iden.name(), e),
     }
 
-    if let Some(shard) = cache_manager.shards.get(&seg_iden.shard_name) {
-        let next_iden = SegmentIdentity::new(&seg_iden.shard_name, shard.start_segment_seq);
-        if let Some(meta) = cache_manager.get_segment_meta(&next_iden) {
-            ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone())
-                .save_earliest_offset(&seg_iden.shard_name, meta.start_offset.max(0) as u64)?;
-        }
+    // Advance earliest_offset to the start of the next segment.
+    // start_segment_seq is never updated in the local cache after deletions,
+    // so we derive the next seq directly from the segment we just deleted.
+    let next_iden = SegmentIdentity::new(&seg_iden.shard_name, seg_iden.segment + 1);
+    if let Some(meta) = cache_manager.get_segment_meta(&next_iden) {
+        ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone())
+            .save_earliest_offset(&seg_iden.shard_name, meta.start_offset.max(0) as u64)?;
     }
 
     Ok(())
