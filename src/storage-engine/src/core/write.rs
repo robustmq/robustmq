@@ -130,8 +130,6 @@ pub async fn batch_write(
     }
 
     if acks == ACKS_ALL {
-        // Commit-wait timeout comes from the producer (write request), defaulting
-        // to 30s — NOT the replica fetch long-poll wait, which is far too short.
         let commit_wait_ms = if timeout_ms == 0 {
             DEFAULT_WRITE_TIMEOUT_MS
         } else {

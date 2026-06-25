@@ -19,10 +19,11 @@ use crate::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
+        message_ttl::is_record_expired,
         remote_read::remote_read_by_tag,
         segment::segment_validator,
     },
-    filesegment::{read::segment_read_by_tag, SegmentIdentity},
+    filesegment::{file::open_segment_write, index::read::get_index_data_by_tag, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
@@ -30,6 +31,7 @@ use protocol::storage::protocol::{
     ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct ReadByTagParams {
@@ -199,14 +201,39 @@ async fn read_by_segment(
     start_offset: Option<u64>,
     read_config: &AdapterReadConfig,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let data_list = segment_read_by_tag(
-        cache_manager,
+    // Look up the tag index and group positions by segment, keeping only
+    // segments this node leads.  call_read_data_by_all_node fans out to the
+    // other leader nodes, so every segment is covered exactly once.
+    let index_list = get_index_data_by_tag(
         rocksdb_engine_handler,
         shard_name,
-        tag,
         start_offset,
-        read_config.max_record_num,
-    )
-    .await?;
-    Ok(data_list.iter().map(|raw| raw.record.clone()).collect())
+        tag,
+        read_config.max_record_num as usize,
+    )?;
+
+    let mut segment_positions: HashMap<u32, Vec<u64>> = HashMap::new();
+    for idx in index_list {
+        let seg_iden = SegmentIdentity::new(shard_name, idx.segment);
+        if cache_manager.leader_segments.contains_key(&seg_iden.name()) {
+            segment_positions
+                .entry(idx.segment)
+                .or_default()
+                .push(idx.position);
+        }
+    }
+
+    let mut results = Vec::new();
+    for (segment_no, positions) in segment_positions {
+        let seg_iden = SegmentIdentity::new(shard_name, segment_no);
+        let mut sf = open_segment_write(cache_manager, &seg_iden).await?;
+        let data_list = sf.read_by_positions(positions).await?;
+        results.extend(
+            data_list
+                .into_iter()
+                .filter(|r| !is_record_expired(&r.record.metadata))
+                .map(|r| r.record),
+        );
+    }
+    Ok(results)
 }

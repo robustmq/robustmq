@@ -22,7 +22,7 @@ use crate::{
         remote_read::remote_read_by_key,
         segment::segment_validator,
     },
-    filesegment::{read::segment_read_by_key, SegmentIdentity},
+    filesegment::{index::read::get_index_data_by_key, read::segment_read_by_key, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::record::StorageRecord;
@@ -144,6 +144,21 @@ async fn read_by_segment(
     shard_name: &str,
     key: &str,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+    // Only serve reads from the segment this node leads.
+    // call_read_data_by_all_node already fans out to all other leader nodes,
+    // so every segment is covered exactly once across the cluster.
+    let Some(idx) = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?
+    else {
+        return Ok(Vec::new());
+    };
+    let segment_iden = SegmentIdentity::new(shard_name, idx.segment);
+    if !cache_manager
+        .leader_segments
+        .contains_key(&segment_iden.name())
+    {
+        return Ok(Vec::new());
+    }
+
     let data_list =
         segment_read_by_key(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
     Ok(data_list.iter().map(|raw| raw.record.clone()).collect())
