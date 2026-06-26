@@ -419,6 +419,9 @@ pub fn default_max_network_connection_rate() -> u32 {
 pub fn default_max_admin_http_uri_rate() -> u32 {
     50
 }
+pub fn default_max_connection_per_ip() -> u64 {
+    5000
+}
 
 // LimitQuota
 pub fn default_limit_max_connections_per_node() -> u64 {

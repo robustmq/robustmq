@@ -40,7 +40,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 pub struct TlsAcceptorContext {
     pub accept_thread_num: usize,
@@ -129,8 +129,7 @@ pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError 
                                 let read_frame_stream = FramedRead::new(r_stream, row_codec.clone());
                                 let write_frame_stream = FramedWrite::new(w_stream, row_codec.clone());
 
-                                if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
-                                    warn!("{}",e.to_string());
+                                if check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager, &addr).await{
                                     continue;
                                 }
 

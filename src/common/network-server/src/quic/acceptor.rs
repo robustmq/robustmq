@@ -27,7 +27,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn acceptor_process(
@@ -76,8 +76,7 @@ pub(crate) async fn acceptor_process(
                                             let codec_write = QuicFramedWriteStream::new(w_stream, row_codec.clone());
                                             let codec_read = QuicFramedReadStream::new(r_stream, row_codec.clone());
 
-                                            if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
-                                                warn!("{}",e.to_string());
+                                            if check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager, &client_addr).await{
                                                 continue;
                                             }
 

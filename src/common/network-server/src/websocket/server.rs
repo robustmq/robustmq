@@ -150,10 +150,14 @@ async fn handle_socket(
     let mut stop_rx = stop_sx.subscribe();
 
     let mut codec = RobustMQCodec::new();
-    if let Err(e) =
-        check_connection_limit(&global_limit_manager, &node_cache, &connection_manager).await
+    if check_connection_limit(
+        &global_limit_manager,
+        &node_cache,
+        &connection_manager,
+        &addr,
+    )
+    .await
     {
-        warn!("{}", e.to_string());
         return;
     }
 

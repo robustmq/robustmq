@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crate::common::{
     channel::RequestChannel, connection_manager::ConnectionManager, packet::RequestPackage,
 };
 use broker_core::cache::NodeCacheManager;
-use common_base::error::common::CommonError;
 use common_metrics::mqtt::packets::record_packet_received_metrics;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::{mqtt::common::MqttPacket, robust::RobustMQPacket};
@@ -71,14 +71,110 @@ pub async fn check_connection_limit(
     global_limit_manager: &Arc<GlobalRateLimiterManager>,
     node_cache: &Arc<NodeCacheManager>,
     connection_manager: &Arc<ConnectionManager>,
-) -> Result<bool, CommonError> {
-    // connection rate limit
-    global_limit_manager.network_connection_rate_limit().await?;
+    addr: &SocketAddr,
+) -> bool {
+    let _ = global_limit_manager.network_connection_rate_limit().await;
 
-    // connection count limit
     let limit = node_cache.get_cluster_config().cluster_limit;
+
+    // total connection count limit
     if connection_manager.connections.len() > limit.max_network_connection as usize {
-        return Ok(true);
+        return true;
     }
-    Ok(false)
+
+    // per-IP connection count limit
+    if connection_manager.ip_connection_count(addr) > limit.max_connection_per_ip {
+        return true;
+    }
+
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_config::broker::default_broker_config;
+    use rate_limit::global::GlobalRateLimiterManager;
+    use std::net::SocketAddr;
+
+    fn addr(s: &str) -> SocketAddr {
+        s.parse().unwrap()
+    }
+
+    fn make_conn(addr: &SocketAddr) -> NetworkConnection {
+        NetworkConnection::new(NetworkConnectionType::Tcp, *addr, None)
+    }
+
+    #[tokio::test]
+    async fn check_connection_limit_per_ip_pass_when_under_limit() {
+        let limit_manager = Arc::new(GlobalRateLimiterManager::new(10000).unwrap());
+        let cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cm = Arc::new(ConnectionManager::new());
+        let client_addr = addr("127.0.0.1:8080");
+
+        cm.add_connection(make_conn(&client_addr));
+
+        let result = check_connection_limit(&limit_manager, &cache, &cm, &client_addr).await;
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn check_connection_limit_per_ip_rejects_when_over_limit() {
+        let limit_manager = Arc::new(GlobalRateLimiterManager::new(10000).unwrap());
+        let node_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cm = Arc::new(ConnectionManager::new());
+        let client_addr = addr("127.0.0.1:8080");
+
+        for _ in 0..5001 {
+            cm.add_connection(make_conn(&client_addr));
+        }
+
+        let result = check_connection_limit(&limit_manager, &node_cache, &cm, &client_addr).await;
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn check_connection_limit_ok_when_no_prior_connections() {
+        let limit_manager = Arc::new(GlobalRateLimiterManager::new(10000).unwrap());
+        let node_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cm = Arc::new(ConnectionManager::new());
+        let client_addr = addr("192.168.1.1:9090");
+
+        let result = check_connection_limit(&limit_manager, &node_cache, &cm, &client_addr).await;
+        assert!(!result);
+    }
+
+    #[tokio::test]
+    async fn check_connection_limit_per_ip_is_per_ip_not_port() {
+        let limit_manager = Arc::new(GlobalRateLimiterManager::new(10000).unwrap());
+        let node_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cm = Arc::new(ConnectionManager::new());
+
+        let addr_a = addr("10.0.0.1:8080");
+        let addr_b = addr("10.0.0.1:9090");
+
+        for _ in 0..5001 {
+            cm.add_connection(make_conn(&addr_a));
+        }
+
+        let result = check_connection_limit(&limit_manager, &node_cache, &cm, &addr_b).await;
+        assert!(result);
+    }
+
+    #[tokio::test]
+    async fn check_connection_limit_different_ips_independent() {
+        let limit_manager = Arc::new(GlobalRateLimiterManager::new(10000).unwrap());
+        let node_cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cm = Arc::new(ConnectionManager::new());
+
+        let addr_a = addr("10.0.0.1:8080");
+        let addr_b = addr("10.0.0.2:8080");
+
+        for _ in 0..5001 {
+            cm.add_connection(make_conn(&addr_a));
+        }
+
+        let result = check_connection_limit(&limit_manager, &node_cache, &cm, &addr_b).await;
+        assert!(!result);
+    }
 }

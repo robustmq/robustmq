@@ -22,8 +22,9 @@ use super::default::{
     default_keep_alive_default_timeout, default_keep_alive_enable, default_keep_alive_max_time,
     default_limit_max_connection_rate, default_limit_max_connections_per_node,
     default_limit_max_publish_rate, default_limit_max_sessions, default_limit_max_topics,
-    default_max_admin_http_uri_rate, default_max_message_expiry_interval,
-    default_max_network_connection, default_max_network_connection_rate, default_max_packet_size,
+    default_max_admin_http_uri_rate, default_max_connection_per_ip,
+    default_max_message_expiry_interval, default_max_network_connection,
+    default_max_network_connection_rate, default_max_packet_size,
     default_max_session_expiry_interval, default_meta_addrs, default_meta_runtime,
     default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_limit_cluster,
     default_mqtt_limit_tenant, default_mqtt_offline_message, default_mqtt_protocol,
@@ -356,6 +357,8 @@ pub struct ClusterLimit {
     pub max_network_connection: u64,
     #[serde(default = "default_max_network_connection_rate")]
     pub max_network_connection_rate: u32,
+    #[serde(default = "default_max_connection_per_ip")]
+    pub max_connection_per_ip: u64,
     #[serde(default = "default_max_admin_http_uri_rate")]
     pub max_admin_http_uri_rate: u32,
 }
@@ -365,6 +368,7 @@ impl Default for ClusterLimit {
         ClusterLimit {
             max_network_connection: 100000000,
             max_network_connection_rate: 10000,
+            max_connection_per_ip: 5000,
             max_admin_http_uri_rate: 50,
         }
     }
@@ -940,5 +944,32 @@ impl Default for AdminConfig {
             jwt_secret: default_admin_jwt_secret(),
             token_ttl_hours: default_admin_token_ttl_hours(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cluster_limit_default_has_max_connection_per_ip() {
+        let limit = ClusterLimit::default();
+        assert_eq!(limit.max_connection_per_ip, 5000);
+    }
+
+    #[test]
+    fn cluster_limit_default_max_network_connection() {
+        let limit = ClusterLimit::default();
+        assert_eq!(limit.max_network_connection, 100000000);
+        assert_eq!(limit.max_network_connection_rate, 10000);
+        assert_eq!(limit.max_admin_http_uri_rate, 50);
+    }
+
+    #[test]
+    fn default_max_connection_per_ip_matches_struct_default() {
+        assert_eq!(
+            default_max_connection_per_ip(),
+            ClusterLimit::default().max_connection_per_ip
+        );
     }
 }
