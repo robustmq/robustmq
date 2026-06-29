@@ -80,7 +80,7 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Cache HuggingFace model files
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface/hub
           key: hf-fastembed-xenova-all-minilm-l6-v2-v1-${{ runner.os }}
