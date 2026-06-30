@@ -12,96 +12,80 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use kafka_protocol::messages::{
-    api_versions_request::ApiVersionsRequest, api_versions_response::ApiVersion,
-    create_topics_request::CreateTopicsRequest, delete_topics_request::DeleteTopicsRequest,
-    describe_groups_request::DescribeGroupsRequest, fetch_request::FetchRequest,
-    find_coordinator_request::FindCoordinatorRequest, heartbeat_request::HeartbeatRequest,
-    join_group_request::JoinGroupRequest, leave_group_request::LeaveGroupRequest,
-    list_groups_request::ListGroupsRequest, list_offsets_request::ListOffsetsRequest,
-    metadata_request::MetadataRequest, offset_commit_request::OffsetCommitRequest,
-    offset_fetch_request::OffsetFetchRequest, produce_request::ProduceRequest,
-    sasl_authenticate_request::SaslAuthenticateRequest,
-    sasl_handshake_request::SaslHandshakeRequest, sync_group_request::SyncGroupRequest, ApiKey,
-    ApiVersionsResponse,
-};
-use kafka_protocol::protocol::Message;
+use kafka_protocol::messages::{api_versions_response::ApiVersion, ApiKey, ApiVersionsResponse};
 use protocol::kafka::packet::KafkaPacket;
+
+// Version ranges are aligned with Redpanda's declared min_supported/max_supported
+// values (src/v/kafka/server/handlers/api_versions.cc, dev branch).
+// Only APIs Redpanda exposes to clients are listed here; internal KRaft/broker
+// APIs (e.g. Vote, BrokerRegistration) are intentionally excluded.
+fn v(key: ApiKey, min: i16, max: i16) -> ApiVersion {
+    ApiVersion::default()
+        .with_api_key(key as i16)
+        .with_min_version(min)
+        .with_max_version(max)
+}
 
 pub fn process_api_versions() -> Option<KafkaPacket> {
     let api_keys = vec![
-        ApiVersion::default()
-            .with_api_key(ApiKey::Produce as i16)
-            .with_min_version(ProduceRequest::VERSIONS.min)
-            .with_max_version(ProduceRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::Fetch as i16)
-            .with_min_version(FetchRequest::VERSIONS.min)
-            .with_max_version(FetchRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::ListOffsets as i16)
-            .with_min_version(ListOffsetsRequest::VERSIONS.min)
-            .with_max_version(ListOffsetsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::Metadata as i16)
-            .with_min_version(MetadataRequest::VERSIONS.min)
-            .with_max_version(MetadataRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::OffsetCommit as i16)
-            .with_min_version(OffsetCommitRequest::VERSIONS.min)
-            .with_max_version(OffsetCommitRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::OffsetFetch as i16)
-            .with_min_version(OffsetFetchRequest::VERSIONS.min)
-            .with_max_version(OffsetFetchRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::FindCoordinator as i16)
-            .with_min_version(FindCoordinatorRequest::VERSIONS.min)
-            .with_max_version(FindCoordinatorRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::JoinGroup as i16)
-            .with_min_version(JoinGroupRequest::VERSIONS.min)
-            .with_max_version(JoinGroupRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::Heartbeat as i16)
-            .with_min_version(HeartbeatRequest::VERSIONS.min)
-            .with_max_version(HeartbeatRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::LeaveGroup as i16)
-            .with_min_version(LeaveGroupRequest::VERSIONS.min)
-            .with_max_version(LeaveGroupRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::SyncGroup as i16)
-            .with_min_version(SyncGroupRequest::VERSIONS.min)
-            .with_max_version(SyncGroupRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::DescribeGroups as i16)
-            .with_min_version(DescribeGroupsRequest::VERSIONS.min)
-            .with_max_version(DescribeGroupsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::ListGroups as i16)
-            .with_min_version(ListGroupsRequest::VERSIONS.min)
-            .with_max_version(ListGroupsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::SaslHandshake as i16)
-            .with_min_version(SaslHandshakeRequest::VERSIONS.min)
-            .with_max_version(SaslHandshakeRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::ApiVersions as i16)
-            .with_min_version(ApiVersionsRequest::VERSIONS.min)
-            .with_max_version(ApiVersionsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::CreateTopics as i16)
-            .with_min_version(CreateTopicsRequest::VERSIONS.min)
-            .with_max_version(CreateTopicsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::DeleteTopics as i16)
-            .with_min_version(DeleteTopicsRequest::VERSIONS.min)
-            .with_max_version(DeleteTopicsRequest::VERSIONS.max),
-        ApiVersion::default()
-            .with_api_key(ApiKey::SaslAuthenticate as i16)
-            .with_min_version(SaslAuthenticateRequest::VERSIONS.min)
-            .with_max_version(SaslAuthenticateRequest::VERSIONS.max),
+        // ── Core produce / consume ────────────────────────────────────────
+        v(ApiKey::Produce, 0, 7),
+        v(ApiKey::Fetch, 4, 13),
+        v(ApiKey::ListOffsets, 0, 6),
+        v(ApiKey::Metadata, 0, 12),
+        // ── Consumer group ───────────────────────────────────────────────
+        v(ApiKey::OffsetCommit, 1, 8),
+        v(ApiKey::OffsetFetch, 1, 8),
+        v(ApiKey::FindCoordinator, 0, 4),
+        v(ApiKey::JoinGroup, 0, 6),
+        v(ApiKey::Heartbeat, 0, 4),
+        v(ApiKey::LeaveGroup, 0, 4),
+        v(ApiKey::SyncGroup, 0, 4),
+        v(ApiKey::DescribeGroups, 0, 5),
+        v(ApiKey::ListGroups, 0, 4),
+        v(ApiKey::DeleteGroups, 0, 2),
+        v(ApiKey::OffsetDelete, 0, 0),
+        // ── Auth ─────────────────────────────────────────────────────────
+        v(ApiKey::SaslHandshake, 0, 1),
+        v(ApiKey::SaslAuthenticate, 0, 2),
+        // ── API negotiation ───────────────────────────────────────────────
+        v(ApiKey::ApiVersions, 0, 4),
+        // ── Topic admin ───────────────────────────────────────────────────
+        v(ApiKey::CreateTopics, 0, 7),
+        v(ApiKey::DeleteTopics, 0, 6),
+        v(ApiKey::DeleteRecords, 0, 2),
+        v(ApiKey::CreatePartitions, 0, 3),
+        // ── Config admin ─────────────────────────────────────────────────
+        v(ApiKey::DescribeConfigs, 0, 4),
+        v(ApiKey::AlterConfigs, 0, 2),
+        v(ApiKey::IncrementalAlterConfigs, 0, 1),
+        // ── Replica / log admin ───────────────────────────────────────────
+        v(ApiKey::DescribeLogDirs, 0, 2),
+        v(ApiKey::OffsetForLeaderEpoch, 0, 4),
+        v(ApiKey::AlterPartitionReassignments, 0, 0),
+        v(ApiKey::ListPartitionReassignments, 0, 0),
+        // ── Idempotent producer ───────────────────────────────────────────
+        v(ApiKey::InitProducerId, 0, 3),
+        // ── Transactions ─────────────────────────────────────────────────
+        v(ApiKey::AddPartitionsToTxn, 0, 3),
+        v(ApiKey::AddOffsetsToTxn, 0, 1),
+        v(ApiKey::EndTxn, 0, 3),
+        v(ApiKey::TxnOffsetCommit, 0, 3),
+        v(ApiKey::DescribeTransactions, 0, 0),
+        v(ApiKey::ListTransactions, 0, 0),
+        v(ApiKey::DescribeProducers, 0, 0),
+        // ── ACL ──────────────────────────────────────────────────────────
+        v(ApiKey::DescribeAcls, 0, 2),
+        v(ApiKey::CreateAcls, 0, 2),
+        v(ApiKey::DeleteAcls, 0, 2),
+        // ── Quotas ───────────────────────────────────────────────────────
+        v(ApiKey::DescribeClientQuotas, 0, 1),
+        v(ApiKey::AlterClientQuotas, 0, 1),
+        // ── SCRAM ────────────────────────────────────────────────────────
+        v(ApiKey::DescribeUserScramCredentials, 0, 0),
+        v(ApiKey::AlterUserScramCredentials, 0, 0),
+        // ── Cluster ──────────────────────────────────────────────────────
+        v(ApiKey::DescribeCluster, 0, 0),
     ];
 
     let resp = ApiVersionsResponse::default()
