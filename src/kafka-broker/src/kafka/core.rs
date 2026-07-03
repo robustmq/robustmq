@@ -43,13 +43,11 @@ pub fn process_produce(_req: &ProduceRequest) -> Option<KafkaPacket> {
 }
 
 pub async fn process_fetch(
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
+    sdm: &Arc<StorageDriverManager>,
     shard_offsets: &ShardOffsets,
     req: &FetchRequest,
     connection_id: u64,
 ) -> Option<KafkaPacket> {
-    let sdm = storage_driver_manager?;
-
     let read_config = AdapterReadConfig::new();
     let mut topic_responses = Vec::new();
 
@@ -138,11 +136,9 @@ fn unknown_partition_response(partition_index: i32) -> ListOffsetsPartitionRespo
 }
 
 pub async fn process_list_offsets(
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
+    sdm: &Arc<StorageDriverManager>,
     req: &ListOffsetsRequest,
 ) -> Option<KafkaPacket> {
-    let sdm = storage_driver_manager?;
-
     let mut topic_responses = Vec::with_capacity(req.topics.len());
     for topic_req in &req.topics {
         let topic_name = topic_req.name.to_string();

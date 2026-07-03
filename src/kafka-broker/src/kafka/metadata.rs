@@ -27,18 +27,13 @@ use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 
 pub fn process_metadata(
-    broker_cache: Option<&Arc<NodeCacheManager>>,
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
+    broker_cache: &Arc<NodeCacheManager>,
+    sdm: &Arc<StorageDriverManager>,
     req: &MetadataRequest,
 ) -> Option<KafkaPacket> {
-    let (topics, brokers, controller_id) = match broker_cache {
-        Some(cache) => (
-            build_topics_from_cache(cache, storage_driver_manager, req),
-            build_brokers_from_cache(cache),
-            pick_controller_id(cache),
-        ),
-        None => (Vec::new(), Vec::new(), 0),
-    };
+    let topics = build_topics_from_cache(broker_cache, sdm, req);
+    let brokers = build_brokers_from_cache(broker_cache);
+    let controller_id = pick_controller_id(broker_cache);
 
     let resp = MetadataResponse::default()
         .with_brokers(brokers)
@@ -82,7 +77,7 @@ fn pick_controller_id(cache: &Arc<NodeCacheManager>) -> i32 {
 
 fn build_topics_from_cache(
     cache: &Arc<NodeCacheManager>,
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
+    sdm: &Arc<StorageDriverManager>,
     req: &MetadataRequest,
 ) -> Vec<MetadataResponseTopic> {
     let requested = req.topics.as_deref().unwrap_or(&[]);
@@ -91,7 +86,7 @@ fn build_topics_from_cache(
         return cache
             .list_topics_by_tenant(DEFAULT_TENANT)
             .into_iter()
-            .map(|topic| topic_to_metadata(topic, storage_driver_manager))
+            .map(|topic| topic_to_metadata(topic, sdm))
             .collect();
     }
 
@@ -100,7 +95,7 @@ fn build_topics_from_cache(
         .filter_map(|t| t.name.clone())
         .map(
             |name| match cache.get_topic_by_name(DEFAULT_TENANT, &name) {
-                Some(topic) => topic_to_metadata(topic, storage_driver_manager),
+                Some(topic) => topic_to_metadata(topic, sdm),
                 None => MetadataResponseTopic::default()
                     .with_error_code(ResponseError::UnknownTopicOrPartition.code())
                     .with_name(Some(name))
@@ -111,12 +106,9 @@ fn build_topics_from_cache(
         .collect()
 }
 
-fn topic_to_metadata(
-    topic: Topic,
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
-) -> MetadataResponseTopic {
+fn topic_to_metadata(topic: Topic, sdm: &Arc<StorageDriverManager>) -> MetadataResponseTopic {
     let partitions = (0..topic.partition.max(1))
-        .map(|i| partition_metadata(i as i32, &topic, storage_driver_manager))
+        .map(|i| partition_metadata(i as i32, &topic, sdm))
         .collect();
     MetadataResponseTopic::default()
         .with_error_code(0)
@@ -133,14 +125,12 @@ fn topic_to_metadata(
 fn partition_metadata(
     partition_index: i32,
     topic: &Topic,
-    storage_driver_manager: Option<&Arc<StorageDriverManager>>,
+    sdm: &Arc<StorageDriverManager>,
 ) -> MetadataResponsePartition {
-    let segment = storage_driver_manager.and_then(|sdm| {
-        let shard_name = topic.storage_name_list.get(&(partition_index as u32))?;
-        sdm.engine_storage_handler
-            .cache_manager
-            .get_active_segment(shard_name)
-    });
+    let segment = topic
+        .storage_name_list
+        .get(&(partition_index as u32))
+        .and_then(|shard_name| sdm.engine_storage_handler.cache_manager.get_active_segment(shard_name));
 
     let (leader_id, replica_nodes, isr_nodes) = match segment {
         Some(segment) => (
@@ -170,8 +160,6 @@ fn partition_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kafka_protocol::messages::BrokerId;
-    use metadata_struct::topic::Topic;
 
     #[test]
     fn split_host_port_parses_valid_addr() {
@@ -185,16 +173,5 @@ mod tests {
     fn split_host_port_rejects_invalid_input() {
         assert_eq!(split_host_port("no-port-here"), None);
         assert_eq!(split_host_port("127.0.0.1:abc"), None);
-    }
-
-    #[test]
-    fn partition_metadata_falls_back_without_storage_driver_manager() {
-        let topic = Topic::new("tenant", "topic", common_config::storage::StorageType::EngineSegment);
-        let partition = partition_metadata(0, &topic, None);
-        assert_eq!(partition.error_code, 0);
-        assert_eq!(partition.partition_index, 0);
-        assert_eq!(partition.leader_id, 0);
-        assert_eq!(partition.replica_nodes, vec![BrokerId(0)]);
-        assert_eq!(partition.isr_nodes, vec![BrokerId(0)]);
     }
 }

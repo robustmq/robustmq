@@ -12,35 +12,100 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::join_group_response::JoinGroupResponseMember;
+use kafka_protocol::messages::offset_commit_response::{
+    OffsetCommitResponsePartition, OffsetCommitResponseTopic,
+};
 use kafka_protocol::messages::offset_fetch_response::{
     OffsetFetchResponsePartition, OffsetFetchResponseTopic,
 };
 use kafka_protocol::messages::{
     DeleteGroupsRequest, DescribeGroupsRequest, HeartbeatRequest, HeartbeatResponse,
     JoinGroupRequest, JoinGroupResponse, LeaveGroupRequest, LeaveGroupResponse, ListGroupsRequest,
-    ListGroupsResponse, OffsetCommitRequest, OffsetDeleteRequest, OffsetFetchRequest,
-    OffsetFetchResponse, SyncGroupRequest, SyncGroupResponse,
+    ListGroupsResponse, OffsetCommitRequest, OffsetCommitResponse, OffsetDeleteRequest,
+    OffsetFetchRequest, OffsetFetchResponse, SyncGroupRequest, SyncGroupResponse,
 };
+use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::kafka::packet::KafkaPacket;
+use storage_adapter::driver::StorageDriverManager;
+use tracing::warn;
 
-pub fn process_offset_commit(req: &OffsetCommitRequest) -> Option<KafkaPacket> {
-    use kafka_protocol::messages::offset_commit_response::{
-        OffsetCommitResponsePartition, OffsetCommitResponseTopic,
+// A committed_offset of -1 means "don't commit this partition" (client opted out).
+const NO_COMMIT_OFFSET: i64 = -1;
+
+pub async fn process_offset_commit(
+    sdm: &Arc<StorageDriverManager>,
+    req: &OffsetCommitRequest,
+) -> Option<KafkaPacket> {
+    let group_id = req.group_id.to_string();
+
+    // Resolve each requested partition to its shard_name up front, so we can
+    // commit every valid shard in a single call and still report a per-partition
+    // error code (UnknownTopicOrPartition) for ones that don't resolve.
+    let mut shard_offsets = HashMap::new();
+    let mut partition_shards: Vec<Vec<Option<String>>> = Vec::with_capacity(req.topics.len());
+
+    for t in &req.topics {
+        let topic_name = t.name.to_string();
+        let topic = sdm
+            .broker_cache
+            .get_topic_by_name(DEFAULT_TENANT, &topic_name);
+
+        let shards = t
+            .partitions
+            .iter()
+            .map(|p| {
+                let shard_name = topic
+                    .as_ref()?
+                    .storage_name_list
+                    .get(&(p.partition_index as u32))?
+                    .clone();
+                if p.committed_offset != NO_COMMIT_OFFSET {
+                    shard_offsets.insert(shard_name.clone(), p.committed_offset as u64);
+                }
+                Some(shard_name)
+            })
+            .collect();
+        partition_shards.push(shards);
+    }
+
+    let commit_error_code = if shard_offsets.is_empty() {
+        0
+    } else if let Err(e) = sdm
+        .commit_offset(DEFAULT_TENANT, &group_id, &shard_offsets)
+        .await
+    {
+        warn!(
+            "Kafka OffsetCommit storage error for group {}: {}",
+            group_id, e
+        );
+        ResponseError::UnknownServerError.code()
+    } else {
+        0
     };
-    use kafka_protocol::messages::OffsetCommitResponse;
 
     let topics = req
         .topics
         .iter()
-        .map(|t| {
+        .zip(partition_shards)
+        .map(|(t, shards)| {
             let partitions = t
                 .partitions
                 .iter()
-                .map(|p| {
+                .zip(shards)
+                .map(|(p, shard_name)| {
+                    let error_code = match shard_name {
+                        None => ResponseError::UnknownTopicOrPartition.code(),
+                        Some(_) if p.committed_offset == NO_COMMIT_OFFSET => 0,
+                        Some(_) => commit_error_code,
+                    };
                     OffsetCommitResponsePartition::default()
                         .with_partition_index(p.partition_index)
-                        .with_error_code(0)
+                        .with_error_code(error_code)
                 })
                 .collect();
             OffsetCommitResponseTopic::default()

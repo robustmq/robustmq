@@ -514,7 +514,7 @@ impl BrokerServer {
             return CommandRegistry::default();
         }
 
-        let kafka_cmd = Some(kafka_broker::handler::command::create_command_with_storage(
+        let kafka_cmd = Some(kafka_broker::handler::command::create_command(
             self.kafka_params.storage_driver_manager.clone(),
             self.broker_cache.clone(),
         ));
