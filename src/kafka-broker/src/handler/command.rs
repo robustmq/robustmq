@@ -98,9 +98,11 @@ impl Command for KafkaHandlerCommand {
                 .await
             }
             KafkaPacket::ListOffsetsReq(req) => core::process_list_offsets(req),
-            KafkaPacket::MetadataReq(req) => {
-                metadata::process_metadata(self.broker_cache.as_ref(), req)
-            }
+            KafkaPacket::MetadataReq(req) => metadata::process_metadata(
+                self.broker_cache.as_ref(),
+                self.storage_driver_manager.as_ref(),
+                req,
+            ),
             // Consumer Group Management
             KafkaPacket::OffsetCommitReq(req) => consumer_group::process_offset_commit(req),
             KafkaPacket::OffsetFetchReq(req) => consumer_group::process_offset_fetch(req),

@@ -223,17 +223,17 @@ impl StorageDriverManager {
         topic_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<u64, CommonError> {
+    ) -> Result<HashMap<u32, u64>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        let mut results = Vec::new();
-        for (_, shard_name) in topic.storage_name_list {
+        let mut results = HashMap::with_capacity(topic.storage_name_list.len());
+        for (partition, shard_name) in topic.storage_name_list {
             let offset = driver
                 .get_offset_by_timestamp(&shard_name, timestamp, strategy.clone())
                 .await?;
-            results.push(offset);
+            results.insert(partition, offset);
         }
 
-        Ok(results.iter().min().copied().unwrap_or(0))
+        Ok(results)
     }
 
     pub async fn get_offset_by_group(
