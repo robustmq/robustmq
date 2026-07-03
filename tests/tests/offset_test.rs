@@ -18,8 +18,9 @@ mod tests {
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_group::{manager::OffsetManager, storage::start_offset_sync_task};
     use grpc_clients::pool::ClientPool;
+    use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
     use metadata_struct::tenant::DEFAULT_TENANT;
-    use std::{collections::HashMap, sync::Arc, time::Duration};
+    use std::{sync::Arc, time::Duration};
     use tokio::{sync::broadcast, time::sleep};
 
     #[tokio::test]
@@ -38,8 +39,12 @@ mod tests {
         });
 
         let group_name = unique_id();
-        let mut offset = HashMap::new();
-        offset.insert("k1".to_string(), 3);
+        let offset = vec![AdapterCommitOffset {
+            shard_name: "k1".to_string(),
+            topic_name: "topic1".to_string(),
+            partition: 0,
+            offset: 3,
+        }];
         offset_manager
             .commit_offset(DEFAULT_TENANT, &group_name, &offset)
             .await

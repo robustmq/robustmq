@@ -97,6 +97,8 @@ impl DataRouteCluster {
                     tenant: offset_data.tenant.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
+                    topic: raw.topic.clone(),
+                    partition: raw.partition,
                     offset: raw.offset,
                     timestamp: now_second(),
                 })

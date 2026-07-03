@@ -15,7 +15,7 @@
 use crate::driver::StorageDriverManager;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
+use metadata_struct::adapter::adapter_offset::{AdapterCommitOffset, AdapterOffsetStrategy};
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
@@ -127,18 +127,25 @@ impl GroupConsumer {
             return Ok(());
         }
 
-        let mut by_tenant_topic: HashMap<(String, String), HashMap<String, u64>> = HashMap::new();
+        // Every shard here is a single-partition topic (MQTT/NATS have no
+        // partition concept), so partition is always 0.
+        let mut by_tenant: HashMap<String, Vec<AdapterCommitOffset>> = HashMap::new();
         for e in self.pending_offsets.iter() {
             let key = e.key();
-            by_tenant_topic
-                .entry((key.tenant.clone(), key.topic.clone()))
+            by_tenant
+                .entry(key.tenant.clone())
                 .or_default()
-                .insert(key.shard.clone(), *e.value() + 1);
+                .push(AdapterCommitOffset {
+                    shard_name: key.shard.clone(),
+                    topic_name: key.topic.clone(),
+                    partition: 0,
+                    offset: *e.value() + 1,
+                });
         }
 
-        for ((tenant, _topic), shard_offsets) in &by_tenant_topic {
+        for (tenant, offsets) in &by_tenant {
             self.driver
-                .commit_offset(tenant, &self.group_name, shard_offsets)
+                .commit_offset(tenant, &self.group_name, offsets)
                 .await?;
         }
 

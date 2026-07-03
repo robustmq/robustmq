@@ -239,7 +239,10 @@ mod tests {
     fn unknown_partition_response_sets_error_and_negative_offset() {
         let resp = unknown_partition_response(3);
         assert_eq!(resp.partition_index, 3);
-        assert_eq!(resp.error_code, ResponseError::UnknownTopicOrPartition.code());
+        assert_eq!(
+            resp.error_code,
+            ResponseError::UnknownTopicOrPartition.code()
+        );
         assert_eq!(resp.offset, -1);
     }
 }

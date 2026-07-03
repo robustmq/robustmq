@@ -27,7 +27,7 @@ use crate::mqtt::params::{
 };
 use crate::output::OutputFormat;
 use clap::{Parser, Subcommand};
-use std::collections::HashMap;
+use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use std::path::PathBuf;
 
 const DEFAULT_HTTP_PORT: u32 = 58080;
@@ -472,11 +472,12 @@ pub async fn handle_engine(args: EngineArgs) {
                 group_name,
                 offsets_json,
             } => {
-                let offsets: HashMap<String, u64> = match serde_json::from_str(&offsets_json) {
+                let offsets: Vec<AdapterCommitOffset> = match serde_json::from_str(&offsets_json) {
                     Ok(data) => data,
                     Err(e) => {
                         eprintln!(
-                            "Invalid offsets_json, expected object like {{\"shard-a\":1}}: {e}"
+                            "Invalid offsets_json, expected an array like \
+                             [{{\"shard_name\":\"shard-a\",\"topic_name\":\"topic-a\",\"partition\":0,\"offset\":1}}]: {e}"
                         );
                         return;
                     }

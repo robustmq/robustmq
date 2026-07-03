@@ -180,6 +180,8 @@ pub async fn get_offset_data_by_req(
         .map(|offset| GetOffsetDataReplyOffset {
             shard_name: offset.shard_name,
             offset: offset.offset,
+            topic: offset.topic,
+            partition: offset.partition,
         })
         .collect();
 

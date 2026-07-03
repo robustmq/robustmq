@@ -130,7 +130,11 @@ fn partition_metadata(
     let segment = topic
         .storage_name_list
         .get(&(partition_index as u32))
-        .and_then(|shard_name| sdm.engine_storage_handler.cache_manager.get_active_segment(shard_name));
+        .and_then(|shard_name| {
+            sdm.engine_storage_handler
+                .cache_manager
+                .get_active_segment(shard_name)
+        });
 
     let (leader_id, replica_nodes, isr_nodes) = match segment {
         Some(segment) => (

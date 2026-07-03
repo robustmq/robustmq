@@ -86,16 +86,16 @@ impl Command for KafkaHandlerCommand {
             KafkaPacket::ListOffsetsReq(req) => {
                 core::process_list_offsets(&self.storage_driver_manager, req).await
             }
-            KafkaPacket::MetadataReq(req) => metadata::process_metadata(
-                &self.broker_cache,
-                &self.storage_driver_manager,
-                req,
-            ),
+            KafkaPacket::MetadataReq(req) => {
+                metadata::process_metadata(&self.broker_cache, &self.storage_driver_manager, req)
+            }
             // Consumer Group Management
             KafkaPacket::OffsetCommitReq(req) => {
                 consumer_group::process_offset_commit(&self.storage_driver_manager, req).await
             }
-            KafkaPacket::OffsetFetchReq(req) => consumer_group::process_offset_fetch(req),
+            KafkaPacket::OffsetFetchReq(req) => {
+                consumer_group::process_offset_fetch(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::FindCoordinatorReq(req) => find_coordinator::process_find_coordinator(req),
             KafkaPacket::JoinGroupReq(req) => consumer_group::process_join_group(req),
             KafkaPacket::HeartbeatReq(req) => consumer_group::process_heartbeat(req),

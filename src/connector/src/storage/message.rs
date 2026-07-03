@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
@@ -87,7 +88,7 @@ impl MessageStorage {
         &self,
         tenant: &str,
         group_id: &str,
-        offsets: &HashMap<String, u64>,
+        offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         self.storage_driver_manager
             .offset_manager

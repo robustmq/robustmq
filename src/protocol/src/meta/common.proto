@@ -200,6 +200,8 @@ message SaveOffsetData {
 message SaveOffsetDataRequestOffset {
   string shard_name = 2 [(validate.rules).string.min_len = 1];
   uint64 offset = 3 [(validate.rules).uint64.gte = 0];
+  string topic = 4 [(validate.rules).string.min_len = 1];
+  uint32 partition = 5;
 }
 
 message SaveOffsetDataReply {}
@@ -216,6 +218,8 @@ message GetOffsetDataReply {
 message GetOffsetDataReplyOffset {
   string shard_name = 2;
   uint64 offset = 3;
+  string topic = 4;
+  uint32 partition = 5;
 }
 
 message ListSchemaRequest {

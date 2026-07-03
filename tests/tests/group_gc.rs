@@ -22,7 +22,7 @@ mod tests {
     use common_base::http_response::AdminServerResponse;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
-    use std::collections::HashMap;
+    use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
     use std::time::Duration;
     use tokio::time::sleep;
 
@@ -53,8 +53,12 @@ mod tests {
         );
 
         // ── 2. commit offset (shard → 10) ─────────────────────────────────────
-        let mut offsets = HashMap::new();
-        offsets.insert(shard_name.clone(), 10u64);
+        let offsets = vec![AdapterCommitOffset {
+            shard_name: shard_name.clone(),
+            topic_name: "topic1".to_string(),
+            partition: 0,
+            offset: 10,
+        }];
         let commit_req = CommitOffsetReq {
             tenant: tenant.clone(),
             group_name: group_name.clone(),
@@ -75,8 +79,12 @@ mod tests {
         assert_eq!(entry.offset, 10);
 
         // ── 4. commit offset (shard → 20) ─────────────────────────────────────
-        let mut offsets2 = HashMap::new();
-        offsets2.insert(shard_name.clone(), 20u64);
+        let offsets2 = vec![AdapterCommitOffset {
+            shard_name: shard_name.clone(),
+            topic_name: "topic1".to_string(),
+            partition: 0,
+            offset: 20,
+        }];
         let commit_req2 = CommitOffsetReq {
             tenant: tenant.clone(),
             group_name: group_name.clone(),

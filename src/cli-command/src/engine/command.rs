@@ -21,9 +21,9 @@ use admin_server::cluster::offset::{
 };
 use admin_server::engine::segment::{SegmentListReq, SegmentListResp};
 use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
+use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use prettytable::{row, Table};
 use serde::Serialize;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct EngineCliCommandParam {
@@ -61,7 +61,7 @@ pub enum EngineActionType {
     CommitOffset {
         tenant: String,
         group_name: String,
-        offsets: HashMap<String, u64>,
+        offsets: Vec<AdapterCommitOffset>,
     },
 }
 
@@ -299,7 +299,7 @@ impl EngineCommand {
         params: EngineCliCommandParam,
         tenant: String,
         group_name: String,
-        offsets: HashMap<String, u64>,
+        offsets: Vec<AdapterCommitOffset>,
     ) {
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
         let request = CommitOffsetReq {

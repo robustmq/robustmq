@@ -22,7 +22,10 @@ use metadata_struct::{
     adapter::adapter_shard::AdapterShardDetail,
     mqtt::topic::Topic,
     storage::{
-        adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo},
+        adapter_offset::{
+            AdapterCommitOffset, AdapterConsumerGroupOffset, AdapterOffsetStrategy,
+            AdapterShardInfo,
+        },
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
         record::StorageRecord,
@@ -248,10 +251,10 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         group_name: &str,
-        offset: &HashMap<String, u64>,
+        offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(tenant, group_name, offset)
+            .commit_offset(tenant, group_name, offsets)
             .await
     }
 
