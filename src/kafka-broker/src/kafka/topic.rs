@@ -17,12 +17,14 @@ use std::sync::Arc;
 use broker_core::topic::TopicStorage;
 use common_config::{broker::broker_config, storage::StorageType};
 use kafka_protocol::error::ResponseError;
+use kafka_protocol::messages::create_partitions_request::CreatePartitionsTopic;
+use kafka_protocol::messages::create_partitions_response::CreatePartitionsTopicResult;
 use kafka_protocol::messages::create_topics_request::CreatableTopic;
 use kafka_protocol::messages::create_topics_response::CreatableTopicResult;
 use kafka_protocol::messages::delete_topics_response::DeletableTopicResult;
 use kafka_protocol::messages::{
-    CreatePartitionsRequest, CreateTopicsRequest, CreateTopicsResponse, DeleteRecordsRequest,
-    DeleteTopicsRequest, DeleteTopicsResponse, TopicName,
+    CreatePartitionsRequest, CreatePartitionsResponse, CreateTopicsRequest, CreateTopicsResponse,
+    DeleteRecordsRequest, DeleteTopicsRequest, DeleteTopicsResponse, TopicName,
 };
 use kafka_protocol::protocol::StrBytes;
 use metadata_struct::tenant::DEFAULT_TENANT;
@@ -31,7 +33,10 @@ use uuid::Uuid;
 
 use crate::core::constants::{USE_DEFAULT_PARTITIONS, USE_DEFAULT_REPLICATION_FACTOR};
 use protocol::kafka::packet::KafkaPacket;
-use storage_adapter::{driver::StorageDriverManager, topic::create_topic_full};
+use storage_adapter::{
+    driver::StorageDriverManager,
+    topic::{create_topic_full, update_topic_partitions_full},
+};
 use tracing::warn;
 
 fn topic_error(
@@ -246,6 +251,73 @@ pub fn process_delete_records(_req: &DeleteRecordsRequest) -> Option<KafkaPacket
     None
 }
 
-pub fn process_create_partitions(_req: &CreatePartitionsRequest) -> Option<KafkaPacket> {
-    None
+fn partitions_error(name: TopicName, err: ResponseError) -> CreatePartitionsTopicResult {
+    CreatePartitionsTopicResult::default()
+        .with_name(name)
+        .with_error_code(err.code())
+}
+
+async fn create_partitions_for_topic(
+    sdm: &Arc<StorageDriverManager>,
+    t: &CreatePartitionsTopic,
+    validate_only: bool,
+) -> CreatePartitionsTopicResult {
+    let topic_name = t.name.to_string();
+
+    let Some(topic) = sdm
+        .broker_cache
+        .get_topic_by_name(DEFAULT_TENANT, &topic_name)
+    else {
+        return partitions_error(t.name.clone(), ResponseError::UnknownTopicOrPartition);
+    };
+
+    if t.assignments.as_ref().is_some_and(|a| !a.is_empty()) {
+        // Manual per-partition replica placement isn't supported, same as CreateTopics.
+        return partitions_error(t.name.clone(), ResponseError::InvalidReplicaAssignment);
+    }
+
+    // `count` is the new total partition count (not a delta) and must strictly increase.
+    if t.count < 1 || (t.count as u32) <= topic.partition {
+        return partitions_error(t.name.clone(), ResponseError::InvalidPartitions);
+    }
+    let new_partition = t.count as u32;
+
+    if validate_only {
+        return CreatePartitionsTopicResult::default()
+            .with_name(t.name.clone())
+            .with_error_code(0);
+    }
+
+    match update_topic_partitions_full(
+        &sdm.broker_cache,
+        sdm,
+        &sdm.engine_storage_handler.client_pool,
+        DEFAULT_TENANT,
+        &topic_name,
+        new_partition,
+    )
+    .await
+    {
+        Ok(()) => CreatePartitionsTopicResult::default()
+            .with_name(t.name.clone())
+            .with_error_code(0),
+        Err(e) => {
+            warn!("Kafka CreatePartitions failed for {}: {}", topic_name, e);
+            partitions_error(t.name.clone(), ResponseError::UnknownServerError)
+        }
+    }
+}
+
+pub async fn process_create_partitions(
+    sdm: &Arc<StorageDriverManager>,
+    req: &CreatePartitionsRequest,
+) -> Option<KafkaPacket> {
+    let mut results = Vec::with_capacity(req.topics.len());
+    for t in &req.topics {
+        results.push(create_partitions_for_topic(sdm, t, req.validate_only).await);
+    }
+
+    Some(KafkaPacket::CreatePartitionsResponse(
+        CreatePartitionsResponse::default().with_results(results),
+    ))
 }

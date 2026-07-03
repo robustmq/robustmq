@@ -117,7 +117,9 @@ impl Command for KafkaHandlerCommand {
                 topic::process_delete_topics(&self.storage_driver_manager, req).await
             }
             KafkaPacket::DeleteRecordsReq(req) => topic::process_delete_records(req),
-            KafkaPacket::CreatePartitionsReq(req) => topic::process_create_partitions(req),
+            KafkaPacket::CreatePartitionsReq(req) => {
+                topic::process_create_partitions(&self.storage_driver_manager, req).await
+            }
             // Configuration Management
             KafkaPacket::DescribeConfigsReq(req) => config::process_describe_configs(req),
             KafkaPacket::AlterConfigsReq(req) => config::process_alter_configs(req),

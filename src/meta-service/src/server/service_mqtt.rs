@@ -32,6 +32,7 @@ use crate::server::services::mqtt::subscribe::{
 use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
     delete_topic_rewrite_rule_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
+    update_topic_partitions_by_req,
 };
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
@@ -57,6 +58,7 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply, UpdateConnectorRequest,
+    UpdateTopicPartitionsReply, UpdateTopicPartitionsRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -255,6 +257,24 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn update_topic_partitions(
+        &self,
+        request: Request<UpdateTopicPartitionsRequest>,
+    ) -> Result<Response<UpdateTopicPartitionsReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        update_topic_partitions_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await

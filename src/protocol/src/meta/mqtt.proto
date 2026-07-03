@@ -18,6 +18,7 @@ service MqttService {
   rpc ListTopic(ListTopicRequest) returns (stream ListTopicReply) {}
   rpc CreateTopic(CreateTopicRequest) returns (CreateTopicReply) {}
   rpc DeleteTopic(DeleteTopicRequest) returns (DeleteTopicReply) {}
+  rpc UpdateTopicPartitions(UpdateTopicPartitionsRequest) returns (UpdateTopicPartitionsReply) {}
   // ACL
   rpc ListAcl(ListAclRequest) returns (ListAclReply) {}
   rpc CreateAcl(CreateAclRequest) returns (CreateAclReply) {}
@@ -99,6 +100,14 @@ message DeleteTopicRequest {
 }
 
 message DeleteTopicReply {}
+
+message UpdateTopicPartitionsRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string topic_name = 2 [(validate.rules).string.min_len = 1];
+  uint32 partition = 3 [(validate.rules).uint32.gte = 1];
+}
+
+message UpdateTopicPartitionsReply {}
 
 message ListSessionRequest {
   string tenant = 1;

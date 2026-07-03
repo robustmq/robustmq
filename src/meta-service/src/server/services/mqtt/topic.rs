@@ -29,7 +29,8 @@ use protocol::meta::meta_service_mqtt::{
     CreateTopicReply, CreateTopicRequest, CreateTopicRewriteRuleReply,
     CreateTopicRewriteRuleRequest, DeleteTopicReply, DeleteTopicRequest,
     DeleteTopicRewriteRuleReply, DeleteTopicRewriteRuleRequest, ListTopicReply, ListTopicRequest,
-    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest,
+    ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, UpdateTopicPartitionsReply,
+    UpdateTopicPartitionsRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -120,6 +121,42 @@ pub async fn delete_topic_by_req(
     send_notify_by_delete_topic(call_manager, topic).await?;
 
     Ok(DeleteTopicReply {})
+}
+
+pub async fn update_topic_partitions_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    req: &UpdateTopicPartitionsRequest,
+) -> Result<UpdateTopicPartitionsReply, MetaServiceError> {
+    let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+
+    let topic = topic_storage
+        .get(&req.tenant, &req.topic_name)?
+        .ok_or_else(|| MetaServiceError::TopicDoesNotExist(req.topic_name.clone()))?;
+
+    if req.partition <= topic.partition {
+        return Err(MetaServiceError::CommonError(format!(
+            "New partition count {} must be greater than the current partition count {} for topic '{}'",
+            req.partition, topic.partition, req.topic_name
+        )));
+    }
+
+    let updated_topic = topic.with_partition(req.partition);
+    // Reuse the CreateTopic raft entry: its apply handler is already an
+    // unconditional overwrite (`MqttTopicStorage::save`), so no new
+    // StorageDataType/apply logic is needed to persist the updated topic.
+    let create_req = CreateTopicRequest {
+        tenant: req.tenant.clone(),
+        topic_name: req.topic_name.clone(),
+        content: updated_topic.encode()?,
+    };
+    let data = StorageData::new(StorageDataType::MqttSetTopic, encode_to_bytes(&create_req));
+    raft_manager.write_data(&req.topic_name, data).await?;
+
+    send_notify_by_set_topic(call_manager, updated_topic).await?;
+
+    Ok(UpdateTopicPartitionsReply {})
 }
 
 // Topic Rewrite Rule Operations
