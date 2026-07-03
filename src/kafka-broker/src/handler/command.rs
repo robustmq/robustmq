@@ -97,7 +97,9 @@ impl Command for KafkaHandlerCommand {
                 )
                 .await
             }
-            KafkaPacket::ListOffsetsReq(req) => core::process_list_offsets(req),
+            KafkaPacket::ListOffsetsReq(req) => {
+                core::process_list_offsets(self.storage_driver_manager.as_ref(), req).await
+            }
             KafkaPacket::MetadataReq(req) => metadata::process_metadata(
                 self.broker_cache.as_ref(),
                 self.storage_driver_manager.as_ref(),

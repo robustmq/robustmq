@@ -131,7 +131,7 @@ async fn force_reset_offset(
             .collect(),
         DeliverPolicy::FromTime => {
             let ts = req.from_time.unwrap_or(0);
-            let offset = storage
+            let offsets = storage
                 .get_offset_by_timestamp(tenant, mail_address, ts, AdapterOffsetStrategy::Earliest)
                 .await
                 .map_err(NatsBrokerError::from)?;
@@ -139,8 +139,9 @@ async fn force_reset_offset(
                 .list_storage_resource(tenant, mail_address)
                 .await
                 .map_err(NatsBrokerError::from)?
-                .into_values()
-                .map(|d| {
+                .into_iter()
+                .map(|(partition, d)| {
+                    let offset = offsets.get(&partition).copied().unwrap_or(0);
                     let o = offset.max(d.offset.start_offset).min(d.offset.end_offset);
                     (d.shard_name, o)
                 })
