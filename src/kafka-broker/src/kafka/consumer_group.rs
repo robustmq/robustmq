@@ -32,12 +32,11 @@ use kafka_protocol::messages::{
 use kafka_protocol::protocol::StrBytes;
 use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use metadata_struct::tenant::DEFAULT_TENANT;
+
+use crate::core::constants::NO_OFFSET;
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
-
-// A committed_offset of -1 means "don't commit this partition" (client opted out).
-const NO_COMMIT_OFFSET: i64 = -1;
 
 pub async fn process_offset_commit(
     sdm: &Arc<StorageDriverManager>,
@@ -67,7 +66,7 @@ pub async fn process_offset_commit(
                 else {
                     return false;
                 };
-                if p.committed_offset != NO_COMMIT_OFFSET {
+                if p.committed_offset != NO_OFFSET {
                     commit_offsets.push(AdapterCommitOffset {
                         shard_name: shard_name.clone(),
                         topic_name: topic_name.clone(),
@@ -108,7 +107,7 @@ pub async fn process_offset_commit(
                 .map(|(p, resolved)| {
                     let error_code = if !resolved {
                         ResponseError::UnknownTopicOrPartition.code()
-                    } else if p.committed_offset == NO_COMMIT_OFFSET {
+                    } else if p.committed_offset == NO_OFFSET {
                         0
                     } else {
                         commit_error_code
@@ -199,7 +198,7 @@ async fn fetch_group_offsets(
                     .is_some_and(|t| t.storage_name_list.contains_key(&(partition_index as u32)));
                 FetchedPartition {
                     partition_index,
-                    offset: -1,
+                    offset: NO_OFFSET,
                     error_code: if exists {
                         0
                     } else {

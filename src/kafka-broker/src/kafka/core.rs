@@ -33,8 +33,10 @@ use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
-const EARLIEST_TIMESTAMP: i64 = -2;
-const LATEST_TIMESTAMP: i64 = -1;
+use crate::core::constants::{
+    LIST_OFFSETS_EARLIEST_TIMESTAMP, LIST_OFFSETS_LATEST_TIMESTAMP, NO_LAST_STABLE_OFFSET,
+    NO_OFFSET, NO_PRODUCER_EPOCH, NO_PRODUCER_ID,
+};
 
 pub type ShardOffsets = Arc<DashMap<(u64, String), HashMap<String, u64>>>;
 
@@ -73,8 +75,8 @@ pub async fn process_fetch(
                         transactional: false,
                         control: false,
                         partition_leader_epoch: 0,
-                        producer_id: -1,
-                        producer_epoch: -1,
+                        producer_id: NO_PRODUCER_ID,
+                        producer_epoch: NO_PRODUCER_EPOCH,
                         timestamp_type: TimestampType::Creation,
                         offset: record.metadata.offset as i64,
                         sequence: i as i32,
@@ -107,7 +109,7 @@ pub async fn process_fetch(
                     .with_partition_index(fetch_partition.partition)
                     .with_error_code(0)
                     .with_high_watermark(i64::MAX)
-                    .with_last_stable_offset(-1)
+                    .with_last_stable_offset(NO_LAST_STABLE_OFFSET)
                     .with_log_start_offset(0)
                     .with_records(records_bytes.clone()),
             );
@@ -132,7 +134,7 @@ fn unknown_partition_response(partition_index: i32) -> ListOffsetsPartitionRespo
     ListOffsetsPartitionResponse::default()
         .with_partition_index(partition_index)
         .with_error_code(ResponseError::UnknownTopicOrPartition.code())
-        .with_offset(-1)
+        .with_offset(NO_OFFSET)
 }
 
 pub async fn process_list_offsets(
@@ -170,7 +172,9 @@ pub async fn process_list_offsets(
             .partitions
             .iter()
             .map(|p| p.timestamp)
-            .filter(|&ts| ts != EARLIEST_TIMESTAMP && ts != LATEST_TIMESTAMP)
+            .filter(|&ts| {
+                ts != LIST_OFFSETS_EARLIEST_TIMESTAMP && ts != LIST_OFFSETS_LATEST_TIMESTAMP
+            })
         {
             if resolved_by_timestamp.contains_key(&ts) {
                 continue;
@@ -203,8 +207,8 @@ pub async fn process_list_offsets(
                 };
 
                 let offset = match p.timestamp {
-                    EARLIEST_TIMESTAMP => detail.offset.start_offset,
-                    LATEST_TIMESTAMP => detail.offset.high_watermark,
+                    LIST_OFFSETS_EARLIEST_TIMESTAMP => detail.offset.start_offset,
+                    LIST_OFFSETS_LATEST_TIMESTAMP => detail.offset.high_watermark,
                     ts => resolved_by_timestamp
                         .get(&ts)
                         .and_then(|offsets| offsets.get(&partition))
@@ -243,6 +247,6 @@ mod tests {
             resp.error_code,
             ResponseError::UnknownTopicOrPartition.code()
         );
-        assert_eq!(resp.offset, -1);
+        assert_eq!(resp.offset, NO_OFFSET);
     }
 }

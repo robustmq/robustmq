@@ -110,8 +110,12 @@ impl Command for KafkaHandlerCommand {
             KafkaPacket::ApiVersionReq(_) => api_versions::process_api_versions(),
             KafkaPacket::SaslAuthenticateReq(req) => auth::process_sasl_authenticate(req),
             // Topic / Partition Management
-            KafkaPacket::CreateTopicsReq(req) => topic::process_create_topics(req),
-            KafkaPacket::DeleteTopicsReq(req) => topic::process_delete_topics(req),
+            KafkaPacket::CreateTopicsReq(req) => {
+                topic::process_create_topics(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::DeleteTopicsReq(req) => {
+                topic::process_delete_topics(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::DeleteRecordsReq(req) => topic::process_delete_records(req),
             KafkaPacket::CreatePartitionsReq(req) => topic::process_create_partitions(req),
             // Configuration Management

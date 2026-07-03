@@ -35,3 +35,4 @@ tracing.workspace = true
 storage-adapter.workspace = true
 dashmap.workspace = true
 bytes.workspace = true
+uuid.workspace = true

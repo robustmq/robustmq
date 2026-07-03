@@ -5793,6 +5793,7 @@ dependencies = [
  "storage-adapter",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
