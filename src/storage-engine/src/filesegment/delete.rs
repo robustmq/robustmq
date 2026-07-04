@@ -65,6 +65,57 @@ pub async fn delete_by_segment(
     Ok(())
 }
 
+/// Delete all fully-consumed segments at the head of a shard whose data is
+/// entirely below `target_offset`, then advance the LSO (earliest_offset) as
+/// far as `target_offset` allows. The active (still-writable) segment and any
+/// sealed segment that still holds data `>= target_offset` are kept.
+pub async fn delete_segments_before_offset(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+    target_offset: u64,
+) -> Result<u64, StorageEngineError> {
+    let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let earliest = shard_offset.get_earliest_offset(shard_name)?;
+    let latest = shard_offset.get_latest_offset(shard_name)?;
+    let target = target_offset.min(latest);
+    if target <= earliest {
+        return Ok(earliest);
+    }
+
+    let mut segments = cache_manager.get_segments_list_by_shard(shard_name);
+    segments.sort_by_key(|s| s.segment_seq);
+    let active_seq = cache_manager
+        .get_active_segment(shard_name)
+        .map(|s| s.segment_seq);
+
+    for seg in segments {
+        // Never delete the currently-writable segment.
+        if Some(seg.segment_seq) == active_seq {
+            break;
+        }
+        let seg_iden = SegmentIdentity::new(shard_name, seg.segment_seq);
+        let Some(meta) = cache_manager.get_segment_meta(&seg_iden) else {
+            continue;
+        };
+        // end_offset <= 0 means the segment is still open; not eligible.
+        if meta.end_offset <= 0 || meta.end_offset as u64 >= target {
+            break;
+        }
+        delete_by_segment(cache_manager, rocksdb_engine_handler, &seg_iden).await?;
+        cache_manager.delete_segment(&seg_iden);
+    }
+
+    // delete_by_segment only advances the LSO to the start of the next
+    // segment, so if `target` falls inside the first remaining segment, push
+    // the LSO the rest of the way explicitly.
+    if shard_offset.get_earliest_offset(shard_name)? < target {
+        shard_offset.save_earliest_offset(shard_name, target)?;
+    }
+
+    Ok(target)
+}
+
 pub async fn delete_by_shard(
     _cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
@@ -86,5 +137,99 @@ pub async fn delete_by_shard(
                 error!("remove shard dir {}: {}", shard_fold, e);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::test_tool::test_init_segment;
+    use common_config::storage::StorageType;
+    use metadata_struct::storage::segment::{Replica, SegmentStatus};
+    use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+
+    // Two segments: [0..10) sealed, [10..15) still active/open. Deleting before
+    // an offset inside the sealed segment must remove it entirely and advance
+    // the LSO to the next segment's start; the active segment must be untouched.
+    #[tokio::test]
+    async fn delete_segments_before_offset_deletes_fully_consumed_head_segment() {
+        let (seg0, cache, _fold, db) = test_init_segment(StorageType::EngineSegment).await;
+        let shard_name = seg0.shard_name.clone();
+
+        // seal segment 0: 10 records, offsets [0, 10)
+        cache.set_segment_meta(EngineSegmentMetadata {
+            shard_name: shard_name.clone(),
+            segment_seq: 0,
+            start_offset: 0,
+            end_offset: 9,
+            ..Default::default()
+        });
+
+        // segment 1: active/open, offsets starting at 10
+        let seg1 = metadata_struct::storage::segment::EngineSegment {
+            shard_name: shard_name.clone(),
+            segment_seq: 1,
+            replicas: vec![Replica {
+                replica_seq: 0,
+                node_id: 1,
+                fold: _fold.clone(),
+            }],
+            leader: 1,
+            leader_epoch: 0,
+            status: SegmentStatus::Write,
+            isr: vec![1],
+            ..Default::default()
+        };
+        cache.set_segment(&seg1);
+        cache.set_segment_meta(EngineSegmentMetadata {
+            shard_name: shard_name.clone(),
+            segment_seq: 1,
+            start_offset: 10,
+            end_offset: -1,
+            ..Default::default()
+        });
+        cache.sort_offset_index(&shard_name);
+
+        // make segment 1 the active segment
+        let mut shard = cache.shards.get(&shard_name).unwrap().clone();
+        shard.active_segment_seq = 1;
+        cache.set_shard(shard);
+
+        let shard_offset = ShardOffset::new(cache.clone(), db.clone());
+        shard_offset.save_latest_offset(&shard_name, 15).unwrap();
+
+        // target falls inside segment 0 (not fully consumed): kept, LSO advances only to target
+        let achieved = delete_segments_before_offset(&cache, &db, &shard_name, 5)
+            .await
+            .unwrap();
+        assert_eq!(achieved, 5);
+        assert!(
+            cache.get_segment(&seg0).is_some(),
+            "segment 0 must survive a partial delete"
+        );
+        assert_eq!(shard_offset.get_earliest_offset(&shard_name).unwrap(), 5);
+
+        // target now covers all of segment 0: it must be deleted, LSO -> next segment's start
+        let achieved = delete_segments_before_offset(&cache, &db, &shard_name, 10)
+            .await
+            .unwrap();
+        assert_eq!(achieved, 10);
+        assert!(
+            cache.get_segment(&seg0).is_none(),
+            "fully-consumed segment must be deleted"
+        );
+        assert_eq!(shard_offset.get_earliest_offset(&shard_name).unwrap(), 10);
+
+        // active segment is never touched, even if target lands inside it
+        let achieved = delete_segments_before_offset(&cache, &db, &shard_name, 12)
+            .await
+            .unwrap();
+        assert_eq!(achieved, 12);
+        let seg1_iden = SegmentIdentity::new(&shard_name, 1);
+        assert!(
+            cache.get_segment(&seg1_iden).is_some(),
+            "active segment must never be deleted"
+        );
+        assert_eq!(shard_offset.get_earliest_offset(&shard_name).unwrap(), 12);
     }
 }

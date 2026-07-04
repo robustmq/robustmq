@@ -793,6 +793,9 @@ pub struct DeleteReqBody {
     pub shard_name: String,
     pub keys: Vec<String>,
     pub offsets: Vec<u64>,
+    /// When set, delete all records with offset strictly less than this value
+    /// (Kafka DeleteRecords semantics) instead of using `keys`/`offsets`.
+    pub delete_before_offset: Option<u64>,
 }
 
 impl DeleteReqBody {
@@ -835,6 +838,8 @@ impl DeleteReq {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Clone, Debug, Default, PartialEq)]
 pub struct DeleteRespBody {
     pub error_code: u32,
+    /// The low_watermark achieved after a `delete_before_offset` request.
+    pub achieved_offset: u64,
 }
 
 impl DeleteRespBody {

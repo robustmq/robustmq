@@ -220,6 +220,29 @@ impl StorageDriverManager {
         Ok(())
     }
 
+    /// Per-partition Kafka DeleteRecords: delete all records with offset <
+    /// the requested target on each named partition. Returns the achieved
+    /// low_watermark per partition.
+    pub async fn delete_records_before(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        targets: &HashMap<u32, u64>,
+    ) -> Result<HashMap<u32, u64>, CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
+        let mut results = HashMap::with_capacity(targets.len());
+        for (partition, target_offset) in targets {
+            let Some(shard_name) = topic.storage_name_list.get(partition) else {
+                continue;
+            };
+            let achieved = driver
+                .delete_records_before(shard_name, *target_offset)
+                .await?;
+            results.insert(*partition, achieved);
+        }
+        Ok(results)
+    }
+
     pub async fn get_offset_by_timestamp(
         &self,
         tenant: &str,

@@ -139,6 +139,17 @@ impl StorageAdapter for EngineStorageAdapter {
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }
 
+    async fn delete_records_before(
+        &self,
+        shard: &str,
+        target_offset: u64,
+    ) -> Result<u64, CommonError> {
+        self.adapter
+            .delete_records_before(shard, target_offset)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
+    }
+
     async fn get_offset_by_timestamp(
         &self,
         shard: &str,

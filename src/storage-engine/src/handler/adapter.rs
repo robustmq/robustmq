@@ -406,6 +406,7 @@ impl StorageEngineHandler {
                         shard_name: shard_name.to_string(),
                         keys: keys.iter().map(|k| k.to_string()).collect(),
                         offsets: Vec::new(),
+                        delete_before_offset: None,
                     };
                     let resp = self
                         .client_connection_manager
@@ -503,6 +504,7 @@ impl StorageEngineHandler {
                         shard_name: shard_name.to_string(),
                         keys: Vec::new(),
                         offsets: offsets.to_vec(),
+                        delete_before_offset: None,
                     };
                     let resp = self
                         .client_connection_manager
@@ -548,6 +550,74 @@ impl StorageEngineHandler {
             }
         }
         Ok(())
+    }
+
+    /// Delete all records with offset < `target_offset` (Kafka DeleteRecords
+    /// semantics). Returns the achieved low_watermark.
+    pub async fn delete_records_before(
+        &self,
+        shard_name: &str,
+        target_offset: u64,
+    ) -> Result<u64, StorageEngineError> {
+        let start = std::time::Instant::now();
+        let result = self
+            .delete_records_before_inner(shard_name, target_offset)
+            .await;
+        let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+        record_storage_engine_ops("delete_records_before");
+        record_storage_engine_ops_duration("delete_records_before", duration_ms);
+        if result.is_err() {
+            record_storage_engine_ops_fail("delete_records_before");
+        }
+        result
+    }
+
+    async fn delete_records_before_inner(
+        &self,
+        shard_name: &str,
+        target_offset: u64,
+    ) -> Result<u64, StorageEngineError> {
+        if !self.cache_manager.shards.contains_key(shard_name) {
+            return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
+        }
+
+        // The shard's data (memory/rocksdb records, or segment files) only
+        // lives on the active segment's leader; forward there otherwise.
+        if let Some(leader) = self
+            .cache_manager
+            .get_active_segment(shard_name)
+            .map(|s| s.leader)
+        {
+            if leader != broker_config().broker_id {
+                let body = DeleteReqBody {
+                    shard_name: shard_name.to_string(),
+                    keys: Vec::new(),
+                    offsets: Vec::new(),
+                    delete_before_offset: Some(target_offset),
+                };
+                let resp = self
+                    .client_connection_manager
+                    .send_delete(leader, body)
+                    .await?;
+                if resp.error_code != 0 {
+                    return Err(StorageEngineError::CommonErrorStr(format!(
+                        "Leader {leader} failed to delete records before offset for shard {shard_name} (error_code={})",
+                        resp.error_code
+                    )));
+                }
+                return Ok(resp.achieved_offset);
+            }
+        }
+
+        crate::handler::data::delete_records_before_req(
+            &self.cache_manager,
+            &self.rocksdb_engine_handler,
+            &self.memory_storage_engine,
+            &self.rocksdb_storage_engine,
+            shard_name,
+            target_offset,
+        )
+        .await
     }
 
     async fn get_offset_by_timestamp0(

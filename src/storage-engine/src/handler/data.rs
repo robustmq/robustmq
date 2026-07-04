@@ -168,6 +168,70 @@ pub async fn delete_data_req(
     Ok(())
 }
 
+/// Delete all records with offset < `target_offset` on this (leader) node.
+/// Forwarded here by a non-leader node via the engine protocol; never re-forwards.
+/// Returns the achieved low_watermark (may be less than `target_offset` if it
+/// exceeds the shard's latest offset).
+pub async fn delete_records_before_req(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    memory_storage_engine: &Arc<MemoryStorageEngine>,
+    rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
+    shard_name: &str,
+    target_offset: u64,
+) -> Result<u64, StorageEngineError> {
+    let Some(shard) = cache_manager.shards.get(shard_name) else {
+        return Err(StorageEngineError::ShardNotExist(shard_name.to_string()));
+    };
+    let storage_type = shard.config.storage_type;
+    drop(shard);
+
+    match storage_type {
+        StorageType::EngineMemory | StorageType::EngineRocksDB => {
+            let shard_offset =
+                ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+            let earliest = shard_offset.get_earliest_offset(shard_name)?;
+            let latest = shard_offset.get_latest_offset(shard_name)?;
+            let target = target_offset.min(latest);
+            if target <= earliest {
+                return Ok(earliest);
+            }
+
+            let offsets: Vec<u64> = (earliest..target).collect();
+            match storage_type {
+                StorageType::EngineMemory => {
+                    for &offset in &offsets {
+                        memory_storage_engine
+                            .delete_by_offset(shard_name, offset)
+                            .await?;
+                    }
+                }
+                StorageType::EngineRocksDB => {
+                    rocksdb_storage_engine
+                        .delete_by_offsets(shard_name, &offsets)
+                        .await?;
+                }
+                _ => unreachable!(),
+            }
+            shard_offset.save_earliest_offset(shard_name, target)?;
+            Ok(target)
+        }
+        StorageType::EngineSegment => {
+            crate::filesegment::delete::delete_segments_before_offset(
+                cache_manager,
+                rocksdb_engine_handler,
+                shard_name,
+                target_offset,
+            )
+            .await
+        }
+        _ => Err(StorageEngineError::CommonErrorStr(format!(
+            "delete_records_before is not supported for storage type {:?}",
+            storage_type
+        ))),
+    }
+}
+
 /// the entry point for handling write requests
 #[allow(clippy::too_many_arguments)]
 pub async fn write_data_req(
@@ -353,6 +417,113 @@ mod tests {
     use std::time::Duration;
     use tokio::sync::broadcast;
     use tokio::time::sleep;
+
+    #[tokio::test]
+    async fn delete_records_before_req_test_by_memory() {
+        delete_records_before_req_test(StorageType::EngineMemory).await;
+    }
+
+    #[tokio::test]
+    async fn delete_records_before_req_test_by_rocksdb() {
+        delete_records_before_req_test(StorageType::EngineRocksDB).await;
+    }
+
+    async fn delete_records_before_req_test(engine_storage_type: StorageType) {
+        use crate::core::cache::StorageCacheManager;
+        use crate::handler::data::delete_records_before_req;
+        use broker_core::cache::NodeCacheManager;
+        use common_base::uuid::unique_id;
+        use common_config::config::BrokerConfig;
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig, EngineShardStatus};
+        use rocksdb_engine::test::test_rocksdb_instance;
+
+        let rocksdb_engine_handler = test_rocksdb_instance();
+        let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
+        let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
+
+        let shard_name = unique_id();
+        cache_manager.set_shard(EngineShard {
+            shard_uid: unique_id(),
+            shard_name: shard_name.clone(),
+            topic_name: "".to_string(),
+            start_segment_seq: 0,
+            active_segment_seq: 0,
+            last_segment_seq: 0,
+            status: EngineShardStatus::Run,
+            config: EngineShardConfig {
+                storage_type: engine_storage_type,
+                ..Default::default()
+            },
+            desc: "".to_string(),
+            create_time: 0,
+        });
+
+        let memory_storage_engine = Arc::new(MemoryStorageEngine::new(
+            rocksdb_engine_handler.clone(),
+            cache_manager.clone(),
+            StorageDriverMemoryConfig::default(),
+        ));
+        let rocksdb_storage_engine = Arc::new(RocksDBStorageEngine::new(
+            cache_manager.clone(),
+            rocksdb_engine_handler.clone(),
+        ));
+
+        let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        shard_offset.save_earliest_offset(&shard_name, 0).unwrap();
+        shard_offset.save_latest_offset(&shard_name, 0).unwrap();
+
+        let messages: Vec<AdapterWriteRecord> = (0..10)
+            .map(|i| {
+                AdapterWriteRecord::new(shard_name.clone(), Bytes::from(format!("data{i}")))
+                    .with_key(format!("key-{i}"))
+            })
+            .collect();
+
+        match engine_storage_type {
+            StorageType::EngineMemory => {
+                memory_storage_engine
+                    .batch_write(&shard_name, &messages)
+                    .await
+                    .unwrap();
+            }
+            StorageType::EngineRocksDB => {
+                rocksdb_storage_engine
+                    .batch_write(&shard_name, &messages)
+                    .await
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        shard_offset.save_latest_offset(&shard_name, 10).unwrap();
+
+        // target falls mid-range: offsets [0,4) deleted, low_watermark advances to 4
+        let achieved = delete_records_before_req(
+            &cache_manager,
+            &rocksdb_engine_handler,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &shard_name,
+            4,
+        )
+        .await
+        .unwrap();
+        assert_eq!(achieved, 4);
+        assert_eq!(shard_offset.get_earliest_offset(&shard_name).unwrap(), 4);
+
+        // target beyond latest offset is clamped to latest, not overshot
+        let achieved = delete_records_before_req(
+            &cache_manager,
+            &rocksdb_engine_handler,
+            &memory_storage_engine,
+            &rocksdb_storage_engine,
+            &shard_name,
+            1000,
+        )
+        .await
+        .unwrap();
+        assert_eq!(achieved, 10);
+        assert_eq!(shard_offset.get_earliest_offset(&shard_name).unwrap(), 10);
+    }
 
     #[tokio::test]
     async fn read_data_req_test_by_segment() {

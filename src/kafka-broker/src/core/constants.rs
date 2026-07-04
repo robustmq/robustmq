@@ -28,6 +28,9 @@ pub const USE_DEFAULT_PARTITIONS: i32 = -1;
 /// CreateTopics: use the broker's configured default replication factor.
 pub const USE_DEFAULT_REPLICATION_FACTOR: i16 = -1;
 
+/// DeleteRecords: delete up to the partition's current high watermark.
+pub const DELETE_RECORDS_HIGH_WATERMARK: i64 = -1;
+
 /// Fetch: no producer ID (non-transactional / non-idempotent record).
 pub const NO_PRODUCER_ID: i64 = -1;
 /// Fetch: no producer epoch (non-transactional / non-idempotent record).

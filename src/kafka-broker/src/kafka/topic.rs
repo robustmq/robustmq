@@ -22,16 +22,22 @@ use kafka_protocol::messages::create_partitions_request::CreatePartitionsTopic;
 use kafka_protocol::messages::create_partitions_response::CreatePartitionsTopicResult;
 use kafka_protocol::messages::create_topics_request::CreatableTopic;
 use kafka_protocol::messages::create_topics_response::CreatableTopicResult;
+use kafka_protocol::messages::delete_records_response::{
+    DeleteRecordsPartitionResult, DeleteRecordsTopicResult,
+};
 use kafka_protocol::messages::delete_topics_response::DeletableTopicResult;
 use kafka_protocol::messages::{
     CreatePartitionsRequest, CreatePartitionsResponse, CreateTopicsRequest, CreateTopicsResponse,
-    DeleteRecordsRequest, DeleteTopicsRequest, DeleteTopicsResponse, TopicName,
+    DeleteRecordsRequest, DeleteRecordsResponse, DeleteTopicsRequest, DeleteTopicsResponse,
+    TopicName,
 };
 use kafka_protocol::protocol::StrBytes;
 use metadata_struct::topic::{Topic, TopicConfig, TopicSource};
 use uuid::Uuid;
 
-use crate::core::constants::{USE_DEFAULT_PARTITIONS, USE_DEFAULT_REPLICATION_FACTOR};
+use crate::core::constants::{
+    DELETE_RECORDS_HIGH_WATERMARK, USE_DEFAULT_PARTITIONS, USE_DEFAULT_REPLICATION_FACTOR,
+};
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::{
     driver::StorageDriverManager,
@@ -236,8 +242,121 @@ pub async fn process_delete_topics(
     ))
 }
 
-pub fn process_delete_records(_req: &DeleteRecordsRequest) -> Option<KafkaPacket> {
-    None
+async fn delete_records_for_topic(
+    sdm: &Arc<StorageDriverManager>,
+    t: &kafka_protocol::messages::delete_records_request::DeleteRecordsTopic,
+) -> DeleteRecordsTopicResult {
+    let topic_name = t.name.to_string();
+
+    let unknown_topic_result = || {
+        let partitions = t
+            .partitions
+            .iter()
+            .map(|p| {
+                DeleteRecordsPartitionResult::default()
+                    .with_partition_index(p.partition_index)
+                    .with_low_watermark(-1)
+                    .with_error_code(ResponseError::UnknownTopicOrPartition.code())
+            })
+            .collect();
+        DeleteRecordsTopicResult::default()
+            .with_name(t.name.clone())
+            .with_partitions(partitions)
+    };
+
+    if sdm
+        .broker_cache
+        .get_topic_by_name(get_tenant(), &topic_name)
+        .is_none()
+    {
+        return unknown_topic_result();
+    }
+
+    let shards = match sdm.list_storage_resource(get_tenant(), &topic_name).await {
+        Ok(shards) => shards,
+        Err(e) => {
+            warn!(
+                "Kafka DeleteRecords failed to list shards for {}: {}",
+                topic_name, e
+            );
+            return unknown_topic_result();
+        }
+    };
+
+    let mut targets = std::collections::HashMap::with_capacity(t.partitions.len());
+    for p in &t.partitions {
+        let partition = p.partition_index as u32;
+        let Some(detail) = shards.get(&partition) else {
+            continue;
+        };
+        let target = if p.offset == DELETE_RECORDS_HIGH_WATERMARK {
+            detail.offset.high_watermark
+        } else if p.offset < 0 {
+            continue;
+        } else {
+            p.offset as u64
+        };
+        targets.insert(partition, target);
+    }
+
+    let achieved = match sdm
+        .delete_records_before(get_tenant(), &topic_name, &targets)
+        .await
+    {
+        Ok(achieved) => achieved,
+        Err(e) => {
+            warn!("Kafka DeleteRecords failed for {}: {}", topic_name, e);
+            std::collections::HashMap::new()
+        }
+    };
+
+    let partitions = t
+        .partitions
+        .iter()
+        .map(|p| {
+            let partition = p.partition_index as u32;
+            if !shards.contains_key(&partition) {
+                return DeleteRecordsPartitionResult::default()
+                    .with_partition_index(p.partition_index)
+                    .with_low_watermark(-1)
+                    .with_error_code(ResponseError::UnknownTopicOrPartition.code());
+            }
+            if p.offset < 0 && p.offset != DELETE_RECORDS_HIGH_WATERMARK {
+                return DeleteRecordsPartitionResult::default()
+                    .with_partition_index(p.partition_index)
+                    .with_low_watermark(-1)
+                    .with_error_code(ResponseError::OffsetOutOfRange.code());
+            }
+            match achieved.get(&partition) {
+                Some(&low_watermark) => DeleteRecordsPartitionResult::default()
+                    .with_partition_index(p.partition_index)
+                    .with_low_watermark(low_watermark as i64)
+                    .with_error_code(0),
+                None => DeleteRecordsPartitionResult::default()
+                    .with_partition_index(p.partition_index)
+                    .with_low_watermark(-1)
+                    .with_error_code(ResponseError::UnknownServerError.code()),
+            }
+        })
+        .collect();
+
+    DeleteRecordsTopicResult::default()
+        .with_name(t.name.clone())
+        .with_partitions(partitions)
+}
+
+pub async fn process_delete_records(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DeleteRecordsRequest,
+) -> Option<KafkaPacket> {
+    let mut topics = Vec::with_capacity(req.topics.len());
+    for t in &req.topics {
+        topics.push(delete_records_for_topic(sdm, t).await);
+    }
+
+    Some(KafkaPacket::DeleteRecordsResponse(
+        DeleteRecordsResponse::default().with_topics(topics),
+    ))
 }
 
 fn partitions_error(name: TopicName, err: ResponseError) -> CreatePartitionsTopicResult {

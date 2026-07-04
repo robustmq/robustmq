@@ -18,7 +18,9 @@ use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
 use crate::filesegment::write_manager::WriteManager;
-use crate::handler::data::{delete_data_req, read_data_req, shard_offset_req, write_data_req};
+use crate::handler::data::{
+    delete_data_req, delete_records_before_req, read_data_req, shard_offset_req, write_data_req,
+};
 use crate::isr::handle_epoch::handle_offsets_for_leader_epoch;
 use crate::isr::handle_fetch::{handle_fetch, FetchEngines};
 use async_trait::async_trait;
@@ -279,18 +281,49 @@ impl Command for StorageEngineHandlerCommand {
             }
 
             StorageEnginePacket::DeleteReq(request) => {
-                let body = match delete_data_req(
-                    &self.cache_manager,
-                    &self.memory_storage_engine,
-                    &self.rocksdb_storage_engine,
-                    &request.body,
-                )
-                .await
-                {
-                    Ok(()) => DeleteRespBody { error_code: 0 },
-                    Err(e) => {
-                        error!("delete_data_req failed: {}", e);
-                        DeleteRespBody { error_code: 1 }
+                let body = if let Some(target_offset) = request.body.delete_before_offset {
+                    match delete_records_before_req(
+                        &self.cache_manager,
+                        &self.rocksdb_engine_handler,
+                        &self.memory_storage_engine,
+                        &self.rocksdb_storage_engine,
+                        &request.body.shard_name,
+                        target_offset,
+                    )
+                    .await
+                    {
+                        Ok(achieved_offset) => DeleteRespBody {
+                            error_code: 0,
+                            achieved_offset,
+                        },
+                        Err(e) => {
+                            error!("delete_records_before_req failed: {}", e);
+                            DeleteRespBody {
+                                error_code: 1,
+                                achieved_offset: 0,
+                            }
+                        }
+                    }
+                } else {
+                    match delete_data_req(
+                        &self.cache_manager,
+                        &self.memory_storage_engine,
+                        &self.rocksdb_storage_engine,
+                        &request.body,
+                    )
+                    .await
+                    {
+                        Ok(()) => DeleteRespBody {
+                            error_code: 0,
+                            achieved_offset: 0,
+                        },
+                        Err(e) => {
+                            error!("delete_data_req failed: {}", e);
+                            DeleteRespBody {
+                                error_code: 1,
+                                achieved_offset: 0,
+                            }
+                        }
                     }
                 };
                 let resp = DeleteResp::new(body);
