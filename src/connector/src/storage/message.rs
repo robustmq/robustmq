@@ -92,7 +92,7 @@ impl MessageStorage {
     ) -> Result<(), CommonError> {
         self.storage_driver_manager
             .offset_manager
-            .commit_offset(tenant, group_id, offsets)
+            .commit_group_offset(tenant, group_id, offsets)
             .await
     }
 }

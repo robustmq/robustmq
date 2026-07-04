@@ -46,7 +46,7 @@ mod tests {
             offset: 3,
         }];
         offset_manager
-            .commit_offset(DEFAULT_TENANT, &group_name, &offset)
+            .commit_group_offset(DEFAULT_TENANT, &group_name, &offset)
             .await
             .unwrap();
 

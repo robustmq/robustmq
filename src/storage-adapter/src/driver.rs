@@ -294,15 +294,40 @@ impl StorageDriverManager {
         self.offset_manager.get_offset(tenant, group_name).await
     }
 
-    pub async fn commit_offset(
+    pub async fn commit_group_offset(
         &self,
         tenant: &str,
         group_name: &str,
         offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(tenant, group_name, offsets)
+            .commit_group_offset(tenant, group_name, offsets)
             .await
+    }
+
+    /// Delete a group's committed offsets for the given shards (Kafka
+    /// OffsetDelete semantics: removes the checkpoint, not the topic data —
+    /// see `delete_by_offsets`/`delete_records_before` for that).
+    pub async fn delete_group_offset(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        shard_names: &[String],
+    ) -> Result<(), CommonError> {
+        self.offset_manager
+            .delete_group_offset(tenant, group_name, shard_names)
+            .await
+    }
+
+    /// Resolve a topic and its storage driver once, for callers that need to
+    /// issue several per-partition operations against the same topic without
+    /// re-resolving (and re-cloning `Topic`) on every call.
+    pub async fn resolve_topic_driver(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+    ) -> Result<(Topic, ArcStorageAdapter), CommonError> {
+        self.build_driver(tenant, topic_name).await
     }
 
     async fn build_driver(

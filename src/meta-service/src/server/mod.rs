@@ -14,6 +14,7 @@
 
 pub mod service_common;
 pub mod service_engine;
+pub mod service_kafka;
 pub mod service_mq9;
 pub mod service_mqtt;
 pub mod service_nats;

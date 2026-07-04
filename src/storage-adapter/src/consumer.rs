@@ -145,7 +145,7 @@ impl GroupConsumer {
 
         for (tenant, offsets) in &by_tenant {
             self.driver
-                .commit_offset(tenant, &self.group_name, offsets)
+                .commit_group_offset(tenant, &self.group_name, offsets)
                 .await?;
         }
 

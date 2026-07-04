@@ -59,7 +59,7 @@ fn build_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<MetadataRespon
         .collect()
 }
 
-fn split_host_port(addr: &str) -> Option<(String, i32)> {
+pub(crate) fn split_host_port(addr: &str) -> Option<(String, i32)> {
     let (host, port) = addr.rsplit_once(':')?;
     let port = port.parse::<i32>().ok()?;
     Some((host.to_string(), port))

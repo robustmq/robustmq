@@ -244,6 +244,13 @@ impl MultiRaftManager {
         m.current_leader == Some(m.id)
     }
 
+    /// The node id of the current metadata-raft leader, or None if no leader is elected.
+    pub fn metadata_leader(&self) -> Option<u64> {
+        let shard_name = format!("{}_0", RaftStateMachineName::METADATA.as_str());
+        let node = self.metadata.get_node(&shard_name)?;
+        node.metrics().borrow().current_leader
+    }
+
     pub fn get_raft_node(&self, shard_name: &str) -> Result<&Raft<TypeConfig>, MetaServiceError> {
         if matches!(shard_name, "metadata" | "meta") {
             return self.metadata.get_node("metadata_0").ok_or_else(|| {

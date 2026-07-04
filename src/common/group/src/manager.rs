@@ -63,7 +63,7 @@ impl OffsetManager {
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         let start = std::time::Instant::now();
 
-        // Check local cache first — commit_offset writes here synchronously,
+        // Check local cache first — commit_group_offset writes here synchronously,
         // so a FETCH immediately after an ACK on the same node sees the new offset
         // without waiting for the background flush to reach meta-service.
         let key = self.key(tenant, group);
@@ -129,7 +129,7 @@ impl OffsetManager {
         Ok(results)
     }
 
-    pub async fn commit_offset(
+    pub async fn commit_group_offset(
         &self,
         tenant: &str,
         group_name: &str,
@@ -195,7 +195,7 @@ impl OffsetManager {
     /// Deletes committed offsets for the given shards via meta-service, and
     /// clears them locally too so a same-node read can't race ahead of the
     /// cache-invalidation push meta-service sends to every node.
-    pub async fn delete_offset(
+    pub async fn delete_group_offset(
         &self,
         tenant: &str,
         group_name: &str,

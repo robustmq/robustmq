@@ -270,6 +270,24 @@ impl StorageEngineHandler {
         }
     }
 
+    /// Wait until the shard's high watermark advances past `since_offset` (or
+    /// `wait_ms` elapses). Used for Kafka Fetch long-polling. Returns `true`
+    /// if new data became visible, `false` on timeout.
+    pub async fn wait_for_new_data(
+        &self,
+        shard_name: &str,
+        since_offset: u64,
+        wait_ms: u64,
+    ) -> bool {
+        crate::isr::follower::wait_for_hw(
+            &self.cache_manager,
+            shard_name,
+            since_offset + 1,
+            wait_ms,
+        )
+        .await
+    }
+
     pub async fn read_by_tag(
         &self,
         shard: &str,

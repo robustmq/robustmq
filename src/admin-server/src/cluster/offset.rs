@@ -123,7 +123,7 @@ pub async fn commit_offset(
     if let Err(e) = state
         .storage_driver_manager
         .offset_manager
-        .commit_offset(&params.tenant, &params.group_name, &params.offsets)
+        .commit_group_offset(&params.tenant, &params.group_name, &params.offsets)
         .await
     {
         return error_response(e.to_string());

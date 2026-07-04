@@ -759,16 +759,26 @@ fn default_kafka_tcp_port() -> u32 {
     9092
 }
 
+fn default_kafka_max_fetch_bytes() -> u32 {
+    4 * 1024 * 1024
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KafkaRuntime {
     #[serde(default = "default_kafka_tcp_port")]
     pub tcp_port: u32,
+    /// Upper bound (per partition) on how many bytes a Fetch response may
+    /// return, regardless of what the client requests via `max_bytes`/
+    /// `partition_max_bytes`.
+    #[serde(default = "default_kafka_max_fetch_bytes")]
+    pub max_fetch_bytes: u32,
 }
 
 impl Default for KafkaRuntime {
     fn default() -> Self {
         KafkaRuntime {
             tcp_port: default_kafka_tcp_port(),
+            max_fetch_bytes: default_kafka_max_fetch_bytes(),
         }
     }
 }
