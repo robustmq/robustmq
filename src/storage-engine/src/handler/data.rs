@@ -147,7 +147,7 @@ pub async fn delete_data_req(
         }
         StorageType::EngineRocksDB => {
             if !body.keys.is_empty() {
-                let key_refs: Vec<&str> = body.keys.iter().map(|s| s.as_str()).collect();
+                let key_refs: Vec<&[u8]> = body.keys.iter().map(|k| k.as_ref()).collect();
                 rocksdb_storage_engine
                     .delete_by_keys(shard_name, &key_refs)
                     .await?;
@@ -651,7 +651,7 @@ mod tests {
                 batch_call_source: true,
                 filter: ReadReqFilter {
                     offset: Some(0),
-                    key: Some(key.clone()),
+                    key: Some(key.clone().into()),
                     ..Default::default()
                 },
                 options: ReadReqOptions {

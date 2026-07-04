@@ -113,7 +113,7 @@ impl RocksDBStorageEngine {
             // key index
             if let Some(key) = &msg.key {
                 let key_index_key = key_index_key(shard_name, key);
-                batch.put_cf(&cf, key_index_key.as_bytes(), offset_info_data.clone());
+                batch.put_cf(&cf, &key_index_key, offset_info_data.clone());
             }
 
             // tag index
@@ -144,14 +144,14 @@ impl RocksDBStorageEngine {
         Ok(results)
     }
 
-    pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
+    pub async fn delete_by_key(&self, shard: &str, key: &[u8]) -> Result<(), StorageEngineError> {
         self.delete_by_keys(shard, std::slice::from_ref(&key)).await
     }
 
     pub async fn delete_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), StorageEngineError> {
         let mut offsets = Vec::with_capacity(keys.len());
         for key in keys {
@@ -197,7 +197,7 @@ impl RocksDBStorageEngine {
             batch.delete_cf(&cf, record_key.as_bytes());
 
             if let Some(key) = &record.metadata.key {
-                batch.delete_cf(&cf, key_index_key(shard, key).as_bytes());
+                batch.delete_cf(&cf, key_index_key(shard, key));
             }
 
             if let Some(tags) = &record.metadata.tags {
@@ -223,7 +223,7 @@ impl RocksDBStorageEngine {
         shard_name: &str,
         messages: &[AdapterWriteRecord],
     ) -> Result<(), StorageEngineError> {
-        let keys: Vec<&str> = messages.iter().filter_map(|m| m.key.as_deref()).collect();
+        let keys: Vec<&[u8]> = messages.iter().filter_map(|m| m.key.as_deref()).collect();
         if keys.is_empty() {
             return Ok(());
         }
@@ -259,7 +259,7 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
+                key: Some(format!("key{}", i).into()),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
                 ..Default::default()
@@ -268,14 +268,14 @@ mod tests {
 
         engine.batch_write(&shard_name, &messages).await.unwrap();
 
-        engine.delete_by_key(&shard_name, "key2").await.unwrap();
+        engine.delete_by_key(&shard_name, b"key2").await.unwrap();
 
         let read_config = AdapterReadConfig {
             max_record_num: 10,
             max_size: 1024 * 1024,
         };
 
-        let key_records = engine.read_by_key(&shard_name, "key2").await.unwrap();
+        let key_records = engine.read_by_key(&shard_name, b"key2").await.unwrap();
         assert_eq!(key_records.len(), 0);
 
         let tag_records = engine

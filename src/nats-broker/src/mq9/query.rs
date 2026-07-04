@@ -62,7 +62,7 @@ async fn query_by_key(
 ) -> Result<Vec<MsgItem>, NatsBrokerError> {
     let tenant = get_tenant();
     let sk = super::scoped_key(&tenant, mail_address, key);
-    let key_refs: Vec<&str> = vec![sk.as_str()];
+    let key_refs: Vec<&[u8]> = vec![sk.as_bytes()];
     let result = ctx
         .storage_driver_manager
         .read_by_keys(&tenant, mail_address, &key_refs)

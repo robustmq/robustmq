@@ -66,14 +66,14 @@ pub async fn remote_read_by_key(
     segment_iden: &SegmentIdentity,
     initial_target: u64,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
         batch_call_source: false,
         filter: ReadReqFilter {
-            key: Some(key.to_string()),
+            key: Some(bytes::Bytes::copy_from_slice(key)),
             ..Default::default()
         },
         options: ReadReqOptions::default(),

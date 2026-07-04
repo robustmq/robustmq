@@ -28,7 +28,7 @@ pub(crate) async fn save_delay_message(
     mut data: AdapterWriteRecord,
     acks: i8,
 ) -> Result<u64, CommonError> {
-    data.key = Some(delay_message_id.to_string());
+    data.key = Some(delay_message_id.to_string().into());
     let result = storage_driver_manager
         .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[data], acks)
         .await?;
@@ -59,7 +59,11 @@ pub(crate) async fn delete_delay_message(
     unique_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_keys(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[unique_id])
+        .delete_by_keys(
+            DEFAULT_TENANT,
+            DELAY_QUEUE_MESSAGE_TOPIC,
+            &[unique_id.as_bytes()],
+        )
         .await?;
     debug!(
         "Deleted delay message: shard={}, unique_id={}",
@@ -104,7 +108,7 @@ pub(crate) async fn delete_delay_index_info(
         .delete_by_keys(
             DEFAULT_TENANT,
             DELAY_QUEUE_INDEX_TOPIC,
-            &[delay_info.unique_id.as_str()],
+            &[delay_info.unique_id.as_bytes()],
         )
         .await?;
     debug!(

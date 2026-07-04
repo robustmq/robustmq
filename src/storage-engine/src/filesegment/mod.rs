@@ -48,7 +48,7 @@ mod tests {
         WriteChannelDataRecord {
             pkid: i,
             header: None,
-            key: Some(format!("key-{}", i)),
+            key: Some(format!("key-{}", i).into()),
             tags: Some(vec!["shared-tag".to_string(), format!("tag-{}", i)]),
             value: Bytes::from(format!("value-{}", i)),
             protocol_data: None,
@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(partial[0].record.metadata.offset, 7);
 
         // --- read by key ---
-        let by_key = segment_read_by_key(&cache, &db, &seg.shard_name, "key-5")
+        let by_key = segment_read_by_key(&cache, &db, &seg.shard_name, b"key-5")
             .await
             .unwrap();
         assert_eq!(by_key.len(), 1);
@@ -135,7 +135,7 @@ mod tests {
         cache.delete_segment(&seg);
 
         // key/tag index cleared → reads return empty without touching the file
-        let gone_key = segment_read_by_key(&cache, &db, &seg.shard_name, "key-5")
+        let gone_key = segment_read_by_key(&cache, &db, &seg.shard_name, b"key-5")
             .await
             .unwrap();
         assert!(
@@ -166,7 +166,7 @@ mod tests {
         let (seg, cache, _fold, db) = setup_and_write(5).await;
 
         // Sanity: data is readable before deletion.
-        let by_key = segment_read_by_key(&cache, &db, &seg.shard_name, "key-2")
+        let by_key = segment_read_by_key(&cache, &db, &seg.shard_name, b"key-2")
             .await
             .unwrap();
         assert_eq!(by_key.len(), 1);
@@ -176,7 +176,7 @@ mod tests {
         cache.delete_shard(&seg.shard_name);
 
         // Index gone → key/tag reads return empty.
-        let gone = segment_read_by_key(&cache, &db, &seg.shard_name, "key-2")
+        let gone = segment_read_by_key(&cache, &db, &seg.shard_name, b"key-2")
             .await
             .unwrap();
         assert!(gone.is_empty(), "key index must be gone after shard delete");
@@ -243,15 +243,18 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(results.len(), 1, "expired record must be filtered");
-        assert_eq!(results[0].record.metadata.key.as_deref(), Some("live-key"));
+        assert_eq!(
+            results[0].record.metadata.key.as_deref(),
+            Some(b"live-key".as_ref())
+        );
 
         // read_by_key: expired record is filtered even though the index entry exists
-        let res = segment_read_by_key(&cache, &db, &seg.shard_name, "expired-key")
+        let res = segment_read_by_key(&cache, &db, &seg.shard_name, b"expired-key")
             .await
             .unwrap();
         assert!(res.is_empty(), "expired record must not be returned by key");
 
-        let res = segment_read_by_key(&cache, &db, &seg.shard_name, "live-key")
+        let res = segment_read_by_key(&cache, &db, &seg.shard_name, b"live-key")
             .await
             .unwrap();
         assert_eq!(res.len(), 1);
@@ -263,7 +266,7 @@ mod tests {
         assert_eq!(tag_results.len(), 1);
         assert_eq!(
             tag_results[0].record.metadata.key.as_deref(),
-            Some("live-key")
+            Some(b"live-key".as_ref())
         );
     }
 }

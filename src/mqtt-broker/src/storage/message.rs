@@ -135,7 +135,7 @@ mod tests {
 
         assert_eq!(String::from_utf8_lossy(&msgs[0].data), "Message 0");
         let meta = msgs[0].clone().metadata;
-        assert_eq!(meta.key, Some("key0".to_string()));
+        assert_eq!(meta.key, Some(bytes::Bytes::from_static(b"key0")));
         assert_eq!(meta.tags, Some(vec!["tag0".to_string()]));
     }
 }

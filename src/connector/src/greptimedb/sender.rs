@@ -105,8 +105,12 @@ impl Sender {
 
         let fields = fields.join(",");
 
-        let measurement =
-            Self::escape_measurement(record.metadata.key.as_deref().unwrap_or("unknown"));
+        let key_str = record
+            .metadata
+            .key
+            .as_deref()
+            .map(|k| String::from_utf8_lossy(k).into_owned());
+        let measurement = Self::escape_measurement(key_str.as_deref().unwrap_or("unknown"));
         Ok(format!(
             "{},{} {} {}",
             measurement, tags, fields, record.metadata.create_t

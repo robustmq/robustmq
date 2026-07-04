@@ -73,7 +73,9 @@ impl Command for KafkaHandlerCommand {
 
         let resp_packet = match &wrapper.packet {
             // Core Data Plane
-            KafkaPacket::ProduceReq(req) => core::process_produce(req),
+            KafkaPacket::ProduceReq(req) => {
+                core::process_produce(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::FetchReq(req) => {
                 core::process_fetch(
                     &self.storage_driver_manager,

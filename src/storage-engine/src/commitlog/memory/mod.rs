@@ -100,11 +100,11 @@ mod tests {
                 .len(),
             10
         );
-        let r = engine.read_by_key(&shard, "key5").await.unwrap();
+        let r = engine.read_by_key(&shard, b"key5").await.unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].metadata.offset, 5);
 
-        engine.delete_by_key(&shard, "key3").await.unwrap();
+        engine.delete_by_key(&shard, b"key3").await.unwrap();
         engine.delete_by_offset(&shard, 7).await.unwrap();
 
         assert_eq!(
@@ -123,8 +123,12 @@ mod tests {
                 .len(),
             8
         );
-        assert!(engine.read_by_key(&shard, "key3").await.unwrap().is_empty());
-        assert_eq!(engine.read_by_key(&shard, "key5").await.unwrap().len(), 1);
+        assert!(engine
+            .read_by_key(&shard, b"key3")
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(engine.read_by_key(&shard, b"key5").await.unwrap().len(), 1);
         assert!(engine
             .read_by_tag(&shard, "t7", None, &cfg())
             .await
@@ -176,10 +180,18 @@ mod tests {
                 .len(),
             10
         );
-        assert!(engine.read_by_key(&shard, "key0").await.unwrap().is_empty());
-        assert!(engine.read_by_key(&shard, "key2").await.unwrap().is_empty());
-        assert_eq!(engine.read_by_key(&shard, "key5").await.unwrap().len(), 1);
-        assert_eq!(engine.read_by_key(&shard, "key10").await.unwrap().len(), 1);
+        assert!(engine
+            .read_by_key(&shard, b"key0")
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(engine
+            .read_by_key(&shard, b"key2")
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(engine.read_by_key(&shard, b"key5").await.unwrap().len(), 1);
+        assert_eq!(engine.read_by_key(&shard, b"key10").await.unwrap().len(), 1);
         assert!(engine
             .read_by_tag(&shard, "t0", None, &cfg())
             .await
@@ -210,7 +222,7 @@ mod tests {
         engine.write(&shard, &r1).await.unwrap();
         engine.write(&shard, &r2).await.unwrap();
 
-        let r = engine.read_by_key(&shard, "k").await.unwrap();
+        let r = engine.read_by_key(&shard, b"k").await.unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].metadata.offset, 1);
         assert_eq!(
@@ -342,7 +354,7 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(engine
-            .read_by_key(&shard_a, "key0")
+            .read_by_key(&shard_a, b"key0")
             .await
             .unwrap()
             .is_empty());

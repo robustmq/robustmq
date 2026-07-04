@@ -58,9 +58,9 @@ pub async fn segment_read_by_key(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?;
+    let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key)?;
 
     if let Some(index) = index_data {
         let segment_iden = SegmentIdentity::new(shard_name, index.segment);
@@ -200,7 +200,7 @@ mod tests {
             data_list.push(WriteChannelDataRecord {
                 pkid: i,
                 header: None,
-                key: Some(format!("key-{}", i)),
+                key: Some(format!("key-{}", i).into()),
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{i}")),
                 protocol_data: None,
@@ -247,7 +247,10 @@ mod tests {
         assert_eq!(resp.len(), 2);
 
         for (i, row) in (5..).zip(resp) {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
+            assert_eq!(
+                row.record.metadata.key.unwrap(),
+                bytes::Bytes::from(format!("key-{}", i))
+            );
         }
 
         let max_record = 5;
@@ -264,7 +267,10 @@ mod tests {
         assert_eq!(resp.len(), 5);
 
         for (i, row) in (10_i32..).zip(resp) {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
+            assert_eq!(
+                row.record.metadata.key.unwrap(),
+                bytes::Bytes::from(format!("key-{}", i))
+            );
         }
     }
 
@@ -278,14 +284,14 @@ mod tests {
             &cache_manager,
             &rocksdb_engine_handler,
             &segment_iden.shard_name,
-            &key,
+            key.as_bytes(),
         )
         .await
         .unwrap();
 
         assert_eq!(resp.len(), 1);
         let meata = resp.first().unwrap().record.metadata.clone();
-        assert_eq!(meata.key.unwrap(), key);
+        assert_eq!(meata.key.unwrap(), key.as_bytes());
     }
 
     #[tokio::test]

@@ -148,7 +148,7 @@ pub async fn process_agent_report(
     .await?;
 
     let write_record = AdapterWriteRecord::new(AGENT_REPORT_INFO_TOPIC.to_string(), payload_str)
-        .with_key(&req.name);
+        .with_key(req.name.clone());
 
     MessageStorage::new(ctx.storage_driver_manager.clone())
         .write(&tenant, AGENT_REPORT_INFO_TOPIC, vec![write_record])

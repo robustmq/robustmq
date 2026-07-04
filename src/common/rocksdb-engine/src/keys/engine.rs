@@ -63,9 +63,13 @@ pub fn shard_high_watermark_offset(shard: &str) -> String {
 }
 
 // Shard-level key index (record key -> offset; used for compaction).
+// The record key is arbitrary binary (e.g. Kafka record keys), so this
+// builds the key as raw bytes rather than a UTF-8 `String`.
 #[inline]
-pub fn key_index_key(shard: &str, record_key: &str) -> String {
-    format!("{}index/key/{}", shard_prefix(shard), record_key)
+pub fn key_index_key(shard: &str, record_key: &[u8]) -> Vec<u8> {
+    let mut key = key_index_prefix(shard).into_bytes();
+    key.extend_from_slice(record_key);
+    key
 }
 
 #[inline]
@@ -163,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_all_key_formats() {
-        let cases: [(_, &'static str); 17] = [
+        let cases: [(_, &'static str); 16] = [
             (shard_prefix("s1"), "/engine/s1/"),
             (segment_prefix("s1", 3), "/engine/s1/segment/0000000003/"),
             (shard_earliest_offset("s1"), "/engine/s1/meta/earliest"),
@@ -172,7 +176,6 @@ mod tests {
                 shard_high_watermark_offset("s1"),
                 "/engine/s1/meta/high-watermark",
             ),
-            (key_index_key("s1", "k1"), "/engine/s1/index/key/k1"),
             (key_index_prefix("s1"), "/engine/s1/index/key/"),
             (
                 tag_index_key("s1", "t1", 7),
@@ -210,5 +213,11 @@ mod tests {
         for (actual, expected) in cases {
             assert_eq!(actual, expected);
         }
+
+        assert_eq!(key_index_key("s1", b"k1"), b"/engine/s1/index/key/k1");
+        assert_eq!(
+            key_index_key("s1", &[0xff, 0x00, 0x01]),
+            [b"/engine/s1/index/key/".as_slice(), &[0xff, 0x00, 0x01]].concat()
+        );
     }
 }

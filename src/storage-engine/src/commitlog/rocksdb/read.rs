@@ -151,7 +151,7 @@ impl RocksDBStorageEngine {
     pub async fn read_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let index = if let Some(index) = self.get_offset_by_key(shard, key).await? {
             index
@@ -178,7 +178,7 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Option<IndexInfo>, StorageEngineError> {
         let cf = self.get_cf()?;
         let key_index = key_index_key(shard, key);
@@ -355,7 +355,7 @@ mod tests {
         assert_eq!(tag_records[0].metadata.offset, 0);
         assert_eq!(tag_records[3].metadata.offset, 9);
 
-        let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
+        let key_records = engine.read_by_key(&shard_name, b"key5").await.unwrap();
         assert_eq!(key_records.len(), 1);
         assert_eq!(key_records[0].metadata.offset, 5);
     }

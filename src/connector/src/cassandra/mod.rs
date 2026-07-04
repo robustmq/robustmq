@@ -132,7 +132,7 @@ impl ConnectorSink for CassandraBridgePlugin {
             let timestamp = record.metadata.create_t as i64;
 
             session
-                .execute_unpaged(&prepared, (&key, "", 0i32, &payload, timestamp))
+                .execute_unpaged(&prepared, (key.as_ref(), "", 0i32, &payload, timestamp))
                 .await
                 .map_err(|e| {
                     CommonError::CommonError(format!("Failed to execute CQL insert: {}", e))

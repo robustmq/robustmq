@@ -123,7 +123,7 @@ impl RocksDBStorageEngine {
             let offset = record.metadata.offset;
             batch.delete_cf(&cf, key_bytes);
             if let Some(key) = &record.metadata.key {
-                batch.delete_cf(&cf, key_index_key(&shard.shard_name, key).as_bytes());
+                batch.delete_cf(&cf, key_index_key(&shard.shard_name, key));
             }
             if let Some(tags) = &record.metadata.tags {
                 for tag in tags.iter() {
@@ -209,7 +209,7 @@ mod tests {
 
         let messages: Vec<AdapterWriteRecord> = (0..10)
             .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{i}")),
+                key: Some(format!("key{i}").into()),
                 tags: Some(vec![format!("t{i}")]),
                 ..Default::default()
             })
@@ -252,12 +252,16 @@ mod tests {
         assert_eq!(records.len(), 7);
         assert_eq!(records[0].metadata.offset, 3);
         assert!(engine
-            .read_by_key(&shard_name, "key0")
+            .read_by_key(&shard_name, b"key0")
             .await
             .unwrap()
             .is_empty());
         assert_eq!(
-            engine.read_by_key(&shard_name, "key5").await.unwrap().len(),
+            engine
+                .read_by_key(&shard_name, b"key5")
+                .await
+                .unwrap()
+                .len(),
             1
         );
         assert!(engine

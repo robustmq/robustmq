@@ -31,6 +31,13 @@ pub const USE_DEFAULT_REPLICATION_FACTOR: i16 = -1;
 /// DeleteRecords: delete up to the partition's current high watermark.
 pub const DELETE_RECORDS_HIGH_WATERMARK: i64 = -1;
 
+/// Produce: no base offset (empty/no-op batch).
+pub const NO_BASE_OFFSET: i64 = -1;
+/// Produce: CreateTime is used for the topic, not LogAppendTime.
+pub const NO_LOG_APPEND_TIME: i64 = -1;
+/// Produce: acks=0 means the client does not wait for (or want) a response.
+pub const PRODUCE_ACKS_NONE: i16 = 0;
+
 /// Fetch: no producer ID (non-transactional / non-idempotent record).
 pub const NO_PRODUCER_ID: i64 = -1;
 /// Fetch: no producer epoch (non-transactional / non-idempotent record).

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::core::{cache::StorageCacheManager, offset::ShardOffset};
+use bytes::Bytes;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
@@ -22,7 +23,7 @@ use std::sync::Arc;
 pub struct MemoryShardData {
     pub data: DashMap<u64, StorageRecord>,
     pub tag_index: DashMap<String, Vec<u64>>,
-    pub key_index: DashMap<String, u64>,
+    pub key_index: DashMap<Bytes, u64>,
     pub timestamp_index: DashMap<u64, u64>,
     pub write_lock: Arc<tokio::sync::Mutex<()>>,
 }

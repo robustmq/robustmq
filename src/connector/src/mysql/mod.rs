@@ -95,8 +95,13 @@ impl MySQLBridgePlugin {
                 base_sql
             };
 
+            let record_key = record
+                .metadata
+                .key
+                .as_deref()
+                .map(|k| String::from_utf8_lossy(k).into_owned());
             sqlx::query(&sql)
-                .bind(&record.metadata.key)
+                .bind(record_key)
                 .bind(&payload)
                 .bind(record.metadata.create_t as i64)
                 .execute(pool)
@@ -118,7 +123,11 @@ impl MySQLBridgePlugin {
             values_placeholders.push("(?, ?, ?)");
             let payload = serde_json::to_string(record)?;
             bindings.push((
-                record.metadata.key.clone(),
+                record
+                    .metadata
+                    .key
+                    .as_deref()
+                    .map(|k| String::from_utf8_lossy(k).into_owned()),
                 payload,
                 record.metadata.create_t as i64,
             ));

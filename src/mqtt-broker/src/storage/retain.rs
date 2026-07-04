@@ -43,7 +43,7 @@ impl RetainStorage {
     ) -> ResultMqttBrokerError {
         let key = retain_key(tenant, topic_name);
         let data = retain_message.encode()?;
-        let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(&key);
+        let record = AdapterWriteRecord::new(RETAIN_MESSAGE_TOPIC, data).with_key(key.clone());
         self.storage_driver_manager
             .write(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[record], 1)
             .await?;
@@ -57,7 +57,7 @@ impl RetainStorage {
     ) -> ResultMqttBrokerError {
         let key = retain_key(tenant, topic_name);
         self.storage_driver_manager
-            .delete_by_keys(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[key.as_str()])
+            .delete_by_keys(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[key.as_bytes()])
             .await?;
         Ok(())
     }
@@ -70,9 +70,9 @@ impl RetainStorage {
         let key = retain_key(tenant, topic_name);
         let records = self
             .storage_driver_manager
-            .read_by_keys(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[key.as_str()])
+            .read_by_keys(DEFAULT_TENANT, RETAIN_MESSAGE_TOPIC, &[key.as_bytes()])
             .await?
-            .remove(&key)
+            .remove(key.as_bytes())
             .unwrap_or_default();
         if let Some(record) = records.into_iter().next() {
             let message = MQTTRetainMessage::decode(&record.data)?;

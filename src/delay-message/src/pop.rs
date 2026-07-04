@@ -205,10 +205,10 @@ async fn send_delay_message_to_shard(
         .read_by_keys(
             DEFAULT_TENANT,
             DELAY_QUEUE_MESSAGE_TOPIC,
-            &[delay_message.unique_id.as_str()],
+            &[delay_message.unique_id.as_bytes()],
         )
         .await?
-        .remove(&delay_message.unique_id)
+        .remove(delay_message.unique_id.as_bytes())
         .unwrap_or_default();
 
     if results.is_empty() {

@@ -35,7 +35,7 @@ pub struct StorageRecordMetadata {
     pub shard: String,
     pub segment: u32,
     pub header: Option<Vec<StorageHeader>>,
-    pub key: Option<String>,
+    pub key: Option<Bytes>,
     pub tags: Option<Vec<String>>,
     pub create_t: u64,
     pub expire_at: u64,
@@ -59,7 +59,7 @@ impl StorageRecordMetadata {
         shard: &str,
         segment: u32,
         header: &Option<Vec<StorageHeader>>,
-        key: &Option<String>,
+        key: &Option<Bytes>,
         tags: &Option<Vec<String>>,
         expire_at: u64,
         data: &Bytes,
@@ -117,7 +117,7 @@ impl StorageRecordMetadata {
     }
 
     /// Set key (chainable)
-    pub fn with_key(mut self, key: Option<String>) -> Self {
+    pub fn with_key(mut self, key: Option<Bytes>) -> Self {
         self.key = key;
         self
     }

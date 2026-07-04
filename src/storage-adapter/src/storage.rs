@@ -79,10 +79,10 @@ pub trait StorageAdapter {
     async fn read_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError>;
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError>;
 
-    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError>;
+    async fn delete_by_keys(&self, shard: &str, keys: &[&[u8]]) -> Result<(), CommonError>;
 
     async fn delete_by_offsets(&self, shard: &str, offsets: &[u64]) -> Result<(), CommonError>;
 

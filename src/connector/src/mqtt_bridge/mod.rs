@@ -59,12 +59,13 @@ impl MqttBridgePlugin {
             .metadata
             .key
             .as_deref()
-            .unwrap_or("robustmq/bridge/default");
+            .map(|k| String::from_utf8_lossy(k).into_owned())
+            .unwrap_or_else(|| "robustmq/bridge/default".to_string());
 
         if let Some(prefix) = &self.config.topic_prefix {
             format!("{}/{}", prefix.trim_end_matches('/'), original_topic)
         } else {
-            original_topic.to_string()
+            original_topic
         }
     }
 }

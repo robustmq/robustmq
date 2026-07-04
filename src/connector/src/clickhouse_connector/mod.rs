@@ -144,7 +144,12 @@ impl ConnectorSink for ClickHouseBridgePlugin {
                 };
             let row = MqttMessageRow {
                 data: String::from_utf8_lossy(&processed_data).to_string(),
-                key: record.metadata.key.clone().unwrap_or_default(),
+                key: record
+                    .metadata
+                    .key
+                    .as_deref()
+                    .map(|k| String::from_utf8_lossy(k).into_owned())
+                    .unwrap_or_default(),
                 timestamp: record.metadata.create_t,
             };
 

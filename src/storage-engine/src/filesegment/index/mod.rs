@@ -161,12 +161,12 @@ mod tests {
         assert_eq!((data.offset, data.position), (10000, 50000));
 
         // Key: found and not-found
-        let data = get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "user-123".into())
+        let data = get_index_data_by_key(&rocksdb, &segment_iden.shard_name, b"user-123")
             .unwrap()
             .unwrap();
         assert_eq!((data.offset, data.position), (100, 1000));
         assert!(
-            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "not-exist".into())
+            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, b"not-exist")
                 .unwrap()
                 .is_none()
         );
@@ -237,7 +237,7 @@ mod tests {
 
         // key and tag entries gone
         assert!(
-            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, "user-123".into())
+            get_index_data_by_key(&rocksdb, &segment_iden.shard_name, b"user-123")
                 .unwrap()
                 .is_none()
         );
@@ -372,7 +372,7 @@ mod tests {
 
         // segment 0 key/tag entries must be gone.
         assert!(
-            get_index_data_by_key(&rocksdb, &seg0.shard_name, "seg0-key".into())
+            get_index_data_by_key(&rocksdb, &seg0.shard_name, b"seg0-key")
                 .unwrap()
                 .is_none(),
             "seg0 key entry must be deleted"
@@ -380,7 +380,7 @@ mod tests {
 
         // segment 1 entries must survive.
         assert!(
-            get_index_data_by_key(&rocksdb, &seg1.shard_name, "seg1-key".into())
+            get_index_data_by_key(&rocksdb, &seg1.shard_name, b"seg1-key")
                 .unwrap()
                 .is_some(),
             "seg1 key entry must survive"

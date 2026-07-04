@@ -257,7 +257,7 @@ mod tests {
         assert!(hs
             .iter()
             .any(|h| h.name == HEADER_FORK_RULE && h.value == "rule-a"));
-        assert_eq!(forked.key.as_deref(), Some("default/alice/k1"));
+        assert_eq!(forked.key.as_deref(), Some(b"default/alice/k1".as_ref()));
     }
 
     #[test]

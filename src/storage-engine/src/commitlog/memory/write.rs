@@ -51,7 +51,7 @@ impl MemoryStorageEngine {
         Ok(results.first().unwrap().clone())
     }
 
-    pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
+    pub async fn delete_by_key(&self, shard: &str, key: &[u8]) -> Result<(), StorageEngineError> {
         let offset = {
             let Some(shard_state) = self.shards.get(shard) else {
                 return Ok(());

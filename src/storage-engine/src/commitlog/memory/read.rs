@@ -114,7 +114,7 @@ impl MemoryStorageEngine {
     pub async fn read_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let Some(shard_state) = self.shards.get(shard).map(|s| s.clone()) else {
             return Ok(Vec::new());

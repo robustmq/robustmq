@@ -871,7 +871,7 @@ mod tests {
                 segment_iden.shard_name.to_string(),
                 segment_iden.segment,
             )
-            .with_key(Some("test-key".to_string()))
+            .with_key(Some(bytes::Bytes::from_static(b"test-key")))
             .with_tags(Some(vec!["tag1".to_string(), "tag2".to_string()]))
             .with_timestamp(12345)
             .with_crc_from_data(&data),
@@ -901,7 +901,10 @@ mod tests {
 
         assert_eq!(res.len(), 2);
         assert_eq!(res[0].record.metadata.offset, 100);
-        assert_eq!(res[0].record.metadata.key, Some("test-key".to_string()));
+        assert_eq!(
+            res[0].record.metadata.key,
+            Some(bytes::Bytes::from_static(b"test-key"))
+        );
         assert_eq!(
             res[0].record.metadata.tags,
             Some(vec!["tag1".to_string(), "tag2".to_string()])

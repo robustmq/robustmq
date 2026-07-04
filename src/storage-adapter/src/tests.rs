@@ -129,20 +129,20 @@ pub async fn test_write_and_read(adapter: ArcStorageAdapter) {
 
     assert_eq!(
         adapter
-            .read_by_keys(&shard_name, &["k2"])
+            .read_by_keys(&shard_name, &[b"k2".as_slice()])
             .await
             .unwrap()
-            .remove("k2")
+            .remove(b"k2".as_slice())
             .unwrap_or_default()[0]
             .data,
         b"msg2".to_vec()
     );
     assert_eq!(
         adapter
-            .read_by_keys(&shard_name, &["k3"])
+            .read_by_keys(&shard_name, &[b"k3".as_slice()])
             .await
             .unwrap()
-            .remove("k3")
+            .remove(b"k3".as_slice())
             .unwrap_or_default()
             .len(),
         0

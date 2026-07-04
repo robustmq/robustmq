@@ -44,7 +44,7 @@ pub enum IndexTypeEnum {
 #[derive(Default, Clone)]
 pub struct BuildIndexRaw {
     pub index_type: IndexTypeEnum,
-    pub key: Option<String>,
+    pub key: Option<bytes::Bytes>,
     pub tag: Option<String>,
     pub timestamp: Option<u64>,
     pub offset: u64,
@@ -93,7 +93,7 @@ pub fn save_index(
                         timestamp: 0,
                     };
                     let serialized_data = serialize(&index_data)?;
-                    batch.put_cf(&cf, key.as_bytes(), &serialized_data);
+                    batch.put_cf(&cf, &key, &serialized_data);
                 }
             }
             IndexTypeEnum::Tag => {
@@ -163,8 +163,9 @@ pub fn delete_shard_index_for_segment(
                 iter.next();
                 continue;
             };
-            let key_str = std::str::from_utf8(k).unwrap_or("");
-            if !key_str.starts_with(&prefix) {
+            // Compare raw bytes, not via UTF-8: key-index entries embed
+            // arbitrary binary record keys that need not be valid UTF-8.
+            if !k.starts_with(prefix.as_bytes()) {
                 break;
             }
             if let Ok(data) = deserialize::<IndexData>(v) {

@@ -111,8 +111,8 @@ impl StorageAdapter for EngineStorageAdapter {
     async fn read_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError> {
         let mut result = HashMap::with_capacity(keys.len());
         for &key in keys {
             let records = self
@@ -120,12 +120,12 @@ impl StorageAdapter for EngineStorageAdapter {
                 .read_by_key(shard, key)
                 .await
                 .map_err(|e| CommonError::CommonError(e.to_string()))?;
-            result.insert(key.to_string(), records);
+            result.insert(key.to_vec(), records);
         }
         Ok(result)
     }
 
-    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError> {
+    async fn delete_by_keys(&self, shard: &str, keys: &[&[u8]]) -> Result<(), CommonError> {
         self.adapter
             .delete_by_keys(shard, keys)
             .await

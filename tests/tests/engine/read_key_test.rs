@@ -118,7 +118,7 @@ mod tests {
 
         let records = read_by_key(&conn, &shard_name, "key-2").await;
         assert_eq!(records.len(), 1);
-        assert_eq!(records[0].metadata.key.as_deref(), Some("key-2"));
+        assert_eq!(records[0].metadata.key.as_deref(), Some(b"key-2".as_ref()));
 
         let records = read_by_key(&conn, &shard_name, "key-999").await;
         assert_eq!(records.len(), 0);
@@ -139,7 +139,7 @@ mod tests {
 
         let records = read_by_key(&conn, &shard_name, "key-3").await;
         assert_eq!(records.len(), 1, "key-3 should exist before delete");
-        assert_eq!(records[0].metadata.key.as_deref(), Some("key-3"));
+        assert_eq!(records[0].metadata.key.as_deref(), Some(b"key-3".as_ref()));
 
         let resp = admin
             .delete_record_by_keys(&RecordDeleteByKeysReq {

@@ -39,7 +39,7 @@ pub struct ReadByKeyParams {
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub shard_name: String,
-    pub key: String,
+    pub key: bytes::Bytes,
     pub batch_call_source: bool,
 }
 
@@ -52,7 +52,7 @@ pub async fn read_by_key(
     let rocksdb_storage_engine = &params.rocksdb_storage_engine;
     let client_connection_manager = &params.client_connection_manager;
     let shard_name = params.shard_name.as_str();
-    let key = params.key.as_str();
+    let key = params.key.as_ref();
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
@@ -98,7 +98,7 @@ pub async fn read_by_key(
             return Ok(local_records);
         }
 
-        let read_req = build_req(&params.shard_name, &params.key, true);
+        let read_req = build_req(&params.shard_name, params.key.clone(), true);
         let remote_records =
             call_read_data_by_all_node(cache_manager, client_connection_manager, read_req).await?;
 
@@ -108,13 +108,13 @@ pub async fn read_by_key(
     Ok(Vec::new())
 }
 
-fn build_req(shard_name: &str, key: &str, batch_call_source: bool) -> ReadReq {
+fn build_req(shard_name: &str, key: bytes::Bytes, batch_call_source: bool) -> ReadReq {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
         batch_call_source,
         filter: ReadReqFilter {
-            key: Some(key.to_string()),
+            key: Some(key),
             ..Default::default()
         },
         options: ReadReqOptions::default(),
@@ -125,7 +125,7 @@ fn build_req(shard_name: &str, key: &str, batch_call_source: bool) -> ReadReq {
 async fn read_by_memory(
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     memory_storage_engine.read_by_key(shard_name, key).await
 }
@@ -133,7 +133,7 @@ async fn read_by_memory(
 async fn read_by_rocksdb(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     rocksdb_storage_engine.read_by_key(shard_name, key).await
 }
@@ -142,13 +142,12 @@ async fn read_by_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     // Only serve reads from the segment this node leads.
     // call_read_data_by_all_node already fans out to all other leader nodes,
     // so every segment is covered exactly once across the cluster.
-    let Some(idx) = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?
-    else {
+    let Some(idx) = get_index_data_by_key(rocksdb_engine_handler, shard_name, key)? else {
         return Ok(Vec::new());
     };
     let segment_iden = SegmentIdentity::new(shard_name, idx.segment);

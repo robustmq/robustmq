@@ -66,7 +66,7 @@ mod tests {
             ReadType::Key,
             ReadReqFilter {
                 offset: Some(0),
-                key: Some("status".to_string()),
+                key: Some("status".to_string().into()),
                 ..Default::default()
             },
             10,
@@ -78,7 +78,7 @@ mod tests {
             1,
             "key compact should return exactly 1 message"
         );
-        assert_eq!(records[0].metadata.key.as_deref(), Some("status"));
+        assert_eq!(records[0].metadata.key.as_deref(), Some(b"status".as_ref()));
         assert_eq!(records[0].data, Bytes::from("value-3"));
     }
 }

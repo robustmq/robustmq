@@ -134,6 +134,30 @@ impl StorageDriverManager {
         driver.write(&partition_name, data, acks).await
     }
 
+    /// Write to a specific partition (Kafka Produce: the client selects the
+    /// partition explicitly, unlike the round-robin `write` above).
+    pub async fn write_to_partition(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        partition: u32,
+        data: &[AdapterWriteRecord],
+        acks: i8,
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
+        let partition_name = topic
+            .storage_name_list
+            .get(&partition)
+            .cloned()
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "partition {} does not exist for topic {}",
+                    partition, topic_name
+                ))
+            })?;
+        driver.write(&partition_name, data, acks).await
+    }
+
     pub async fn read_by_offset(
         &self,
         tenant: &str,
@@ -181,10 +205,10 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         topic_name: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        let mut results: HashMap<String, Vec<StorageRecord>> = HashMap::new();
+        let mut results: HashMap<Vec<u8>, Vec<StorageRecord>> = HashMap::new();
         for (_, shard_name) in topic.storage_name_list {
             let shard_result = driver.read_by_keys(&shard_name, keys).await?;
             for (key, records) in shard_result {
@@ -198,7 +222,7 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         topic_name: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {

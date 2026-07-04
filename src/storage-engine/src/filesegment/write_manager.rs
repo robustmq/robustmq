@@ -40,7 +40,7 @@ pub struct WriteChannelData {
 pub struct WriteChannelDataRecord {
     pub pkid: u64,
     pub header: Option<Vec<StorageHeader>>,
-    pub key: Option<String>,
+    pub key: Option<Bytes>,
     pub value: Bytes,
     pub tags: Option<Vec<String>>,
     pub expire_at: u64,

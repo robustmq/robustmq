@@ -64,7 +64,7 @@ pub async fn record_delete_by_keys(
         return error_response("keys cannot be empty".to_string());
     }
 
-    let key_refs: Vec<&str> = params.keys.iter().map(|s| s.as_str()).collect();
+    let key_refs: Vec<&[u8]> = params.keys.iter().map(|s| s.as_bytes()).collect();
     if let Err(e) = state
         .engine_context
         .engine_adapter_handler

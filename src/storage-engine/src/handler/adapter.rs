@@ -306,7 +306,7 @@ impl StorageEngineHandler {
     pub async fn read_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let start = std::time::Instant::now();
         let result = read_by_key(ReadByKeyParams {
@@ -317,7 +317,7 @@ impl StorageEngineHandler {
             client_connection_manager: self.client_connection_manager.clone(),
             shard_name: shard.to_string(),
             batch_call_source: false,
-            key: key.to_string(),
+            key: bytes::Bytes::copy_from_slice(key),
         })
         .await;
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
@@ -357,7 +357,7 @@ impl StorageEngineHandler {
     pub async fn delete_by_key(
         &self,
         shard_name: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<(), StorageEngineError> {
         self.delete_by_keys(shard_name, &[key]).await
     }
@@ -365,7 +365,7 @@ impl StorageEngineHandler {
     pub async fn delete_by_keys(
         &self,
         shard_name: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), StorageEngineError> {
         let start = std::time::Instant::now();
         let result = self.delete_by_keys_inner(shard_name, keys).await;
@@ -381,7 +381,7 @@ impl StorageEngineHandler {
     async fn delete_by_keys_inner(
         &self,
         shard_name: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), StorageEngineError> {
         if keys.is_empty() {
             return Ok(());
@@ -404,7 +404,10 @@ impl StorageEngineHandler {
                 if leader != broker_config().broker_id {
                     let body = DeleteReqBody {
                         shard_name: shard_name.to_string(),
-                        keys: keys.iter().map(|k| k.to_string()).collect(),
+                        keys: keys
+                            .iter()
+                            .map(|k| bytes::Bytes::copy_from_slice(k))
+                            .collect(),
                         offsets: Vec::new(),
                         delete_before_offset: None,
                     };

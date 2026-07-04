@@ -140,9 +140,9 @@ pub fn get_index_data_by_timestamp(
 pub fn get_index_data_by_key(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    key: String,
+    key: &[u8],
 ) -> Result<Option<IndexData>, StorageEngineError> {
     let cf = super::get_storage_cf(rocksdb_engine_handler)?;
-    let key = key_index_key(shard_name, &key);
+    let key = key_index_key(shard_name, key);
     Ok(rocksdb_engine_handler.read::<IndexData>(cf, &key)?)
 }

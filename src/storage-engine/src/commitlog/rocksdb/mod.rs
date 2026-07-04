@@ -78,11 +78,11 @@ mod tests {
                 .len(),
             10
         );
-        let r = engine.read_by_key(&shard, "key5").await.unwrap();
+        let r = engine.read_by_key(&shard, b"key5").await.unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].metadata.offset, 5);
 
-        engine.delete_by_key(&shard, "key3").await.unwrap();
+        engine.delete_by_key(&shard, b"key3").await.unwrap();
         engine.delete_by_offset(&shard, 7).await.unwrap();
 
         assert_eq!(
@@ -101,8 +101,12 @@ mod tests {
                 .len(),
             8
         );
-        assert!(engine.read_by_key(&shard, "key3").await.unwrap().is_empty());
-        assert_eq!(engine.read_by_key(&shard, "key5").await.unwrap().len(), 1);
+        assert!(engine
+            .read_by_key(&shard, b"key3")
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(engine.read_by_key(&shard, b"key5").await.unwrap().len(), 1);
         assert!(engine
             .read_by_tag(&shard, "t7", None, &cfg())
             .await
@@ -127,7 +131,7 @@ mod tests {
                 .len(),
             13
         );
-        assert_eq!(engine.read_by_key(&shard, "key12").await.unwrap().len(), 1);
+        assert_eq!(engine.read_by_key(&shard, b"key12").await.unwrap().len(), 1);
     }
 
     #[tokio::test]
@@ -145,7 +149,7 @@ mod tests {
         engine.write(&shard, &r1).await.unwrap();
         engine.write(&shard, &r2).await.unwrap();
 
-        let r = engine.read_by_key(&shard, "k").await.unwrap();
+        let r = engine.read_by_key(&shard, b"k").await.unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].metadata.offset, 1);
         assert_eq!(
@@ -181,7 +185,7 @@ mod tests {
         engine.batch_write(&shard, &messages).await.unwrap();
 
         engine
-            .delete_by_keys(&shard, &["key1", "key2"])
+            .delete_by_keys(&shard, &[b"key1".as_ref(), b"key2".as_ref()])
             .await
             .unwrap();
         engine.delete_by_offsets(&shard, &[5, 6]).await.unwrap();
@@ -194,8 +198,12 @@ mod tests {
                 .len(),
             6
         );
-        assert!(engine.read_by_key(&shard, "key1").await.unwrap().is_empty());
-        assert_eq!(engine.read_by_key(&shard, "key0").await.unwrap().len(), 1);
+        assert!(engine
+            .read_by_key(&shard, b"key1")
+            .await
+            .unwrap()
+            .is_empty());
+        assert_eq!(engine.read_by_key(&shard, b"key0").await.unwrap().len(), 1);
         assert!(engine
             .read_by_tag(&shard, "t5", None, &cfg())
             .await
@@ -266,7 +274,7 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(engine
-            .read_by_key(&shard_a, "key0")
+            .read_by_key(&shard_a, b"key0")
             .await
             .unwrap()
             .is_empty());
@@ -274,7 +282,7 @@ mod tests {
         engine.delete_by_shard(&shard_b).unwrap();
         // delete_by_shard wipes meta too; key/tag indices are gone outright.
         assert!(engine
-            .read_by_key(&shard_b, "key0")
+            .read_by_key(&shard_b, b"key0")
             .await
             .unwrap()
             .is_empty());
