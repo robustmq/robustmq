@@ -41,6 +41,13 @@ pub struct AdapterConsumerGroupOffset {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct GroupOffsetShardsDelete {
+    pub tenant: String,
+    pub group_name: String,
+    pub shard_names: Vec<String>,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct AdapterShardOffsetInfo {
     pub shard_name: String,
     pub start_offset: u64,

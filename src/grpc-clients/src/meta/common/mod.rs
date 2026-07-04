@@ -17,12 +17,13 @@ use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
-    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
-    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
-    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteOffsetDataReply, DeleteOffsetDataRequest,
+    DeleteReply, DeleteRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, DeleteShareGroupMemberReply,
+    DeleteShareGroupMemberRequest, DeleteShareGroupReply, DeleteShareGroupRequest,
+    DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply, GetRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
     JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
@@ -137,6 +138,16 @@ impl_retriable_request!(
     get_offset_data,
     "PlacementService",
     "GetOffsetData",
+    true
+);
+
+impl_retriable_request!(
+    DeleteOffsetDataRequest,
+    MetaServiceServiceClient<Channel>,
+    DeleteOffsetDataReply,
+    delete_offset_data,
+    "PlacementService",
+    "DeleteOffsetData",
     true
 );
 

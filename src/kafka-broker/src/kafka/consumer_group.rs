@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::handler::tenant::get_tenant;
 use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::join_group_response::JoinGroupResponseMember;
 use kafka_protocol::messages::offset_commit_response::{
@@ -31,7 +32,6 @@ use kafka_protocol::messages::{
 };
 use kafka_protocol::protocol::StrBytes;
 use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
-use metadata_struct::tenant::DEFAULT_TENANT;
 
 use crate::core::constants::NO_OFFSET;
 use protocol::kafka::packet::KafkaPacket;
@@ -54,7 +54,7 @@ pub async fn process_offset_commit(
         let topic_name = t.name.to_string();
         let topic = sdm
             .broker_cache
-            .get_topic_by_name(DEFAULT_TENANT, &topic_name);
+            .get_topic_by_name(get_tenant(), &topic_name);
 
         let resolved = t
             .partitions
@@ -83,7 +83,7 @@ pub async fn process_offset_commit(
     let commit_error_code = if commit_offsets.is_empty() {
         0
     } else if let Err(e) = sdm
-        .commit_offset(DEFAULT_TENANT, &group_id, &commit_offsets)
+        .commit_offset(get_tenant(), &group_id, &commit_offsets)
         .await
     {
         warn!(
@@ -144,7 +144,7 @@ async fn fetch_group_offsets(
     group_id: &str,
     requested_topics: Option<&[(String, Vec<i32>)]>,
 ) -> (i16, Vec<(String, Vec<FetchedPartition>)>) {
-    let committed = match sdm.get_offset_by_group(DEFAULT_TENANT, group_id).await {
+    let committed = match sdm.get_offset_by_group(get_tenant(), group_id).await {
         Ok(offsets) => offsets,
         Err(e) => {
             warn!(
@@ -177,9 +177,7 @@ async fn fetch_group_offsets(
 
     let mut result = Vec::with_capacity(requested_topics.len());
     for (topic_name, partitions) in requested_topics {
-        let topic = sdm
-            .broker_cache
-            .get_topic_by_name(DEFAULT_TENANT, topic_name);
+        let topic = sdm.broker_cache.get_topic_by_name(get_tenant(), topic_name);
 
         let fetched = partitions
             .iter()

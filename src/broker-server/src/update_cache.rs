@@ -15,6 +15,7 @@
 use broker_core::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
+use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -277,18 +278,23 @@ pub async fn update_cluster_cache_metadata(
             }
         }
 
-        BrokerUpdateCacheResourceType::GroupOffset => {
-            let group: ShareGroup = serialize::deserialize(&record.data)?;
-            match record.action_type() {
-                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {}
-                BrokerUpdateCacheActionType::Delete => {
-                    mqtt_params
-                        .storage_driver_manager
-                        .offset_manager
-                        .remove_group(&group.tenant, &group.group_name);
-                }
+        BrokerUpdateCacheResourceType::GroupOffset => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {}
+            BrokerUpdateCacheActionType::Update => {
+                let del: GroupOffsetShardsDelete = serialize::deserialize(&record.data)?;
+                mqtt_params
+                    .storage_driver_manager
+                    .offset_manager
+                    .remove_shards(&del.tenant, &del.group_name, &del.shard_names);
             }
-        }
+            BrokerUpdateCacheActionType::Delete => {
+                let group: ShareGroup = serialize::deserialize(&record.data)?;
+                mqtt_params
+                    .storage_driver_manager
+                    .offset_manager
+                    .remove_group(&group.tenant, &group.group_name);
+            }
+        },
 
         BrokerUpdateCacheResourceType::ShareGroup => {
             let group: ShareGroup = serialize::deserialize(&record.data)?;

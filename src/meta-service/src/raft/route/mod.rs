@@ -130,6 +130,11 @@ impl DataRoute {
                     .delete_offset_data(storage_data.value.clone())?;
                 Ok(None)
             }
+            StorageDataType::OffsetDeleteShards => {
+                self.route_cluster
+                    .delete_offset_data_shards(storage_data.value.clone())?;
+                Ok(None)
+            }
             StorageDataType::TenantCreate => {
                 self.route_cluster
                     .create_tenant(storage_data.value.clone())?;

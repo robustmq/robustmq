@@ -139,9 +139,7 @@ pub async fn update_topic_partitions_full(
         )));
     }
 
-    // storage_name_list now includes the new partitions; create_storage_resource
-    // is idempotent for shards that already exist, so this only provisions the
-    // newly added ones.
+    // create_storage_resource is idempotent, so this only provisions the new shards.
     let topic = broker_cache
         .get_topic_by_name(tenant, topic_name)
         .ok_or_else(|| {

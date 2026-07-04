@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use crate::handler::tenant::get_tenant;
 use broker_core::cache::NodeCacheManager;
 use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::metadata_response::{
@@ -21,7 +22,6 @@ use kafka_protocol::messages::metadata_response::{
 };
 use kafka_protocol::messages::{MetadataRequest, MetadataResponse, TopicName};
 use kafka_protocol::protocol::StrBytes;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use metadata_struct::topic::Topic;
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
@@ -84,7 +84,7 @@ fn build_topics_from_cache(
 
     if requested.is_empty() {
         return cache
-            .list_topics_by_tenant(DEFAULT_TENANT)
+            .list_topics_by_tenant(get_tenant())
             .into_iter()
             .map(|topic| topic_to_metadata(topic, sdm))
             .collect();
@@ -93,16 +93,14 @@ fn build_topics_from_cache(
     requested
         .iter()
         .filter_map(|t| t.name.clone())
-        .map(
-            |name| match cache.get_topic_by_name(DEFAULT_TENANT, &name) {
-                Some(topic) => topic_to_metadata(topic, sdm),
-                None => MetadataResponseTopic::default()
-                    .with_error_code(ResponseError::UnknownTopicOrPartition.code())
-                    .with_name(Some(name))
-                    .with_is_internal(false)
-                    .with_partitions(vec![]),
-            },
-        )
+        .map(|name| match cache.get_topic_by_name(get_tenant(), &name) {
+            Some(topic) => topic_to_metadata(topic, sdm),
+            None => MetadataResponseTopic::default()
+                .with_error_code(ResponseError::UnknownTopicOrPartition.code())
+                .with_name(Some(name))
+                .with_is_internal(false)
+                .with_partitions(vec![]),
+        })
         .collect()
 }
 

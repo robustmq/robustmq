@@ -59,6 +59,7 @@ pub enum StorageDataType {
     ResourceConfigDelete,
     OffsetSet,
     OffsetDelete,
+    OffsetDeleteShards,
 
     // StorageEngine
     StorageEngineSetShard,
@@ -125,6 +126,7 @@ impl fmt::Display for StorageDataType {
             StorageDataType::ResourceConfigDelete => write!(f, "ResourceConfigDelete"),
             StorageDataType::OffsetSet => write!(f, "OffsetSet"),
             StorageDataType::OffsetDelete => write!(f, "OffsetDelete"),
+            StorageDataType::OffsetDeleteShards => write!(f, "OffsetDeleteShards"),
 
             StorageDataType::StorageEngineSetShard => write!(f, "StorageEngineSetShard"),
             StorageDataType::StorageEngineDeleteShard => write!(f, "StorageEngineDeleteShard"),

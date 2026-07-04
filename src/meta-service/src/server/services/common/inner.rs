@@ -14,7 +14,9 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
-use crate::core::notify::send_notify_by_set_resource_config;
+use crate::core::notify::{
+    send_notify_by_delete_offset_shards, send_notify_by_set_resource_config,
+};
 use crate::raft::manager::MultiRaftManager;
 use crate::raft::route::data::{StorageData, StorageDataType};
 use crate::storage::common::config::ResourceConfigStorage;
@@ -24,11 +26,11 @@ use common_base::utils::serialize::encode_to_bytes;
 use metadata_struct::resource_config::ResourceConfig;
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_common::{
-    ClusterStatusReply, DeleteResourceConfigReply, DeleteResourceConfigRequest, GetOffsetDataReply,
-    GetOffsetDataReplyOffset, GetOffsetDataRequest, GetResourceConfigReply,
-    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
-    SaveOffsetData, SaveOffsetDataReply, SaveOffsetDataRequest, SetResourceConfigReply,
-    SetResourceConfigRequest,
+    ClusterStatusReply, DeleteOffsetDataReply, DeleteOffsetDataRequest, DeleteResourceConfigReply,
+    DeleteResourceConfigRequest, GetOffsetDataReply, GetOffsetDataReplyOffset,
+    GetOffsetDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply,
+    HeartbeatRequest, NodeListReply, NodeListRequest, SaveOffsetData, SaveOffsetDataReply,
+    SaveOffsetDataRequest, SetResourceConfigReply, SetResourceConfigRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::collections::{BTreeMap, HashMap};
@@ -186,4 +188,27 @@ pub async fn get_offset_data_by_req(
         .collect();
 
     Ok(GetOffsetDataReply { offsets })
+}
+
+pub async fn delete_offset_data_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
+    call_manager: &Arc<NodeCallManager>,
+    req: &DeleteOffsetDataRequest,
+) -> Result<DeleteOffsetDataReply, MetaServiceError> {
+    let partition_key = format!("{}/{}", req.tenant, req.group);
+    let data = StorageData::new(StorageDataType::OffsetDeleteShards, encode_to_bytes(req));
+    raft_manager
+        .write_offset(&partition_key, data)
+        .await
+        .map_err(|e| {
+            MetaServiceError::CommonError(format!(
+                "Failed to delete offset shards via raft: tenant={}, group={}, error={}",
+                req.tenant, req.group, e
+            ))
+        })?;
+
+    send_notify_by_delete_offset_shards(call_manager, &req.tenant, &req.group, &req.shard_names)
+        .await?;
+
+    Ok(DeleteOffsetDataReply::default())
 }

@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use crate::handler::tenant::get_tenant;
 use broker_core::topic::TopicStorage;
 use common_config::{broker::broker_config, storage::StorageType};
 use kafka_protocol::error::ResponseError;
@@ -27,7 +28,6 @@ use kafka_protocol::messages::{
     DeleteRecordsRequest, DeleteTopicsRequest, DeleteTopicsResponse, TopicName,
 };
 use kafka_protocol::protocol::StrBytes;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use metadata_struct::topic::{Topic, TopicConfig, TopicSource};
 use uuid::Uuid;
 
@@ -48,9 +48,7 @@ fn topic_error(
         .with_error_code(err.code())
 }
 
-// Kafka's retention.ms is the only config with a direct RobustMQ equivalent
-// (TopicConfig.retention_sec); everything else is silently ignored rather
-// than rejected, since most client-sent configs have no local meaning.
+// Only retention.ms maps to a RobustMQ field; other configs are ignored, not rejected.
 fn apply_supported_configs(
     config: &mut TopicConfig,
     configs: &[kafka_protocol::messages::create_topics_request::CreatableTopicConfig],
@@ -77,7 +75,7 @@ async fn create_one_topic(
 
     if sdm
         .broker_cache
-        .get_topic_by_name(DEFAULT_TENANT, &topic_name)
+        .get_topic_by_name(get_tenant(), &topic_name)
         .is_some()
     {
         return topic_error(creatable.name.clone(), ResponseError::TopicAlreadyExists);
@@ -112,7 +110,7 @@ async fn create_one_topic(
     let mut config = TopicConfig::default();
     apply_supported_configs(&mut config, &creatable.configs);
 
-    let topic = Topic::new(DEFAULT_TENANT, &topic_name, StorageType::EngineSegment)
+    let topic = Topic::new(get_tenant(), &topic_name, StorageType::EngineSegment)
         .with_source(TopicSource::Kafka)
         .with_partition(partition)
         .with_replication(replication)
@@ -164,9 +162,7 @@ fn delete_error(name: Option<TopicName>, err: ResponseError) -> DeletableTopicRe
         .with_error_code(err.code())
 }
 
-// Resolves a delete request's target to a topic_name. `name` takes precedence
-// when present (the common case); `topic_id` is only consulted when no name
-// was given (v6 delete-by-ID).
+// `name` takes precedence; `topic_id` is only consulted when no name was given.
 async fn resolve_topic_name(
     sdm: &Arc<StorageDriverManager>,
     name: Option<&TopicName>,
@@ -179,15 +175,11 @@ async fn resolve_topic_name(
         return None;
     }
 
-    // TODO(perf/correctness): this is an O(topic count) scan, and today it can
-    // never actually match — RobustMQ's Topic.topic_id is an xid-based string
-    // (common_base::uuid::unique_id), not a real UUID, and CreateTopics/Metadata
-    // never hand clients a UUID-formatted topic_id to round-trip here. Revisit
-    // once topic_id has a real UUID representation end-to-end. Delete-by-ID is
-    // rare enough that the scan cost is acceptable in the meantime.
+    // TODO: O(topic count) scan; also never matches today since Topic.topic_id
+    // is an xid string, not a real UUID, and we never hand clients a UUID.
     let id_str = topic_id.to_string();
     sdm.broker_cache
-        .list_topics_by_tenant(DEFAULT_TENANT)
+        .list_topics_by_tenant(get_tenant())
         .into_iter()
         .find(|t| t.topic_id == id_str)
         .map(|t| t.topic_name)
@@ -205,7 +197,7 @@ async fn delete_one_topic(
 
     let Some(topic) = sdm
         .broker_cache
-        .get_topic_by_name(DEFAULT_TENANT, &topic_name)
+        .get_topic_by_name(get_tenant(), &topic_name)
     else {
         return delete_error(response_name, ResponseError::UnknownTopicOrPartition);
     };
@@ -215,10 +207,7 @@ async fn delete_one_topic(
     }
 
     let topic_storage = TopicStorage::new(sdm.engine_storage_handler.client_pool.clone());
-    match topic_storage
-        .delete_topic(DEFAULT_TENANT, &topic_name)
-        .await
-    {
+    match topic_storage.delete_topic(get_tenant(), &topic_name).await {
         Ok(()) => DeletableTopicResult::default()
             .with_name(response_name)
             .with_error_code(0),
@@ -266,7 +255,7 @@ async fn create_partitions_for_topic(
 
     let Some(topic) = sdm
         .broker_cache
-        .get_topic_by_name(DEFAULT_TENANT, &topic_name)
+        .get_topic_by_name(get_tenant(), &topic_name)
     else {
         return partitions_error(t.name.clone(), ResponseError::UnknownTopicOrPartition);
     };
@@ -292,7 +281,7 @@ async fn create_partitions_for_topic(
         &sdm.broker_cache,
         sdm,
         &sdm.engine_storage_handler.client_pool,
-        DEFAULT_TENANT,
+        get_tenant(),
         &topic_name,
         new_partition,
     )

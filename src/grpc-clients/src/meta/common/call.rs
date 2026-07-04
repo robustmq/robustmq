@@ -17,12 +17,13 @@ use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
-    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
-    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
-    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteOffsetDataReply, DeleteOffsetDataRequest,
+    DeleteReply, DeleteRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, DeleteShareGroupMemberReply,
+    DeleteShareGroupMemberRequest, DeleteShareGroupReply, DeleteShareGroupRequest,
+    DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply, GetRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
     JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
@@ -174,6 +175,13 @@ generate_meta_service_call!(
     GetOffsetDataRequest,
     GetOffsetDataReply,
     GetOffsetData
+);
+
+generate_meta_service_call!(
+    delete_offset_data,
+    DeleteOffsetDataRequest,
+    DeleteOffsetDataReply,
+    DeleteOffsetData
 );
 
 generate_meta_service_call!(kv_set, SetRequest, SetReply, Set);

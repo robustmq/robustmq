@@ -18,9 +18,12 @@ use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration,
 };
 use dashmap::DashMap;
-use grpc_clients::{meta::common::call::get_offset_data, pool::ClientPool};
+use grpc_clients::{
+    meta::common::call::{delete_offset_data, get_offset_data},
+    pool::ClientPool,
+};
 use metadata_struct::adapter::adapter_offset::{AdapterCommitOffset, AdapterConsumerGroupOffset};
-use protocol::meta::meta_service_common::GetOffsetDataRequest;
+use protocol::meta::meta_service_common::{DeleteOffsetDataRequest, GetOffsetDataRequest};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
@@ -177,6 +180,37 @@ impl OffsetManager {
     pub fn remove_group(&self, tenant: &str, group_name: &str) {
         let key = self.key(tenant, group_name);
         self.offset_info.remove(&key);
+    }
+
+    /// Local-only counterpart to `remove_group`: drops just the given shards.
+    pub fn remove_shards(&self, tenant: &str, group_name: &str, shard_names: &[String]) {
+        let key = self.key(tenant, group_name);
+        if let Some(mut data) = self.offset_info.get_mut(&key) {
+            for shard_name in shard_names {
+                data.remove(shard_name);
+            }
+        }
+    }
+
+    /// Deletes committed offsets for the given shards via meta-service, and
+    /// clears them locally too so a same-node read can't race ahead of the
+    /// cache-invalidation push meta-service sends to every node.
+    pub async fn delete_offset(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        shard_names: &[String],
+    ) -> Result<(), CommonError> {
+        let request = DeleteOffsetDataRequest {
+            tenant: tenant.to_owned(),
+            group: group_name.to_owned(),
+            shard_names: shard_names.to_vec(),
+        };
+        let config = broker_config();
+        delete_offset_data(&self.client_pool, &config.get_meta_service_addr(), request).await?;
+
+        self.remove_shards(tenant, group_name, shard_names);
+        Ok(())
     }
 
     pub(crate) fn key(&self, tenant: &str, group_name: &str) -> String {

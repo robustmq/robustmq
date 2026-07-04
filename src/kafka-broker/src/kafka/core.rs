@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::handler::tenant::get_tenant;
 use dashmap::DashMap;
 use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::fetch_response::{FetchableTopicResponse, PartitionData};
@@ -28,7 +29,6 @@ use kafka_protocol::records::{
 use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
-use metadata_struct::tenant::DEFAULT_TENANT;
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
@@ -63,7 +63,7 @@ pub async fn process_fetch(
             .unwrap_or_default();
 
         let records_bytes = match sdm
-            .read_by_offset(DEFAULT_TENANT, &topic_name, &offsets, &read_config)
+            .read_by_offset(get_tenant(), &topic_name, &offsets, &read_config)
             .await
         {
             Ok(records) if records.is_empty() => None,
@@ -146,7 +146,7 @@ pub async fn process_list_offsets(
         let topic_name = topic_req.name.to_string();
 
         let details: HashMap<u32, AdapterShardDetail> =
-            match sdm.list_storage_resource(DEFAULT_TENANT, &topic_name).await {
+            match sdm.list_storage_resource(get_tenant(), &topic_name).await {
                 Ok(details) => details,
                 Err(e) => {
                     warn!("Kafka ListOffsets storage error for {}: {}", topic_name, e);
@@ -181,7 +181,7 @@ pub async fn process_list_offsets(
             }
             let offsets = sdm
                 .get_offset_by_timestamp(
-                    DEFAULT_TENANT,
+                    get_tenant(),
                     &topic_name,
                     ts as u64,
                     AdapterOffsetStrategy::Earliest,

@@ -14,6 +14,7 @@
 
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
+use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -596,6 +597,28 @@ pub async fn send_notify_by_delete_group_offset(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::GroupOffset,
         serialize::serialize(&group)?,
+    )
+    .await
+}
+
+// Selective counterpart to `send_notify_by_delete_group_offset`; uses the
+// Update action to avoid colliding with Delete's whole-group-wipe handling.
+pub async fn send_notify_by_delete_offset_shards(
+    call_manager: &Arc<NodeCallManager>,
+    tenant: &str,
+    group_name: &str,
+    shard_names: &[String],
+) -> Result<(), MetaServiceError> {
+    let payload = GroupOffsetShardsDelete {
+        tenant: tenant.to_string(),
+        group_name: group_name.to_string(),
+        shard_names: shard_names.to_vec(),
+    };
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::GroupOffset,
+        serialize::serialize(&payload)?,
     )
     .await
 }

@@ -20,9 +20,9 @@ use crate::raft::services::{
     append_by_req, join_cluster_by_req, leave_cluster_by_req, snapshot_by_req, vote_by_req,
 };
 use crate::server::services::common::inner::{
-    cluster_status_by_req, delete_resource_config_by_req, get_offset_data_by_req,
-    get_resource_config_by_req, heartbeat_by_req, node_list_by_req, save_offset_data_by_req,
-    set_resource_config_by_req,
+    cluster_status_by_req, delete_offset_data_by_req, delete_resource_config_by_req,
+    get_offset_data_by_req, get_resource_config_by_req, heartbeat_by_req, node_list_by_req,
+    save_offset_data_by_req, set_resource_config_by_req,
 };
 use crate::server::services::common::kv::{
     delete_by_req, exists_by_req, get_by_req, get_prefix_by_req, set_by_req,
@@ -47,12 +47,13 @@ use protocol::meta::meta_service_common::{
     AddShareGroupMemberReply, AddShareGroupMemberRequest, AppendReply, AppendRequest,
     BindSchemaReply, BindSchemaRequest, ClusterStatusReply, ClusterStatusRequest,
     CreateSchemaReply, CreateSchemaRequest, CreateShareGroupReply, CreateShareGroupRequest,
-    CreateTenantReply, CreateTenantRequest, DeleteReply, DeleteRequest, DeleteResourceConfigReply,
-    DeleteResourceConfigRequest, DeleteSchemaReply, DeleteSchemaRequest,
-    DeleteShareGroupMemberReply, DeleteShareGroupMemberRequest, DeleteShareGroupReply,
-    DeleteShareGroupRequest, DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest,
-    GetOffsetDataReply, GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply,
-    GetRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
+    CreateTenantReply, CreateTenantRequest, DeleteOffsetDataReply, DeleteOffsetDataRequest,
+    DeleteReply, DeleteRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    DeleteSchemaReply, DeleteSchemaRequest, DeleteShareGroupMemberReply,
+    DeleteShareGroupMemberRequest, DeleteShareGroupReply, DeleteShareGroupRequest,
+    DeleteTenantReply, DeleteTenantRequest, ExistsReply, ExistsRequest, GetOffsetDataReply,
+    GetOffsetDataRequest, GetPrefixReply, GetPrefixRequest, GetReply, GetRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest,
     JoinClusterReply, JoinClusterRequest, LeaveClusterReply, LeaveClusterRequest,
     ListBindSchemaReply, ListBindSchemaRequest, ListSchemaReply, ListSchemaRequest,
     ListShareGroupMemberReply, ListShareGroupMemberRequest, ListShareGroupReply,
@@ -281,6 +282,19 @@ impl MetaServiceService for GrpcPlacementService {
         self.validate_request(&req)?;
 
         get_offset_data_by_req(&self.rocksdb_engine_handler, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
+    }
+
+    async fn delete_offset_data(
+        &self,
+        request: Request<DeleteOffsetDataRequest>,
+    ) -> Result<Response<DeleteOffsetDataReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        delete_offset_data_by_req(&self.raft_manager, &self.mqtt_call_manager, &req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)
