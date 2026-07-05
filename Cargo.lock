@@ -5767,6 +5767,7 @@ name = "kafka-broker"
 version = "0.4.7"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "broker-core",
  "bytes",
  "common-base",
@@ -5779,6 +5780,7 @@ dependencies = [
  "kafka-protocol",
  "metadata-struct",
  "network-server",
+ "pbkdf2 0.12.2",
  "protocol",
  "rand 0.8.6",
  "rate-limit",

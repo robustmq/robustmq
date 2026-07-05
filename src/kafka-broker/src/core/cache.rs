@@ -18,6 +18,8 @@ use kafka_protocol::error::ResponseError;
 use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
 use metadata_struct::kafka::quota::{KafkaClientQuota, QUOTA_DEFAULT_NAME};
 use metadata_struct::kafka::scram::KafkaScramCredential;
+
+use crate::core::sasl::SaslSession;
 use tokio::sync::oneshot;
 
 use crate::core::assignor::TopicMeta;
@@ -48,6 +50,8 @@ pub struct KafkaCacheManager {
     delegation_tokens: DashMap<String, KafkaDelegationToken>,
     // SCRAM credentials, keyed by "{user}/{mechanism}".
     scram_credentials: DashMap<String, KafkaScramCredential>,
+    // Per-connection SASL state, keyed by connection id.
+    sasl_sessions: DashMap<u64, SaslSession>,
 }
 
 impl KafkaCacheManager {
@@ -58,7 +62,27 @@ impl KafkaCacheManager {
             quotas: DashMap::with_capacity(8),
             delegation_tokens: DashMap::with_capacity(8),
             scram_credentials: DashMap::with_capacity(8),
+            sasl_sessions: DashMap::with_capacity(8),
         }
+    }
+
+    pub fn set_sasl_session(&self, connection_id: u64, session: SaslSession) {
+        self.sasl_sessions.insert(connection_id, session);
+    }
+
+    pub fn get_sasl_session(&self, connection_id: u64) -> Option<SaslSession> {
+        self.sasl_sessions.get(&connection_id).map(|s| s.clone())
+    }
+
+    pub fn remove_sasl_session(&self, connection_id: u64) {
+        self.sasl_sessions.remove(&connection_id);
+    }
+
+    pub fn is_sasl_authenticated(&self, connection_id: u64) -> bool {
+        matches!(
+            self.sasl_sessions.get(&connection_id).as_deref(),
+            Some(SaslSession::Authenticated { .. })
+        )
     }
 
     pub fn set_quota(&self, quota: KafkaClientQuota) {

@@ -26,4 +26,5 @@ pub mod group_meta;
 pub mod heartbeat;
 pub mod join;
 pub mod leave;
+pub mod sasl;
 pub mod sync;

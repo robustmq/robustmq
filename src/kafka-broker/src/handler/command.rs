@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
+use common_config::broker::broker_config;
 use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -38,6 +39,7 @@ use crate::kafka::{
 pub struct KafkaHandlerCommand {
     storage_driver_manager: Arc<StorageDriverManager>,
     broker_cache: Arc<NodeCacheManager>,
+    kafka_cache: Arc<KafkaCacheManager>,
     group_coordinator: Arc<GroupCoordinator>,
 }
 
@@ -50,6 +52,7 @@ impl KafkaHandlerCommand {
         KafkaHandlerCommand {
             storage_driver_manager,
             broker_cache,
+            kafka_cache: kafka_cache.clone(),
             group_coordinator: Arc::new(GroupCoordinator::new(kafka_cache)),
         }
     }
@@ -70,6 +73,21 @@ impl Command for KafkaHandlerCommand {
             KafkaHeader::Request(h) => h.correlation_id,
             KafkaHeader::Response(_) => return None,
         };
+
+        // When SASL is enabled, an unauthenticated connection may only negotiate
+        // versions or run the SASL handshake; any other request is dropped until
+        // the connection authenticates.
+        let sasl = &broker_config().kafka_runtime.sasl;
+        if sasl.enabled
+            && !self.kafka_cache.is_sasl_authenticated(connection_id)
+            && !is_preauth_allowed(&wrapper.packet)
+        {
+            warn!(
+                "Kafka request rejected on connection {}: SASL authentication required",
+                connection_id
+            );
+            return None;
+        }
 
         let resp_packet = match &wrapper.packet {
             // Core Data Plane
@@ -161,9 +179,13 @@ impl Command for KafkaHandlerCommand {
                 offset::process_offset_delete(&self.storage_driver_manager, req).await
             }
             // Connection & Authentication
-            KafkaPacket::SaslHandshakeReq(req) => auth::process_sasl_handshake(req),
+            KafkaPacket::SaslHandshakeReq(req) => {
+                auth::process_sasl_handshake(&self.kafka_cache, connection_id, req)
+            }
             KafkaPacket::ApiVersionReq(_) => api_versions::process_api_versions(),
-            KafkaPacket::SaslAuthenticateReq(req) => auth::process_sasl_authenticate(req),
+            KafkaPacket::SaslAuthenticateReq(req) => {
+                auth::process_sasl_authenticate(&self.kafka_cache, connection_id, req)
+            }
             // Topic / Partition Management
             KafkaPacket::CreateTopicsReq(req) => {
                 topic::process_create_topics(&self.storage_driver_manager, req).await
@@ -340,6 +362,16 @@ impl Command for KafkaHandlerCommand {
             RobustMQPacket::KAFKA(resp_wrapper),
         ))
     }
+}
+
+// Requests an unauthenticated connection may send while SASL is enabled.
+fn is_preauth_allowed(packet: &KafkaPacket) -> bool {
+    matches!(
+        packet,
+        KafkaPacket::ApiVersionReq(_)
+            | KafkaPacket::SaslHandshakeReq(_)
+            | KafkaPacket::SaslAuthenticateReq(_)
+    )
 }
 
 pub fn create_command(

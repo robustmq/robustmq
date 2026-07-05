@@ -49,7 +49,9 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         v(ApiKey::ConsumerGroupHeartbeat, 0, 1),
         v(ApiKey::ConsumerGroupDescribe, 0, 1),
         // ── Auth ─────────────────────────────────────────────────────────
-        v(ApiKey::SaslHandshake, 0, 1),
+        // Only v1 handshake is offered: v0 carried SASL tokens as raw bytes
+        // outside the Kafka framing, which our network layer cannot parse.
+        v(ApiKey::SaslHandshake, 1, 1),
         v(ApiKey::SaslAuthenticate, 0, 2),
         // ── API negotiation ───────────────────────────────────────────────
         v(ApiKey::ApiVersions, 0, 4),
