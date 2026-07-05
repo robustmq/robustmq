@@ -19,12 +19,21 @@ use broker_core::share_group::ShareGroupStorage;
 use broker_core::tenant::TenantStorage;
 use broker_core::topic::TopicStorage;
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use common_security::storage::acl::AclStorage;
 use common_security::storage::blacklist::BlackListStorage;
 use common_security::storage::user::UserStorage;
 use connector::manager::ConnectorManager;
+use grpc_clients::meta::kafka::call::{
+    list_kafka_delegation_token, list_kafka_quota, list_scram_credential,
+};
 use grpc_clients::pool::ClientPool;
+use kafka_broker::core::cache::KafkaCacheManager;
+use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
+use metadata_struct::kafka::quota::KafkaClientQuota;
+use metadata_struct::kafka::scram::KafkaScramCredential;
+use metadata_struct::tenant::DEFAULT_TENANT;
 use mqtt_broker::core::cache::MQTTCacheManager;
 use mqtt_broker::core::error::MqttBrokerError;
 use mqtt_broker::core::tool::ResultMqttBrokerError;
@@ -37,6 +46,9 @@ use nats_broker::push::NatsSubscribeManager;
 use nats_broker::storage::agent::Mq9AgentStorage;
 use nats_broker::storage::mail::Mq9MailStorage;
 use nats_broker::storage::subscribe::NatsSubscribeStorage;
+use protocol::meta::meta_service_kafka::{
+    ListKafkaDelegationTokenRequest, ListKafkaQuotaRequest, ListScramCredentialRequest,
+};
 use schema_register::schema::SchemaRegisterManager;
 use std::sync::Arc;
 use storage_engine::core::cache::StorageCacheManager;
@@ -45,6 +57,7 @@ use storage_engine::core::segment::{list_segment_metas, list_segments};
 use storage_engine::core::shard::list_shards;
 use tracing::info;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn load_metadata_cache(
     mqtt_cache_manager: &Arc<MQTTCacheManager>,
     nats_subscribe_manager: &Arc<NatsSubscribeManager>,
@@ -53,6 +66,7 @@ pub async fn load_metadata_cache(
     connector_manager: &Arc<ConnectorManager>,
     schema_manager: &Arc<SchemaRegisterManager>,
     security_manager: &Arc<SecurityManager>,
+    kafka_cache: &Arc<KafkaCacheManager>,
 ) -> ResultMqttBrokerError {
     info!("Starting to load metadata cache...");
     load_common_cache(
@@ -65,6 +79,59 @@ pub async fn load_metadata_cache(
 
     load_mqtt_cache(mqtt_cache_manager, security_manager, client_pool).await?;
     load_nats_cache(nats_subscribe_manager, nats_cache_manager, client_pool).await?;
+    load_kafka_cache(kafka_cache, client_pool).await?;
+    Ok(())
+}
+
+async fn load_kafka_cache(
+    kafka_cache: &Arc<KafkaCacheManager>,
+    client_pool: &Arc<ClientPool>,
+) -> ResultMqttBrokerError {
+    let conf = broker_config();
+    let reply = list_kafka_quota(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        ListKafkaQuotaRequest {
+            tenant: DEFAULT_TENANT.to_string(),
+        },
+    )
+    .await
+    .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+    for raw in reply.quotas {
+        let quota = KafkaClientQuota::decode(&raw)
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        kafka_cache.set_quota(quota);
+    }
+
+    let reply = list_kafka_delegation_token(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        ListKafkaDelegationTokenRequest {
+            tenant: DEFAULT_TENANT.to_string(),
+        },
+    )
+    .await
+    .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+    for raw in reply.tokens {
+        let token = KafkaDelegationToken::decode(&raw)
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        kafka_cache.set_delegation_token(token);
+    }
+
+    let reply = list_scram_credential(
+        client_pool,
+        &conf.get_meta_service_addr(),
+        ListScramCredentialRequest {
+            tenant: DEFAULT_TENANT.to_string(),
+        },
+    )
+    .await
+    .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+    for raw in reply.credentials {
+        let credential = KafkaScramCredential::decode(&raw)
+            .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+        kafka_cache.set_scram_credential(credential);
+    }
     Ok(())
 }
 

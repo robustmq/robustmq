@@ -30,8 +30,8 @@ use crate::core::cache::KafkaCacheManager;
 use crate::core::coordinator::GroupCoordinator;
 use crate::kafka::{
     acl, admin, api_versions, auth, config, consumer_group, consumer_group_next,
-    consumer_group_offset, delegation_token, fetch, metadata, offset, produce, quota, share_group,
-    telemetry, topic, transaction,
+    consumer_group_offset, delegation_token, fetch, metadata, offset, produce, quota, scram,
+    share_group, telemetry, topic, transaction,
 };
 
 #[derive(Clone)]
@@ -45,11 +45,12 @@ impl KafkaHandlerCommand {
     pub fn new(
         storage_driver_manager: Arc<StorageDriverManager>,
         broker_cache: Arc<NodeCacheManager>,
+        kafka_cache: Arc<KafkaCacheManager>,
     ) -> Self {
         KafkaHandlerCommand {
             storage_driver_manager,
             broker_cache,
-            group_coordinator: Arc::new(GroupCoordinator::new(Arc::new(KafkaCacheManager::new()))),
+            group_coordinator: Arc::new(GroupCoordinator::new(kafka_cache)),
         }
     }
 }
@@ -209,26 +210,38 @@ impl Command for KafkaHandlerCommand {
                 acl::process_delete_acls(&self.storage_driver_manager, req).await
             }
             // Quota Management
-            KafkaPacket::DescribeClientQuotasReq(req) => quota::process_describe_client_quotas(req),
-            KafkaPacket::AlterClientQuotasReq(req) => quota::process_alter_client_quotas(req),
+            KafkaPacket::DescribeClientQuotasReq(req) => {
+                quota::process_describe_client_quotas(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::AlterClientQuotasReq(req) => {
+                quota::process_alter_client_quotas(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::DescribeUserScramCredentialsReq(req) => {
-                quota::process_describe_user_scram_credentials(req)
+                scram::process_describe_user_scram_credentials(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::AlterUserScramCredentialsReq(req) => {
-                quota::process_alter_user_scram_credentials(req)
+                scram::process_alter_user_scram_credentials(&self.storage_driver_manager, req).await
             }
             // Delegation Token Authentication
             KafkaPacket::CreateDelegationTokenReq(req) => {
-                delegation_token::process_create_delegation_token(req)
+                delegation_token::process_create_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::RenewDelegationTokenReq(req) => {
-                delegation_token::process_renew_delegation_token(req)
+                delegation_token::process_renew_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::ExpireDelegationTokenReq(req) => {
-                delegation_token::process_expire_delegation_token(req)
+                delegation_token::process_expire_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::DescribeDelegationTokenReq(req) => {
-                delegation_token::process_describe_delegation_token(req)
+                delegation_token::process_describe_delegation_token(
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
             }
             // Client Telemetry
             KafkaPacket::GetTelemetrySubscriptionsReq(req) => {
@@ -332,9 +345,11 @@ impl Command for KafkaHandlerCommand {
 pub fn create_command(
     storage_driver_manager: Arc<StorageDriverManager>,
     broker_cache: Arc<NodeCacheManager>,
+    kafka_cache: Arc<KafkaCacheManager>,
 ) -> Arc<Box<dyn Command + Send + Sync>> {
     Arc::new(Box::new(KafkaHandlerCommand::new(
         storage_driver_manager,
         broker_cache,
+        kafka_cache,
     )))
 }

@@ -19,6 +19,7 @@ use common_base::role::is_meta_node;
 use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
+use kafka_broker::core::cache::KafkaCacheManager;
 use meta_service::server::service_common::GrpcPlacementService;
 use meta_service::server::service_engine::GrpcEngineService;
 use meta_service::server::service_kafka::GrpcKafkaService;
@@ -36,6 +37,7 @@ use protocol::meta::meta_service_mq9::mq9_service_server::Mq9ServiceServer;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::meta::meta_service_nats::nats_service_server::NatsServiceServer;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use storage_engine::StorageEngineParams;
@@ -50,6 +52,7 @@ pub async fn start_grpc_server(
     mqtt_params: MqttBrokerServerParams,
     nats_params: NatsBrokerServerParams,
     engine_params: StorageEngineParams,
+    kafka_cache: Arc<KafkaCacheManager>,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -73,6 +76,7 @@ pub async fn start_grpc_server(
                 mqtt_params.clone(),
                 nats_params.clone(),
                 engine_params.clone(),
+                kafka_cache,
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),
         );
@@ -148,7 +152,11 @@ fn get_place_mq9_handler(place_params: &MetaServiceServerParams) -> GrpcMq9Servi
 }
 
 fn get_place_kafka_handler(place_params: &MetaServiceServerParams) -> GrpcKafkaService {
-    GrpcKafkaService::new(place_params.raft_manager.clone())
+    GrpcKafkaService::new(
+        place_params.raft_manager.clone(),
+        place_params.rocksdb_engine_handler.clone(),
+        place_params.node_call_manager.clone(),
+    )
 }
 
 fn get_place_engine_handler(place_params: &MetaServiceServerParams) -> GrpcEngineService {

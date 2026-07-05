@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::update_cache::update_cache;
+use kafka_broker::core::cache::KafkaCacheManager;
 use metadata_struct::storage::record::StorageRecord;
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
@@ -39,6 +40,7 @@ pub struct GrpcBrokerService {
     mqtt_params: MqttBrokerServerParams,
     nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
+    kafka_cache: Arc<KafkaCacheManager>,
 }
 
 impl GrpcBrokerService {
@@ -46,11 +48,13 @@ impl GrpcBrokerService {
         mqtt_params: MqttBrokerServerParams,
         nats_params: NatsBrokerServerParams,
         storage_params: StorageEngineParams,
+        kafka_cache: Arc<KafkaCacheManager>,
     ) -> Self {
         GrpcBrokerService {
             mqtt_params,
             nats_params,
             storage_params,
+            kafka_cache,
         }
     }
 }
@@ -67,6 +71,7 @@ impl BrokerService for GrpcBrokerService {
                 &self.mqtt_params,
                 &self.nats_params,
                 &self.storage_params,
+                &self.kafka_cache,
                 record,
             )
             .await

@@ -12,22 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod acl;
-pub mod admin;
-pub mod api_versions;
-pub mod auth;
-pub mod config;
-pub mod consumer_group;
-pub mod consumer_group_next;
-pub mod consumer_group_offset;
 pub mod delegation_token;
-pub mod fetch;
-pub mod metadata;
-pub mod offset;
-pub mod produce;
 pub mod quota;
 pub mod scram;
-pub mod share_group;
-pub mod telemetry;
-pub mod topic;
-pub mod transaction;

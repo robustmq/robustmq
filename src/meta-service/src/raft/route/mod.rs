@@ -16,6 +16,7 @@ use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
+use crate::raft::route::kafka::DataRouteKafka;
 use crate::raft::route::kv::DataRouteKv;
 use crate::raft::route::mq9::DataRouteMq9;
 use crate::raft::route::mqtt::DataRouteMqtt;
@@ -31,6 +32,7 @@ use std::sync::Arc;
 pub mod common;
 pub mod data;
 pub mod engine;
+pub mod kafka;
 pub mod kv;
 pub mod mq9;
 pub mod mqtt;
@@ -49,6 +51,7 @@ pub struct DataRoute {
     route_nats: DataRouteNats,
     route_journal: DataRouteJournal,
     route_cluster: DataRouteCluster,
+    route_kafka: DataRouteKafka,
 }
 
 impl DataRoute {
@@ -70,6 +73,7 @@ impl DataRoute {
         let route_nats = DataRouteNats::new(rocksdb_engine_handler.clone());
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
+        let route_kafka = DataRouteKafka::new(rocksdb_engine_handler.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
@@ -78,6 +82,7 @@ impl DataRoute {
             route_nats,
             route_journal,
             route_cluster,
+            route_kafka,
         }
     }
 
@@ -133,6 +138,34 @@ impl DataRoute {
             StorageDataType::OffsetDeleteShards => {
                 self.route_cluster
                     .delete_offset_data_shards(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaSetQuota => {
+                self.route_kafka.set_quota(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaDeleteQuota => {
+                self.route_kafka.delete_quota(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaSetScram => {
+                self.route_kafka
+                    .set_scram_credential(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaDeleteScram => {
+                self.route_kafka
+                    .delete_scram_credential(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaSetDelegationToken => {
+                self.route_kafka
+                    .set_delegation_token(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::KafkaDeleteDelegationToken => {
+                self.route_kafka
+                    .delete_delegation_token(storage_data.value.clone())?;
                 Ok(None)
             }
             StorageDataType::TenantCreate => {

@@ -342,6 +342,7 @@ impl BrokerServer {
             broker_runtime,
         );
 
+        let kafka_cache = Arc::new(kafka_broker::core::cache::KafkaCacheManager::new());
         let kafka_params = kafka::build_kafka_params(kafka::KafkaBuildParams {
             connection_manager: base.connection_manager.clone(),
             client_pool: base.client_pool.clone(),
@@ -351,6 +352,7 @@ impl BrokerServer {
             stop_sx: main_stop_send.clone(),
             shared_request_channel: shared_request_channel.clone(),
             storage_driver_manager: storage_driver_manager.clone(),
+            kafka_cache,
         });
         let amqp_params = amqp::build_amqp_params(amqp::AmqpBuildParams {
             connection_manager: base.connection_manager.clone(),
@@ -517,6 +519,7 @@ impl BrokerServer {
         let kafka_cmd = Some(kafka_broker::handler::command::create_command(
             self.kafka_params.storage_driver_manager.clone(),
             self.broker_cache.clone(),
+            self.kafka_params.kafka_cache.clone(),
         ));
         let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
             self.connection_manager.clone(),

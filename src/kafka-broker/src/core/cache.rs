@@ -15,6 +15,9 @@
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use kafka_protocol::error::ResponseError;
+use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
+use metadata_struct::kafka::quota::{KafkaClientQuota, QUOTA_DEFAULT_NAME};
+use metadata_struct::kafka::scram::KafkaScramCredential;
 use tokio::sync::oneshot;
 
 use crate::core::assignor::TopicMeta;
@@ -38,6 +41,13 @@ pub struct KafkaCacheManager {
     groups: DashMap<String, GroupMeta>,
     // KIP-848 consumer groups; a group id belongs to exactly one protocol.
     consumer_groups: DashMap<String, ConsumerGroupMeta>,
+    // Client quotas, keyed by entity_key ("{entity_type}/{name|__default__}").
+    quotas: DashMap<String, KafkaClientQuota>,
+    // Delegation tokens (KIP-48), keyed by token_id. Metadata only — nothing
+    // here verifies a token's `hmac`; see `KafkaDelegationToken`'s doc comment.
+    delegation_tokens: DashMap<String, KafkaDelegationToken>,
+    // SCRAM credentials, keyed by "{user}/{mechanism}".
+    scram_credentials: DashMap<String, KafkaScramCredential>,
 }
 
 impl KafkaCacheManager {
@@ -45,7 +55,65 @@ impl KafkaCacheManager {
         KafkaCacheManager {
             groups: DashMap::with_capacity(8),
             consumer_groups: DashMap::with_capacity(8),
+            quotas: DashMap::with_capacity(8),
+            delegation_tokens: DashMap::with_capacity(8),
+            scram_credentials: DashMap::with_capacity(8),
         }
+    }
+
+    pub fn set_quota(&self, quota: KafkaClientQuota) {
+        self.quotas.insert(quota.entity_key(), quota);
+    }
+
+    pub fn remove_quota(&self, entity_key: &str) {
+        self.quotas.remove(entity_key);
+    }
+
+    // Effective quota for an entity: the specific entry, else the type default.
+    pub fn get_quota(&self, entity_type: &str, name: &str) -> Option<KafkaClientQuota> {
+        if let Some(q) = self.quotas.get(&format!("{}/{}", entity_type, name)) {
+            return Some(q.clone());
+        }
+        self.quotas
+            .get(&format!("{}/{}", entity_type, QUOTA_DEFAULT_NAME))
+            .map(|q| q.clone())
+    }
+
+    pub fn set_scram_credential(&self, credential: KafkaScramCredential) {
+        self.scram_credentials
+            .insert(credential.entity_key(), credential);
+    }
+
+    pub fn remove_scram_credential(&self, entity_key: &str) {
+        self.scram_credentials.remove(entity_key);
+    }
+
+    pub fn get_scram_credential(&self, user: &str, mechanism: i8) -> Option<KafkaScramCredential> {
+        self.scram_credentials
+            .get(&format!("{}/{}", user, mechanism))
+            .map(|c| c.clone())
+    }
+
+    pub fn set_delegation_token(&self, token: KafkaDelegationToken) {
+        self.delegation_tokens.insert(token.token_id.clone(), token);
+    }
+
+    pub fn remove_delegation_token(&self, token_id: &str) {
+        self.delegation_tokens.remove(token_id);
+    }
+
+    // Not called yet — `kafka::delegation_token`'s Create/Renew/Expire/Describe
+    // handlers all read from meta-service directly today, not this cache.
+    // This is the lookup shape SASL delegation-token auth will need (a fast
+    // local check against the presented `hmac` on every connection attempt,
+    // where a meta-service round trip per connection would be too slow) —
+    // kept here now because the cache is already being populated via notify
+    // regardless, so the read side is what's actually missing.
+    pub fn find_delegation_token_by_hmac(&self, hmac: &[u8]) -> Option<KafkaDelegationToken> {
+        self.delegation_tokens
+            .iter()
+            .find(|entry| entry.value().hmac == hmac)
+            .map(|entry| entry.value().clone())
     }
 
     pub fn has_consumer_group(&self, group_id: &str) -> bool {

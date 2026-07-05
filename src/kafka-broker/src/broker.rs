@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::KafkaCacheManager;
 use crate::server::{KafkaServer, KafkaServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
@@ -35,6 +36,7 @@ pub struct KafkaBrokerServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub kafka_cache: Arc<KafkaCacheManager>,
 }
 
 pub struct KafkaBrokerServer {

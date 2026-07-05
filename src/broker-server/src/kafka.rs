@@ -16,6 +16,7 @@ use broker_core::cache::NodeCacheManager;
 use common_base::{role::is_broker_node, task::TaskSupervisor};
 use grpc_clients::pool::ClientPool;
 use kafka_broker::broker::{KafkaBrokerServer, KafkaBrokerServerParams};
+use kafka_broker::core::cache::KafkaCacheManager;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -34,6 +35,7 @@ pub struct KafkaBuildParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub shared_request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub kafka_cache: Arc<KafkaCacheManager>,
 }
 
 pub fn build_kafka_params(p: KafkaBuildParams) -> KafkaBrokerServerParams {
@@ -46,6 +48,7 @@ pub fn build_kafka_params(p: KafkaBuildParams) -> KafkaBrokerServerParams {
         stop_sx: p.stop_sx,
         request_channel: p.shared_request_channel,
         storage_driver_manager: p.storage_driver_manager,
+        kafka_cache: p.kafka_cache,
     }
 }
 

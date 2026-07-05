@@ -30,6 +30,7 @@ impl BrokerServer {
         let mqtt_params = self.mqtt_params.clone();
         let nats_params = self.nats_params.clone();
         let engine_params = self.engine_params.clone();
+        let kafka_cache = self.kafka_params.kafka_cache.clone();
         let grpc_port = self.config.grpc_port;
         self.server_runtime.spawn(Box::pin(async move {
             if let Err(e) = start_grpc_server(
@@ -37,6 +38,7 @@ impl BrokerServer {
                 mqtt_params,
                 nats_params,
                 engine_params,
+                kafka_cache,
                 grpc_port,
             )
             .await
@@ -127,6 +129,7 @@ impl BrokerServer {
         let connector_manager = self.mqtt_params.connector_manager.clone();
         let schema_manager = self.mqtt_params.schema_manager.clone();
         let security_manager = self.mqtt_params.security_manager.clone();
+        let kafka_cache = self.kafka_params.kafka_cache.clone();
         self.server_runtime.block_on(async {
             if let Err(e) = crate::load_cache::load_metadata_cache(
                 &mqtt_cache_manager,
@@ -136,6 +139,7 @@ impl BrokerServer {
                 &connector_manager,
                 &schema_manager,
                 &security_manager,
+                &kafka_cache,
             )
             .await
             {

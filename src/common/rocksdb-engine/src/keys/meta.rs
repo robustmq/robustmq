@@ -430,3 +430,45 @@ pub fn storage_key_cluster_delete_topic(topic_id: &str) -> String {
 pub fn storage_key_cluster_delete_topic_prefix() -> String {
     format!("{}cluster/delete-topic/", PREFIX_META)
 }
+
+// Kafka: client quotas.
+#[inline]
+pub fn storage_key_kafka_quota(tenant: &str, entity_type: &str, name_key: &str) -> String {
+    format!(
+        "{}kafka/quota/{}/{}/{}",
+        PREFIX_META, tenant, entity_type, name_key
+    )
+}
+
+#[inline]
+pub fn storage_key_kafka_quota_tenant_prefix(tenant: &str) -> String {
+    format!("{}kafka/quota/{}/", PREFIX_META, tenant)
+}
+
+// Kafka: delegation tokens.
+#[inline]
+pub fn storage_key_kafka_delegation_token(tenant: &str, token_id: &str) -> String {
+    format!(
+        "{}kafka/delegation_token/{}/{}",
+        PREFIX_META, tenant, token_id
+    )
+}
+
+#[inline]
+pub fn storage_key_kafka_delegation_token_tenant_prefix(tenant: &str) -> String {
+    format!("{}kafka/delegation_token/{}/", PREFIX_META, tenant)
+}
+
+// Kafka: SCRAM credentials.
+#[inline]
+pub fn storage_key_kafka_scram(tenant: &str, user: &str, mechanism: i8) -> String {
+    format!(
+        "{}kafka/scram/{}/{}/{}",
+        PREFIX_META, tenant, user, mechanism
+    )
+}
+
+#[inline]
+pub fn storage_key_kafka_scram_tenant_prefix(tenant: &str) -> String {
+    format!("{}kafka/scram/{}/", PREFIX_META, tenant)
+}

@@ -19,6 +19,9 @@ use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
+use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
+use metadata_struct::kafka::quota::KafkaClientQuota;
+use metadata_struct::kafka::scram::KafkaScramCredential;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mq9::agent::MQ9Agent;
 use metadata_struct::mq9::mail::MQ9Mail;
@@ -345,6 +348,87 @@ pub async fn send_notify_by_delete_node(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::Node,
         serialize::serialize(&node)?,
+    )
+    .await
+}
+
+// Kafka client quota
+pub async fn send_notify_by_set_kafka_quota(
+    call_manager: &Arc<NodeCallManager>,
+    quota: KafkaClientQuota,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::KafkaQuota,
+        serialize::serialize(&quota)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_kafka_quota(
+    call_manager: &Arc<NodeCallManager>,
+    quota: KafkaClientQuota,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::KafkaQuota,
+        serialize::serialize(&quota)?,
+    )
+    .await
+}
+
+// Kafka delegation token
+pub async fn send_notify_by_set_kafka_delegation_token(
+    call_manager: &Arc<NodeCallManager>,
+    token: KafkaDelegationToken,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::KafkaDelegationToken,
+        serialize::serialize(&token)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_kafka_delegation_token(
+    call_manager: &Arc<NodeCallManager>,
+    token_id: String,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::KafkaDelegationToken,
+        serialize::serialize(&token_id)?,
+    )
+    .await
+}
+
+// Kafka SCRAM credential
+pub async fn send_notify_by_set_kafka_scram(
+    call_manager: &Arc<NodeCallManager>,
+    credential: KafkaScramCredential,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::KafkaScram,
+        serialize::serialize(&credential)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_kafka_scram(
+    call_manager: &Arc<NodeCallManager>,
+    credential: KafkaScramCredential,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::KafkaScram,
+        serialize::serialize(&credential)?,
     )
     .await
 }

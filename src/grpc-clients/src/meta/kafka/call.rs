@@ -13,14 +13,69 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::meta::meta_service_kafka::{GetCoordinatorLeaderReply, GetCoordinatorLeaderRequest};
+use protocol::meta::meta_service_kafka::{
+    DeleteKafkaDelegationTokenReply, DeleteKafkaDelegationTokenRequest, DeleteKafkaQuotaReply,
+    DeleteKafkaQuotaRequest, DeleteScramCredentialReply, DeleteScramCredentialRequest,
+    GetCoordinatorLeaderReply, GetCoordinatorLeaderRequest, ListKafkaDelegationTokenReply,
+    ListKafkaDelegationTokenRequest, ListKafkaQuotaReply, ListKafkaQuotaRequest,
+    ListScramCredentialReply, ListScramCredentialRequest, SetKafkaDelegationTokenReply,
+    SetKafkaDelegationTokenRequest, SetKafkaQuotaReply, SetKafkaQuotaRequest,
+    SetScramCredentialReply, SetScramCredentialRequest,
+};
 
 use crate::pool::ClientPool;
 
-pub async fn get_coordinator_leader(
-    client_pool: &ClientPool,
-    addrs: &[impl AsRef<str>],
-    request: GetCoordinatorLeaderRequest,
-) -> Result<GetCoordinatorLeaderReply, CommonError> {
-    crate::utils::retry_call(client_pool, addrs, request).await
+macro_rules! generate_kafka_service_call {
+    ($fn_name:ident, $req_ty:ty, $rep_ty:ty) => {
+        pub async fn $fn_name(
+            client_pool: &ClientPool,
+            addrs: &[impl AsRef<str>],
+            request: $req_ty,
+        ) -> Result<$rep_ty, CommonError> {
+            $crate::utils::retry_call(client_pool, addrs, request).await
+        }
+    };
 }
+
+generate_kafka_service_call!(
+    get_coordinator_leader,
+    GetCoordinatorLeaderRequest,
+    GetCoordinatorLeaderReply
+);
+generate_kafka_service_call!(set_kafka_quota, SetKafkaQuotaRequest, SetKafkaQuotaReply);
+generate_kafka_service_call!(
+    delete_kafka_quota,
+    DeleteKafkaQuotaRequest,
+    DeleteKafkaQuotaReply
+);
+generate_kafka_service_call!(list_kafka_quota, ListKafkaQuotaRequest, ListKafkaQuotaReply);
+generate_kafka_service_call!(
+    set_kafka_delegation_token,
+    SetKafkaDelegationTokenRequest,
+    SetKafkaDelegationTokenReply
+);
+generate_kafka_service_call!(
+    delete_kafka_delegation_token,
+    DeleteKafkaDelegationTokenRequest,
+    DeleteKafkaDelegationTokenReply
+);
+generate_kafka_service_call!(
+    list_kafka_delegation_token,
+    ListKafkaDelegationTokenRequest,
+    ListKafkaDelegationTokenReply
+);
+generate_kafka_service_call!(
+    set_scram_credential,
+    SetScramCredentialRequest,
+    SetScramCredentialReply
+);
+generate_kafka_service_call!(
+    delete_scram_credential,
+    DeleteScramCredentialRequest,
+    DeleteScramCredentialReply
+);
+generate_kafka_service_call!(
+    list_scram_credential,
+    ListScramCredentialRequest,
+    ListScramCredentialReply
+);
