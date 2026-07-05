@@ -1,0 +1,432 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use std::collections::HashMap;
+
+use kafka_protocol::error::ResponseError;
+use uuid::Uuid;
+
+use crate::core::assignor::{compute_target, TopicMeta};
+use crate::core::consumer_group_meta::{ConsumerGroupMeta, ConsumerMemberMeta};
+
+pub const LEAVE_EPOCH: i32 = -1;
+pub const STATIC_LEAVE_EPOCH: i32 = -2;
+
+pub struct ConsumerHeartbeatParams {
+    pub group_id: String,
+    pub member_id: String,
+    pub member_epoch: i32,
+    pub instance_id: Option<String>,
+    pub rack_id: Option<String>,
+    pub client_id: String,
+    pub rebalance_timeout_ms: i32,
+    pub subscribed_topics: Option<Vec<String>>,
+    pub server_assignor: Option<String>,
+    pub owned: Option<Vec<(Uuid, Vec<i32>)>>,
+}
+
+pub struct ConsumerHeartbeatResult {
+    pub error_code: i16,
+    pub error_message: Option<String>,
+    pub member_id: String,
+    pub member_epoch: i32,
+    // None means "unchanged since the last heartbeat".
+    pub assignment: Option<HashMap<Uuid, Vec<i32>>>,
+}
+
+pub(crate) fn heartbeat_error(
+    code: i16,
+    message: &str,
+    member_id: &str,
+) -> ConsumerHeartbeatResult {
+    ConsumerHeartbeatResult {
+        error_code: code,
+        error_message: Some(message.to_string()),
+        member_id: member_id.to_string(),
+        member_epoch: 0,
+        assignment: None,
+    }
+}
+
+pub(crate) fn heartbeat(
+    group: &mut ConsumerGroupMeta,
+    params: ConsumerHeartbeatParams,
+    resolve_topic: &dyn Fn(&str) -> Option<TopicMeta>,
+    now_ms: u128,
+) -> ConsumerHeartbeatResult {
+    let member_id = params.member_id.clone();
+
+    if params.member_epoch == LEAVE_EPOCH || params.member_epoch == STATIC_LEAVE_EPOCH {
+        return leave(group, &member_id);
+    }
+
+    if params.member_epoch == 0 {
+        if let Err(result) = join(group, &params, now_ms) {
+            return result;
+        }
+    } else {
+        let mut subscription_changed = false;
+        {
+            let Some(member) = group.members.get_mut(&member_id) else {
+                return heartbeat_error(
+                    ResponseError::UnknownMemberId.code(),
+                    "member is not in the group; rejoin with epoch 0",
+                    &member_id,
+                );
+            };
+            if params.member_epoch != member.member_epoch {
+                return heartbeat_error(
+                    ResponseError::FencedMemberEpoch.code(),
+                    "member epoch does not match; abandon partitions and rejoin",
+                    &member_id,
+                );
+            }
+            member.last_heartbeat_ms = now_ms;
+            if params.rebalance_timeout_ms > 0 {
+                member.rebalance_timeout_ms = params.rebalance_timeout_ms;
+            }
+            if let Some(subs) = &params.subscribed_topics {
+                if *subs != member.subscribed {
+                    member.subscribed = subs.clone();
+                    subscription_changed = true;
+                }
+            }
+        }
+        if subscription_changed {
+            group.group_epoch += 1;
+        }
+    }
+
+    if let Some(owned) = params.owned {
+        apply_reported(group, &member_id, owned);
+    }
+
+    if group.assignment_epoch < group.group_epoch {
+        group.target = compute_target(&group.members, resolve_topic);
+        group.assignment_epoch = group.group_epoch;
+    }
+
+    let full_target = group.member_target(&member_id);
+    let deliverable = filter_deliverable(group, &member_id, &full_target);
+
+    let group_epoch = group.group_epoch;
+    let member = group.members.get_mut(&member_id).unwrap();
+    if member.reported == full_target {
+        member.member_epoch = group_epoch;
+    }
+    let assignment = if member.last_sent.as_ref() != Some(&deliverable) {
+        member.last_sent = Some(deliverable.clone());
+        Some(deliverable)
+    } else {
+        None
+    };
+
+    ConsumerHeartbeatResult {
+        error_code: 0,
+        error_message: None,
+        member_id,
+        member_epoch: member.member_epoch,
+        assignment,
+    }
+}
+
+fn join(
+    group: &mut ConsumerGroupMeta,
+    params: &ConsumerHeartbeatParams,
+    now_ms: u128,
+) -> Result<(), ConsumerHeartbeatResult> {
+    if params.member_id.is_empty() {
+        return Err(heartbeat_error(
+            ResponseError::InvalidRequest.code(),
+            "member id must be generated by the client",
+            &params.member_id,
+        ));
+    }
+    let Some(subscribed) = params.subscribed_topics.clone() else {
+        return Err(heartbeat_error(
+            ResponseError::InvalidRequest.code(),
+            "subscribed topics are required when joining",
+            &params.member_id,
+        ));
+    };
+    if let Some(assignor) = &params.server_assignor {
+        if group.members.is_empty() {
+            group.assignor = assignor.clone();
+        } else if *assignor != group.assignor {
+            return Err(heartbeat_error(
+                ResponseError::UnsupportedAssignor.code(),
+                "assignor differs from the one used by the group",
+                &params.member_id,
+            ));
+        }
+    }
+
+    // A rejoin starts from a clean slate: whatever the old incarnation owned is released.
+    group.owner.retain(|_, o| o != &params.member_id);
+    group.group_epoch += 1;
+    group.members.insert(
+        params.member_id.clone(),
+        ConsumerMemberMeta {
+            member_id: params.member_id.clone(),
+            instance_id: params.instance_id.clone(),
+            rack_id: params.rack_id.clone(),
+            client_id: params.client_id.clone(),
+            rebalance_timeout_ms: params.rebalance_timeout_ms,
+            subscribed,
+            reported: HashMap::new(),
+            member_epoch: group.group_epoch,
+            last_sent: None,
+            last_heartbeat_ms: now_ms,
+        },
+    );
+    Ok(())
+}
+
+fn leave(group: &mut ConsumerGroupMeta, member_id: &str) -> ConsumerHeartbeatResult {
+    if group.members.remove(member_id).is_none() {
+        return heartbeat_error(
+            ResponseError::UnknownMemberId.code(),
+            "member is not in the group",
+            member_id,
+        );
+    }
+    group.owner.retain(|_, o| o != member_id);
+    group.group_epoch += 1;
+
+    ConsumerHeartbeatResult {
+        error_code: 0,
+        error_message: None,
+        member_id: member_id.to_string(),
+        member_epoch: LEAVE_EPOCH,
+        assignment: None,
+    }
+}
+
+fn apply_reported(group: &mut ConsumerGroupMeta, member_id: &str, owned: Vec<(Uuid, Vec<i32>)>) {
+    let mut new_reported: HashMap<Uuid, Vec<i32>> = HashMap::new();
+    for (topic, partitions) in owned {
+        let entry = new_reported.entry(topic).or_default();
+        entry.extend(partitions);
+        entry.sort_unstable();
+        entry.dedup();
+    }
+
+    let old_reported = group
+        .members
+        .get(member_id)
+        .map(|m| m.reported.clone())
+        .unwrap_or_default();
+
+    // Release partitions the member no longer reports.
+    for (topic, partitions) in &old_reported {
+        for p in partitions {
+            let key = (*topic, *p);
+            let still_owned = new_reported
+                .get(topic)
+                .is_some_and(|ps| ps.binary_search(p).is_ok());
+            if !still_owned && group.owner.get(&key).is_some_and(|o| o == member_id) {
+                group.owner.remove(&key);
+            }
+        }
+    }
+    // Record ownership of everything it does report.
+    for (topic, partitions) in &new_reported {
+        for p in partitions {
+            group.owner.insert((*topic, *p), member_id.to_string());
+        }
+    }
+
+    if let Some(member) = group.members.get_mut(member_id) {
+        member.reported = new_reported;
+    }
+}
+
+// A partition is only granted once its previous owner has released it.
+fn filter_deliverable(
+    group: &ConsumerGroupMeta,
+    member_id: &str,
+    full_target: &HashMap<Uuid, Vec<i32>>,
+) -> HashMap<Uuid, Vec<i32>> {
+    let mut out = HashMap::new();
+    for (topic, partitions) in full_target {
+        let kept: Vec<i32> = partitions
+            .iter()
+            .copied()
+            .filter(|p| {
+                group
+                    .owner
+                    .get(&(*topic, *p))
+                    .map(|o| o == member_id)
+                    .unwrap_or(true)
+            })
+            .collect();
+        if !kept.is_empty() {
+            out.insert(*topic, kept);
+        }
+    }
+    out
+}
+
+pub(crate) fn remove_expired_members(
+    group: &mut ConsumerGroupMeta,
+    now_ms: u128,
+    session_timeout_ms: u64,
+) {
+    let expired: Vec<String> = group
+        .members
+        .values()
+        .filter(|m| now_ms.saturating_sub(m.last_heartbeat_ms) > session_timeout_ms as u128)
+        .map(|m| m.member_id.clone())
+        .collect();
+    if expired.is_empty() {
+        return;
+    }
+    for id in &expired {
+        group.members.remove(id);
+        group.owner.retain(|_, o| o != id);
+    }
+    group.group_epoch += 1;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn topic_id() -> Uuid {
+        Uuid::new_v5(&Uuid::NAMESPACE_OID, b"t")
+    }
+
+    fn resolve(name: &str) -> Option<TopicMeta> {
+        (name == "t").then(|| TopicMeta {
+            topic_id: topic_id(),
+            partitions: 4,
+        })
+    }
+
+    fn hb(
+        group: &mut ConsumerGroupMeta,
+        member: &str,
+        epoch: i32,
+        owned: Option<Vec<(Uuid, Vec<i32>)>>,
+    ) -> ConsumerHeartbeatResult {
+        heartbeat(
+            group,
+            ConsumerHeartbeatParams {
+                group_id: "g".to_string(),
+                member_id: member.to_string(),
+                member_epoch: epoch,
+                instance_id: None,
+                rack_id: None,
+                client_id: "c".to_string(),
+                rebalance_timeout_ms: 60_000,
+                subscribed_topics: if epoch == 0 {
+                    Some(vec!["t".to_string()])
+                } else {
+                    None
+                },
+                server_assignor: None,
+                owned,
+            },
+            &resolve,
+            1,
+        )
+    }
+
+    #[test]
+    fn single_member_joins_and_converges() {
+        let mut g = ConsumerGroupMeta::new("g".to_string());
+
+        let r = hb(&mut g, "m1", 0, None);
+        assert_eq!(r.error_code, 0);
+        assert_eq!(r.member_epoch, 1);
+        let assigned = r.assignment.unwrap();
+        assert_eq!(assigned[&topic_id()], vec![0, 1, 2, 3]);
+
+        // Member acks by reporting ownership; assignment is not resent.
+        let r = hb(&mut g, "m1", 1, Some(vec![(topic_id(), vec![0, 1, 2, 3])]));
+        assert_eq!(r.error_code, 0);
+        assert_eq!(r.member_epoch, 1);
+        assert!(r.assignment.is_none());
+        assert_eq!(g.state_name(), "Stable");
+    }
+
+    #[test]
+    fn second_member_revoke_then_assign() {
+        let mut g = ConsumerGroupMeta::new("g".to_string());
+        hb(&mut g, "m1", 0, None);
+        hb(&mut g, "m1", 1, Some(vec![(topic_id(), vec![0, 1, 2, 3])]));
+
+        // m2 joins: epoch bumps, but m1 still owns everything, so m2 gets nothing yet.
+        let r2 = hb(&mut g, "m2", 0, None);
+        assert_eq!(r2.member_epoch, 2);
+        assert!(r2.assignment.is_none() || r2.assignment.as_ref().unwrap().is_empty());
+
+        // m1 heartbeats: it is told to shrink to its new target [0,1].
+        let r1 = hb(&mut g, "m1", 1, None);
+        let shrunk = r1.assignment.unwrap();
+        assert_eq!(shrunk[&topic_id()], vec![0, 1]);
+
+        // m1 acks the shrink → converges to the group epoch, freeing [2,3].
+        let r1 = hb(&mut g, "m1", 1, Some(vec![(topic_id(), vec![0, 1])]));
+        assert_eq!(r1.member_epoch, 2);
+
+        // m2 heartbeats: the freed partitions are now granted.
+        let r2 = hb(&mut g, "m2", 2, None);
+        assert_eq!(r2.assignment.unwrap()[&topic_id()], vec![2, 3]);
+
+        // m2 acks → whole group stable.
+        let r2 = hb(&mut g, "m2", 2, Some(vec![(topic_id(), vec![2, 3])]));
+        assert_eq!(r2.member_epoch, 2);
+        assert_eq!(g.state_name(), "Stable");
+    }
+
+    #[test]
+    fn fencing_and_unknown_member() {
+        let mut g = ConsumerGroupMeta::new("g".to_string());
+        hb(&mut g, "m1", 0, None);
+
+        let r = hb(&mut g, "m1", 9, None);
+        assert_eq!(r.error_code, ResponseError::FencedMemberEpoch.code());
+
+        let r = hb(&mut g, "ghost", 1, None);
+        assert_eq!(r.error_code, ResponseError::UnknownMemberId.code());
+    }
+
+    #[test]
+    fn leave_frees_partitions_for_survivors() {
+        let mut g = ConsumerGroupMeta::new("g".to_string());
+        hb(&mut g, "m1", 0, None);
+        hb(&mut g, "m1", 1, Some(vec![(topic_id(), vec![0, 1, 2, 3])]));
+        hb(&mut g, "m2", 0, None);
+
+        let r = hb(&mut g, "m1", LEAVE_EPOCH, None);
+        assert_eq!(r.error_code, 0);
+        assert_eq!(r.member_epoch, LEAVE_EPOCH);
+
+        // m2 now gets the whole topic.
+        let r2 = hb(&mut g, "m2", 2, None);
+        assert_eq!(r2.assignment.unwrap()[&topic_id()], vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn session_expiry_removes_member_and_bumps_epoch() {
+        let mut g = ConsumerGroupMeta::new("g".to_string());
+        hb(&mut g, "m1", 0, None);
+        let epoch_before = g.group_epoch;
+
+        remove_expired_members(&mut g, 1_000_000, 100);
+        assert!(g.members.is_empty());
+        assert_eq!(g.group_epoch, epoch_before + 1);
+    }
+}

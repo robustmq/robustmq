@@ -12,4 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod acl;
+pub mod assignor;
+pub mod cache;
 pub mod constants;
+pub mod consumer_group_meta;
+pub mod consumer_heartbeat;
+pub mod coordinator;
+pub mod coordinator_locator;
+pub mod dynamic_config;
+pub mod group_admin;
+pub mod group_meta;
+pub mod heartbeat;
+pub mod join;
+pub mod leave;
+pub mod sync;

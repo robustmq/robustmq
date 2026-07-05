@@ -45,6 +45,9 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         v(ApiKey::ListGroups, 0, 4),
         v(ApiKey::DeleteGroups, 0, 2),
         v(ApiKey::OffsetDelete, 0, 0),
+        // ── Consumer group (KIP-848) ─────────────────────────────────────
+        v(ApiKey::ConsumerGroupHeartbeat, 0, 1),
+        v(ApiKey::ConsumerGroupDescribe, 0, 1),
         // ── Auth ─────────────────────────────────────────────────────────
         v(ApiKey::SaslHandshake, 0, 1),
         v(ApiKey::SaslAuthenticate, 0, 2),
@@ -61,7 +64,6 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         v(ApiKey::IncrementalAlterConfigs, 0, 1),
         // ── Replica / log admin ───────────────────────────────────────────
         v(ApiKey::DescribeLogDirs, 0, 2),
-        v(ApiKey::OffsetForLeaderEpoch, 0, 4),
         v(ApiKey::AlterPartitionReassignments, 0, 0),
         v(ApiKey::ListPartitionReassignments, 0, 0),
         // ── Idempotent producer ───────────────────────────────────────────

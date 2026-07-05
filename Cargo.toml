@@ -270,7 +270,7 @@ apache-avro = "0.17.0"
 anyhow = "1.0.103"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.23.0", default-features = false, features = ["v4"] }
+uuid = { version = "1.23.0", default-features = false, features = ["v4", "v5"] }
 xid = "1.1"
 dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
 arc-swap = "1.9"

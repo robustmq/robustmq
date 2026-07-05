@@ -772,6 +772,10 @@ pub struct KafkaRuntime {
     /// `partition_max_bytes`.
     #[serde(default = "default_kafka_max_fetch_bytes")]
     pub max_fetch_bytes: u32,
+    /// Upper bound on how many partitions a single DescribeTopicPartitions
+    /// response may return, regardless of the client's `response_partition_limit`.
+    #[serde(default = "default_kafka_max_describe_topic_partitions")]
+    pub max_describe_topic_partitions: u32,
 }
 
 impl Default for KafkaRuntime {
@@ -779,8 +783,13 @@ impl Default for KafkaRuntime {
         KafkaRuntime {
             tcp_port: default_kafka_tcp_port(),
             max_fetch_bytes: default_kafka_max_fetch_bytes(),
+            max_describe_topic_partitions: default_kafka_max_describe_topic_partitions(),
         }
     }
+}
+
+fn default_kafka_max_describe_topic_partitions() -> u32 {
+    2000
 }
 
 fn default_amqp_tcp_port() -> u32 {
