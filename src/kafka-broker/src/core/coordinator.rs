@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -59,6 +60,7 @@ impl Default for GroupCoordinatorConfig {
 pub struct GroupCoordinator {
     cache: Arc<KafkaCacheManager>,
     config: GroupCoordinatorConfig,
+    reaper_started: AtomicBool,
 }
 
 impl GroupCoordinator {
@@ -67,15 +69,27 @@ impl GroupCoordinator {
     }
 
     pub fn new_with_config(cache: Arc<KafkaCacheManager>, config: GroupCoordinatorConfig) -> Self {
-        spawn_session_reaper(
-            cache.clone(),
-            config.session_check_interval_ms,
-            config.consumer_session_timeout_ms,
-        );
-        GroupCoordinator { cache, config }
+        GroupCoordinator {
+            cache,
+            config,
+            reaper_started: AtomicBool::new(false),
+        }
+    }
+
+    // The coordinator is constructed outside the tokio runtime during broker startup,
+    // so the reaper is spawned lazily from the first group request instead.
+    fn ensure_reaper_started(&self) {
+        if !self.reaper_started.swap(true, Ordering::SeqCst) {
+            spawn_session_reaper(
+                self.cache.clone(),
+                self.config.session_check_interval_ms,
+                self.config.consumer_session_timeout_ms,
+            );
+        }
     }
 
     pub async fn join_group(&self, params: JoinGroupParams) -> JoinResult {
+        self.ensure_reaper_started();
         if self.cache.has_consumer_group(&params.group_id) {
             return join_error(
                 ResponseError::InconsistentGroupProtocol.code(),
@@ -183,6 +197,7 @@ impl GroupCoordinator {
         params: ConsumerHeartbeatParams,
         resolve_topic: &dyn Fn(&str) -> Option<TopicMeta>,
     ) -> ConsumerHeartbeatResult {
+        self.ensure_reaper_started();
         self.cache
             .consumer_heartbeat(params, resolve_topic, now_millis())
     }
