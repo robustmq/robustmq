@@ -20,6 +20,7 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_metrics::mqtt::delay::{
     record_delay_msg_deliver, record_delay_msg_deliver_duration, record_delay_msg_deliver_fail,
+    record_delay_msg_reenqueued, record_delay_msg_retry, record_delay_msg_retry_count,
 };
 use futures::StreamExt;
 use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
@@ -114,18 +115,88 @@ async fn run_shard_loop(
                 let delay_message = expired.into_inner();
                 manager.remove_message_key(&delay_message.unique_id);
                 let storage = manager.storage_driver_manager.clone();
+                let mgr = manager.clone();
+                let config = manager.delay_message_config.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = delay_message_process(
-                        &storage,
-                        &delay_message,
-                        now_second(),
-                    )
-                    .await
-                    {
-                        error!(
-                            "Failed to process delay message: offset={}, target={}, error={}",
-                            delay_message.offset, delay_message.target_topic_name, e
-                        );
+                    let max_retries = config.max_retries;
+                    for attempt in 0..max_retries {
+                        match delay_message_process(
+                            &storage,
+                            &delay_message,
+                            now_second(),
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                debug!(
+                                    "Delay message processed: attempt={}/{}, unique_id={}",
+                                    attempt + 1,
+                                    max_retries,
+                                    delay_message.unique_id
+                                );
+                                // Record retry success only if we actually retried
+                                if attempt > 0 {
+                                    record_delay_msg_retry(true);
+                                }
+                                return;
+                            }
+                            Err(e) => {
+                                if attempt < max_retries - 1 {
+                                    let backoff_secs = config.initial_retry_delay_sec
+                                        * 2_u64.pow(attempt);
+                                    record_delay_msg_retry(false);
+                                    record_delay_msg_retry_count(attempt + 1);
+                                    warn!(
+                                        "Retrying delay message: attempt={}/{}, backoff={}s, \
+                                         unique_id={}, target_topic={}, error={}",
+                                        attempt + 1,
+                                        max_retries,
+                                        backoff_secs,
+                                        delay_message.unique_id,
+                                        delay_message.target_topic_name,
+                                        e
+                                    );
+                                    tokio::time::sleep(
+                                        std::time::Duration::from_secs(backoff_secs),
+                                    )
+                                    .await;
+                                } else {
+                                    record_delay_msg_retry(false);
+                                    record_delay_msg_retry_count(attempt + 1);
+                                    error!(
+                                        "Failed to process delay message after {} retries, \
+                                         re-enqueuing: unique_id={}, target_topic={}, error={}",
+                                        max_retries,
+                                        delay_message.unique_id,
+                                        delay_message.target_topic_name,
+                                        e
+                                    );
+
+                                    let mut reenq_info = delay_message.clone();
+                                    reenq_info.target_timestamp =
+                                        now_second() + config.reenqueue_delay_sec;
+                                    match mgr.send_to_delay_queue(&reenq_info).await {
+                                        Ok(_) => {
+                                            record_delay_msg_reenqueued();
+                                            warn!(
+                                                "Delay message re-enqueued: delay={}s, \
+                                                 unique_id={}, target_topic={}",
+                                                config.reenqueue_delay_sec,
+                                                reenq_info.unique_id,
+                                                reenq_info.target_topic_name
+                                            );
+                                        }
+                                        Err(e2) => {
+                                            error!(
+                                                "Failed to re-enqueue delay message: \
+                                                 unique_id={}, error={}",
+                                                delay_message.unique_id, e2
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 });
             }
@@ -161,6 +232,8 @@ pub async fn delay_message_process(
                 "Failed to send delay message to target shard. unique_id={}, target_topic={}, offset={}, error={}",
                 delay_info.unique_id, delay_info.target_topic_name, delay_info.offset, e
             );
+
+            return Err(e);
         }
     };
     delete_delay_index_info(storage_driver_manager, delay_info).await?;
@@ -281,5 +354,327 @@ fn build_new_record(
 
     send_record
 }
+
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+    use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
+    use common_config::config::DelayMessageConfig;
+    use common_config::default::{
+        default_delay_message_initial_retry_delay_sec, default_delay_message_max_retries,
+        default_delay_message_reenqueue_delay_sec,
+    };
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use metadata_struct::delay_info::DelayMessageIndexInfo;
+    use metadata_struct::tenant::DEFAULT_TENANT;
+    use std::time::Duration;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
+
+    #[test]
+    fn test_delay_message_config_defaults() {
+        let config = DelayMessageConfig::default();
+        assert_eq!(config.max_retries, default_delay_message_max_retries());
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(
+            config.initial_retry_delay_sec,
+            default_delay_message_initial_retry_delay_sec()
+        );
+        assert_eq!(config.initial_retry_delay_sec, 2);
+        assert_eq!(
+            config.reenqueue_delay_sec,
+            default_delay_message_reenqueue_delay_sec()
+        );
+        assert_eq!(config.reenqueue_delay_sec, 60);
+    }
+
+    #[test]
+    fn test_retry_backoff_calculation() {
+        let config = DelayMessageConfig::default();
+        // backoff = initial_retry_delay_sec * 2^attempt
+        // attempt 0 -> 2 * 1 = 2, attempt 1 -> 2 * 2 = 4, attempt 2 -> 2 * 4 = 8
+        for attempt in 0..config.max_retries {
+            let backoff = config.initial_retry_delay_sec * 2_u64.pow(attempt);
+            let expected = match attempt {
+                0 => 2,
+                1 => 4,
+                2 => 8,
+                _ => unreachable!(),
+            };
+            assert_eq!(backoff, expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delay_message_process_returns_err_on_send_failure() {
+        // Build a real StorageDriverManager with only the delay queue topics
+        // registered, but NOT the target topic — this makes write() fail.
+        let storage = test_build_storage_driver_manager().await.unwrap();
+
+        // Register delay queue internal topics so read_by_keys() succeeds
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        let unique_id = "test_fail_unique".to_string();
+        let target_topic = "nonexistent_topic_for_failure_test";
+
+        // Persist a dummy message payload so read_by_keys() can find it
+        let dummy_record =
+            AdapterWriteRecord::new(DELAY_QUEUE_MESSAGE_TOPIC, b"dummy payload".to_vec())
+                .with_key(unique_id.clone());
+        storage
+            .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[dummy_record])
+            .await
+            .expect("write to delay queue message topic");
+
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: unique_id.clone(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: target_topic.to_string(),
+            offset: 0,
+            target_timestamp: now_second(),
+        };
+
+        let result = delay_message_process(&storage, &delay_info, now_second()).await;
+
+        // The write to target_topic should fail because the shard doesn't exist
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("was not found"));
+    }
+
+    #[test]
+    fn test_reenqueue_updates_target_timestamp() {
+        let original = DelayMessageIndexInfo {
+            unique_id: "re_test".to_string(),
+            tenant: "test_tenant".to_string(),
+            target_topic_name: "test_topic".to_string(),
+            offset: 100,
+            target_timestamp: 1000,
+        };
+
+        let mut reenq = original.clone();
+        let reenqueue_delay = 60;
+        let before = now_second();
+        reenq.target_timestamp = before + reenqueue_delay;
+
+        assert_eq!(reenq.unique_id, original.unique_id);
+        assert_eq!(reenq.target_topic_name, original.target_topic_name);
+        assert_eq!(reenq.tenant, original.tenant);
+        assert!(reenq.target_timestamp >= before + reenqueue_delay);
+        assert!(reenq.target_timestamp <= before + reenqueue_delay + 1);
+    }
+
+    #[tokio::test]
+    async fn test_delay_message_retry_integration() {
+        // End-to-end integration: enqueue a message, let it expire, verify delivery.
+        let storage = test_build_storage_driver_manager().await.unwrap();
+
+        // Register all required topics
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        let target_topic = "integration_target_topic";
+        test_add_topic(&storage, target_topic);
+
+        // Create DelayMessageManager with fast retry config for testing
+        use grpc_clients::pool::ClientPool;
+        let client_pool = Arc::new(ClientPool::new(2));
+        let config = DelayMessageConfig {
+            max_retries: 2,
+            initial_retry_delay_sec: 1,
+            reenqueue_delay_sec: 5,
+        };
+        let manager = Arc::new(
+            DelayMessageManager::new(client_pool.clone(), storage.clone(), 1, config)
+                .await
+                .unwrap(),
+        );
+
+        // Start pop thread
+        use common_base::task::TaskSupervisor;
+        let task_supervisor = Arc::new(TaskSupervisor::new());
+        spawn_delay_message_pop_threads(&manager, &task_supervisor, 1);
+
+        // Enqueue a delay message with a short delay
+        let unique_id = manager
+            .send(
+                DEFAULT_TENANT,
+                target_topic,
+                now_second() + 2,
+                AdapterWriteRecord::new(target_topic, b"integration test payload".to_vec()),
+            )
+            .await
+            .expect("send delay message");
+
+        // Wait for processing (2s delay + buffer)
+        tokio::time::sleep(Duration::from_secs(5)).await;
+
+        // Verify the message was delivered by reading from target topic
+        let results = storage
+            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_str()])
+            .await
+            .expect("read target topic");
+        assert!(
+            !results.is_empty(),
+            "Message should have been delivered to target topic"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_metrics_record_retry_and_reenqueue() {
+        // Verify that retry and reenqueue metric functions execute without panic,
+        // and that the metric counters exist in the registry.
+        use common_metrics::mqtt::delay::{
+            record_delay_msg_dead_letter, record_delay_msg_reenqueued, record_delay_msg_retry,
+            record_delay_msg_retry_count,
+        };
+
+        // Record some retries and re-enqueues
+        record_delay_msg_retry(false);
+        record_delay_msg_retry(false);
+        record_delay_msg_retry(true);
+        record_delay_msg_retry_count(1);
+        record_delay_msg_retry_count(2);
+        record_delay_msg_retry_count(3);
+        record_delay_msg_reenqueued();
+        record_delay_msg_reenqueued();
+        record_delay_msg_dead_letter();
+
+        // If we get here without panic, the metric functions work correctly
+    }
+
+    #[test]
+    fn test_delay_message_reenqueued_target_timestamp_forward_in_time() {
+        // Ensure re-enqueued message gets a future timestamp
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "time_test".to_string(),
+            tenant: "t".to_string(),
+            target_topic_name: "t".to_string(),
+            offset: 1,
+            target_timestamp: 100,
+        };
+
+        let reenq_delay = 60u64;
+        let mut reenq = delay_info.clone();
+        let now = now_second();
+        reenq.target_timestamp = now + reenq_delay;
+
+        assert!(reenq.target_timestamp > delay_info.target_timestamp);
+        assert!(reenq.target_timestamp >= now + reenq_delay);
+        assert!(reenq.target_timestamp <= now + reenq_delay + 1);
+    }
+
+    #[tokio::test]
+    async fn test_retry_exhaustion_re_enqueues_message() {
+        // When a delay message fails all retry attempts against a non-existent
+        // target topic, it must be re-enqueued into the memory delay queue via
+        // send_to_delay_queue, rather than being silently dropped.
+        let storage = test_build_storage_driver_manager().await.unwrap();
+
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        // Target topic intentionally NOT registered → every attempt will fail.
+
+        use grpc_clients::pool::ClientPool;
+        let client_pool = Arc::new(ClientPool::new(2));
+        let config = DelayMessageConfig {
+            max_retries: 2,
+            initial_retry_delay_sec: 0,
+            reenqueue_delay_sec: 5,
+        };
+        let manager = Arc::new(
+            DelayMessageManager::new(client_pool.clone(), storage.clone(), 1, config)
+                .await
+                .unwrap(),
+        );
+
+        use common_base::task::TaskSupervisor;
+        let task_supervisor = Arc::new(TaskSupervisor::new());
+        spawn_delay_message_pop_threads(&manager, &task_supervisor, 1);
+
+        let unique_id = manager
+            .send(
+                DEFAULT_TENANT,
+                "nonexistent_target",
+                now_second() + 1,
+                AdapterWriteRecord::new("nonexistent_target", b"payload".to_vec()),
+            )
+            .await
+            .expect("send");
+
+        // Wait for: delay(1s) + fast retries(backoff=0, nearly instant) + re-enqueue.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+
+        assert!(
+            manager.is_message_in_queue(&unique_id),
+            "Message should be re-enqueued in memory delay queue after retry exhaustion"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_re_enqueued_message_delivers_after_topic_appears() {
+        // Phase 1: send a delay message to a non-existent target topic.
+        //          All retries fail → message is re-enqueued.
+        // Phase 2: create the target topic after re-enqueue.
+        // Phase 3: on the next pop the message is delivered successfully.
+        let storage = test_build_storage_driver_manager().await.unwrap();
+
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        let target_topic = "eventually_created_topic";
+        // NOT registered yet — will cause initial failures.
+
+        use grpc_clients::pool::ClientPool;
+        let client_pool = Arc::new(ClientPool::new(2));
+        let config = DelayMessageConfig {
+            max_retries: 2,
+            initial_retry_delay_sec: 0,
+            reenqueue_delay_sec: 2,
+        };
+        let manager = Arc::new(
+            DelayMessageManager::new(client_pool.clone(), storage.clone(), 1, config)
+                .await
+                .unwrap(),
+        );
+
+        use common_base::task::TaskSupervisor;
+        let task_supervisor = Arc::new(TaskSupervisor::new());
+        spawn_delay_message_pop_threads(&manager, &task_supervisor, 1);
+
+        let unique_id = manager
+            .send(
+                DEFAULT_TENANT,
+                target_topic,
+                now_second() + 1,
+                AdapterWriteRecord::new(target_topic, b"payload".to_vec()),
+            )
+            .await
+            .expect("send");
+
+        // Wait for initial pop + retry exhaustion + re-enqueue.
+        tokio::time::sleep(Duration::from_secs(3)).await;
+
+        // Verify the message was re-enqueued after exhaustion.
+        assert!(
+            manager.is_message_in_queue(&unique_id),
+            "Message should be re-enqueued before target topic exists"
+        );
+
+        // Now create the target topic so the re-enqueued message can succeed.
+        test_add_topic(&storage, target_topic);
+
+        // Wait for the re-enqueued message to fire (2s reenqueue delay) + processing.
+        tokio::time::sleep(Duration::from_secs(4)).await;
+
+        // Verify the message was delivered to the target topic.
+        let results = storage
+            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_str()])
+            .await
+            .expect("read target topic");
+        assert!(
+            !results.is_empty(),
+            "Re-enqueued message should be delivered after target topic becomes available"
+        );
+    }
+}

@@ -14,7 +14,9 @@
 
 use super::default::{
     default_accept_thread_num, default_broker_id, default_broker_ip, default_channels_per_address,
-    default_cluster_name, default_data_path, default_delay_task,
+    default_cluster_name, default_data_path, default_delay_message,
+    default_delay_message_initial_retry_delay_sec, default_delay_message_max_retries,
+    default_delay_message_reenqueue_delay_sec, default_delay_task,
     default_delay_task_handler_concurrency, default_delay_task_queue_num, default_engine_runtime,
     default_flapping_ban_time, default_flapping_max_connections, default_flapping_window_time,
     default_grpc_port, default_handler_thread_num, default_heartbeat_check_time_ms,
@@ -155,6 +157,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_delay_task")]
     pub delay_task: DelayTask,
 
+    #[serde(default = "default_delay_message")]
+    pub delay_message: DelayMessageConfig,
+
     // meta
     #[serde(default = "default_meta_runtime")]
     pub meta_runtime: MetaRuntime,
@@ -232,6 +237,7 @@ impl Default for BrokerConfig {
             llm_client: LLMConfig::default(),
             cluster_limit: ClusterLimit::default(),
             delay_task: default_delay_task(),
+            delay_message: default_delay_message(),
 
             // Meta Service
             meta_runtime: default_meta_runtime(),
@@ -592,6 +598,24 @@ pub struct DelayTask {
 impl Default for DelayTask {
     fn default() -> Self {
         default_delay_task()
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct DelayMessageConfig {
+    #[serde(default = "default_delay_message_max_retries")]
+    pub max_retries: u32,
+
+    #[serde(default = "default_delay_message_initial_retry_delay_sec")]
+    pub initial_retry_delay_sec: u64,
+
+    #[serde(default = "default_delay_message_reenqueue_delay_sec")]
+    pub reenqueue_delay_sec: u64,
+}
+
+impl Default for DelayMessageConfig {
+    fn default() -> Self {
+        default_delay_message()
     }
 }
 
