@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use broker_core::cache::NodeCacheManager;
-use dashmap::DashMap;
+use common_config::broker::broker_config;
 use kafka_protocol::messages::ResponseHeader;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::Command;
@@ -27,45 +27,34 @@ use std::net::SocketAddr;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
-use crate::kafka::core::ShardOffsets;
+use crate::core::cache::KafkaCacheManager;
+use crate::core::coordinator::GroupCoordinator;
 use crate::kafka::{
-    acl, admin, api_versions, auth, config, consumer_group, consumer_group_next, core,
-    delegation_token, find_coordinator, metadata, quota, share_group, telemetry, topic,
-    transaction,
+    acl, admin, api_versions, auth, config, consumer_group, consumer_group_next,
+    consumer_group_offset, delegation_token, fetch, metadata, offset, produce, quota, scram,
+    share_group, telemetry, topic, transaction,
 };
 
 #[derive(Clone)]
 pub struct KafkaHandlerCommand {
-    storage_driver_manager: Option<Arc<StorageDriverManager>>,
-    broker_cache: Option<Arc<NodeCacheManager>>,
-    // (connection_id, topic) -> per-shard offsets
-    shard_offsets: ShardOffsets,
+    storage_driver_manager: Arc<StorageDriverManager>,
+    broker_cache: Arc<NodeCacheManager>,
+    kafka_cache: Arc<KafkaCacheManager>,
+    group_coordinator: Arc<GroupCoordinator>,
 }
 
 impl KafkaHandlerCommand {
-    pub fn new() -> Self {
-        KafkaHandlerCommand {
-            storage_driver_manager: None,
-            broker_cache: None,
-            shard_offsets: Arc::new(DashMap::new()),
-        }
-    }
-
-    pub fn new_with_storage(
+    pub fn new(
         storage_driver_manager: Arc<StorageDriverManager>,
         broker_cache: Arc<NodeCacheManager>,
+        kafka_cache: Arc<KafkaCacheManager>,
     ) -> Self {
         KafkaHandlerCommand {
-            storage_driver_manager: Some(storage_driver_manager),
-            broker_cache: Some(broker_cache),
-            shard_offsets: Arc::new(DashMap::new()),
+            storage_driver_manager,
+            broker_cache,
+            kafka_cache: kafka_cache.clone(),
+            group_coordinator: Arc::new(GroupCoordinator::new(kafka_cache)),
         }
-    }
-}
-
-impl Default for KafkaHandlerCommand {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -85,48 +74,140 @@ impl Command for KafkaHandlerCommand {
             KafkaHeader::Response(_) => return None,
         };
 
+        // When SASL is enabled, an unauthenticated connection may only negotiate
+        // versions or run the SASL handshake; any other request is dropped until
+        // the connection authenticates.
+        let sasl = &broker_config().kafka_runtime.sasl;
+        if sasl.enabled
+            && !self.kafka_cache.is_sasl_authenticated(connection_id)
+            && !is_preauth_allowed(&wrapper.packet)
+        {
+            warn!(
+                "Kafka request rejected on connection {}: SASL authentication required",
+                connection_id
+            );
+            return None;
+        }
+
         let resp_packet = match &wrapper.packet {
             // Core Data Plane
-            KafkaPacket::ProduceReq(req) => core::process_produce(req),
+            KafkaPacket::ProduceReq(req) => {
+                produce::process_produce(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::FetchReq(req) => {
-                core::process_fetch(
-                    self.storage_driver_manager.as_ref(),
-                    &self.shard_offsets,
+                fetch::process_fetch(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::ListOffsetsReq(req) => {
+                offset::process_list_offsets(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::MetadataReq(req) => {
+                metadata::process_metadata(&self.broker_cache, &self.storage_driver_manager, req)
+            }
+            // Consumer Group Management
+            KafkaPacket::OffsetCommitReq(req) => {
+                consumer_group_offset::process_offset_commit(&self.storage_driver_manager, req)
+                    .await
+            }
+            KafkaPacket::OffsetFetchReq(req) => {
+                consumer_group_offset::process_offset_fetch(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::FindCoordinatorReq(req) => {
+                consumer_group::process_find_coordinator(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::JoinGroupReq(req) => {
+                let client_id = match &wrapper.header {
+                    KafkaHeader::Request(h) => h
+                        .client_id
+                        .as_ref()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    KafkaHeader::Response(_) => String::new(),
+                };
+                consumer_group::process_join_group(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    wrapper.api_version,
+                    client_id,
                     req,
-                    connection_id,
                 )
                 .await
             }
-            KafkaPacket::ListOffsetsReq(req) => core::process_list_offsets(req),
-            KafkaPacket::MetadataReq(req) => {
-                metadata::process_metadata(self.broker_cache.as_ref(), req)
+            KafkaPacket::HeartbeatReq(req) => {
+                consumer_group::process_heartbeat(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
             }
-            // Consumer Group Management
-            KafkaPacket::OffsetCommitReq(req) => consumer_group::process_offset_commit(req),
-            KafkaPacket::OffsetFetchReq(req) => consumer_group::process_offset_fetch(req),
-            KafkaPacket::FindCoordinatorReq(req) => find_coordinator::process_find_coordinator(req),
-            KafkaPacket::JoinGroupReq(req) => consumer_group::process_join_group(req),
-            KafkaPacket::HeartbeatReq(req) => consumer_group::process_heartbeat(req),
-            KafkaPacket::LeaveGroupReq(req) => consumer_group::process_leave_group(req),
-            KafkaPacket::SyncGroupReq(req) => consumer_group::process_sync_group(req),
-            KafkaPacket::DescribeGroupsReq(req) => consumer_group::process_describe_groups(req),
-            KafkaPacket::ListGroupsReq(req) => consumer_group::process_list_groups(req),
-            KafkaPacket::DeleteGroupsReq(req) => consumer_group::process_delete_groups(req),
-            KafkaPacket::OffsetDeleteReq(req) => consumer_group::process_offset_delete(req),
+            KafkaPacket::LeaveGroupReq(req) => {
+                consumer_group::process_leave_group(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
+            }
+            KafkaPacket::SyncGroupReq(req) => {
+                consumer_group::process_sync_group(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
+            }
+            KafkaPacket::DescribeGroupsReq(req) => {
+                consumer_group::process_describe_groups(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
+            }
+            KafkaPacket::ListGroupsReq(req) => {
+                consumer_group::process_list_groups(&self.group_coordinator, req)
+            }
+            KafkaPacket::DeleteGroupsReq(req) => {
+                consumer_group::process_delete_groups(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
+            }
+            KafkaPacket::OffsetDeleteReq(req) => {
+                offset::process_offset_delete(&self.storage_driver_manager, req).await
+            }
             // Connection & Authentication
-            KafkaPacket::SaslHandshakeReq(req) => auth::process_sasl_handshake(req),
+            KafkaPacket::SaslHandshakeReq(req) => {
+                auth::process_sasl_handshake(&self.kafka_cache, connection_id, req)
+            }
             KafkaPacket::ApiVersionReq(_) => api_versions::process_api_versions(),
-            KafkaPacket::SaslAuthenticateReq(req) => auth::process_sasl_authenticate(req),
+            KafkaPacket::SaslAuthenticateReq(req) => {
+                auth::process_sasl_authenticate(&self.kafka_cache, connection_id, req)
+            }
             // Topic / Partition Management
-            KafkaPacket::CreateTopicsReq(req) => topic::process_create_topics(req),
-            KafkaPacket::DeleteTopicsReq(req) => topic::process_delete_topics(req),
-            KafkaPacket::DeleteRecordsReq(req) => topic::process_delete_records(req),
-            KafkaPacket::CreatePartitionsReq(req) => topic::process_create_partitions(req),
+            KafkaPacket::CreateTopicsReq(req) => {
+                topic::process_create_topics(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::DeleteTopicsReq(req) => {
+                topic::process_delete_topics(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::DeleteRecordsReq(req) => {
+                topic::process_delete_records(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::CreatePartitionsReq(req) => {
+                topic::process_create_partitions(&self.storage_driver_manager, req).await
+            }
             // Configuration Management
-            KafkaPacket::DescribeConfigsReq(req) => config::process_describe_configs(req),
-            KafkaPacket::AlterConfigsReq(req) => config::process_alter_configs(req),
+            KafkaPacket::DescribeConfigsReq(req) => {
+                config::process_describe_configs(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::AlterConfigsReq(req) => {
+                config::process_alter_configs(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::IncrementalAlterConfigsReq(req) => {
-                config::process_incremental_alter_configs(req)
+                config::process_incremental_alter_configs(&self.storage_driver_manager, req).await
             }
             // Transaction Support
             KafkaPacket::InitProducerIdReq(req) => transaction::process_init_producer_id(req),
@@ -141,30 +222,48 @@ impl Command for KafkaHandlerCommand {
             }
             KafkaPacket::ListTransactionsReq(req) => transaction::process_list_transactions(req),
             // ACL Access Control
-            KafkaPacket::DescribeAclsReq(req) => acl::process_describe_acls(req),
-            KafkaPacket::CreateAclsReq(req) => acl::process_create_acls(req),
-            KafkaPacket::DeleteAclsReq(req) => acl::process_delete_acls(req),
+            KafkaPacket::DescribeAclsReq(req) => {
+                acl::process_describe_acls(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::CreateAclsReq(req) => {
+                acl::process_create_acls(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::DeleteAclsReq(req) => {
+                acl::process_delete_acls(&self.storage_driver_manager, req).await
+            }
             // Quota Management
-            KafkaPacket::DescribeClientQuotasReq(req) => quota::process_describe_client_quotas(req),
-            KafkaPacket::AlterClientQuotasReq(req) => quota::process_alter_client_quotas(req),
+            KafkaPacket::DescribeClientQuotasReq(req) => {
+                quota::process_describe_client_quotas(&self.storage_driver_manager, req).await
+            }
+            KafkaPacket::AlterClientQuotasReq(req) => {
+                quota::process_alter_client_quotas(&self.storage_driver_manager, req).await
+            }
             KafkaPacket::DescribeUserScramCredentialsReq(req) => {
-                quota::process_describe_user_scram_credentials(req)
+                scram::process_describe_user_scram_credentials(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::AlterUserScramCredentialsReq(req) => {
-                quota::process_alter_user_scram_credentials(req)
+                scram::process_alter_user_scram_credentials(&self.storage_driver_manager, req).await
             }
             // Delegation Token Authentication
             KafkaPacket::CreateDelegationTokenReq(req) => {
-                delegation_token::process_create_delegation_token(req)
+                delegation_token::process_create_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::RenewDelegationTokenReq(req) => {
-                delegation_token::process_renew_delegation_token(req)
+                delegation_token::process_renew_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::ExpireDelegationTokenReq(req) => {
-                delegation_token::process_expire_delegation_token(req)
+                delegation_token::process_expire_delegation_token(&self.storage_driver_manager, req)
+                    .await
             }
             KafkaPacket::DescribeDelegationTokenReq(req) => {
-                delegation_token::process_describe_delegation_token(req)
+                delegation_token::process_describe_delegation_token(
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
             }
             // Client Telemetry
             KafkaPacket::GetTelemetrySubscriptionsReq(req) => {
@@ -175,9 +274,6 @@ impl Command for KafkaHandlerCommand {
                 telemetry::process_list_config_resources(req)
             }
             // Operations & Administration
-            KafkaPacket::OffsetForLeaderEpochReq(req) => {
-                admin::process_offset_for_leader_epoch(req)
-            }
             KafkaPacket::AlterReplicaLogDirsReq(req) => admin::process_alter_replica_log_dirs(req),
             KafkaPacket::DescribeLogDirsReq(req) => admin::process_describe_log_dirs(req),
             KafkaPacket::ElectLeadersReq(req) => admin::process_elect_leaders(req),
@@ -188,17 +284,42 @@ impl Command for KafkaHandlerCommand {
                 admin::process_list_partition_reassignments(req)
             }
             KafkaPacket::UpdateFeaturesReq(req) => admin::process_update_features(req),
-            KafkaPacket::DescribeClusterReq(req) => admin::process_describe_cluster(req),
+            KafkaPacket::DescribeClusterReq(req) => {
+                metadata::process_describe_cluster(&self.broker_cache, req)
+            }
             KafkaPacket::DescribeProducersReq(req) => admin::process_describe_producers(req),
             KafkaPacket::DescribeTopicPartitionsReq(req) => {
-                admin::process_describe_topic_partitions(req)
+                metadata::process_describe_topic_partitions(
+                    &self.broker_cache,
+                    &self.storage_driver_manager,
+                    req,
+                )
             }
             // Next-Generation Consumer Group Protocol (KIP-848)
             KafkaPacket::ConsumerGroupHeartbeatReq(req) => {
-                consumer_group_next::process_consumer_group_heartbeat(req)
+                let client_id = match &wrapper.header {
+                    KafkaHeader::Request(h) => h
+                        .client_id
+                        .as_ref()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    KafkaHeader::Response(_) => String::new(),
+                };
+                consumer_group_next::process_consumer_group_heartbeat(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    client_id,
+                    req,
+                )
+                .await
             }
             KafkaPacket::ConsumerGroupDescribeReq(req) => {
-                consumer_group_next::process_consumer_group_describe(req)
+                consumer_group_next::process_consumer_group_describe(
+                    &self.group_coordinator,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
             }
             // Share Group (KIP-932)
             KafkaPacket::ShareGroupHeartbeatReq(req) => {
@@ -243,16 +364,24 @@ impl Command for KafkaHandlerCommand {
     }
 }
 
-pub fn create_command() -> Arc<Box<dyn Command + Send + Sync>> {
-    Arc::new(Box::new(KafkaHandlerCommand::new()))
+// Requests an unauthenticated connection may send while SASL is enabled.
+fn is_preauth_allowed(packet: &KafkaPacket) -> bool {
+    matches!(
+        packet,
+        KafkaPacket::ApiVersionReq(_)
+            | KafkaPacket::SaslHandshakeReq(_)
+            | KafkaPacket::SaslAuthenticateReq(_)
+    )
 }
 
-pub fn create_command_with_storage(
+pub fn create_command(
     storage_driver_manager: Arc<StorageDriverManager>,
     broker_cache: Arc<NodeCacheManager>,
+    kafka_cache: Arc<KafkaCacheManager>,
 ) -> Arc<Box<dyn Command + Send + Sync>> {
-    Arc::new(Box::new(KafkaHandlerCommand::new_with_storage(
+    Arc::new(Box::new(KafkaHandlerCommand::new(
         storage_driver_manager,
         broker_cache,
+        kafka_cache,
     )))
 }

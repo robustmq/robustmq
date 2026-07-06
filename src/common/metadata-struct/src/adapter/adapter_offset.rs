@@ -22,12 +22,29 @@ pub enum AdapterOffsetStrategy {
     Latest,
 }
 
+#[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct AdapterCommitOffset {
+    pub shard_name: String,
+    pub topic_name: String,
+    pub partition: u32,
+    pub offset: u64,
+}
+
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct AdapterConsumerGroupOffset {
     pub group: String,
     pub shard_name: String,
     pub segment_no: u32,
+    pub topic_name: String,
+    pub partition: u32,
     pub offset: u64,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, Debug)]
+pub struct GroupOffsetShardsDelete {
+    pub tenant: String,
+    pub group_name: String,
+    pub shard_names: Vec<String>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]

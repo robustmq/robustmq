@@ -138,15 +138,22 @@ impl RedisBridgePlugin {
     ) -> Result<Vec<String>, CommonError> {
         let mut rendered = self.config.command_template.clone();
 
+        let key_str = record
+            .metadata
+            .key
+            .as_deref()
+            .map(|k| String::from_utf8_lossy(k).into_owned())
+            .unwrap_or_default();
+
         let mut replacements = HashMap::new();
-        replacements.insert("client_id", record.metadata.key.clone().unwrap_or_default());
+        replacements.insert("client_id", key_str.clone());
         replacements.insert("topic", record.metadata.shard.clone());
         replacements.insert(
             "payload",
             String::from_utf8_lossy(processed_data).to_string(),
         );
         replacements.insert("timestamp", record.metadata.create_t.to_string());
-        replacements.insert("key", record.metadata.key.clone().unwrap_or_default());
+        replacements.insert("key", key_str);
 
         for (placeholder, value) in replacements.iter() {
             let pattern = format!("${{{}}}", placeholder);

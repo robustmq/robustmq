@@ -13,24 +13,21 @@
 // limitations under the License.
 
 use crate::{
-    clients::{
-        manager::ClientConnectionManager,
-        packet::{build_read_req, read_resp_parse},
-    },
+    clients::{manager::ClientConnectionManager, packet::build_read_req},
     commitlog::{memory::engine::MemoryStorageEngine, rocksdb::engine::RocksDBStorageEngine},
     core::{
         batch_call::{call_read_data_by_all_node, merge_records},
         cache::StorageCacheManager,
         error::StorageEngineError,
+        remote_read::remote_read_by_key,
         segment::segment_validator,
     },
-    filesegment::{read::segment_read_by_key, SegmentIdentity},
+    filesegment::{index::read::get_index_data_by_key, read::segment_read_by_key, SegmentIdentity},
 };
 use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::record::StorageRecord;
-use protocol::storage::{
-    codec::StorageEnginePacket,
-    protocol::{ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType},
+use protocol::storage::protocol::{
+    ReadReq, ReadReqFilter, ReadReqMessage, ReadReqOptions, ReadType,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -42,18 +39,8 @@ pub struct ReadByKeyParams {
     pub rocksdb_storage_engine: Arc<RocksDBStorageEngine>,
     pub client_connection_manager: Arc<ClientConnectionManager>,
     pub shard_name: String,
-    pub key: String,
+    pub key: bytes::Bytes,
     pub batch_call_source: bool,
-}
-
-pub struct ReadByRemoteKeyParams {
-    pub cache_manager: Arc<StorageCacheManager>,
-    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    pub client_connection_manager: Arc<ClientConnectionManager>,
-    pub leader_id: u64,
-    pub shard_name: String,
-    pub segment: u32,
-    pub key: String,
 }
 
 pub async fn read_by_key(
@@ -65,7 +52,7 @@ pub async fn read_by_key(
     let rocksdb_storage_engine = &params.rocksdb_storage_engine;
     let client_connection_manager = &params.client_connection_manager;
     let shard_name = params.shard_name.as_str();
-    let key = params.key.as_str();
+    let key = params.key.as_ref();
     let Some(shard) = cache_manager.shards.get(shard_name) else {
         return Err(StorageEngineError::ShardNotExist(shard_name.to_owned()));
     };
@@ -90,15 +77,14 @@ pub async fn read_by_key(
                 _ => Vec::new(),
             }
         } else {
-            read_by_remote(ReadByRemoteKeyParams {
-                cache_manager: cache_manager.clone(),
-                rocksdb_engine_handler: rocksdb_engine_handler.clone(),
-                client_connection_manager: client_connection_manager.clone(),
-                shard_name: shard_name.to_string(),
-                leader_id: active_segment.leader,
-                segment: active_segment.segment_seq,
-                key: key.to_string(),
-            })
+            remote_read_by_key(
+                client_connection_manager,
+                cache_manager,
+                &segment_iden,
+                active_segment.leader,
+                shard_name,
+                key,
+            )
             .await?
         };
         return Ok(results);
@@ -112,7 +98,7 @@ pub async fn read_by_key(
             return Ok(local_records);
         }
 
-        let read_req = build_req(&params.shard_name, &params.key, true);
+        let read_req = build_req(&params.shard_name, params.key.clone(), true);
         let remote_records =
             call_read_data_by_all_node(cache_manager, client_connection_manager, read_req).await?;
 
@@ -122,31 +108,13 @@ pub async fn read_by_key(
     Ok(Vec::new())
 }
 
-pub async fn read_by_remote(
-    params: ReadByRemoteKeyParams,
-) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let client_connection_manager = &params.client_connection_manager;
-    let read_req = build_req(&params.shard_name, &params.key, false);
-    let resp = client_connection_manager
-        .write_send(params.leader_id, StorageEnginePacket::ReadReq(read_req))
-        .await?;
-
-    match resp {
-        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            params.leader_id,
-            format!("Expected ReadResp, got {:?}", packet),
-        )),
-    }
-}
-
-fn build_req(shard_name: &str, key: &str, batch_call_source: bool) -> ReadReq {
+fn build_req(shard_name: &str, key: bytes::Bytes, batch_call_source: bool) -> ReadReq {
     let messages = vec![ReadReqMessage {
         shard_name: shard_name.to_string(),
         read_type: ReadType::Key,
         batch_call_source,
         filter: ReadReqFilter {
-            key: Some(key.to_string()),
+            key: Some(key),
             ..Default::default()
         },
         options: ReadReqOptions::default(),
@@ -157,7 +125,7 @@ fn build_req(shard_name: &str, key: &str, batch_call_source: bool) -> ReadReq {
 async fn read_by_memory(
     memory_storage_engine: &Arc<MemoryStorageEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     memory_storage_engine.read_by_key(shard_name, key).await
 }
@@ -165,7 +133,7 @@ async fn read_by_memory(
 async fn read_by_rocksdb(
     rocksdb_storage_engine: &Arc<RocksDBStorageEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
     rocksdb_storage_engine.read_by_key(shard_name, key).await
 }
@@ -174,8 +142,22 @@ async fn read_by_segment(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
+    // Only serve reads from the segment this node leads.
+    // call_read_data_by_all_node already fans out to all other leader nodes,
+    // so every segment is covered exactly once across the cluster.
+    let Some(idx) = get_index_data_by_key(rocksdb_engine_handler, shard_name, key)? else {
+        return Ok(Vec::new());
+    };
+    let segment_iden = SegmentIdentity::new(shard_name, idx.segment);
+    if !cache_manager
+        .leader_segments
+        .contains_key(&segment_iden.name())
+    {
+        return Ok(Vec::new());
+    }
+
     let data_list =
         segment_read_by_key(cache_manager, rocksdb_engine_handler, shard_name, key).await?;
     Ok(data_list.iter().map(|raw| raw.record.clone()).collect())

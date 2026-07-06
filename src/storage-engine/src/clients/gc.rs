@@ -34,7 +34,7 @@ pub async fn start_conn_gc_thread(
 }
 
 async fn gc_conn(connection_manager: &ClientConnectionManager) {
-    let inactive_conns = connection_manager.get_inactive_conn().await;
+    let inactive_conns = connection_manager.get_inactive_conns();
     if !inactive_conns.is_empty() {
         debug!(
             "Found {} inactive connections to clean up",
@@ -42,7 +42,12 @@ async fn gc_conn(connection_manager: &ClientConnectionManager) {
         );
     }
 
-    for (node_id, seq, conn_type) in inactive_conns {
-        connection_manager.close_conn(node_id, seq, conn_type).await;
+    for conn in inactive_conns {
+        if let Err(e) = conn.close_connection().await {
+            debug!(
+                "GC: failed to close connection to node {}: {}",
+                conn.node_id, e
+            );
+        }
     }
 }

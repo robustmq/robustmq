@@ -21,6 +21,7 @@ use common_base::error::ResultCommonError;
 use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::loop_select_ticket;
 use common_base::uuid::unique_id;
+use common_config::broker::broker_config;
 use grpc_clients::pool::ClientPool;
 use network_server::common::connection_manager::ConnectionManager;
 use std::sync::Arc;
@@ -140,11 +141,37 @@ async fn nats_core_queue_push_thread(
     loop_select_ticket(ac_fn, 100, &stop_sx).await;
 }
 
+/// A queue group is pushed by exactly one broker in the cluster, otherwise each
+/// broker would independently pull from offset 0 and deliver every message,
+/// causing N-fold over-delivery. The owner is deterministically the broker with
+/// the smallest broker_id among the group's subscribers; every broker holds the
+/// full (replicated) subscriber set, so all brokers elect the same owner. The
+/// owner forwards to subscribers on other brokers via the share-group RPC.
+fn is_queue_group_owner(subscribe_manager: &Arc<NatsSubscribeManager>, queue_key: &str) -> bool {
+    let Some(bucket_mgr) = subscribe_manager.nats_core_queue_push.get(queue_key) else {
+        return false;
+    };
+    let owner = bucket_mgr
+        .buckets_data_list
+        .iter()
+        .flat_map(|b| {
+            b.value()
+                .iter()
+                .map(|s| s.value().broker_id)
+                .collect::<Vec<_>>()
+        })
+        .min();
+    owner == Some(broker_config().broker_id)
+}
+
 fn stop_empty_queue_group_tasks(subscribe_manager: &Arc<NatsSubscribeManager>) {
     let empty_keys: Vec<String> = subscribe_manager
         .nats_core_queue_push_thread
         .iter()
-        .filter(|e| !subscribe_manager.nats_core_queue_push.contains_key(e.key()))
+        .filter(|e| {
+            !subscribe_manager.nats_core_queue_push.contains_key(e.key())
+                || !is_queue_group_owner(subscribe_manager, e.key())
+        })
         .map(|e| e.key().clone())
         .collect();
 
@@ -181,6 +208,9 @@ fn start_new_queue_group_tasks(
             .nats_core_queue_push_thread
             .contains_key(&queue_key)
         {
+            continue;
+        }
+        if !is_queue_group_owner(subscribe_manager, &queue_key) {
             continue;
         }
 

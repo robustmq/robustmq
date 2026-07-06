@@ -59,9 +59,11 @@ async fn sync_offsets(manager: &OffsetManager) {
         };
         let shard_offsets: Vec<SaveOffsetDataRequestOffset> = offset_map
             .iter()
-            .map(|(shard_name, &offset)| SaveOffsetDataRequestOffset {
+            .map(|(shard_name, entry)| SaveOffsetDataRequestOffset {
                 shard_name: shard_name.clone(),
-                offset,
+                offset: entry.offset,
+                topic: entry.topic_name.clone(),
+                partition: entry.partition,
             })
             .collect();
 

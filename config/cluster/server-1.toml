@@ -84,9 +84,9 @@ channels_per_address = 4
 [mqtt_server]
 tcp_port = 1883
 tls_port = 1885
-websocket_port = 8183
-websockets_port = 8185
-quic_port = 9183
+websocket_port = 8083
+websockets_port = 8085
+quic_port = 9083
 
 [nats_runtime]
 tcp_port = 4222

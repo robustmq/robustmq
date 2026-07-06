@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::commitlog::memory::engine::MemoryStorageEngine;
-use crate::commitlog::offset::CommitLogOffset;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
+use crate::core::offset::ShardOffset;
+use crate::filesegment::replica::FileSegmentReplicaLog;
 use crate::filesegment::SegmentIdentity;
 use crate::isr::follower::advance_hw;
 use crate::isr::follower::update_follower_progress;
@@ -35,6 +36,7 @@ use tokio::time::sleep;
 pub struct FetchEngines {
     pub memory: Arc<MemoryStorageEngine>,
     pub rocksdb: Arc<RocksDBStorageEngine>,
+    pub segment: Arc<FileSegmentReplicaLog>,
 }
 
 pub async fn handle_fetch(
@@ -86,6 +88,17 @@ async fn collect(
                     cache_manager,
                     rocksdb_engine_handler,
                     engines.rocksdb.as_ref(),
+                    req.replica_id,
+                    req.replica_broker_epoch,
+                    shard_req,
+                )
+                .await
+            }
+            Some(StorageType::EngineSegment) => {
+                fetch_one_shard(
+                    cache_manager,
+                    rocksdb_engine_handler,
+                    engines.segment.as_ref(),
                     req.replica_id,
                     req.replica_broker_epoch,
                     shard_req,
@@ -195,8 +208,7 @@ pub async fn fetch_one_shard<L: ReplicaLog>(
         return resp;
     }
 
-    let commit_log_offset =
-        CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    let commit_log_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
     let Some(hw) = advance_hw(
         cache_manager,
         &commit_log_offset,
@@ -261,7 +273,7 @@ mod tests {
         engine.cache_manager.add_segment_replica("s", 0);
         engine.cache_manager.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         engine
             .append_at(
@@ -276,28 +288,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn leader_serves_records_and_empty_tail() {
-        let engine = setup_leader().await;
-        let cm = &engine.cache_manager;
-        let db = &engine.commit_log_offset.rocksdb_engine_handler;
-
-        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
-        assert_eq!(resp.records.len(), 2);
-        assert_eq!(resp.leader_leo, 3);
-
-        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 3)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
-        assert!(resp.records.is_empty());
-    }
-
-    #[tokio::test]
-    async fn fences_reject() {
+    async fn fetch_one_shard_responses() {
         let engine = setup_leader().await;
         let cm = &engine.cache_manager;
         let db = &engine.commit_log_offset.rocksdb_engine_handler;
         let code = |r: FetchShardResp| r.error_code;
 
+        // success: read 2 records from offset 1, empty tail at leo
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 1)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
+        assert_eq!(resp.records.len(), 2);
+        assert_eq!(resp.leader_leo, 3);
+        let resp = fetch_one_shard(cm, db, &engine, 2, 1, &shard_req(3, 3)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
+        assert!(resp.records.is_empty());
+
+        // error paths
         let mut missing = shard_req(3, 0);
         missing.shard_name = "missing".to_string();
         assert_eq!(
@@ -321,8 +327,6 @@ mod tests {
             code(fetch_one_shard(cm, db, &engine, 2, 3, &shard_req(3, 1)).await),
             FetchErrorCode::StaleBrokerEpoch.as_u32()
         );
-
-        // UnknownLeaderEpoch marks the segment for an immediate reconcile.
         assert!(cm.take_reconcile_needed().contains(&("s".to_string(), 0)));
     }
 
@@ -348,7 +352,7 @@ mod tests {
         mem.cache_manager.add_segment_replica("s", 0);
         mem.cache_manager.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         if !records.is_empty() {
             mem.append_at("s", 0, 0, records).await.unwrap();
@@ -373,14 +377,20 @@ mod tests {
     }
 
     fn engines(mem: &Arc<MemoryStorageEngine>) -> FetchEngines {
+        let rocksdb = mem.commit_log_offset.rocksdb_engine_handler.clone();
         FetchEngines {
             memory: mem.clone(),
             rocksdb: Arc::new(crate::core::test_tool::test_build_rocksdb_engine()),
+            segment: Arc::new(FileSegmentReplicaLog::new(
+                mem.cache_manager.clone(),
+                rocksdb,
+            )),
         }
     }
 
     #[tokio::test]
-    async fn long_poll_times_out_empty() {
+    async fn long_poll_behavior() {
+        // no data arrives before timeout → empty
         let mem = leader_shard_memory(vec![]).await;
         let resp = handle_fetch(
             &engines(&mem),
@@ -389,12 +399,9 @@ mod tests {
             &fetch_req(0, 1, 30),
         )
         .await;
-        assert_eq!(resp.shards.len(), 1);
         assert!(resp.shards[0].records.is_empty());
-    }
 
-    #[tokio::test]
-    async fn long_poll_picks_up_late_append() {
+        // data written mid-wait → picked up after sleep
         let mem = leader_shard_memory(vec![]).await;
         let writer = mem.clone();
         tokio::spawn(async move {
@@ -441,7 +448,7 @@ mod tests {
             mem.cache_manager.add_segment_replica(shard, 0);
             mem.cache_manager.save_offset_state(
                 shard.to_string(),
-                crate::commitlog::offset::ShardOffsetState::default(),
+                crate::core::offset::ShardOffsetState::default(),
             );
         }
         mem.append_at("s1", 0, 0, vec![record(0, "a"), record(1, "b")])

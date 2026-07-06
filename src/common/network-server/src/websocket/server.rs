@@ -150,10 +150,14 @@ async fn handle_socket(
     let mut stop_rx = stop_sx.subscribe();
 
     let mut codec = RobustMQCodec::new();
-    if let Err(e) =
-        check_connection_limit(&global_limit_manager, &node_cache, &connection_manager).await
+    if check_connection_limit(
+        &global_limit_manager,
+        &node_cache,
+        &connection_manager,
+        &addr,
+    )
+    .await
     {
-        warn!("{}", e.to_string());
         return;
     }
 
@@ -173,7 +177,7 @@ async fn handle_socket(
                             match codec.decode_data(&mut buf) {
                                 Ok(Some(packet)) => {
 
-                                    info!("recv packet:{:?}",packet);
+                                    debug!("recv packet:{:?}",packet);
                                     let robust_packet = match packet {
                                         RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),

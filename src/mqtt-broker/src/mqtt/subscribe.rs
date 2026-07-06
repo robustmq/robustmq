@@ -20,7 +20,9 @@ use crate::core::event::{st_report_subscribed_event, st_report_unsubscribed_even
 use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::security::security_is_allow_subscribe;
 use crate::core::sub_exclusive::{allow_exclusive_subscribe, already_exclusive_subscribe};
-use crate::core::sub_share::{decode_share_info, full_group_name, is_mqtt_share_subscribe};
+use crate::core::sub_share::{
+    decode_share_info, full_group_name, is_mqtt_share_subscribe, resolve_share_sub_leader_id,
+};
 use crate::core::sub_wildcards::sub_path_validator;
 use crate::core::subscribe::remove_subscribe;
 use crate::core::subscribe::{save_subscribe, SaveSubscribeContext};
@@ -28,16 +30,17 @@ use crate::subscribe::common::min_qos;
 use crate::subscribe::manager::SubscribeManager;
 use broker_core::share_group::ShareGroupStorage;
 use common_base::tools::now_second;
+use common_config::broker::broker_config;
 use common_security::manager::SecurityManager;
 use metadata_struct::mqtt::connection::MQTTConnection;
 use metadata_struct::mqtt::share_group::ShareGroupParams;
 use protocol::mqtt::common::{
-    MqttPacket, MqttProtocol, QoS, SubAck, SubAckProperties, Subscribe, SubscribeProperties,
-    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason, Unsubscribe,
-    UnsubscribeProperties,
+    Disconnect, DisconnectProperties, DisconnectReasonCode, MqttPacket, MqttProtocol, QoS, SubAck,
+    SubAckProperties, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAck,
+    UnsubAckProperties, UnsubAckReason, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{info, warn};
 
 impl MqttService {
     pub async fn subscribe(
@@ -66,6 +69,33 @@ impl MqttService {
                 reason_codes,
                 Some(reason),
             );
+        }
+
+        // MQTT5 share-subscription leader redirect: a share group is served by exactly
+        // one broker (its leader_broker). Ensure the group exists (which assigns the
+        // leader), then if this node is not the leader, redirect the client to the leader
+        // via a ServerMoved DISCONNECT so it reconnects to the broker that pushes the group.
+        self.ensure_share_groups_exist(&connection.tenant, subscribe)
+            .await;
+        if self.protocol.is_mqtt5() {
+            if let Some(server_ref) = self
+                .share_sub_redirect_target(&connection.tenant, subscribe)
+                .await
+            {
+                info!(
+                    "Redirecting client '{}' share subscription to leader broker at {}",
+                    connection.client_id, server_ref
+                );
+                return MqttPacket::Disconnect(
+                    Disconnect {
+                        reason_code: Some(DisconnectReasonCode::ServerMoved),
+                    },
+                    Some(DisconnectProperties {
+                        server_reference: Some(server_ref),
+                        ..Default::default()
+                    }),
+                );
+            }
         }
 
         self.cache_manager.pkid_manager.add_qos_pkid_data(
@@ -98,9 +128,6 @@ impl MqttService {
                 Some(e.to_string()),
             );
         }
-
-        self.ensure_share_groups_exist(&connection.tenant, subscribe)
-            .await;
 
         if let Err(e) =
             crate::core::retain::try_send_retain_message(crate::core::retain::SendRetainContext {
@@ -230,6 +257,46 @@ impl MqttService {
             vec![UnsubAckReason::Success],
             None,
         )
+    }
+
+    /// If any `$share` filter in this subscribe belongs to a group whose leader is a
+    /// different broker, return that leader's MQTT address (for an MQTT5 ServerMoved
+    /// redirect). Returns `None` when this node leads every share group in the request.
+    async fn share_sub_redirect_target(
+        &self,
+        tenant: &str,
+        subscribe: &Subscribe,
+    ) -> Option<String> {
+        let local_broker_id = broker_config().broker_id;
+        for filter in &subscribe.filters {
+            if !is_mqtt_share_subscribe(&filter.path) {
+                continue;
+            }
+            let (group_name, sub_name) = decode_share_info(&filter.path);
+            let group_name_full = full_group_name(&group_name, &sub_name);
+
+            let leader_id = match resolve_share_sub_leader_id(
+                &self.cache_manager,
+                &self.client_pool,
+                tenant,
+                &group_name_full,
+            )
+            .await
+            {
+                Ok(Some(id)) => id,
+                _ => continue,
+            };
+            if leader_id == local_broker_id {
+                continue;
+            }
+            if let Some(node) = self.cache_manager.node_cache.node_lists.get(&leader_id) {
+                let addr = node.extend.mqtt.mqtt_addr.clone();
+                if !addr.is_empty() {
+                    return Some(addr);
+                }
+            }
+        }
+        None
     }
 
     async fn ensure_share_groups_exist(&self, tenant: &str, subscribe: &Subscribe) {

@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use crate::{
-    clients::{manager::ClientConnectionManager, packet::read_resp_parse},
+    clients::manager::ClientConnectionManager,
     core::{cache::StorageCacheManager, error::StorageEngineError},
 };
 use common_config::broker::broker_config;
 use futures::future::join_all;
 use metadata_struct::storage::record::StorageRecord;
-use protocol::storage::{codec::StorageEnginePacket, protocol::ReadReq};
+use protocol::storage::protocol::ReadReq;
 use std::{sync::Arc, time::Duration};
 use tracing::warn;
 
@@ -109,15 +109,7 @@ async fn read_by_remote(
     target_broker_id: u64,
     read_req: ReadReq,
 ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    let resp = client_connection_manager
-        .write_send(target_broker_id, StorageEnginePacket::ReadReq(read_req))
-        .await?;
-
-    match resp {
-        StorageEnginePacket::ReadResp(resp) => Ok(read_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            target_broker_id,
-            format!("Expected ReadResp, got {:?}", packet),
-        )),
-    }
+    client_connection_manager
+        .send_read(target_broker_id, read_req)
+        .await
 }

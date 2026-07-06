@@ -23,6 +23,8 @@
 # Examples:
 #   ./build.sh                    # Build for current platform
 #   ./build.sh --version v0.1.0  # Build with specific version
+#   ./build.sh --fast            # Build a faster local package
+#   ./build.sh --diagnose-cache  # Show build cache settings
 #   ./build.sh --with-frontend   # Build with frontend
 
 set -euo pipefail
@@ -44,6 +46,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VERSION="${VERSION:-}"
 BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
+BUILD_PROFILE="${BUILD_PROFILE:-release}"
+USE_SCCACHE="${USE_SCCACHE:-auto}"
+DIAGNOSE_CACHE="false"
 
 # Helper functions
 log_info() {
@@ -75,6 +80,10 @@ show_help() {
     echo -e "${BOLD}OPTIONS:${NC}"
     echo "    -h, --help              Show this help message"
     echo "    -v, --version VERSION   Build version (default: auto-detect from Cargo.toml)"
+    echo "    --fast                  Use the release-fast profile for faster local packaging"
+    echo "    --profile PROFILE       Cargo build profile (default: release)"
+    echo "    --sccache auto|on|off   Use sccache when available (default: auto)"
+    echo "    --diagnose-cache        Print build cache settings and exit"
     echo "    --with-frontend         Build with frontend"
     echo "    --clean                 Clean build directory before building"
     echo
@@ -85,12 +94,19 @@ show_help() {
     echo "    # Build with specific version"
     echo "    $0 --version v0.1.30"
     echo
+    echo "    # Faster local package build"
+    echo "    $0 --fast"
+    echo
+    echo "    # Inspect local cache settings"
+    echo "    $0 --diagnose-cache"
+    echo
     echo "    # Build with frontend"
     echo "    $0 --with-frontend"
     echo
     echo
     echo -e "${BOLD}NOTES:${NC}"
     echo "    - Always builds for current platform only"
+    echo "    - Default release builds keep full optimization and LTO"
     echo "    - Output directory: $OUTPUT_DIR"
 }
 
@@ -181,6 +197,101 @@ get_rust_target() {
     esac
 }
 
+get_host_rust_target() {
+    rustc -vV | awk '/^host:/ { print $2 }'
+}
+
+get_profile_target_dir() {
+    local profile="$1"
+    case "$profile" in
+        "dev") echo "debug" ;;
+        "release") echo "release" ;;
+        *) echo "$profile" ;;
+    esac
+}
+
+get_target_dir() {
+    local rust_target="$1"
+    local build_profile="$2"
+    local host_target="$3"
+    local target_base="${CARGO_TARGET_DIR:-$PROJECT_ROOT/target}"
+    local target_profile_dir
+    target_profile_dir="$(get_profile_target_dir "$build_profile")"
+
+    if [[ "$target_base" != /* ]]; then
+        target_base="$PROJECT_ROOT/$target_base"
+    fi
+
+    if [[ "$rust_target" == "$host_target" ]]; then
+        echo "$target_base/$target_profile_dir"
+    else
+        echo "$target_base/$rust_target/$target_profile_dir"
+    fi
+}
+
+configure_rustc_wrapper() {
+    case "$USE_SCCACHE" in
+        auto)
+            if [[ -z "${RUSTC_WRAPPER:-}" ]] && command -v sccache >/dev/null 2>&1; then
+                export RUSTC_WRAPPER="sccache"
+                log_info "Using sccache via RUSTC_WRAPPER"
+            fi
+            ;;
+        on)
+            if [[ -n "${RUSTC_WRAPPER:-}" ]]; then
+                log_info "Using existing RUSTC_WRAPPER: $RUSTC_WRAPPER"
+            elif command -v sccache >/dev/null 2>&1; then
+                export RUSTC_WRAPPER="sccache"
+                log_info "Using sccache via RUSTC_WRAPPER"
+            else
+                log_error "--sccache on requested, but sccache was not found in PATH"
+                return 1
+            fi
+            ;;
+        off)
+            ;;
+        *)
+            log_error "Invalid --sccache value: $USE_SCCACHE"
+            return 1
+            ;;
+    esac
+}
+
+show_cache_diagnostics() {
+    local platform="$1"
+    local rust_target="$2"
+    local host_target="$3"
+    local target_dir
+    target_dir="$(get_target_dir "$rust_target" "$BUILD_PROFILE" "$host_target")"
+
+    log_step "Build cache diagnostics"
+    log_info "Platform: $platform"
+    log_info "Rust Target: $rust_target"
+    log_info "Host Rust Target: $host_target"
+    log_info "Build Profile: $BUILD_PROFILE"
+    log_info "Target Directory: $target_dir"
+    log_info "CARGO_TARGET_DIR: ${CARGO_TARGET_DIR:-<unset>}"
+    log_info "CARGO_BUILD_JOBS: ${CARGO_BUILD_JOBS:-<auto>}"
+    log_info "CARGO_INCREMENTAL: ${CARGO_INCREMENTAL:-<profile/default>}"
+    log_info "RUSTFLAGS: ${RUSTFLAGS:-<unset>}"
+    log_info "RUSTC_WRAPPER: ${RUSTC_WRAPPER:-<unset>}"
+    log_info "RUSTC_WORKSPACE_WRAPPER: ${RUSTC_WORKSPACE_WRAPPER:-<unset>}"
+
+    if command -v sccache >/dev/null 2>&1; then
+        log_info "sccache: $(command -v sccache)"
+        sccache --show-stats || true
+    else
+        log_warning "sccache not found; compiler artifact caching is disabled"
+    fi
+
+    if [ -d "$PROJECT_ROOT/target" ]; then
+        du -sh "$PROJECT_ROOT/target" 2>/dev/null || true
+    fi
+    if [ -d "$target_dir" ]; then
+        du -sh "$target_dir" 2>/dev/null || true
+    fi
+}
+
 check_dependencies() {
     if ! command -v cargo >/dev/null 2>&1; then
         log_error "cargo not found. Please install Rust."
@@ -203,6 +314,8 @@ check_dependencies() {
         echo
         return 1
     fi
+
+    configure_rustc_wrapper
 
     if [ "$BUILD_FRONTEND" = "true" ]; then
         if ! command -v pnpm >/dev/null 2>&1; then
@@ -295,34 +408,36 @@ build_server() {
     local version="$1"
     local platform="$2"
     local rust_target="$3"
+    local build_profile="$4"
+    local host_target="$5"
 
     log_step "Building server for $platform"
 
-    # Install target if not available
-    if ! rustup target list --installed | grep -q "$rust_target"; then
+    # Install cross target if not available. The host target is already available.
+    if [[ "$rust_target" != "$host_target" ]] && ! rustup target list --installed | grep -q "$rust_target"; then
         log_info "Installing Rust target: $rust_target"
         rustup target add "$rust_target"
     fi
 
     # Build server binaries
-    log_info "Building server binaries..."
+    log_info "Building server binaries with profile: $build_profile"
 
-    local cargo_cmd="cargo build --release --target $rust_target"
+    local cargo_args=(
+        build
+        --profile "$build_profile"
+        --bin broker-server
+        --bin cli-command
+        --bin cli-bench
+    )
 
-    # Build main server
-    if ! $cargo_cmd --bin broker-server; then
-        log_error "Failed to build broker-server"
-        return 1
+    if [[ "$rust_target" != "$host_target" ]]; then
+        cargo_args+=(--target "$rust_target")
+    else
+        log_info "Using host target cache: target/$(get_profile_target_dir "$build_profile")"
     fi
 
-    # Build CLI tools
-    if ! $cargo_cmd --bin cli-command; then
-        log_error "Failed to build cli-command"
-        return 1
-    fi
-
-    if ! $cargo_cmd --bin cli-bench; then
-        log_error "Failed to build cli-bench"
+    if ! cargo "${cargo_args[@]}"; then
+        log_error "Failed to build server binaries"
         return 1
     fi
 
@@ -333,12 +448,15 @@ create_package() {
     local version="$1"
     local platform="$2"
     local rust_target="$3"
+    local build_profile="$4"
+    local host_target="$5"
 
     log_step "Creating package for $platform"
 
     local package_name="robustmq-$version-$platform"
     local package_dir="$OUTPUT_DIR/$package_name"
-    local target_dir="$PROJECT_ROOT/target/$rust_target/release"
+    local target_dir
+    target_dir="$(get_target_dir "$rust_target" "$build_profile" "$host_target")"
 
     # Create package directory structure
     mkdir -p "$package_dir"/{bin,libs,config,dist}
@@ -425,6 +543,7 @@ Package: robustmq-server
 Version: $version
 Platform: $platform
 Target: $rust_target
+Build Profile: $build_profile
 Build Date: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
 Binaries: ${found_binaries[*]}
 Frontend Web UI: $frontend_status
@@ -453,6 +572,8 @@ EOF
 
 
 main() {
+    cd "$PROJECT_ROOT"
+
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -466,6 +587,30 @@ main() {
                 ;;
             --with-frontend)
                 BUILD_FRONTEND="true"
+                shift
+                ;;
+            --fast)
+                BUILD_PROFILE="release-fast"
+                shift
+                ;;
+            --profile)
+                if [[ $# -lt 2 || -z "$2" ]]; then
+                    log_error "--profile requires a Cargo profile name"
+                    exit 1
+                fi
+                BUILD_PROFILE="$2"
+                shift 2
+                ;;
+            --sccache)
+                if [[ $# -lt 2 || -z "$2" ]]; then
+                    log_error "--sccache requires one of: auto, on, off"
+                    exit 1
+                fi
+                USE_SCCACHE="$2"
+                shift 2
+                ;;
+            --diagnose-cache)
+                DIAGNOSE_CACHE="true"
                 shift
                 ;;
             --clean)
@@ -499,6 +644,11 @@ main() {
     if [ $? -ne 0 ]; then
         exit 1
     fi
+    local host_target=$(get_host_rust_target)
+    if [ -z "$host_target" ]; then
+        log_error "Could not detect host Rust target"
+        exit 1
+    fi
 
     # Show configuration
     echo -e "${BOLD}${BLUE}🚀 RobustMQ Build Script (Simplified)${NC}"
@@ -506,9 +656,18 @@ main() {
     log_info "Version: $VERSION"
     log_info "Platform: $platform"
     log_info "Rust Target: $rust_target"
+    log_info "Host Rust Target: $host_target"
+    log_info "Build Profile: $BUILD_PROFILE"
+    log_info "sccache Mode: $USE_SCCACHE"
     log_info "Build Frontend: $BUILD_FRONTEND"
     log_info "Output Directory: $OUTPUT_DIR"
     echo
+
+    if [ "$DIAGNOSE_CACHE" = "true" ]; then
+        configure_rustc_wrapper
+        show_cache_diagnostics "$platform" "$rust_target" "$host_target"
+        exit 0
+    fi
 
     # Check dependencies
     log_step "Checking dependencies..."
@@ -526,13 +685,13 @@ main() {
     fi
 
     # Build server
-    build_server "$VERSION" "$platform" "$rust_target"
+    build_server "$VERSION" "$platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
     # Create package
-    create_package "$VERSION" "$platform" "$rust_target"
+    create_package "$VERSION" "$platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
     if [ $? -ne 0 ]; then
         exit 1
     fi

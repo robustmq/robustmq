@@ -27,7 +27,7 @@ use std::sync::Arc;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn acceptor_process(
@@ -69,15 +69,14 @@ pub(crate) async fn acceptor_process(
                         if let Some(incoming) = val{
                             match incoming.await {
                                 Ok(connection) => {
-                                    info!("Accept {} connection:{:?}", network_type, connection.remote_address());
+                                    debug!("Accept {} connection:{:?}", network_type, connection.remote_address());
                                     let client_addr = connection.remote_address();
                                     match connection.accept_bi().await {
                                         Ok((w_stream, r_stream)) => {
                                             let codec_write = QuicFramedWriteStream::new(w_stream, row_codec.clone());
                                             let codec_read = QuicFramedReadStream::new(r_stream, row_codec.clone());
 
-                                            if let Err(e) = check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager).await{
-                                                warn!("{}",e.to_string());
+                                            if check_connection_limit(&row_global_limit_manager, &row_broker_cache, &connection_manager, &client_addr).await{
                                                 continue;
                                             }
 
@@ -151,7 +150,7 @@ fn read_frame_process(
                                 break;
                             }
 
-                            info!("recv packet:{:?}",pack);
+                            debug!("recv packet:{:?}",pack);
                             if let Some(pk) = pack{
                                 let connection = connection_manager.get_connect(connection_id).unwrap();
                                 match pk {

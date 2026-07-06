@@ -66,9 +66,9 @@ pub async fn get_temporary_qos2_message(
 ) -> Result<Option<Qos2TemporaryMessage>, MqttBrokerError> {
     let key = uniq_key(client_id, pkid);
     let results = storage_driver_manager
-        .read_by_keys(DEFAULT_TENANT, QOS2_INNER_TOPIC, &[key.as_str()])
+        .read_by_keys(DEFAULT_TENANT, QOS2_INNER_TOPIC, &[key.as_bytes()])
         .await?
-        .remove(&key)
+        .remove(key.as_bytes())
         .unwrap_or_default();
 
     if results.is_empty() {
@@ -97,7 +97,7 @@ pub async fn persistent_save_qos2_message(
     qos2_msg: Qos2TemporaryMessage,
 ) -> Result<u64, MqttBrokerError> {
     let resp = storage_driver_manager
-        .write(&qos2_msg.tenant, &qos2_msg.topic, &[qos2_msg.record])
+        .write(&qos2_msg.tenant, &qos2_msg.topic, &[qos2_msg.record], 1)
         .await?;
 
     let write_resp = if let Some(data) = resp.first() {

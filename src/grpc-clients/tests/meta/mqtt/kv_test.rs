@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
     use grpc_clients::{
         meta::common::call::{kv_delete, kv_exists, kv_get, kv_set},
         pool::ClientPool,
@@ -64,25 +64,23 @@ mod tests {
             .to_string()
             .contains("characters length must be greater than or equal to 1"));
 
-        let exist_req = ExistsRequest { key: key.clone() };
-        match kv_exists(&client_pool, &addrs, exist_req).await {
-            Ok(da) => {
-                assert!(da.flag)
+        let exists = wait_until(|| async {
+            match kv_exists(&client_pool, &addrs, ExistsRequest { key: key.clone() }).await {
+                Ok(da) => da.flag,
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(exists, "key {key} not visible after set");
 
-        let get_req = GetRequest { key: key.clone() };
-        match kv_get(&client_pool, &addrs, get_req).await {
-            Ok(da) => {
-                assert_eq!(da.value, value);
+        let got = wait_until(|| async {
+            match kv_get(&client_pool, &addrs, GetRequest { key: key.clone() }).await {
+                Ok(da) => da.value == value,
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(got, "key {key} value mismatch after set");
 
         let exist_req = DeleteRequest { key: key.clone() };
         match kv_delete(&client_pool, &addrs, exist_req).await {
@@ -92,14 +90,13 @@ mod tests {
             }
         }
 
-        let exist_req: ExistsRequest = ExistsRequest { key: key.clone() };
-        match kv_exists(&client_pool, &addrs, exist_req).await {
-            Ok(da) => {
-                assert!(!da.flag)
+        let absent = wait_until(|| async {
+            match kv_exists(&client_pool, &addrs, ExistsRequest { key: key.clone() }).await {
+                Ok(da) => !da.flag,
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(absent, "key {key} still visible after delete");
     }
 }

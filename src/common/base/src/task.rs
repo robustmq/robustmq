@@ -51,10 +51,12 @@ pub enum TaskKind {
     MQTTSubscribeParse,
     StorageMessageMemoryExpire,
     StorageEngineSegmentExpire,
+    StorageEngineOrphanClean,
     StorageEngineRocksDBExpire,
     StorageEngineConnGC,
     StorageEngineIsrMaintain,
     StorageEngineMetadataReconcile,
+    StorageEngineDeleteWorker,
     NATSClientKeepAlive,
     NATSSubscribeParse,
     NATSSubscribePush,
@@ -99,12 +101,14 @@ impl std::fmt::Display for TaskKind {
             TaskKind::MQTTSubscribeParse => write!(f, "MQTTSubscribeParse"),
             TaskKind::StorageMessageMemoryExpire => write!(f, "StorageMessageMemoryExpire"),
             TaskKind::StorageEngineSegmentExpire => write!(f, "StorageEngineSegmentExpire"),
+            TaskKind::StorageEngineOrphanClean => write!(f, "StorageEngineOrphanClean"),
             TaskKind::StorageEngineRocksDBExpire => write!(f, "StorageEngineRocksDBExpire"),
             TaskKind::StorageEngineConnGC => write!(f, "StorageEngineConnGC"),
             TaskKind::StorageEngineIsrMaintain => write!(f, "StorageEngineIsrMaintain"),
             TaskKind::StorageEngineMetadataReconcile => {
                 write!(f, "StorageEngineMetadataReconcile")
             }
+            TaskKind::StorageEngineDeleteWorker => write!(f, "StorageEngineDeleteWorker"),
             TaskKind::NATSClientKeepAlive => write!(f, "NATSClientKeepAlive"),
             TaskKind::NATSSubscribeParse => write!(f, "NATSSubscribeParse"),
             TaskKind::NATSSubscribePush => write!(f, "NATSSubscribePush"),

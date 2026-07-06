@@ -52,7 +52,7 @@ pub fn init_offsets(engine: &MemoryStorageEngine, shards: &[&str]) {
         });
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
     }
 }
@@ -108,6 +108,10 @@ impl FetchTransport for InProcLeader {
         let engines = FetchEngines {
             memory: self.engine.clone(),
             rocksdb: Arc::new(test_build_rocksdb_engine()),
+            segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                self.engine.cache_manager.clone(),
+                self.engine.commit_log_offset.rocksdb_engine_handler.clone(),
+            )),
         };
         Ok(handle_offsets_for_leader_epoch(
             &engines,
@@ -135,7 +139,7 @@ pub async fn leader_with(shards: &[(&str, Vec<StorageRecord>)]) -> InProcLeader 
         engine.cache_manager.add_segment_replica(shard, 0);
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         if !records.is_empty() {
             engine

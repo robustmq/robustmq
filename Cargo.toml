@@ -58,7 +58,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.6"
+version = "0.4.7"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -105,7 +105,7 @@ serde_json = "1.0"
 serde_bytes = "0.11"
 bincode = "1.3.3"
 toml = "1.1.2"
-rkyv = { version = "0.8.15" }
+rkyv = { version = "0.8.15", features = ["bytes-1"] }
 
 # ====================
 # Web Framework (Axum)
@@ -191,7 +191,7 @@ r2d2 = "0.8.10"
 r2d2_mysql = { version = "25.0.0", default-features = false }
 r2d2_postgres = { version = "0.18.2", default-features = false }
 mobc = { version = "0.9.0", default-features = false, features = ["tokio"] }
-opendal = { version = "0.55", default-features = false, features = [
+opendal = { version = "0.57", default-features = false, features = [
     "services-s3",
     "executors-tokio",
 ] }
@@ -248,7 +248,7 @@ opentelemetry_sdk = { git = "https://github.com/open-telemetry/opentelemetry-rus
 opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust.git", rev = "b6783a10984146c62ceaa6997fef1385d2ee5ae8", features = [
     "grpc-tonic",
 ] }
-pprof = { version = "0.14.0", features = ["flamegraph"] }
+pprof = { version = "0.15.0", features = ["flamegraph"] }
 
 # ====================
 # CLI & Command Line Tools
@@ -267,10 +267,10 @@ apache-avro = "0.17.0"
 # ====================
 # Utilities
 # ====================
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 thiserror = "2.0"
 bytes = { version = "1", features = ["serde"] }
-uuid = { version = "1.23.0", default-features = false, features = ["v4"] }
+uuid = { version = "1.23.0", default-features = false, features = ["v4", "v5"] }
 xid = "1.1"
 dashmap = { version = "6.1.0", default-features = false, features = ["serde"] }
 arc-swap = "1.9"
@@ -400,6 +400,15 @@ lto = true              # Link-time optimization
 overflow-checks = false # No runtime overhead
 opt-level = 3           # Maximum optimization
 strip = true            # Strip symbols to reduce binary size
+
+[profile.release-fast]
+# Local packaging profile - faster builds than release, without changing release artifacts.
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true
+opt-level = 2
+strip = false
 
 [profile.test]
 opt-level = 0                # No optimization for faster test compilation

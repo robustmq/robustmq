@@ -197,6 +197,14 @@ impl SubscribeManager {
             tenant_topics.remove(topic_name);
         }
 
+        // Remove subscription records that target this exact topic, so the admin
+        // subscribe_list reflects the deletion. Wildcard subscriptions are left intact
+        // since they still match other topics.
+        if let Some(tenant_map) = self.subscribe_list.get(tenant) {
+            tenant_map.retain(|_, sub| sub.path != topic_name);
+        }
+        self.subscribe_list.retain(|_, m| !m.is_empty());
+
         self.directly_push.remove_by_topic(topic_name);
 
         // Remove all share_push entries whose key ends with "/topic_name".

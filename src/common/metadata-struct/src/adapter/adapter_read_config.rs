@@ -32,6 +32,7 @@ pub struct AdapterWriteRespRow {
     pub offset: u64,
     pub pkid: u64,
     pub error: Option<String>,
+    pub need_next_segment: bool,
 }
 
 impl AdapterWriteRespRow {

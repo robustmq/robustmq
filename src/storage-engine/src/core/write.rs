@@ -13,15 +13,12 @@
 // limitations under the License.
 
 use crate::{
-    clients::{
-        manager::ClientConnectionManager,
-        packet::{build_write_req, write_resp_parse},
-    },
+    clients::manager::ClientConnectionManager,
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::{cache::StorageCacheManager, error::StorageEngineError, segment::segment_validator},
     filesegment::{
-        write::{WriteChannelDataRecord, WriteManager},
+        write_manager::{WriteChannelDataRecord, WriteManager},
         SegmentIdentity,
     },
     isr::follower::{advance_hw, wait_for_hw},
@@ -31,7 +28,6 @@ use common_config::{broker::broker_config, storage::StorageType};
 use metadata_struct::storage::{
     adapter_read_config::AdapterWriteRespRow, adapter_record::AdapterWriteRecord,
 };
-use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::DEFAULT_WRITE_TIMEOUT_MS;
 use std::sync::Arc;
 use tracing::warn;
@@ -134,8 +130,6 @@ pub async fn batch_write(
     }
 
     if acks == ACKS_ALL {
-        // Commit-wait timeout comes from the producer (write request), defaulting
-        // to 30s — NOT the replica fetch long-poll wait, which is far too short.
         let commit_wait_ms = if timeout_ms == 0 {
             DEFAULT_WRITE_TIMEOUT_MS
         } else {
@@ -161,18 +155,9 @@ async fn write_data_to_remote(
         .iter()
         .map(serialize)
         .collect::<Result<Vec<_>, _>>()?;
-    let write_req = build_write_req(shard_name.to_string(), messages);
-    let resp = client_connection_manager
-        .write_send(target_broker_id, StorageEnginePacket::WriteReq(write_req))
-        .await?;
-
-    match resp {
-        StorageEnginePacket::WriteResp(resp) => Ok(write_resp_parse(&resp)?),
-        packet => Err(StorageEngineError::ReceivedPacketError(
-            target_broker_id,
-            format!("Expected WriteResp, got {:?}", packet),
-        )),
-    }
+    client_connection_manager
+        .send_write(target_broker_id, shard_name, messages)
+        .await
 }
 
 async fn write_memory_to_local(
@@ -235,7 +220,7 @@ async fn write_segment_to_local(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commitlog::offset::CommitLogOffset;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_init_segment;
     use crate::isr::follower::update_follower_progress;
     use bytes::Bytes;
@@ -255,7 +240,7 @@ mod tests {
     async fn env() -> Env {
         let (segment_iden, cache_manager, _, rocksdb_engine_handler) =
             test_init_segment(StorageType::EngineMemory).await;
-        let offset = CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         offset
             .save_earliest_offset(&segment_iden.shard_name, 0)
             .unwrap();
@@ -264,7 +249,7 @@ mod tests {
             .unwrap();
         cache_manager.save_offset_state(
             segment_iden.shard_name.clone(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         cache_manager.add_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 

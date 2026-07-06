@@ -818,6 +818,30 @@ impl AdminHttpClient {
             .await
     }
 
+    /// Delete records by key (EngineMemory / EngineRocksDB only)
+    pub async fn delete_record_by_keys<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(
+            &api_path(STORAGE_ENGINE_RECORD_DELETE_BY_KEYS_PATH),
+            request,
+        )
+        .await
+    }
+
+    /// Delete records by offset (EngineMemory / EngineRocksDB only)
+    pub async fn delete_record_by_offsets<T>(&self, request: &T) -> Result<String, HttpClientError>
+    where
+        T: Serialize,
+    {
+        self.post_raw(
+            &api_path(STORAGE_ENGINE_RECORD_DELETE_BY_OFFSETS_PATH),
+            request,
+        )
+        .await
+    }
+
     /// Get offset by timestamp
     pub async fn get_offset_by_timestamp<T, R>(&self, request: &T) -> Result<R, HttpClientError>
     where

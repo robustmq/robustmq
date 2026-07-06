@@ -21,7 +21,7 @@ use metadata_struct::storage::adapter_read_config::AdapterReadConfig;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::storage::segment::segment_name;
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{shard_record_key, shard_record_key_prefix};
+use rocksdb_engine::keys::engine::{record_key, record_prefix};
 
 #[async_trait]
 impl ReplicaLog for RocksDBStorageEngine {
@@ -46,7 +46,7 @@ impl ReplicaLog for RocksDBStorageEngine {
         let mut batch = WriteBatch::default();
         let mut new_leo = leo;
         for record in &records {
-            let key = shard_record_key(shard, segment_seq, record.metadata.offset);
+            let key = record_key(shard, segment_seq, record.metadata.offset);
             batch.put_cf(&cf, key.as_bytes(), serialize(record)?);
             new_leo = record.metadata.offset + 1;
         }
@@ -87,8 +87,8 @@ impl ReplicaLog for RocksDBStorageEngine {
             .min(offset + 1);
         self.commitlog_offset.save_latest_offset(shard, new_leo)?;
 
-        let prefix = shard_record_key_prefix(shard, segment_seq);
-        let from = shard_record_key(shard, segment_seq, offset + 1);
+        let prefix = record_prefix(shard, segment_seq);
+        let from = record_key(shard, segment_seq, offset + 1);
         let to = self.rocksdb_engine_handler.prefix_range_end(&prefix);
         self.rocksdb_engine_handler
             .delete_range_cf(cf, from.into_bytes(), to)?;
@@ -99,7 +99,7 @@ impl ReplicaLog for RocksDBStorageEngine {
         let cf = self.get_cf()?;
         self.commitlog_offset.save_latest_offset(shard, 0)?;
 
-        let prefix = shard_record_key_prefix(shard, segment_seq);
+        let prefix = record_prefix(shard, segment_seq);
         self.rocksdb_engine_handler.delete_prefix(cf, &prefix)?;
         Ok(())
     }
@@ -137,7 +137,7 @@ mod tests {
     fn init_offsets(engine: &crate::commitlog::rocksdb::engine::RocksDBStorageEngine, shard: &str) {
         engine.cache_manager.save_offset_state(
             shard.to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
     }
 

@@ -22,13 +22,16 @@ use broker_core::{
 };
 use common_base::error::common::CommonError;
 use common_config::{broker::broker_config, storage::StorageType};
-use grpc_clients::{meta::mqtt::call::placement_create_topic, pool::ClientPool};
+use grpc_clients::{
+    meta::mqtt::call::{placement_create_topic, placement_update_topic_partitions},
+    pool::ClientPool,
+};
 use metadata_struct::{
     mqtt::topic::{Topic, TopicSource},
     storage::shard::EngineShardConfig,
     tenant::DEFAULT_TENANT,
 };
-use protocol::meta::meta_service_mqtt::CreateTopicRequest;
+use protocol::meta::meta_service_mqtt::{CreateTopicRequest, UpdateTopicPartitionsRequest};
 use std::{sync::Arc, time::Duration};
 use tokio::time::{sleep, timeout};
 use tracing::{debug, info};
@@ -39,6 +42,18 @@ pub fn topic_replication_num(replica_num: u32) -> u32 {
         1
     } else {
         replica_num
+    }
+}
+
+fn shard_config_for(topic: &Topic) -> EngineShardConfig {
+    EngineShardConfig {
+        replica_num: topic.replication,
+        storage_type: topic.storage_type,
+        max_segment_size: topic.config.max_segment_size,
+        max_record_num: topic.config.max_record_num,
+        retention_sec: topic.config.retention_sec,
+        is_inner_topic: topic.source == TopicSource::SystemInner,
+        ..Default::default()
     }
 }
 
@@ -78,17 +93,60 @@ pub async fn create_topic_full(
     }
 
     // create topic message storage
-    let shard_config = EngineShardConfig {
-        replica_num: topic.replication,
-        storage_type: topic.storage_type,
-        max_segment_size: topic.config.max_segment_size,
-        max_record_num: topic.config.max_record_num,
-        retention_sec: topic.config.retention_sec,
-        is_inner_topic: topic.source == TopicSource::SystemInner,
-        ..Default::default()
-    };
     storage_driver_manager
-        .create_storage_resource(&topic.tenant, &topic.topic_name, &shard_config)
+        .create_storage_resource(&topic.tenant, &topic.topic_name, &shard_config_for(topic))
+        .await?;
+    Ok(())
+}
+
+/// Grows an existing topic's partition count. `partition` is the new total
+/// (not a delta) and must be greater than the topic's current partition count;
+/// meta-service enforces this too, but callers should validate before calling.
+pub async fn update_topic_partitions_full(
+    broker_cache: &Arc<NodeCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    client_pool: &Arc<ClientPool>,
+    tenant: &str,
+    topic_name: &str,
+    partition: u32,
+) -> Result<(), CommonError> {
+    let conf = broker_config();
+    let request = UpdateTopicPartitionsRequest {
+        tenant: tenant.to_string(),
+        topic_name: topic_name.to_string(),
+        partition,
+    };
+    placement_update_topic_partitions(client_pool, &conf.get_meta_service_addr(), request).await?;
+
+    // wait for the broker cache to observe the new partition count (5 seconds)
+    let wait_result = timeout(Duration::from_secs(5), async {
+        loop {
+            if broker_cache
+                .get_topic_by_name(tenant, topic_name)
+                .is_some_and(|t| t.partition >= partition)
+            {
+                break;
+            }
+            sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+
+    if wait_result.is_err() {
+        return Err(CommonError::CommonError(format!(
+            "Timeout waiting for topic '{}' partition update to propagate after 5 seconds",
+            topic_name
+        )));
+    }
+
+    // create_storage_resource is idempotent, so this only provisions the new shards.
+    let topic = broker_cache
+        .get_topic_by_name(tenant, topic_name)
+        .ok_or_else(|| {
+            CommonError::TopicNotFoundInBrokerCache(tenant.to_string(), topic_name.to_string())
+        })?;
+    storage_driver_manager
+        .create_storage_resource(tenant, topic_name, &shard_config_for(&topic))
         .await?;
     Ok(())
 }
@@ -135,17 +193,8 @@ async fn init_single_inner_topic(
             "Inner topic '{}' already exists, ensuring storage shard is provisioned",
             topic_name
         );
-        let shard_config = EngineShardConfig {
-            replica_num: topic.replication,
-            storage_type: topic.storage_type,
-            max_segment_size: topic.config.max_segment_size,
-            max_record_num: topic.config.max_record_num,
-            retention_sec: topic.config.retention_sec,
-            is_inner_topic: topic.source == TopicSource::SystemInner,
-            ..Default::default()
-        };
         storage_driver_manager
-            .create_storage_resource(DEFAULT_TENANT, topic_name, &shard_config)
+            .create_storage_resource(DEFAULT_TENANT, topic_name, &shard_config_for(&topic))
             .await?;
         return Ok(());
     }

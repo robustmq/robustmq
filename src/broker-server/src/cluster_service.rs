@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::update_cache::update_cache;
+use kafka_broker::core::cache::KafkaCacheManager;
 use metadata_struct::storage::record::StorageRecord;
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::inner::send_last_will_message_by_req,
@@ -27,7 +28,8 @@ use protocol::broker::broker::{
     SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, ShardSegmentDeleteStatus,
     UpdateCacheReply, UpdateCacheRequest,
 };
-use storage_engine::core::{segment::segment_already_delete, shard::shard_already_delete};
+use std::sync::Arc;
+use storage_engine::core::delete::{segment_already_delete, shard_already_delete};
 use storage_engine::isr::handle_epoch::query_local_replica_state;
 use storage_engine::isr::handle_fetch::FetchEngines;
 use storage_engine::StorageEngineParams;
@@ -38,6 +40,7 @@ pub struct GrpcBrokerService {
     mqtt_params: MqttBrokerServerParams,
     nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
+    kafka_cache: Arc<KafkaCacheManager>,
 }
 
 impl GrpcBrokerService {
@@ -45,11 +48,13 @@ impl GrpcBrokerService {
         mqtt_params: MqttBrokerServerParams,
         nats_params: NatsBrokerServerParams,
         storage_params: StorageEngineParams,
+        kafka_cache: Arc<KafkaCacheManager>,
     ) -> Self {
         GrpcBrokerService {
             mqtt_params,
             nats_params,
             storage_params,
+            kafka_cache,
         }
     }
 }
@@ -66,6 +71,7 @@ impl BrokerService for GrpcBrokerService {
                 &self.mqtt_params,
                 &self.nats_params,
                 &self.storage_params,
+                &self.kafka_cache,
                 record,
             )
             .await
@@ -123,11 +129,8 @@ impl BrokerService for GrpcBrokerService {
                     &item.shard_name,
                     segment_seq,
                 )
-                .await
-                .map_err(|e| Status::internal(e.to_string()))?
             } else {
-                shard_already_delete(&item.shard_name)
-                    .map_err(|e| Status::internal(e.to_string()))?
+                shard_already_delete(&self.storage_params.cache_manager, &item.shard_name)
             };
 
             results.push(ShardSegmentDeleteStatus {
@@ -176,6 +179,12 @@ impl BrokerService for GrpcBrokerService {
         let engines = FetchEngines {
             memory: self.storage_params.memory_storage_engine.clone(),
             rocksdb: self.storage_params.rocksdb_storage_engine.clone(),
+            segment: Arc::new(
+                storage_engine::filesegment::replica::FileSegmentReplicaLog::new(
+                    self.storage_params.cache_manager.clone(),
+                    self.storage_params.rocksdb_engine_handler.clone(),
+                ),
+            ),
         };
         let state = query_local_replica_state(
             &engines,

@@ -21,11 +21,11 @@ use crate::core::segment::{
 use crate::core::segment_meta::{
     update_last_offset_by_segment_metadata, update_start_timestamp_by_segment_metadata,
 };
-use crate::core::shard::update_last_segment_by_shard;
+use crate::core::shard::update_scroll_segment_by_shard;
 use crate::raft::manager::MultiRaftManager;
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::segment_meta::SegmentMetadataStorage;
-use grpc_clients::pool::ClientPool;
+use common_base::tools::now_second;
 use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
 use node_call::NodeCallManager;
 use protocol::meta::meta_service_journal::{
@@ -112,7 +112,6 @@ pub async fn create_segment_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, MetaServiceError> {
@@ -137,7 +136,6 @@ pub async fn create_segment_by_req(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         rocksdb_engine_handler,
         &shard,
         next_segment,
@@ -145,11 +143,10 @@ pub async fn create_segment_by_req(
     )
     .await?;
 
-    update_last_segment_by_shard(
+    update_scroll_segment_by_shard(
         raft_manager,
         cache_manager,
         call_manager,
-        client_pool,
         &shard.shard_name,
         next_segment,
     )
@@ -159,12 +156,32 @@ pub async fn create_segment_by_req(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         &req.shard_name,
         req.current_segment as u32,
         req.current_segment_end_offset,
     )
     .await?;
+
+    if let Some(old_segment) =
+        cache_manager.get_segment(&req.shard_name, req.current_segment as u32)
+    {
+        if let Err(e) = seal_up_segment(
+            cache_manager,
+            raft_manager,
+            call_manager,
+            &old_segment,
+            now_second(),
+        )
+        .await
+        {
+            tracing::warn!(
+                "Failed to seal old segment {} for shard '{}': {}",
+                req.current_segment,
+                req.shard_name,
+                e
+            );
+        }
+    }
 
     Ok(CreateNextSegmentReply {})
 }
@@ -205,7 +222,6 @@ pub async fn seal_up_segment_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     req: &SealUpSegmentRequest,
 ) -> Result<SealUpSegmentReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
@@ -219,7 +235,6 @@ pub async fn seal_up_segment_req(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         &segment,
         req.end_timestamp,
     )
@@ -317,7 +332,6 @@ pub async fn update_start_time_by_segment_meta_by_req(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     req: &UpdateStartTimeBySegmentMetaRequest,
 ) -> Result<UpdateStartTimeBySegmentMetaReply, MetaServiceError> {
     validate_shard_exists(cache_manager, &req.shard_name)?;
@@ -326,7 +340,6 @@ pub async fn update_start_time_by_segment_meta_by_req(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         &req.shard_name,
         req.segment,
         req.start_timestamp,

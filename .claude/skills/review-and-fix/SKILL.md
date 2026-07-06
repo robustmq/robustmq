@@ -55,10 +55,12 @@ Check in priority order:
 - Keep only comments that explain a non-obvious *why* (an invariant, a subtle ordering, a footgun)
 - Do not over-comment — fewer, higher-signal comments beat many noisy ones
 
-**Test Cases (assess and complete)**
-- Coverage: identify core logic paths and edge cases that are not tested; add focused tests for the gaps (the pure decision functions and the bug-prone branches first)
-- Conciseness: if tests are redundant or overlapping (one case is a subset of another), slim them down — tests should be few, focused, and high-signal, not exhaustive duplication
-- Prefer testing the pure/extractable logic directly over standing up heavy mocks for orchestration glue
+**Test Cases (deep review, then trim — do not just add)**
+- Deep-review every existing test before adding anything: does it assert a real behavior, or just re-exercise the happy path another test already covers? Does the assertion actually fail if the logic under test is broken (mutate the code mentally and check)?
+- Default action is consolidation, not addition: merge near-duplicate tests into one parametrized/table-driven case, delete tests that assert trivial defaults or that duplicate coverage another test already provides
+- Only add a new test when a real gap exists: a pure decision function or bug-prone branch with zero coverage. One targeted case per gap — do not pad with variations that don't exercise a new path
+- Prefer testing the pure/extractable logic directly over standing up heavy mocks for orchestration glue; if a path can only be tested by mocking a large dependency, that's usually a sign to extract the pure logic rather than write the mock
+- Keep the total test count as small as possible while still covering every distinct branch/outcome once — "few, focused, high-signal" beats "thorough-looking"
 
 **Naming (align names with behavior)**
 - Function names: does the name describe what the function actually does? Rename misleading or vague names (e.g. a `get_*` that mutates, a `*_switch` that only computes)

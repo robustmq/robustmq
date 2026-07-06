@@ -15,9 +15,10 @@
 use crate::state::HttpState;
 use axum::{extract::State, Json};
 use common_base::http_response::{error_response, success_response};
-use metadata_struct::adapter::adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy};
+use metadata_struct::adapter::adapter_offset::{
+    AdapterCommitOffset, AdapterConsumerGroupOffset, AdapterOffsetStrategy,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,7 +48,7 @@ pub struct GetOffsetByGroupResp {
 pub struct CommitOffsetReq {
     pub tenant: String,
     pub group_name: String,
-    pub offsets: HashMap<String, u64>,
+    pub offsets: Vec<AdapterCommitOffset>,
 }
 
 pub async fn get_offset_by_timestamp(
@@ -122,7 +123,7 @@ pub async fn commit_offset(
     if let Err(e) = state
         .storage_driver_manager
         .offset_manager
-        .commit_offset(&params.tenant, &params.group_name, &params.offsets)
+        .commit_group_offset(&params.tenant, &params.group_name, &params.offsets)
         .await
     {
         return error_response(e.to_string());

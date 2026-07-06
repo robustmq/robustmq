@@ -22,7 +22,10 @@ use metadata_struct::{
     adapter::adapter_shard::AdapterShardDetail,
     mqtt::topic::Topic,
     storage::{
-        adapter_offset::{AdapterConsumerGroupOffset, AdapterOffsetStrategy, AdapterShardInfo},
+        adapter_offset::{
+            AdapterCommitOffset, AdapterConsumerGroupOffset, AdapterOffsetStrategy,
+            AdapterShardInfo,
+        },
         adapter_read_config::{AdapterReadConfig, AdapterWriteRespRow},
         adapter_record::AdapterWriteRecord,
         record::StorageRecord,
@@ -113,6 +116,7 @@ impl StorageDriverManager {
         tenant: &str,
         topic_name: &str,
         data: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
 
@@ -127,7 +131,31 @@ impl StorageDriverManager {
             .get(&(partition as u32))
             .cloned()
             .unwrap_or_else(|| Topic::build_storage_name(&topic.topic_id, partition as u32));
-        driver.write(&partition_name, data).await
+        driver.write(&partition_name, data, acks).await
+    }
+
+    /// Write to a specific partition (Kafka Produce: the client selects the
+    /// partition explicitly, unlike the round-robin `write` above).
+    pub async fn write_to_partition(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        partition: u32,
+        data: &[AdapterWriteRecord],
+        acks: i8,
+    ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
+        let partition_name = topic
+            .storage_name_list
+            .get(&partition)
+            .cloned()
+            .ok_or_else(|| {
+                CommonError::CommonError(format!(
+                    "partition {} does not exist for topic {}",
+                    partition, topic_name
+                ))
+            })?;
+        driver.write(&partition_name, data, acks).await
     }
 
     pub async fn read_by_offset(
@@ -177,10 +205,10 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         topic_name: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        let mut results: HashMap<String, Vec<StorageRecord>> = HashMap::new();
+        let mut results: HashMap<Vec<u8>, Vec<StorageRecord>> = HashMap::new();
         for (_, shard_name) in topic.storage_name_list {
             let shard_result = driver.read_by_keys(&shard_name, keys).await?;
             for (key, records) in shard_result {
@@ -194,7 +222,7 @@ impl StorageDriverManager {
         &self,
         tenant: &str,
         topic_name: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         for (_, shard_name) in topic.storage_name_list {
@@ -216,23 +244,46 @@ impl StorageDriverManager {
         Ok(())
     }
 
+    /// Per-partition Kafka DeleteRecords: delete all records with offset <
+    /// the requested target on each named partition. Returns the achieved
+    /// low_watermark per partition.
+    pub async fn delete_records_before(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+        targets: &HashMap<u32, u64>,
+    ) -> Result<HashMap<u32, u64>, CommonError> {
+        let (topic, driver) = self.build_driver(tenant, topic_name).await?;
+        let mut results = HashMap::with_capacity(targets.len());
+        for (partition, target_offset) in targets {
+            let Some(shard_name) = topic.storage_name_list.get(partition) else {
+                continue;
+            };
+            let achieved = driver
+                .delete_records_before(shard_name, *target_offset)
+                .await?;
+            results.insert(*partition, achieved);
+        }
+        Ok(results)
+    }
+
     pub async fn get_offset_by_timestamp(
         &self,
         tenant: &str,
         topic_name: &str,
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
-    ) -> Result<u64, CommonError> {
+    ) -> Result<HashMap<u32, u64>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        let mut results = Vec::new();
-        for (_, shard_name) in topic.storage_name_list {
+        let mut results = HashMap::with_capacity(topic.storage_name_list.len());
+        for (partition, shard_name) in topic.storage_name_list {
             let offset = driver
                 .get_offset_by_timestamp(&shard_name, timestamp, strategy.clone())
                 .await?;
-            results.push(offset);
+            results.insert(partition, offset);
         }
 
-        Ok(results.iter().min().copied().unwrap_or(0))
+        Ok(results)
     }
 
     pub async fn get_offset_by_group(
@@ -243,15 +294,40 @@ impl StorageDriverManager {
         self.offset_manager.get_offset(tenant, group_name).await
     }
 
-    pub async fn commit_offset(
+    pub async fn commit_group_offset(
         &self,
         tenant: &str,
         group_name: &str,
-        offset: &HashMap<String, u64>,
+        offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         self.offset_manager
-            .commit_offset(tenant, group_name, offset)
+            .commit_group_offset(tenant, group_name, offsets)
             .await
+    }
+
+    /// Delete a group's committed offsets for the given shards (Kafka
+    /// OffsetDelete semantics: removes the checkpoint, not the topic data —
+    /// see `delete_by_offsets`/`delete_records_before` for that).
+    pub async fn delete_group_offset(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        shard_names: &[String],
+    ) -> Result<(), CommonError> {
+        self.offset_manager
+            .delete_group_offset(tenant, group_name, shard_names)
+            .await
+    }
+
+    /// Resolve a topic and its storage driver once, for callers that need to
+    /// issue several per-partition operations against the same topic without
+    /// re-resolving (and re-cloning `Topic`) on every call.
+    pub async fn resolve_topic_driver(
+        &self,
+        tenant: &str,
+        topic_name: &str,
+    ) -> Result<(Topic, ArcStorageAdapter), CommonError> {
+        self.build_driver(tenant, topic_name).await
     }
 
     async fn build_driver(

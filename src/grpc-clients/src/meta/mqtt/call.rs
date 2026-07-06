@@ -29,6 +29,7 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply, UpdateConnectorRequest,
+    UpdateTopicPartitionsReply, UpdateTopicPartitionsRequest,
 };
 use tonic::Streaming;
 
@@ -75,6 +76,12 @@ generate_mqtt_service_call!(
     DeleteTopicRequest,
     DeleteTopicReply,
     DeleteTopic
+);
+generate_mqtt_service_call!(
+    placement_update_topic_partitions,
+    UpdateTopicPartitionsRequest,
+    UpdateTopicPartitionsReply,
+    UpdateTopicPartitions
 );
 generate_mqtt_service_call!(
     placement_list_topic,

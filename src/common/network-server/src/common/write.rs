@@ -25,7 +25,7 @@ use protocol::codec::RobustMQCodecWrapper;
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::robust::{RobustMQPacket, RobustMQPacketWrapper};
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 const WRITE_TIMEOUT_SECS: u64 = 30;
 
@@ -49,7 +49,7 @@ impl ConnectionManager {
         packet_wrapper: RobustMQPacketWrapper,
     ) -> ResultCommonError {
         if !is_ignore_print(&packet_wrapper.packet) {
-            info!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
+            debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
         let codec = match packet_wrapper.packet {

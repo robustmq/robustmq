@@ -21,4 +21,5 @@ pub struct DelayMessageIndexInfo {
     pub target_topic_name: String,
     pub offset: u64,
     pub target_timestamp: u64,
+    pub retry_count: u32,
 }

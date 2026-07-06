@@ -19,10 +19,10 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::{Tenant, TenantConfig};
 use prost::Message as _;
 use protocol::meta::meta_service_common::{
-    BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteResourceConfigRequest,
-    DeleteSchemaRequest, DeleteShareGroupRequest, DeleteTenantRequest, RegisterNodeRequest,
-    SaveOffsetDataRequest, SetResourceConfigRequest, UnBindSchemaRequest, UnRegisterNodeRequest,
-    UpdateTenantRequest,
+    BindSchemaRequest, CreateSchemaRequest, CreateTenantRequest, DeleteOffsetDataRequest,
+    DeleteResourceConfigRequest, DeleteSchemaRequest, DeleteShareGroupRequest, DeleteTenantRequest,
+    RegisterNodeRequest, SaveOffsetDataRequest, SetResourceConfigRequest, UnBindSchemaRequest,
+    UnRegisterNodeRequest, UpdateTenantRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
@@ -97,6 +97,8 @@ impl DataRouteCluster {
                     tenant: offset_data.tenant.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
+                    topic: raw.topic.clone(),
+                    partition: raw.partition,
                     offset: raw.offset,
                     timestamp: now_second(),
                 })
@@ -149,6 +151,16 @@ impl DataRouteCluster {
         let offsets = offset_storage.group_offset(&req.tenant, &req.group)?;
         for offset in &offsets {
             offset_storage.delete(&offset.tenant, &offset.group, &offset.shard_name)?;
+        }
+        Ok(())
+    }
+
+    // Selective counterpart to `delete_offset_data`.
+    pub fn delete_offset_data_shards(&self, value: Bytes) -> Result<(), MetaServiceError> {
+        let req = DeleteOffsetDataRequest::decode(value.as_ref())?;
+        let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
+        for shard_name in &req.shard_names {
+            offset_storage.delete(&req.tenant, &req.group, shard_name)?;
         }
         Ok(())
     }

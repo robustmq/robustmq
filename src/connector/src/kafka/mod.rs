@@ -138,7 +138,7 @@ impl ConnectorSink for KafkaBridgePlugin {
             let key = if self.config.key.is_empty() {
                 record.metadata.key.clone().unwrap_or_default()
             } else {
-                self.config.key.clone()
+                self.config.key.clone().into()
             };
             keys.push(key);
         }
@@ -148,7 +148,7 @@ impl ConnectorSink for KafkaBridgePlugin {
         for (data, key) in serialized_data.iter().zip(keys.iter()) {
             let future = producer.send(
                 FutureRecord::to(self.config.topic.as_str())
-                    .key(key)
+                    .key(key.as_ref())
                     .payload(data),
                 Duration::from_secs(0),
             );

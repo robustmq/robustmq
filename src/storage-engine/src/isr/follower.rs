@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commitlog::offset::CommitLogOffset;
 use crate::core::cache::StorageCacheManager;
+use crate::core::offset::ShardOffset;
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -78,7 +78,7 @@ fn committable_hw(fp: &SegmentReplicaState, isr: &[u64], leader_id: u64, leader_
 
 pub fn advance_hw(
     cache_manager: &Arc<StorageCacheManager>,
-    commit_log_offset: &CommitLogOffset,
+    commit_log_offset: &ShardOffset,
     shard: &str,
     segment_seq: u32,
     isr: &[u64],
@@ -135,7 +135,7 @@ pub async fn wait_for_hw(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commitlog::offset::ShardOffsetState;
+    use crate::core::offset::ShardOffsetState;
     use crate::core::test_tool::test_build_memory_engine;
 
     #[tokio::test]
@@ -163,7 +163,7 @@ mod tests {
         assert_eq!(fp.get(&2).unwrap().leo, 10);
     }
 
-    fn setup(shard: &str, isr: &[u64]) -> (Arc<StorageCacheManager>, Arc<CommitLogOffset>) {
+    fn setup(shard: &str, isr: &[u64]) -> (Arc<StorageCacheManager>, Arc<ShardOffset>) {
         let engine = test_build_memory_engine();
         let cm = engine.cache_manager.clone();
         cm.save_offset_state(shard.to_string(), ShardOffsetState::default());

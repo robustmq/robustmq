@@ -16,6 +16,7 @@ use crate::auth::{auth_middleware, auth_router};
 use crate::cluster::index;
 use crate::cluster::offset::{commit_offset, get_offset_by_group, get_offset_by_timestamp};
 use crate::debug::pprof_flamegraph;
+use crate::engine::record::{record_delete_by_keys, record_delete_by_offsets};
 use crate::engine::segment::{segment_detail, segment_list, segment_replica_state};
 use crate::engine::shard::{shard_create, shard_delete, shard_list};
 use crate::mcp::mcp_route;
@@ -168,6 +169,15 @@ impl AdminServer {
             .route(
                 STORAGE_ENGINE_SEGMENT_REPLICA_STATE_PATH,
                 post(segment_replica_state),
+            )
+            // record
+            .route(
+                STORAGE_ENGINE_RECORD_DELETE_BY_KEYS_PATH,
+                post(record_delete_by_keys),
+            )
+            .route(
+                STORAGE_ENGINE_RECORD_DELETE_BY_OFFSETS_PATH,
+                post(record_delete_by_offsets),
             )
     }
 

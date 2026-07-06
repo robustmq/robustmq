@@ -37,7 +37,7 @@ impl MessageStorage {
     ) -> Result<Vec<u64>, CommonError> {
         let results = self
             .storage_driver_manager
-            .write(tenant, subject, &records)
+            .write(tenant, subject, &records, 1)
             .await?;
         let mut offsets = Vec::new();
         for row in results {

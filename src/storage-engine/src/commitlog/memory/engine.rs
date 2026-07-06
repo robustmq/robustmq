@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{commitlog::offset::CommitLogOffset, core::cache::StorageCacheManager};
+use crate::core::{cache::StorageCacheManager, offset::ShardOffset};
+use bytes::Bytes;
 use common_config::storage::memory::StorageDriverMemoryConfig;
 use dashmap::DashMap;
 use metadata_struct::storage::record::StorageRecord;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
-pub struct ShardState {
+pub struct MemoryShardData {
     pub data: DashMap<u64, StorageRecord>,
     pub tag_index: DashMap<String, Vec<u64>>,
-    pub key_index: DashMap<String, u64>,
+    pub key_index: DashMap<Bytes, u64>,
     pub timestamp_index: DashMap<u64, u64>,
     pub write_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
-impl ShardState {
+impl MemoryShardData {
     pub fn new(capacity: usize) -> Self {
-        ShardState {
+        MemoryShardData {
             data: DashMap::with_capacity(capacity),
             tag_index: DashMap::with_capacity(8),
             key_index: DashMap::with_capacity(8),
@@ -41,9 +42,9 @@ impl ShardState {
 
 #[derive(Clone)]
 pub struct MemoryStorageEngine {
-    pub shards: DashMap<String, Arc<ShardState>>,
+    pub shards: DashMap<String, Arc<MemoryShardData>>,
     pub config: StorageDriverMemoryConfig,
-    pub commit_log_offset: Arc<CommitLogOffset>,
+    pub commit_log_offset: Arc<ShardOffset>,
     pub cache_manager: Arc<StorageCacheManager>,
 }
 
@@ -56,7 +57,7 @@ impl MemoryStorageEngine {
         MemoryStorageEngine {
             shards: DashMap::with_capacity(8),
             config,
-            commit_log_offset: Arc::new(CommitLogOffset::new(
+            commit_log_offset: Arc::new(ShardOffset::new(
                 cache_manager.clone(),
                 rocksdb_engine_handler.clone(),
             )),
@@ -64,11 +65,11 @@ impl MemoryStorageEngine {
         }
     }
 
-    pub fn get_or_create_shard(&self, shard_name: &str) -> Arc<ShardState> {
+    pub fn get_or_create_shard(&self, shard_name: &str) -> Arc<MemoryShardData> {
         let capacity = self.config.max_shard_size_limit.min(1024);
         self.shards
             .entry(shard_name.to_string())
-            .or_insert_with(|| Arc::new(ShardState::new(capacity)))
+            .or_insert_with(|| Arc::new(MemoryShardData::new(capacity)))
             .clone()
     }
 }

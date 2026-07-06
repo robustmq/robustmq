@@ -24,7 +24,6 @@ mod tests {
     use grpc_clients::broker::common::call::broker_get_shard_segment_delete_status;
     use grpc_clients::meta::mqtt::call::placement_list_topic;
     use grpc_clients::pool::ClientPool;
-    use metadata_struct::adapter::adapter_shard::AdapterShardDetailExtend;
     use metadata_struct::mqtt::topic::Topic as MqttTopic;
     use metadata_struct::storage::segment::SegmentStatus;
     use metadata_struct::storage::shard::{
@@ -112,8 +111,7 @@ mod tests {
         );
         assert_eq!(shard_detail.config.retention_sec, DEFAULT_RETENTION_SEC);
 
-        // extend: StorageEngine variant, initial seq values, status=Run
-        let AdapterShardDetailExtend::StorageEngine(engine_shard) = &shard_detail.extend;
+        let engine_shard = &shard_detail.shard;
         assert_eq!(engine_shard.start_segment_seq, 0);
         assert_eq!(engine_shard.active_segment_seq, 0);
         assert_eq!(engine_shard.last_segment_seq, 0);
@@ -156,44 +154,38 @@ mod tests {
         let delete_result = client.delete_topic(&delete_req).await.unwrap();
         println!("delete_topic result: {}", delete_result);
 
-        // ── sleep 10s — wait for async shard/segment cleanup ──────────────────
-        sleep(Duration::from_secs(10)).await;
+        let cleanup_deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+        loop {
+            let topic_gone = client
+                .get_topic_list::<_, Vec<Topic>>(&list_req)
+                .await
+                .map(|r| r.data.is_empty())
+                .unwrap_or(false);
 
-        // ── list topic — verify topic is gone ─────────────────────────────────
-        let topic_list_final = client
-            .get_topic_list::<_, Vec<Topic>>(&list_req)
-            .await
-            .unwrap();
-        println!("topic list after cleanup: {:#?}", topic_list_final);
-        assert_eq!(
-            topic_list_final.data.len(),
-            0,
-            "topic should be removed after delete"
-        );
+            let shard_gone = client
+                .get_shard_list::<_, Vec<ShardListRow>>(&shard_req)
+                .await
+                .map(|r| r.data.is_empty())
+                .unwrap_or(false);
 
-        // ── list shard — verify shard is cleaned up ───────────────────────────
-        let shard_list_final = client
-            .get_shard_list::<_, Vec<ShardListRow>>(&shard_req)
-            .await
-            .unwrap();
-        println!("shard list after cleanup: {:#?}", shard_list_final);
-        assert_eq!(
-            shard_list_final.data.len(),
-            0,
-            "shard should be removed after topic delete"
-        );
+            let segment_gone = match client.get_segment_list(&segment_req).await {
+                Ok(s) => serde_json::from_str::<AdminServerResponse<SegmentListResp>>(&s)
+                    .map(|d| d.data.segment_list.is_empty())
+                    .unwrap_or(false),
+                Err(_) => false,
+            };
 
-        // ── list segment — verify segments are cleaned up ─────────────────────
-        let segment_resp_str_final = client.get_segment_list(&segment_req).await.unwrap();
-        println!("segment list after cleanup: {}", segment_resp_str_final);
-        let segment_data_final: AdminServerResponse<SegmentListResp> =
-            serde_json::from_str(&segment_resp_str_final).unwrap();
-        assert_eq!(segment_data_final.code, 0);
-        assert_eq!(
-            segment_data_final.data.segment_list.len(),
-            0,
-            "segments should be removed after topic delete"
-        );
+            if topic_gone && shard_gone && segment_gone {
+                break;
+            }
+            if tokio::time::Instant::now() >= cleanup_deadline {
+                panic!(
+                    "topic/shard/segment not cleaned up within 60s after delete \
+                     (topic_gone={topic_gone}, shard_gone={shard_gone}, segment_gone={segment_gone})"
+                );
+            }
+            sleep(Duration::from_secs(2)).await;
+        }
 
         // ── verify physical shard is deleted (via broker grpc) ────────────────
         let client_pool = Arc::new(ClientPool::new(3));
@@ -217,27 +209,37 @@ mod tests {
         );
 
         // ── verify meta topic is deleted (via placement grpc) ─────────────────
-        let topic_list_req = ListTopicRequest {
-            tenant: tenant.clone(),
-            topic_name: topic_name.clone(),
-        };
-        let mut topic_stream =
-            placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
-                .await
-                .unwrap();
-        let mut found_in_meta = false;
-        while let Some(reply) = topic_stream.message().await.unwrap() {
-            if let Ok(t) = MqttTopic::decode(&reply.topic) {
-                if t.topic_name == topic_name {
-                    found_in_meta = true;
-                    break;
+        // The meta controller runs every 5 s and only removes the topic from raft
+        // after all shards are confirmed deleted (second MqttDeleteTopic write).
+        // Poll until the topic is gone from placement or timeout.
+        let meta_deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            let topic_list_req = ListTopicRequest {
+                tenant: tenant.clone(),
+                topic_name: topic_name.clone(),
+            };
+            let mut topic_stream =
+                placement_list_topic(&client_pool, &["127.0.0.1:1228"], topic_list_req)
+                    .await
+                    .unwrap();
+            let mut found_in_meta = false;
+            while let Some(reply) = topic_stream.message().await.unwrap() {
+                if let Ok(t) = MqttTopic::decode(&reply.topic) {
+                    if t.topic_name == topic_name {
+                        found_in_meta = true;
+                        break;
+                    }
                 }
             }
+            if !found_in_meta {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < meta_deadline,
+                "meta topic '{}' should be deleted within 30s after physical shard deletion",
+                topic_name
+            );
+            sleep(Duration::from_secs(2)).await;
         }
-        assert!(
-            !found_in_meta,
-            "meta topic '{}' should be deleted after topic delete",
-            topic_name
-        );
     }
 }

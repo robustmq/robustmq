@@ -13,8 +13,14 @@
 // limitations under the License.
 
 pub mod client_test;
+pub mod common;
+pub mod delete_offset_test;
 pub mod isr;
 pub mod key_compact;
 pub mod message_ttl;
-pub mod read_test;
+pub mod offset_timestamp_test;
+pub mod read_key_test;
+pub mod read_offset_test;
+pub mod read_tag_test;
+pub mod segment_scroll;
 pub mod shard_test;

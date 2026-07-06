@@ -120,6 +120,12 @@ fn local_replica_state_from_cache(
     let engines = FetchEngines {
         memory: state.engine_context.memory_storage_engine.clone(),
         rocksdb: state.engine_context.rocksdb_storage_engine.clone(),
+        segment: Arc::new(
+            storage_engine::filesegment::replica::FileSegmentReplicaLog::new(
+                cm.clone(),
+                state.rocksdb_engine_handler.clone(),
+            ),
+        ),
     };
     let local = query_local_replica_state(&engines, cm, shard_name, segment_seq);
 

@@ -30,7 +30,7 @@ pub struct AdapterWriteRecord {
     pub record_id: u64,
     pub topic: String,
     pub header: Option<Vec<RecordHeader>>,
-    pub key: Option<String>,
+    pub key: Option<Bytes>,
     pub tags: Option<Vec<String>>,
     pub expire_at: u64,
     pub data: Bytes,
@@ -49,7 +49,7 @@ impl AdapterWriteRecord {
         }
     }
 
-    pub fn with_key(mut self, key: impl Into<String>) -> Self {
+    pub fn with_key(mut self, key: impl Into<Bytes>) -> Self {
         self.key = Some(key.into());
         self
     }
@@ -74,7 +74,7 @@ impl AdapterWriteRecord {
         self
     }
 
-    pub fn key(&self) -> Option<&str> {
+    pub fn key(&self) -> Option<&[u8]> {
         self.key.as_deref()
     }
 
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_builder_chain() {
         let record = AdapterWriteRecord::new("test/topic", b"hello".as_ref())
-            .with_key("my-key")
+            .with_key(Bytes::from_static(b"my-key"))
             .with_tags(vec!["tag1".to_string()])
             .with_header(vec![RecordHeader {
                 name: "x-source".to_string(),
@@ -133,14 +133,15 @@ mod tests {
             }]);
 
         assert_eq!(record.topic, "test/topic");
-        assert_eq!(record.key(), Some("my-key"));
+        assert_eq!(record.key(), Some(b"my-key".as_ref()));
         assert_eq!(record.tags(), &["tag1"]);
         assert_eq!(record.header()[0].name, "x-source");
     }
 
     #[test]
     fn test_serialization() {
-        let record = AdapterWriteRecord::new("test/topic", b"payload".as_ref()).with_key("k");
+        let record = AdapterWriteRecord::new("test/topic", b"payload".as_ref())
+            .with_key(Bytes::from_static(b"k"));
 
         let serialized = serialize::serialize(&record).expect("serialize failed");
         let decoded: AdapterWriteRecord =

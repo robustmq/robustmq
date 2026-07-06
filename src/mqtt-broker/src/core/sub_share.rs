@@ -75,6 +75,29 @@ pub async fn get_share_sub_leader(
     None
 }
 
+/// Resolve the leader broker id of a share group, falling back to the meta store
+/// (and warming the cache) when the local cache hasn't received the group yet.
+pub async fn resolve_share_sub_leader_id(
+    cache_manager: &Arc<MQTTCacheManager>,
+    client_pool: &Arc<ClientPool>,
+    tenant: &str,
+    group_name: &str,
+) -> Result<Option<u64>, CommonError> {
+    if let Some(group) = cache_manager.node_cache.get_share_group(tenant, group_name) {
+        return Ok(Some(group.leader_broker));
+    }
+
+    let storage = ShareGroupStorage::new(client_pool.clone());
+    match storage.get(tenant, group_name).await? {
+        Some(group) => {
+            let leader = group.leader_broker;
+            cache_manager.node_cache.add_share_group(group);
+            Ok(Some(leader))
+        }
+        None => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::{adapter_read_config::AdapterReadConfig, record::StorageRecord};
 use std::{collections::HashMap, sync::Arc};
@@ -38,7 +39,7 @@ impl MessageStorage {
     ) -> Result<Vec<u64>, CommonError> {
         let results = self
             .storage_driver_manager
-            .write(tenant, topic_name, &records)
+            .write(tenant, topic_name, &records, 1)
             .await?;
         let mut offsets = Vec::new();
         for row in results {
@@ -87,10 +88,10 @@ impl MessageStorage {
         &self,
         tenant: &str,
         group_id: &str,
-        offsets: &HashMap<String, u64>,
+        offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         self.storage_driver_manager
-            .commit_offset(tenant, group_id, offsets)
+            .commit_group_offset(tenant, group_id, offsets)
             .await
     }
 }
@@ -134,7 +135,7 @@ mod tests {
 
         assert_eq!(String::from_utf8_lossy(&msgs[0].data), "Message 0");
         let meta = msgs[0].clone().metadata;
-        assert_eq!(meta.key, Some("key0".to_string()));
+        assert_eq!(meta.key, Some(bytes::Bytes::from_static(b"key0")));
         assert_eq!(meta.tags, Some(vec!["tag0".to_string()]));
     }
 }

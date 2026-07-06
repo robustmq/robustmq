@@ -1,0 +1,124 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+package meta.service.kafka;
+
+import "meta/validate.proto";
+
+// Kafka-specific meta APIs. Kept in its own service because these concepts
+// (consumer-group coordinator, etc.) exist only for the Kafka protocol.
+service KafkaService {
+  // Returns the node that should coordinate Kafka consumer groups. For now this
+  // is the metadata-raft leader; the mapping may become finer-grained later.
+  rpc GetCoordinatorLeader(GetCoordinatorLeaderRequest) returns (GetCoordinatorLeaderReply) {}
+
+  // Client quotas (KafkaClientQuota, JSON-encoded in `quota`).
+  rpc SetKafkaQuota(SetKafkaQuotaRequest) returns (SetKafkaQuotaReply) {}
+
+  rpc DeleteKafkaQuota(DeleteKafkaQuotaRequest) returns (DeleteKafkaQuotaReply) {}
+
+  rpc ListKafkaQuota(ListKafkaQuotaRequest) returns (ListKafkaQuotaReply) {}
+
+  // Delegation tokens (KafkaDelegationToken, JSON-encoded in `token`).
+  // Metadata management only — nothing verifies a token's `hmac` yet; SASL
+  // authentication (including delegation-token re-auth) is a separate,
+  // not-yet-implemented effort.
+  rpc SetKafkaDelegationToken(SetKafkaDelegationTokenRequest) returns (SetKafkaDelegationTokenReply) {}
+
+  rpc DeleteKafkaDelegationToken(DeleteKafkaDelegationTokenRequest) returns (DeleteKafkaDelegationTokenReply) {}
+
+  rpc ListKafkaDelegationToken(ListKafkaDelegationTokenRequest) returns (ListKafkaDelegationTokenReply) {}
+
+  // SCRAM credentials (KafkaScramCredential, JSON-encoded in `credential`).
+  // Stores only the RFC 5802 derived keys; used later by SASL authentication.
+  rpc SetScramCredential(SetScramCredentialRequest) returns (SetScramCredentialReply) {}
+
+  rpc DeleteScramCredential(DeleteScramCredentialRequest) returns (DeleteScramCredentialReply) {}
+
+  rpc ListScramCredential(ListScramCredentialRequest) returns (ListScramCredentialReply) {}
+}
+
+message GetCoordinatorLeaderRequest {}
+
+message GetCoordinatorLeaderReply {
+  uint64 leader_node_id = 1;
+  bool has_leader = 2;
+}
+
+message SetKafkaQuotaRequest {
+  bytes quota = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetKafkaQuotaReply {}
+
+message DeleteKafkaQuotaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string entity_type = 2 [(validate.rules).string.min_len = 1];
+  // Sentinel "__default__" addresses the entity-type default quota.
+  string entity_name = 3 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteKafkaQuotaReply {}
+
+message ListKafkaQuotaRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+}
+
+message ListKafkaQuotaReply {
+  repeated bytes quotas = 1;
+}
+
+message SetKafkaDelegationTokenRequest {
+  bytes token = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetKafkaDelegationTokenReply {}
+
+message DeleteKafkaDelegationTokenRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string token_id = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteKafkaDelegationTokenReply {}
+
+message ListKafkaDelegationTokenRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+}
+
+message ListKafkaDelegationTokenReply {
+  repeated bytes tokens = 1;
+}
+
+message SetScramCredentialRequest {
+  bytes credential = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetScramCredentialReply {}
+
+message DeleteScramCredentialRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string user = 2 [(validate.rules).string.min_len = 1];
+  int32 mechanism = 3;
+}
+
+message DeleteScramCredentialReply {}
+
+message ListScramCredentialRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+}
+
+message ListScramCredentialReply {
+  repeated bytes credentials = 1;
+}

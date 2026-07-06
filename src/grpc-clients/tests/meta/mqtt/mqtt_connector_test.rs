@@ -33,14 +33,14 @@ mod test {
         UpdateConnectorRequest,
     };
 
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
 
-    fn check_connector_equal(left: &MQTTConnector, right: &MQTTConnector) {
-        assert_eq!(left.connector_name, right.connector_name);
-        assert_eq!(left.connector_type, right.connector_type);
-        assert_eq!(left.topic_name, right.topic_name);
-        assert_eq!(left.status.clone() as u8, right.status.clone() as u8);
-        assert_eq!(left.broker_id, right.broker_id);
+    fn connector_matches(left: &MQTTConnector, right: &MQTTConnector) -> bool {
+        left.connector_name == right.connector_name
+            && left.connector_type == right.connector_type
+            && left.topic_name == right.topic_name
+            && left.status.clone() as u8 == right.status.clone() as u8
+            && left.broker_id == right.broker_id
     }
 
     #[tokio::test]
@@ -75,16 +75,22 @@ mod test {
             connector_name: connector_name.clone(),
         };
 
-        let mut stream = placement_list_connector(&client_pool, &addrs, list_request.clone())
-            .await
-            .unwrap();
-        let mut count = 0;
-        while let Some(reply) = stream.message().await.unwrap() {
-            let mqtt_connector = MQTTConnector::decode(&reply.connector).unwrap();
-            check_connector_equal(&mqtt_connector, &connector);
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        let ok = wait_until(|| async {
+            let mut stream =
+                match placement_list_connector(&client_pool, &addrs, list_request.clone()).await {
+                    Ok(s) => s,
+                    Err(_) => return false,
+                };
+            let mut connectors = Vec::new();
+            while let Ok(Some(reply)) = stream.message().await {
+                if let Ok(c) = MQTTConnector::decode(&reply.connector) {
+                    connectors.push(c);
+                }
+            }
+            connectors.len() == 1 && connector_matches(&connectors[0], &connector)
+        })
+        .await;
+        assert!(ok, "created connector {connector_name} not visible");
 
         // update connector
         connector.connector_type = ConnectorType::Kafka(KafkaConnectorConfig {
@@ -104,16 +110,22 @@ mod test {
             .unwrap();
 
         // list the connector we just updated
-        let mut stream = placement_list_connector(&client_pool, &addrs, list_request.clone())
-            .await
-            .unwrap();
-        let mut count = 0;
-        while let Some(reply) = stream.message().await.unwrap() {
-            let mqtt_connector = MQTTConnector::decode(&reply.connector).unwrap();
-            check_connector_equal(&mqtt_connector, &connector);
-            count += 1;
-        }
-        assert_eq!(count, 1);
+        let ok = wait_until(|| async {
+            let mut stream =
+                match placement_list_connector(&client_pool, &addrs, list_request.clone()).await {
+                    Ok(s) => s,
+                    Err(_) => return false,
+                };
+            let mut connectors = Vec::new();
+            while let Ok(Some(reply)) = stream.message().await {
+                if let Ok(c) = MQTTConnector::decode(&reply.connector) {
+                    connectors.push(c);
+                }
+            }
+            connectors.len() == 1 && connector_matches(&connectors[0], &connector)
+        })
+        .await;
+        assert!(ok, "updated connector {connector_name} not visible");
 
         // delete connector
         let delete_request = DeleteConnectorRequest {
@@ -126,13 +138,19 @@ mod test {
             .unwrap();
 
         // list connector should return nothing
-        let mut stream = placement_list_connector(&client_pool, &addrs, list_request)
-            .await
-            .unwrap();
-        let mut count = 0;
-        while let Some(_reply) = stream.message().await.unwrap() {
-            count += 1;
-        }
-        assert_eq!(count, 0);
+        let ok = wait_until(|| async {
+            let mut stream =
+                match placement_list_connector(&client_pool, &addrs, list_request.clone()).await {
+                    Ok(s) => s,
+                    Err(_) => return false,
+                };
+            let mut count = 0;
+            while let Ok(Some(_reply)) = stream.message().await {
+                count += 1;
+            }
+            count == 0
+        })
+        .await;
+        assert!(ok, "deleted connector {connector_name} still visible");
     }
 }

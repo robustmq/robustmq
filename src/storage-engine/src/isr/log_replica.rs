@@ -16,6 +16,7 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::StorageEngineError;
+use crate::filesegment::replica::FileSegmentReplicaLog;
 use crate::isr::log::ReplicaLog;
 use async_trait::async_trait;
 use common_config::storage::StorageType;
@@ -26,6 +27,7 @@ use std::sync::Arc;
 pub struct EngineReplicaLog {
     memory: Arc<MemoryStorageEngine>,
     rocksdb: Arc<RocksDBStorageEngine>,
+    segment: Arc<FileSegmentReplicaLog>,
     cache_manager: Arc<StorageCacheManager>,
 }
 
@@ -33,22 +35,24 @@ impl EngineReplicaLog {
     pub fn new(
         memory: Arc<MemoryStorageEngine>,
         rocksdb: Arc<RocksDBStorageEngine>,
+        segment: Arc<FileSegmentReplicaLog>,
         cache_manager: Arc<StorageCacheManager>,
     ) -> Self {
         EngineReplicaLog {
             memory,
             rocksdb,
+            segment,
             cache_manager,
         }
     }
 
-    fn is_rocksdb(&self, shard: &str) -> Result<bool, StorageEngineError> {
+    fn storage_type_of(&self, shard: &str) -> Result<StorageType, StorageEngineError> {
         let shard_state = self
             .cache_manager
             .shards
             .get(shard)
             .ok_or_else(|| StorageEngineError::ShardNotExist(shard.to_string()))?;
-        Ok(shard_state.config.storage_type == StorageType::EngineRocksDB)
+        Ok(shard_state.config.storage_type)
     }
 }
 
@@ -61,14 +65,26 @@ impl ReplicaLog for EngineReplicaLog {
         base_offset: u64,
         records: Vec<StorageRecord>,
     ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb
-                .append_at(shard, segment_seq, base_offset, records)
-                .await
-        } else {
-            self.memory
-                .append_at(shard, segment_seq, base_offset, records)
-                .await
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => {
+                self.rocksdb
+                    .append_at(shard, segment_seq, base_offset, records)
+                    .await
+            }
+            StorageType::EngineSegment => {
+                self.segment
+                    .append_at(shard, segment_seq, base_offset, records)
+                    .await
+            }
+            StorageType::EngineMemory => {
+                self.memory
+                    .append_at(shard, segment_seq, base_offset, records)
+                    .await
+            }
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for replica append on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -79,22 +95,38 @@ impl ReplicaLog for EngineReplicaLog {
         offset: u64,
         max_bytes: u64,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb
-                .read_from(shard, segment_seq, offset, max_bytes)
-                .await
-        } else {
-            self.memory
-                .read_from(shard, segment_seq, offset, max_bytes)
-                .await
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => {
+                self.rocksdb
+                    .read_from(shard, segment_seq, offset, max_bytes)
+                    .await
+            }
+            StorageType::EngineSegment => {
+                self.segment
+                    .read_from(shard, segment_seq, offset, max_bytes)
+                    .await
+            }
+            StorageType::EngineMemory => {
+                self.memory
+                    .read_from(shard, segment_seq, offset, max_bytes)
+                    .await
+            }
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for replica read on shard {}",
+                other, shard
+            ))),
         }
     }
 
     fn latest_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb.latest_offset(shard, segment_seq)
-        } else {
-            self.memory.latest_offset(shard, segment_seq)
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => self.rocksdb.latest_offset(shard, segment_seq),
+            StorageType::EngineSegment => self.segment.latest_offset(shard, segment_seq),
+            StorageType::EngineMemory => self.memory.latest_offset(shard, segment_seq),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for latest_offset on shard {}",
+                other, shard
+            ))),
         }
     }
 
@@ -104,34 +136,54 @@ impl ReplicaLog for EngineReplicaLog {
         segment_seq: u32,
         offset: u64,
     ) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb.truncate_to(shard, segment_seq, offset).await
-        } else {
-            self.memory.truncate_to(shard, segment_seq, offset).await
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => {
+                self.rocksdb.truncate_to(shard, segment_seq, offset).await
+            }
+            StorageType::EngineSegment => {
+                self.segment.truncate_to(shard, segment_seq, offset).await
+            }
+            StorageType::EngineMemory => self.memory.truncate_to(shard, segment_seq, offset).await,
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for truncate_to on shard {}",
+                other, shard
+            ))),
         }
     }
 
     async fn clear(&self, shard: &str, segment_seq: u32) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb.clear(shard, segment_seq).await
-        } else {
-            self.memory.clear(shard, segment_seq).await
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => self.rocksdb.clear(shard, segment_seq).await,
+            StorageType::EngineSegment => self.segment.clear(shard, segment_seq).await,
+            StorageType::EngineMemory => self.memory.clear(shard, segment_seq).await,
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for clear on shard {}",
+                other, shard
+            ))),
         }
     }
 
     fn log_start_offset(&self, shard: &str, segment_seq: u32) -> Result<u64, StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb.log_start_offset(shard, segment_seq)
-        } else {
-            self.memory.log_start_offset(shard, segment_seq)
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => self.rocksdb.log_start_offset(shard, segment_seq),
+            StorageType::EngineSegment => self.segment.log_start_offset(shard, segment_seq),
+            StorageType::EngineMemory => self.memory.log_start_offset(shard, segment_seq),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for log_start_offset on shard {}",
+                other, shard
+            ))),
         }
     }
 
     fn update_high_watermark(&self, shard: &str, hw: u64) -> Result<(), StorageEngineError> {
-        if self.is_rocksdb(shard)? {
-            self.rocksdb.update_high_watermark(shard, hw)
-        } else {
-            self.memory.update_high_watermark(shard, hw)
+        match self.storage_type_of(shard)? {
+            StorageType::EngineRocksDB => self.rocksdb.update_high_watermark(shard, hw),
+            StorageType::EngineSegment => self.segment.update_high_watermark(shard, hw),
+            StorageType::EngineMemory => self.memory.update_high_watermark(shard, hw),
+            other => Err(StorageEngineError::CommonErrorStr(format!(
+                "unsupported storage type {:?} for update_high_watermark on shard {}",
+                other, shard
+            ))),
         }
     }
 }

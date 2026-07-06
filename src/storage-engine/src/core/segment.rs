@@ -14,8 +14,8 @@
 
 use super::cache::StorageCacheManager;
 use super::error::StorageEngineError;
+use crate::filesegment::file::{open_segment_write, SegmentFile};
 use crate::filesegment::index::build::delete_segment_index;
-use crate::filesegment::segment_file::{open_segment_write, SegmentFile};
 use crate::filesegment::SegmentIdentity;
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
@@ -109,9 +109,7 @@ pub async fn delete_local_segment(
         return Ok(());
     };
 
-    // delete segment by cache
     cache_manager.delete_segment(segment_iden);
-    cache_manager.remove_segment_replica(&segment_iden.shard_name, segment_iden.segment);
 
     // delete index
     if let Err(e) = delete_segment_index(rocksdb_engine_handler, segment_iden) {
@@ -132,21 +130,6 @@ pub async fn delete_local_segment(
 
     info!("Segment {} deleted successfully", segment_iden.name());
     Ok(())
-}
-
-pub async fn segment_already_delete(
-    cache_manager: &Arc<StorageCacheManager>,
-    shard_name: &str,
-    segment: u32,
-) -> Result<bool, StorageEngineError> {
-    let segment_iden = SegmentIdentity {
-        shard_name: shard_name.to_string(),
-        segment,
-    };
-
-    let segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-
-    Ok(!segment_file.exists())
 }
 
 /// Create a new local segment file from `JournalSegment`.

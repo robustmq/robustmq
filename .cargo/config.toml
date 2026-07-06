@@ -16,8 +16,7 @@
 # This file optimizes build performance and reduces disk space usage
 
 [build]
-# Parallel jobs - use all CPU cores for maximum speed
-jobs = 12              # Reduced from 14 to leave resources for system (adjust if needed)
+# Let Cargo choose the local CPU parallelism. Override with CARGO_BUILD_JOBS if needed.
 incremental = true     # Enable incremental compilation
 
 # Optimize for faster compilation during development
@@ -74,9 +73,9 @@ rustflags = [
 git-fetch-with-cli = true
 
 # Registry settings
-[registry]
+[registries.crates-io]
 # Use sparse registry protocol for faster index updates (Rust 1.68+)
-default = "sparse"
+protocol = "sparse"
 
 # Term settings - better progress output
 [term]
@@ -95,8 +94,7 @@ frequency = 'never'  # Don't generate reports (reduces disk I/O)
 # detection which incorrectly fails on Apple Clang 17 when CARGO_ENCODED_RUSTFLAGS
 # contains --cfg flags that clang doesn't understand as C compiler arguments.
 AWS_LC_SYS_CMAKE_BUILDER = "1"
-# Set test threads based on CPU cores (can be overridden per test)
-RUST_TEST_THREADS = "14"
+# Let the Rust test harness choose local CPU parallelism. Override with RUST_TEST_THREADS if needed.
 # Reduce test output verbosity
 RUST_TEST_NOCAPTURE = "0"
 # Use faster allocator for tests (if available)

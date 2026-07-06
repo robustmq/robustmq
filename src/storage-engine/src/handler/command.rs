@@ -17,8 +17,10 @@ use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use crate::core::cache::StorageCacheManager;
 use crate::core::error::get_journal_server_code;
-use crate::filesegment::write::WriteManager;
-use crate::handler::data::{read_data_req, write_data_req};
+use crate::filesegment::write_manager::WriteManager;
+use crate::handler::data::{
+    delete_data_req, delete_records_before_req, read_data_req, shard_offset_req, write_data_req,
+};
 use crate::isr::handle_epoch::handle_offsets_for_leader_epoch;
 use crate::isr::handle_fetch::{handle_fetch, FetchEngines};
 use async_trait::async_trait;
@@ -28,8 +30,8 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::storage::codec::StorageEnginePacket;
 use protocol::storage::protocol::{
-    ApiKey, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody, RespHeader,
-    StorageEngineNetworkError, WriteRespBody,
+    ApiKey, DeleteResp, DeleteRespBody, FetchResp, OffsetsForLeaderEpochResp, ReadRespBody,
+    RespHeader, ShardOffsetResp, ShardOffsetRespBody, StorageEngineNetworkError, WriteRespBody,
 };
 use protocol::{robust::RobustMQPacket, storage::protocol::WriteResp};
 use rocksdb_engine::rocksdb::RocksDBEngine;
@@ -203,6 +205,10 @@ impl Command for StorageEngineHandlerCommand {
                 let engines = FetchEngines {
                     memory: self.memory_storage_engine.clone(),
                     rocksdb: self.rocksdb_storage_engine.clone(),
+                    segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                        self.cache_manager.clone(),
+                        self.rocksdb_engine_handler.clone(),
+                    )),
                 };
                 let body = handle_fetch(
                     &engines,
@@ -224,6 +230,10 @@ impl Command for StorageEngineHandlerCommand {
                 let engines = FetchEngines {
                     memory: self.memory_storage_engine.clone(),
                     rocksdb: self.rocksdb_storage_engine.clone(),
+                    segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                        self.cache_manager.clone(),
+                        self.rocksdb_engine_handler.clone(),
+                    )),
                 };
                 let body = handle_offsets_for_leader_epoch(
                     &engines,
@@ -239,6 +249,87 @@ impl Command for StorageEngineHandlerCommand {
                     RobustMQPacket::StorageEngine(StorageEnginePacket::OffsetsForLeaderEpochResp(
                         resp,
                     )),
+                );
+                return Some(response);
+            }
+
+            StorageEnginePacket::ShardOffsetReq(request) => {
+                let body = match shard_offset_req(
+                    &self.cache_manager,
+                    &self.memory_storage_engine,
+                    &self.rocksdb_storage_engine,
+                    &request.body,
+                )
+                .await
+                {
+                    Ok(body) => body,
+                    Err(e) => {
+                        error!("shard_offset_req failed: {}", e);
+                        ShardOffsetRespBody {
+                            error_code: 1,
+                            ..Default::default()
+                        }
+                    }
+                };
+                let resp = ShardOffsetResp::new(body);
+
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::ShardOffsetResp(resp)),
+                );
+                return Some(response);
+            }
+
+            StorageEnginePacket::DeleteReq(request) => {
+                let body = if let Some(target_offset) = request.body.delete_before_offset {
+                    match delete_records_before_req(
+                        &self.cache_manager,
+                        &self.rocksdb_engine_handler,
+                        &self.memory_storage_engine,
+                        &self.rocksdb_storage_engine,
+                        &request.body.shard_name,
+                        target_offset,
+                    )
+                    .await
+                    {
+                        Ok(achieved_offset) => DeleteRespBody {
+                            error_code: 0,
+                            achieved_offset,
+                        },
+                        Err(e) => {
+                            error!("delete_records_before_req failed: {}", e);
+                            DeleteRespBody {
+                                error_code: 1,
+                                achieved_offset: 0,
+                            }
+                        }
+                    }
+                } else {
+                    match delete_data_req(
+                        &self.cache_manager,
+                        &self.memory_storage_engine,
+                        &self.rocksdb_storage_engine,
+                        &request.body,
+                    )
+                    .await
+                    {
+                        Ok(()) => DeleteRespBody {
+                            error_code: 0,
+                            achieved_offset: 0,
+                        },
+                        Err(e) => {
+                            error!("delete_data_req failed: {}", e);
+                            DeleteRespBody {
+                                error_code: 1,
+                                achieved_offset: 0,
+                            }
+                        }
+                    }
+                };
+                let resp = DeleteResp::new(body);
+                let response = ResponsePackage::new(
+                    tcp_connection.connection_id,
+                    RobustMQPacket::StorageEngine(StorageEnginePacket::DeleteResp(resp)),
                 );
                 return Some(response);
             }

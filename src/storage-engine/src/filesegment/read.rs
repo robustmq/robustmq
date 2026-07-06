@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::segment_file::SegmentFile;
+use super::file::SegmentFile;
 use super::SegmentIdentity;
 use crate::{
-    core::{cache::StorageCacheManager, error::StorageEngineError},
+    core::{
+        cache::StorageCacheManager, error::StorageEngineError, message_ttl::is_record_expired,
+        offset::ShardOffset,
+    },
     filesegment::{
+        file::{open_segment_write, ReadData},
         index::read::{get_index_data_by_key, get_index_data_by_offset, get_index_data_by_tag},
-        segment_file::{open_segment_write, ReadData},
     },
 };
+use metadata_struct::adapter::adapter_offset::AdapterOffsetStrategy;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::{collections::HashMap, sync::Arc};
 
-/// handle read requests by offset
-///
-/// Use index (if there's any) to find the last nearest start byte position given the offset
 pub async fn segment_read_by_offset(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_file: &mut SegmentFile,
@@ -46,24 +47,30 @@ pub async fn segment_read_by_offset(
     let res = segment_file
         .read_by_offset(start_position, offset, max_size, max_record)
         .await?;
+    let res: Vec<ReadData> = res
+        .into_iter()
+        .filter(|r| !is_record_expired(&r.record.metadata))
+        .collect();
     Ok(res)
 }
 
-/// handle read requests by key
-///
-/// Use index (if there's any) to find all start byte positions of the records with the given key
 pub async fn segment_read_by_key(
     cache_manager: &Arc<StorageCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     shard_name: &str,
-    key: &str,
+    key: &[u8],
 ) -> Result<Vec<ReadData>, StorageEngineError> {
-    let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key.to_string())?;
+    let index_data = get_index_data_by_key(rocksdb_engine_handler, shard_name, key)?;
 
     if let Some(index) = index_data {
         let segment_iden = SegmentIdentity::new(shard_name, index.segment);
         let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
-        return segment_file.read_by_positions(vec![index.position]).await;
+        let res = segment_file.read_by_positions(vec![index.position]).await?;
+        let res: Vec<ReadData> = res
+            .into_iter()
+            .filter(|r| !is_record_expired(&r.record.metadata))
+            .collect();
+        return Ok(res);
     }
     Ok(Vec::new())
 }
@@ -99,10 +106,45 @@ pub async fn segment_read_by_tag(
         let segment_iden = SegmentIdentity::new(shard_name, segment_no);
         let mut segment_file = open_segment_write(cache_manager, &segment_iden).await?;
         let data_list = segment_file.read_by_positions(positions).await?;
-        all_results.extend(data_list);
+        all_results.extend(
+            data_list
+                .into_iter()
+                .filter(|r| !is_record_expired(&r.record.metadata)),
+        );
     }
 
     Ok(all_results)
+}
+
+pub fn get_segment_offset_by_timestamp(
+    cache_manager: &Arc<StorageCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    shard_name: &str,
+    timestamp: u64,
+    strategy: AdapterOffsetStrategy,
+) -> Result<u64, StorageEngineError> {
+    use crate::filesegment::index::read::{
+        get_in_segment_by_timestamp, get_index_data_by_timestamp,
+    };
+
+    if let Some(segment) = get_in_segment_by_timestamp(cache_manager, shard_name, timestamp as i64)?
+    {
+        let segment_iden = SegmentIdentity::new(shard_name, segment);
+        if let Some(index_data) =
+            get_index_data_by_timestamp(rocksdb_engine_handler, &segment_iden, timestamp)?
+        {
+            return Ok(index_data.offset);
+        }
+        return Err(StorageEngineError::CommonErrorStr(format!(
+            "No index data found for timestamp {} in segment {}",
+            timestamp, segment
+        )));
+    }
+    let shard_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+    match strategy {
+        AdapterOffsetStrategy::Earliest => shard_offset.get_earliest_offset(shard_name),
+        AdapterOffsetStrategy::Latest => shard_offset.get_latest_offset(shard_name),
+    }
 }
 
 #[cfg(test)]
@@ -111,11 +153,11 @@ mod tests {
 
     use super::{segment_read_by_key, segment_read_by_offset, segment_read_by_tag};
     use crate::{
-        commitlog::offset::CommitLogOffset,
+        core::offset::ShardOffset,
         core::{cache::StorageCacheManager, test_tool::test_init_segment},
         filesegment::{
-            segment_file::SegmentFile,
-            write::{WriteChannelDataRecord, WriteManager},
+            file::SegmentFile,
+            write_manager::{WriteChannelDataRecord, WriteManager},
             SegmentIdentity,
         },
     };
@@ -158,7 +200,7 @@ mod tests {
             data_list.push(WriteChannelDataRecord {
                 pkid: i,
                 header: None,
-                key: Some(format!("key-{}", i)),
+                key: Some(format!("key-{}", i).into()),
                 tags: Some(vec![format!("tag-{}", i)]),
                 value: Bytes::from(format!("data-{i}")),
                 protocol_data: None,
@@ -181,8 +223,7 @@ mod tests {
             SegmentFile::new(segment_iden.shard_name.clone(), segment_iden.segment, fold)
                 .await
                 .unwrap();
-        let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
+        let commit_offset = ShardOffset::new(cache_manager.clone(), rocksdb_engine_handler.clone());
         commit_offset
             .save_earliest_offset(&segment_iden.shard_name, 0)
             .unwrap();
@@ -206,7 +247,10 @@ mod tests {
         assert_eq!(resp.len(), 2);
 
         for (i, row) in (5..).zip(resp) {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
+            assert_eq!(
+                row.record.metadata.key.unwrap(),
+                bytes::Bytes::from(format!("key-{}", i))
+            );
         }
 
         let max_record = 5;
@@ -223,7 +267,10 @@ mod tests {
         assert_eq!(resp.len(), 5);
 
         for (i, row) in (10_i32..).zip(resp) {
-            assert_eq!(row.record.metadata.key.unwrap(), format!("key-{}", i));
+            assert_eq!(
+                row.record.metadata.key.unwrap(),
+                bytes::Bytes::from(format!("key-{}", i))
+            );
         }
     }
 
@@ -237,14 +284,14 @@ mod tests {
             &cache_manager,
             &rocksdb_engine_handler,
             &segment_iden.shard_name,
-            &key,
+            key.as_bytes(),
         )
         .await
         .unwrap();
 
         assert_eq!(resp.len(), 1);
         let meata = resp.first().unwrap().record.metadata.clone();
-        assert_eq!(meata.key.unwrap(), key);
+        assert_eq!(meata.key.unwrap(), key.as_bytes());
     }
 
     #[tokio::test]

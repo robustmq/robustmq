@@ -27,9 +27,7 @@ use metadata_struct::storage::{
     convert::convert_adapter_record_to_storage,
 };
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{
-    key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
-};
+use rocksdb_engine::keys::engine::{key_index_key, record_key, tag_index_key, timestamp_index_key};
 
 impl RocksDBStorageEngine {
     pub async fn write(
@@ -100,9 +98,9 @@ impl RocksDBStorageEngine {
             let engine_record = convert_adapter_record_to_storage(msg.clone(), shard_name, offset);
 
             // save message (now storing StorageEngineRecord)
-            let shard_record_key = shard_record_key(shard_name, 0, offset);
+            let record_key = record_key(shard_name, 0, offset);
             let serialized_msg = serialize::serialize(&engine_record)?;
-            batch.put_cf(&cf, shard_record_key.as_bytes(), &serialized_msg);
+            batch.put_cf(&cf, record_key.as_bytes(), &serialized_msg);
 
             // save index
             let offset_info = IndexInfo {
@@ -115,7 +113,7 @@ impl RocksDBStorageEngine {
             // key index
             if let Some(key) = &msg.key {
                 let key_index_key = key_index_key(shard_name, key);
-                batch.put_cf(&cf, key_index_key.as_bytes(), offset_info_data.clone());
+                batch.put_cf(&cf, &key_index_key, offset_info_data.clone());
             }
 
             // tag index
@@ -146,14 +144,14 @@ impl RocksDBStorageEngine {
         Ok(results)
     }
 
-    pub async fn delete_by_key(&self, shard: &str, key: &str) -> Result<(), StorageEngineError> {
+    pub async fn delete_by_key(&self, shard: &str, key: &[u8]) -> Result<(), StorageEngineError> {
         self.delete_by_keys(shard, std::slice::from_ref(&key)).await
     }
 
     pub async fn delete_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
+        keys: &[&[u8]],
     ) -> Result<(), StorageEngineError> {
         let mut offsets = Vec::with_capacity(keys.len());
         for key in keys {
@@ -185,7 +183,7 @@ impl RocksDBStorageEngine {
         let mut batch = WriteBatch::default();
 
         for &offset in offsets {
-            let record_key = shard_record_key(shard, 0, offset);
+            let record_key = record_key(shard, 0, offset);
             let Some(record) = self
                 .rocksdb_engine_handler
                 .read::<metadata_struct::storage::record::StorageRecord>(
@@ -199,7 +197,7 @@ impl RocksDBStorageEngine {
             batch.delete_cf(&cf, record_key.as_bytes());
 
             if let Some(key) = &record.metadata.key {
-                batch.delete_cf(&cf, key_index_key(shard, key).as_bytes());
+                batch.delete_cf(&cf, key_index_key(shard, key));
             }
 
             if let Some(tags) = &record.metadata.tags {
@@ -225,7 +223,7 @@ impl RocksDBStorageEngine {
         shard_name: &str,
         messages: &[AdapterWriteRecord],
     ) -> Result<(), StorageEngineError> {
-        let keys: Vec<&str> = messages.iter().filter_map(|m| m.key.as_deref()).collect();
+        let keys: Vec<&[u8]> = messages.iter().filter_map(|m| m.key.as_deref()).collect();
         if keys.is_empty() {
             return Ok(());
         }
@@ -237,8 +235,8 @@ impl RocksDBStorageEngine {
 mod tests {
     use std::sync::Arc;
 
-    use crate::commitlog::offset::CommitLogOffset;
     use crate::core::cache::StorageCacheManager;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_build_rocksdb_engine;
     use broker_core::cache::NodeCacheManager;
     use bytes::Bytes;
@@ -254,14 +252,14 @@ mod tests {
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+            ShardOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let messages: Vec<AdapterWriteRecord> = (0..5)
             .map(|i| AdapterWriteRecord {
-                key: Some(format!("key{}", i)),
+                key: Some(format!("key{}", i).into()),
                 tags: Some(vec![format!("tag{}", i)]),
                 data: Bytes::from(format!("data{}", i)),
                 ..Default::default()
@@ -270,14 +268,14 @@ mod tests {
 
         engine.batch_write(&shard_name, &messages).await.unwrap();
 
-        engine.delete_by_key(&shard_name, "key2").await.unwrap();
+        engine.delete_by_key(&shard_name, b"key2").await.unwrap();
 
         let read_config = AdapterReadConfig {
             max_record_num: 10,
             max_size: 1024 * 1024,
         };
 
-        let key_records = engine.read_by_key(&shard_name, "key2").await.unwrap();
+        let key_records = engine.read_by_key(&shard_name, b"key2").await.unwrap();
         assert_eq!(key_records.len(), 0);
 
         let tag_records = engine

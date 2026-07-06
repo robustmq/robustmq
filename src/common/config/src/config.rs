@@ -24,8 +24,9 @@ use super::default::{
     default_keep_alive_default_timeout, default_keep_alive_enable, default_keep_alive_max_time,
     default_limit_max_connection_rate, default_limit_max_connections_per_node,
     default_limit_max_publish_rate, default_limit_max_sessions, default_limit_max_topics,
-    default_max_admin_http_uri_rate, default_max_message_expiry_interval,
-    default_max_network_connection, default_max_network_connection_rate, default_max_packet_size,
+    default_max_admin_http_uri_rate, default_max_connection_per_ip,
+    default_max_message_expiry_interval, default_max_network_connection,
+    default_max_network_connection_rate, default_max_packet_size,
     default_max_session_expiry_interval, default_meta_addrs, default_meta_runtime,
     default_mqtt_flapping_detect, default_mqtt_keep_alive, default_mqtt_limit_cluster,
     default_mqtt_limit_tenant, default_mqtt_offline_message, default_mqtt_protocol,
@@ -362,6 +363,8 @@ pub struct ClusterLimit {
     pub max_network_connection: u64,
     #[serde(default = "default_max_network_connection_rate")]
     pub max_network_connection_rate: u32,
+    #[serde(default = "default_max_connection_per_ip")]
+    pub max_connection_per_ip: u64,
     #[serde(default = "default_max_admin_http_uri_rate")]
     pub max_admin_http_uri_rate: u32,
 }
@@ -371,6 +374,7 @@ impl Default for ClusterLimit {
         ClusterLimit {
             max_network_connection: 100000000,
             max_network_connection_rate: 10000,
+            max_connection_per_ip: 5000,
             max_admin_http_uri_rate: 50,
         }
     }
@@ -779,18 +783,64 @@ fn default_kafka_tcp_port() -> u32 {
     9092
 }
 
+fn default_kafka_max_fetch_bytes() -> u32 {
+    4 * 1024 * 1024
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KafkaRuntime {
     #[serde(default = "default_kafka_tcp_port")]
     pub tcp_port: u32,
+    /// Upper bound (per partition) on how many bytes a Fetch response may
+    /// return, regardless of what the client requests via `max_bytes`/
+    /// `partition_max_bytes`.
+    #[serde(default = "default_kafka_max_fetch_bytes")]
+    pub max_fetch_bytes: u32,
+    /// Upper bound on how many partitions a single DescribeTopicPartitions
+    /// response may return, regardless of the client's `response_partition_limit`.
+    #[serde(default = "default_kafka_max_describe_topic_partitions")]
+    pub max_describe_topic_partitions: u32,
+    #[serde(default)]
+    pub sasl: KafkaSasl,
 }
 
 impl Default for KafkaRuntime {
     fn default() -> Self {
         KafkaRuntime {
             tcp_port: default_kafka_tcp_port(),
+            max_fetch_bytes: default_kafka_max_fetch_bytes(),
+            max_describe_topic_partitions: default_kafka_max_describe_topic_partitions(),
+            sasl: KafkaSasl::default(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct KafkaSasl {
+    /// When false (the default) connections are accepted without authentication
+    /// and the SASL handshake/authenticate handlers stay inert.
+    #[serde(default)]
+    pub enabled: bool,
+    /// SASL mechanisms the broker offers, e.g. ["SCRAM-SHA-256", "SCRAM-SHA-512"].
+    #[serde(default = "default_kafka_sasl_mechanisms")]
+    pub mechanisms: Vec<String>,
+}
+
+impl Default for KafkaSasl {
+    fn default() -> Self {
+        KafkaSasl {
+            enabled: false,
+            mechanisms: default_kafka_sasl_mechanisms(),
+        }
+    }
+}
+
+fn default_kafka_sasl_mechanisms() -> Vec<String> {
+    vec!["SCRAM-SHA-256".to_string(), "SCRAM-SHA-512".to_string()]
+}
+
+fn default_kafka_max_describe_topic_partitions() -> u32 {
+    2000
 }
 
 fn default_amqp_tcp_port() -> u32 {
@@ -964,5 +1014,32 @@ impl Default for AdminConfig {
             jwt_secret: default_admin_jwt_secret(),
             token_ttl_hours: default_admin_token_ttl_hours(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cluster_limit_default_has_max_connection_per_ip() {
+        let limit = ClusterLimit::default();
+        assert_eq!(limit.max_connection_per_ip, 5000);
+    }
+
+    #[test]
+    fn cluster_limit_default_max_network_connection() {
+        let limit = ClusterLimit::default();
+        assert_eq!(limit.max_network_connection, 100000000);
+        assert_eq!(limit.max_network_connection_rate, 10000);
+        assert_eq!(limit.max_admin_http_uri_rate, 50);
+    }
+
+    #[test]
+    fn default_max_connection_per_ip_matches_struct_default() {
+        assert_eq!(
+            default_max_connection_per_ip(),
+            ClusterLimit::default().max_connection_per_ip
+        );
     }
 }

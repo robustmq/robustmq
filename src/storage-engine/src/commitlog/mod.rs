@@ -13,5 +13,4 @@
 // limitations under the License.
 
 pub mod memory;
-pub mod offset;
 pub mod rocksdb;

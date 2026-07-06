@@ -158,7 +158,11 @@ impl ConnectorSink for S3BridgePlugin {
             });
             payload.push(S3MessageRecord {
                 pkid: record.metadata.offset,
-                key: record.metadata.key.clone(),
+                key: record
+                    .metadata
+                    .key
+                    .as_deref()
+                    .map(|k| String::from_utf8_lossy(k).into_owned()),
                 headers,
                 tags: record.metadata.tags.clone(),
                 data: processed_data.to_vec(),

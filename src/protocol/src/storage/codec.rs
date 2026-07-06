@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use super::protocol::{
-    ApiKey, FetchReq, FetchResp, OffsetsForLeaderEpochReq, OffsetsForLeaderEpochResp, ReadReq,
-    ReadResp, WriteReq, WriteResp,
+    ApiKey, DeleteReq, DeleteResp, FetchReq, FetchResp, OffsetsForLeaderEpochReq,
+    OffsetsForLeaderEpochResp, ReadReq, ReadResp, ShardOffsetReq, ShardOffsetResp, WriteReq,
+    WriteResp,
 };
 use super::StorageError;
 use bytes::{BufMut, BytesMut};
@@ -34,6 +35,10 @@ pub enum StorageEnginePacket {
     FetchResp(FetchResp),
     OffsetsForLeaderEpochReq(OffsetsForLeaderEpochReq),
     OffsetsForLeaderEpochResp(OffsetsForLeaderEpochResp),
+    ShardOffsetReq(ShardOffsetReq),
+    ShardOffsetResp(ShardOffsetResp),
+    DeleteReq(DeleteReq),
+    DeleteResp(DeleteResp),
 }
 
 impl fmt::Display for StorageEnginePacket {
@@ -51,6 +56,10 @@ impl fmt::Display for StorageEnginePacket {
             StorageEnginePacket::OffsetsForLeaderEpochResp(_) => {
                 write!(f, "OffsetsForLeaderEpochResp")
             }
+            StorageEnginePacket::ShardOffsetReq(_) => write!(f, "ShardOffsetReq"),
+            StorageEnginePacket::ShardOffsetResp(_) => write!(f, "ShardOffsetResp"),
+            StorageEnginePacket::DeleteReq(_) => write!(f, "DeleteReq"),
+            StorageEnginePacket::DeleteResp(_) => write!(f, "DeleteResp"),
         }
     }
 }
@@ -111,6 +120,24 @@ impl StorageEngineCodec {
                 req_type = 1;
             }
             StorageEnginePacket::OffsetsForLeaderEpochResp(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+            }
+            StorageEnginePacket::ShardOffsetReq(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+                req_type = 1;
+            }
+            StorageEnginePacket::ShardOffsetResp(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+            }
+            StorageEnginePacket::DeleteReq(data) => {
+                header_byte = data.header.encode();
+                body_byte = data.body.encode();
+                req_type = 1;
+            }
+            StorageEnginePacket::DeleteResp(data) => {
                 header_byte = data.header.encode();
                 body_byte = data.body.encode();
             }
@@ -211,6 +238,8 @@ impl StorageEngineCodec {
                         ApiKey::OffsetsForLeaderEpoch => {
                             decode_offsets_for_leader_epoch_req(&body_bytes, header)
                         }
+                        ApiKey::ShardOffset => decode_shard_offset_req(&body_bytes, header),
+                        ApiKey::Delete => decode_delete_req(&body_bytes, header),
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -226,6 +255,8 @@ impl StorageEngineCodec {
                         ApiKey::OffsetsForLeaderEpoch => {
                             decode_offsets_for_leader_epoch_resp(&body_bytes, header)
                         }
+                        ApiKey::ShardOffset => decode_shard_offset_resp(&body_bytes, header),
+                        ApiKey::Delete => decode_delete_resp(&body_bytes, header),
                         _ => Err(StorageError::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(StorageError::DecodeHeaderError(e.to_string())),
@@ -384,6 +415,73 @@ fn decode_offsets_for_leader_epoch_resp(
         ))),
         Err(e) => Err(StorageError::DecodeBodyError(
             "offsets_for_leader_epoch_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_shard_offset_req(
+    body_bytes: &[u8],
+    header: super::protocol::ReqHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::ShardOffsetReqBody;
+    match ShardOffsetReqBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::ShardOffsetReq(ShardOffsetReq {
+            header,
+            body,
+        }))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "shard_offset_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_shard_offset_resp(
+    body_bytes: &[u8],
+    header: super::protocol::RespHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::ShardOffsetRespBody;
+    match ShardOffsetRespBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::ShardOffsetResp(
+            ShardOffsetResp { header, body },
+        ))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "shard_offset_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_delete_req(
+    body_bytes: &[u8],
+    header: super::protocol::ReqHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::DeleteReqBody;
+    match DeleteReqBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::DeleteReq(DeleteReq {
+            header,
+            body,
+        }))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "delete_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn decode_delete_resp(
+    body_bytes: &[u8],
+    header: super::protocol::RespHeader,
+) -> Result<Option<StorageEnginePacket>, StorageError> {
+    use super::protocol::DeleteRespBody;
+    match DeleteRespBody::decode(body_bytes) {
+        Ok(body) => Ok(Some(StorageEnginePacket::DeleteResp(DeleteResp {
+            header,
+            body,
+        }))),
+        Err(e) => Err(StorageError::DecodeBodyError(
+            "delete_resp".to_string(),
             e.to_string(),
         )),
     }

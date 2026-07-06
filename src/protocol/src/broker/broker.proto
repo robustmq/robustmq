@@ -115,6 +115,9 @@ enum BrokerUpdateCacheResourceType {
   ShareGroupMember = 20;
   GroupOffset = 21;
   Mq9Agent = 22;
+  KafkaQuota = 23;
+  KafkaDelegationToken = 24;
+  KafkaScram = 25;
 }
 
 enum BrokerUpdateCacheActionType {

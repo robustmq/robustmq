@@ -18,9 +18,12 @@ use common_metrics::storage_engine::{
     record_storage_engine_ops, record_storage_engine_ops_duration,
 };
 use dashmap::DashMap;
-use grpc_clients::{meta::common::call::get_offset_data, pool::ClientPool};
-use metadata_struct::adapter::adapter_offset::AdapterConsumerGroupOffset;
-use protocol::meta::meta_service_common::GetOffsetDataRequest;
+use grpc_clients::{
+    meta::common::call::{delete_offset_data, get_offset_data},
+    pool::ClientPool,
+};
+use metadata_struct::adapter::adapter_offset::{AdapterCommitOffset, AdapterConsumerGroupOffset};
+use protocol::meta::meta_service_common::{DeleteOffsetDataRequest, GetOffsetDataRequest};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
@@ -30,9 +33,16 @@ pub(crate) struct LocalGroupData {
 }
 
 #[derive(Clone)]
+pub(crate) struct OffsetEntry {
+    pub topic_name: String,
+    pub partition: u32,
+    pub offset: u64,
+}
+
+#[derive(Clone)]
 pub struct OffsetManager {
     pub(crate) client_pool: Arc<ClientPool>,
-    pub(crate) offset_info: DashMap<String, HashMap<String, u64>>,
+    pub(crate) offset_info: DashMap<String, HashMap<String, OffsetEntry>>,
     pub(crate) update_group_info: DashMap<String, LocalGroupData>,
 }
 
@@ -53,17 +63,19 @@ impl OffsetManager {
     ) -> Result<Vec<AdapterConsumerGroupOffset>, CommonError> {
         let start = std::time::Instant::now();
 
-        // Check local cache first — commit_offset writes here synchronously,
+        // Check local cache first — commit_group_offset writes here synchronously,
         // so a FETCH immediately after an ACK on the same node sees the new offset
         // without waiting for the background flush to reach meta-service.
         let key = self.key(tenant, group);
         if let Some(cached) = self.offset_info.get(&key) {
             let results = cached
                 .iter()
-                .map(|(shard_name, &offset)| AdapterConsumerGroupOffset {
+                .map(|(shard_name, entry)| AdapterConsumerGroupOffset {
                     group: group.to_string(),
                     shard_name: shard_name.clone(),
-                    offset,
+                    topic_name: entry.topic_name.clone(),
+                    partition: entry.partition,
+                    offset: entry.offset,
                     ..Default::default()
                 })
                 .collect();
@@ -86,6 +98,8 @@ impl OffsetManager {
             results.push(AdapterConsumerGroupOffset {
                 group: group.to_string(),
                 shard_name: raw.shard_name,
+                topic_name: raw.topic,
+                partition: raw.partition,
                 offset: raw.offset,
                 ..Default::default()
             });
@@ -93,9 +107,18 @@ impl OffsetManager {
 
         // Populate local cache so subsequent calls on this node avoid the RPC.
         if !results.is_empty() {
-            let shard_map: HashMap<String, u64> = results
+            let shard_map: HashMap<String, OffsetEntry> = results
                 .iter()
-                .map(|r| (r.shard_name.clone(), r.offset))
+                .map(|r| {
+                    (
+                        r.shard_name.clone(),
+                        OffsetEntry {
+                            topic_name: r.topic_name.clone(),
+                            partition: r.partition,
+                            offset: r.offset,
+                        },
+                    )
+                })
                 .collect();
             self.offset_info.insert(key, shard_map);
         }
@@ -106,19 +129,27 @@ impl OffsetManager {
         Ok(results)
     }
 
-    pub async fn commit_offset(
+    pub async fn commit_group_offset(
         &self,
         tenant: &str,
         group_name: &str,
-        offset: &HashMap<String, u64>,
+        offsets: &[AdapterCommitOffset],
     ) -> Result<(), CommonError> {
         let key = self.key(tenant, group_name);
+        let entries = offsets.iter().map(|o| {
+            (
+                o.shard_name.clone(),
+                OffsetEntry {
+                    topic_name: o.topic_name.clone(),
+                    partition: o.partition,
+                    offset: o.offset,
+                },
+            )
+        });
         if let Some(mut data) = self.offset_info.get_mut(&key) {
-            for (shard_name, offset) in offset {
-                data.insert(shard_name.to_string(), *offset);
-            }
+            data.extend(entries);
         } else {
-            self.offset_info.insert(key.clone(), offset.clone());
+            self.offset_info.insert(key.clone(), entries.collect());
         }
 
         self.update_group_info.insert(
@@ -149,6 +180,37 @@ impl OffsetManager {
     pub fn remove_group(&self, tenant: &str, group_name: &str) {
         let key = self.key(tenant, group_name);
         self.offset_info.remove(&key);
+    }
+
+    /// Local-only counterpart to `remove_group`: drops just the given shards.
+    pub fn remove_shards(&self, tenant: &str, group_name: &str, shard_names: &[String]) {
+        let key = self.key(tenant, group_name);
+        if let Some(mut data) = self.offset_info.get_mut(&key) {
+            for shard_name in shard_names {
+                data.remove(shard_name);
+            }
+        }
+    }
+
+    /// Deletes committed offsets for the given shards via meta-service, and
+    /// clears them locally too so a same-node read can't race ahead of the
+    /// cache-invalidation push meta-service sends to every node.
+    pub async fn delete_group_offset(
+        &self,
+        tenant: &str,
+        group_name: &str,
+        shard_names: &[String],
+    ) -> Result<(), CommonError> {
+        let request = DeleteOffsetDataRequest {
+            tenant: tenant.to_owned(),
+            group: group_name.to_owned(),
+            shard_names: shard_names.to_vec(),
+        };
+        let config = broker_config();
+        delete_offset_data(&self.client_pool, &config.get_meta_service_addr(), request).await?;
+
+        self.remove_shards(tenant, group_name, shard_names);
+        Ok(())
     }
 
     pub(crate) fn key(&self, tenant: &str, group_name: &str) -> String {

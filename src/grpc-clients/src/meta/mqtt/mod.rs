@@ -29,6 +29,7 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply, UpdateConnectorRequest,
+    UpdateTopicPartitionsReply, UpdateTopicPartitionsRequest,
 };
 use tonic::transport::Channel;
 use tonic::Streaming;
@@ -84,6 +85,16 @@ impl_retriable_request!(
     delete_topic,
     "MqttService",
     "DeleteTopic",
+    true
+);
+
+impl_retriable_request!(
+    UpdateTopicPartitionsRequest,
+    MqttServiceClient<Channel>,
+    UpdateTopicPartitionsReply,
+    update_topic_partitions,
+    "MqttService",
+    "UpdateTopicPartitions",
     true
 );
 

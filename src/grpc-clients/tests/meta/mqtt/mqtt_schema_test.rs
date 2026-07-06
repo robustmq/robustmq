@@ -26,13 +26,13 @@ mod test {
         CreateSchemaRequest, DeleteSchemaRequest, ListSchemaRequest, UpdateSchemaRequest,
     };
 
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
 
-    fn check_schema_equal(left: &SchemaData, right: &SchemaData) {
-        assert_eq!(left.name, right.name);
-        assert_eq!(left.schema_type, right.schema_type);
-        assert_eq!(left.schema, right.schema);
-        assert_eq!(left.desc, right.desc);
+    fn schema_matches(left: &SchemaData, right: &SchemaData) -> bool {
+        left.name == right.name
+            && left.schema_type == right.schema_type
+            && left.schema == right.schema
+            && left.desc == right.desc
     }
 
     #[tokio::test]
@@ -82,19 +82,21 @@ mod test {
             schema_name: schema_name.clone(),
         };
 
-        match list_schema(&client_pool, &addrs, list_request.clone()).await {
-            Ok(mut stream) => {
-                let mut schemas = Vec::new();
-                while let Some(reply) = stream.message().await.unwrap() {
-                    schemas.push(SchemaData::decode(&reply.schema).unwrap());
+        let ok = wait_until(|| async {
+            let mut stream = match list_schema(&client_pool, &addrs, list_request.clone()).await {
+                Ok(s) => s,
+                Err(_) => return false,
+            };
+            let mut schemas = Vec::new();
+            while let Ok(Some(reply)) = stream.message().await {
+                if let Ok(sd) = SchemaData::decode(&reply.schema) {
+                    schemas.push(sd);
                 }
-                assert_eq!(schemas.len(), 1);
-                check_schema_equal(schemas.first().unwrap(), &schema_data);
             }
-            Err(e) => {
-                panic!("list schema failed: {e}");
-            }
-        }
+            schemas.len() == 1 && schema_matches(&schemas[0], &schema_data)
+        })
+        .await;
+        assert!(ok, "created schema {schema_name} not visible");
 
         // update schema
         schema_data.schema_type = SchemaType::AVRO;
@@ -123,19 +125,21 @@ mod test {
         }
 
         // check the schema we just updated
-        match list_schema(&client_pool, &addrs, list_request.clone()).await {
-            Ok(mut stream) => {
-                let mut schemas = Vec::new();
-                while let Some(reply) = stream.message().await.unwrap() {
-                    schemas.push(SchemaData::decode(&reply.schema).unwrap());
+        let ok = wait_until(|| async {
+            let mut stream = match list_schema(&client_pool, &addrs, list_request.clone()).await {
+                Ok(s) => s,
+                Err(_) => return false,
+            };
+            let mut schemas = Vec::new();
+            while let Ok(Some(reply)) = stream.message().await {
+                if let Ok(sd) = SchemaData::decode(&reply.schema) {
+                    schemas.push(sd);
                 }
-                assert_eq!(schemas.len(), 1);
-                check_schema_equal(schemas.first().unwrap(), &schema_data);
             }
-            Err(e) => {
-                panic!("list schema failed: {e}");
-            }
-        }
+            schemas.len() == 1 && schema_matches(&schemas[0], &schema_data)
+        })
+        .await;
+        assert!(ok, "updated schema {schema_name} not visible");
 
         // delete schema
         let delete_request = DeleteSchemaRequest {
@@ -150,17 +154,18 @@ mod test {
             }
         }
 
-        match list_schema(&client_pool, &addrs, list_request).await {
-            Ok(mut stream) => {
-                let mut count = 0;
-                while let Some(_reply) = stream.message().await.unwrap() {
-                    count += 1;
-                }
-                assert_eq!(count, 0);
+        let ok = wait_until(|| async {
+            let mut stream = match list_schema(&client_pool, &addrs, list_request.clone()).await {
+                Ok(s) => s,
+                Err(_) => return false,
+            };
+            let mut count = 0;
+            while let Ok(Some(_reply)) = stream.message().await {
+                count += 1;
             }
-            Err(e) => {
-                panic!("list schema failed: {e}");
-            }
-        }
+            count == 0
+        })
+        .await;
+        assert!(ok, "deleted schema {schema_name} still visible");
     }
 }

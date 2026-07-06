@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
-use rocksdb_engine::keys::engine::{leader_epoch_entry_key, leader_epoch_prefix};
+use rocksdb_engine::keys::engine::{leader_epoch_key, leader_epoch_prefix};
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::engine::{
     engine_delete_prefix_by_engine, engine_list_by_prefix_by_engine, engine_save_by_engine,
@@ -144,7 +144,7 @@ impl LeaderEpochCache {
     }
 
     fn persist(&self, entry: &LeaderEpochEntry) -> Result<(), StorageEngineError> {
-        let key = leader_epoch_entry_key(&self.shard, self.segment_seq, entry.epoch);
+        let key = leader_epoch_key(&self.shard, self.segment_seq, entry.epoch);
         engine_save_by_engine(
             &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_STORAGE_ENGINE,
@@ -155,7 +155,7 @@ impl LeaderEpochCache {
     }
 
     fn delete_entry(&self, epoch: u32) -> Result<(), StorageEngineError> {
-        let key = leader_epoch_entry_key(&self.shard, self.segment_seq, epoch);
+        let key = leader_epoch_key(&self.shard, self.segment_seq, epoch);
         rocksdb_engine::storage::engine::engine_delete_by_engine(
             &self.rocksdb_engine_handler,
             DB_COLUMN_FAMILY_STORAGE_ENGINE,

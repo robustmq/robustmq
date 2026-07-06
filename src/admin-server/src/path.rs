@@ -119,6 +119,9 @@ pub const STORAGE_ENGINE_SEGMENT_LIST_PATH: &str = "/storage-engine/segment/list
 pub const STORAGE_ENGINE_SEGMENT_DETAIL_PATH: &str = "/storage-engine/segment/detail";
 // Internal: called by segment_detail to collect local replica state from each broker node
 pub const STORAGE_ENGINE_SEGMENT_REPLICA_STATE_PATH: &str = "/storage-engine/segment/replica-state";
+pub const STORAGE_ENGINE_RECORD_DELETE_BY_KEYS_PATH: &str = "/storage-engine/record/delete-by-keys";
+pub const STORAGE_ENGINE_RECORD_DELETE_BY_OFFSETS_PATH: &str =
+    "/storage-engine/record/delete-by-offsets";
 
 // Cluster Offset API paths
 pub const CLUSTER_OFFSET_BY_TIMESTAMP_PATH: &str = "/cluster/offset/timestamp";

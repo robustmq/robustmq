@@ -18,6 +18,7 @@ pub mod auth;
 pub mod connection;
 pub mod connector;
 pub mod delay_info;
+pub mod kafka;
 pub mod meta;
 pub mod mq9;
 pub mod mqtt;

@@ -20,7 +20,7 @@ use common_base::task::{TaskKind, TaskSupervisor};
 use common_base::tools::now_second;
 use common_metrics::mqtt::delay::{
     record_delay_msg_deliver, record_delay_msg_deliver_duration, record_delay_msg_deliver_fail,
-    record_delay_msg_reenqueued, record_delay_msg_retry, record_delay_msg_retry_count,
+    record_delay_msg_retry, record_delay_msg_retry_count,
 };
 use futures::StreamExt;
 use metadata_struct::adapter::adapter_record::{AdapterWriteRecord, RecordHeader};
@@ -28,6 +28,7 @@ use metadata_struct::delay_info::DelayMessageIndexInfo;
 use metadata_struct::storage::record::StorageRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::{broadcast, mpsc};
@@ -115,88 +116,44 @@ async fn run_shard_loop(
                 let delay_message = expired.into_inner();
                 manager.remove_message_key(&delay_message.unique_id);
                 let storage = manager.storage_driver_manager.clone();
-                let mgr = manager.clone();
+                let retry_manager = manager.clone();
                 let config = manager.delay_message_config.clone();
                 tokio::spawn(async move {
-                    let max_retries = config.max_retries;
-                    for attempt in 0..max_retries {
-                        match delay_message_process(
-                            &storage,
-                            &delay_message,
-                            now_second(),
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                debug!(
-                                    "Delay message processed: attempt={}/{}, unique_id={}",
-                                    attempt + 1,
-                                    max_retries,
-                                    delay_message.unique_id
-                                );
-                                // Record retry success only if we actually retried
-                                if attempt > 0 {
-                                    record_delay_msg_retry(true);
-                                }
-                                return;
-                            }
-                            Err(e) => {
-                                if attempt < max_retries - 1 {
-                                    let backoff_secs = config.initial_retry_delay_sec
-                                        * 2_u64.pow(attempt);
-                                    record_delay_msg_retry(false);
-                                    record_delay_msg_retry_count(attempt + 1);
-                                    warn!(
-                                        "Retrying delay message: attempt={}/{}, backoff={}s, \
-                                         unique_id={}, target_topic={}, error={}",
-                                        attempt + 1,
-                                        max_retries,
-                                        backoff_secs,
-                                        delay_message.unique_id,
-                                        delay_message.target_topic_name,
-                                        e
-                                    );
-                                    tokio::time::sleep(
-                                        std::time::Duration::from_secs(backoff_secs),
-                                    )
-                                    .await;
-                                } else {
-                                    record_delay_msg_retry(false);
-                                    record_delay_msg_retry_count(attempt + 1);
-                                    error!(
-                                        "Failed to process delay message after {} retries, \
-                                         re-enqueuing: unique_id={}, target_topic={}, error={}",
-                                        max_retries,
-                                        delay_message.unique_id,
-                                        delay_message.target_topic_name,
-                                        e
-                                    );
-
-                                    let mut reenq_info = delay_message.clone();
-                                    reenq_info.target_timestamp =
-                                        now_second() + config.reenqueue_delay_sec;
-                                    match mgr.send_to_delay_queue(&reenq_info).await {
-                                        Ok(_) => {
-                                            record_delay_msg_reenqueued();
-                                            warn!(
-                                                "Delay message re-enqueued: delay={}s, \
-                                                 unique_id={}, target_topic={}",
-                                                config.reenqueue_delay_sec,
-                                                reenq_info.unique_id,
-                                                reenq_info.target_topic_name
-                                            );
-                                        }
-                                        Err(e2) => {
-                                            error!(
-                                                "Failed to re-enqueue delay message: \
-                                                 unique_id={}, error={}",
-                                                delay_message.unique_id, e2
-                                            );
-                                        }
-                                    }
-                                }
-                            }
+                    if let Err(e) = delay_message_process(
+                        &storage,
+                        &delay_message,
+                        now_second(),
+                    )
+                    .await
+                    {
+                        if delay_message.retry_count < config.max_retries {
+                            let mut retry = delay_message.clone();
+                            retry.retry_count += 1;
+                            let backoff_secs = config.initial_retry_delay_sec
+                                * 2_u64.pow(retry.retry_count.saturating_sub(1));
+                            record_delay_msg_retry(false);
+                            record_delay_msg_retry_count(retry.retry_count);
+                            warn!(
+                                "Delay message delivery failed (attempt {}/{}), retrying in {}s: unique_id={}, target={}, error={}",
+                                retry.retry_count, config.max_retries, backoff_secs,
+                                retry.unique_id, retry.target_topic_name, e
+                            );
+                            retry_manager
+                                .reenqueue_for_retry(retry, Duration::from_secs(backoff_secs))
+                                .await;
+                        } else {
+                            record_delay_msg_retry(false);
+                            record_delay_msg_retry_count(delay_message.retry_count);
+                            error!(
+                                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
+                                delay_message.retry_count, delay_message.unique_id,
+                                delay_message.target_topic_name, e
+                            );
+                            let _ = delete_delay_index_info(&storage, &delay_message).await;
+                            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
                         }
+                    } else if delay_message.retry_count > 0 {
+                        record_delay_msg_retry(true);
                     }
                 });
             }
@@ -211,31 +168,27 @@ pub async fn delay_message_process(
 ) -> Result<(), CommonError> {
     let start = Instant::now();
 
-    match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
-        Ok(offset) => {
-            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-            record_delay_msg_deliver();
-            record_delay_msg_deliver_duration(duration_ms);
+    // Only delete the stored index + message after a *successful* delivery. A transient
+    // failure (target shard leader unreachable, metadata not yet synced) must NOT drop the
+    // message — the caller re-enqueues it for retry. Deleting on failure here permanently
+    // loses the message.
+    let offset =
+        match send_delay_message_to_shard(storage_driver_manager, delay_info, trigger_time).await {
+            Ok(offset) => offset,
+            Err(e) => {
+                record_delay_msg_deliver_fail();
+                return Err(e);
+            }
+        };
 
-            info!(
-                "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, duration_ms={:.2}",
-                delay_info.unique_id,
-                delay_info.target_topic_name,
-                offset,
-                duration_ms
-            );
-        }
-        Err(e) => {
-            record_delay_msg_deliver_fail();
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    record_delay_msg_deliver();
+    record_delay_msg_deliver_duration(duration_ms);
+    info!(
+        "Delay message processed successfully. unique_id={}, target_topic={}, offset={}, duration_ms={:.2}",
+        delay_info.unique_id, delay_info.target_topic_name, offset, duration_ms
+    );
 
-            error!(
-                "Failed to send delay message to target shard. unique_id={}, target_topic={}, offset={}, error={}",
-                delay_info.unique_id, delay_info.target_topic_name, delay_info.offset, e
-            );
-
-            return Err(e);
-        }
-    };
     delete_delay_index_info(storage_driver_manager, delay_info).await?;
     delete_delay_message(storage_driver_manager, &delay_info.unique_id).await?;
 
@@ -252,10 +205,10 @@ async fn send_delay_message_to_shard(
         .read_by_keys(
             DEFAULT_TENANT,
             DELAY_QUEUE_MESSAGE_TOPIC,
-            &[delay_message.unique_id.as_str()],
+            &[delay_message.unique_id.as_bytes()],
         )
         .await?
-        .remove(&delay_message.unique_id)
+        .remove(delay_message.unique_id.as_bytes())
         .unwrap_or_default();
 
     if results.is_empty() {
@@ -290,6 +243,7 @@ async fn send_delay_message_to_shard(
             &delay_message.tenant,
             &delay_message.target_topic_name,
             &[send_record],
+            1,
         )
         .await?;
 
@@ -422,7 +376,12 @@ mod test {
             AdapterWriteRecord::new(DELAY_QUEUE_MESSAGE_TOPIC, b"dummy payload".to_vec())
                 .with_key(unique_id.clone());
         storage
-            .write(DEFAULT_TENANT, DELAY_QUEUE_MESSAGE_TOPIC, &[dummy_record])
+            .write(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_MESSAGE_TOPIC,
+                &[dummy_record],
+                1,
+            )
             .await
             .expect("write to delay queue message topic");
 
@@ -432,6 +391,7 @@ mod test {
             target_topic_name: target_topic.to_string(),
             offset: 0,
             target_timestamp: now_second(),
+            retry_count: 0,
         };
 
         let result = delay_message_process(&storage, &delay_info, now_second()).await;
@@ -449,6 +409,7 @@ mod test {
             target_topic_name: "test_topic".to_string(),
             offset: 100,
             target_timestamp: 1000,
+            retry_count: 0,
         };
 
         let mut reenq = original.clone();
@@ -510,7 +471,7 @@ mod test {
 
         // Verify the message was delivered by reading from target topic
         let results = storage
-            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_str()])
+            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_bytes()])
             .await
             .expect("read target topic");
         assert!(
@@ -551,6 +512,7 @@ mod test {
             target_topic_name: "t".to_string(),
             offset: 1,
             target_timestamp: 100,
+            retry_count: 0,
         };
 
         let reenq_delay = 60u64;
@@ -669,7 +631,7 @@ mod test {
 
         // Verify the message was delivered to the target topic.
         let results = storage
-            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_str()])
+            .read_by_keys(DEFAULT_TENANT, target_topic, &[unique_id.as_bytes()])
             .await
             .expect("read target topic");
         assert!(

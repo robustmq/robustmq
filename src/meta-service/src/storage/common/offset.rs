@@ -29,6 +29,8 @@ pub struct OffsetData {
     pub tenant: String,
     pub group: String,
     pub shard_name: String,
+    pub topic: String,
+    pub partition: u32,
     pub offset: u64,
     pub timestamp: u64,
 }
@@ -57,6 +59,8 @@ impl OffsetStorage {
                 tenant: offset.tenant.clone(),
                 group: offset.group.clone(),
                 shard_name: offset.shard_name.clone(),
+                topic: offset.topic.clone(),
+                partition: offset.partition,
                 offset: offset.offset,
                 timestamp: now_second(),
             };
@@ -102,6 +106,8 @@ mod tests {
             tenant: tenant.to_string(),
             group: group.to_string(),
             shard_name: shard.to_string(),
+            topic: "topic1".to_string(),
+            partition: 0,
             offset,
             timestamp: now_second(),
         }
@@ -125,6 +131,8 @@ mod tests {
         assert_eq!(list.len(), 2);
         assert!(list.iter().any(|o| o.offset == 100));
         assert!(list.iter().any(|o| o.offset == 200));
+        // topic/partition must round-trip through the rocksdb-encoded value.
+        assert!(list.iter().all(|o| o.topic == "topic1" && o.partition == 0));
     }
 
     #[test]

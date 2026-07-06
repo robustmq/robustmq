@@ -24,11 +24,9 @@ fi
 # Cleanup function
 cleanup() {
     if [ "$START_BROKER" == "true" ]; then
-        # Stop broker if running
-        if [ ! -z "$BROKER_PID" ]; then
-            echo "Stopping broker-server..."
-            kill $BROKER_PID 2>/dev/null || true
-        fi
+        # Stop the 3-node cluster started for the test run.
+        echo "Stopping cluster..."
+        /bin/bash ./scripts/cluster.sh stop 2>/dev/null || true
     fi
 }
 
@@ -200,60 +198,22 @@ if [ "$START_BROKER" == "true" ]; then
     echo "✅ All required ports are available"
     echo ""
 
-    echo "Building broker-server..."
+    echo "Starting 3-node cluster via scripts/cluster.sh..."
     echo "=========================================="
 
-    # Build broker-server (this will use cache effectively)
-    cargo build --package cmd --bin broker-server
-
-    echo ""
-    echo "Starting broker-server..."
-    echo "Broker logs will be output to console..."
-    echo "=========================================="
-
-    # Start broker with output to console
-    ./target/debug/broker-server &
-    BROKER_PID=$!
-
-    echo "Waiting for broker to be ready..."
-    MAX_WAIT=1800  # Maximum wait time in seconds (30 minutes for compilation + startup)
-    RETRY_INTERVAL=3
-    BROKER_READY=false
-
-    for ((ELAPSED=0; ELAPSED<MAX_WAIT; ELAPSED+=RETRY_INTERVAL)); do
-        # Check if process is still running
-        if ! kill -0 $BROKER_PID 2>/dev/null; then
-            echo ""
-            echo "=========================================="
-            echo "❌ Broker process died unexpectedly"
-            echo "=========================================="
-            exit 1
-        fi
-
-        # Check MQTT port 1883 (primary service port)
-        if nc -z 127.0.0.1 1883 2>/dev/null || \
-           (command -v lsof >/dev/null 2>&1 && lsof -i:1883 -sTCP:LISTEN >/dev/null 2>&1); then
-            echo ""
-            echo "=========================================="
-            echo "✅ Broker is ready after ${ELAPSED}s (MQTT port 1883 is listening)"
-            echo "=========================================="
-            BROKER_READY=true
-            break
-        fi
-
-        sleep $RETRY_INTERVAL
-    done
-
-    if [ "$BROKER_READY" != "true" ]; then
+    # Start a 3-node cluster (builds broker-server, launches server-1/2/3, waits until
+    # the cluster reports ready). Integration tests run against this cluster so multi-node
+    # paths (replication / ISR / leader routing) are exercised, not just a single node.
+    if ! /bin/bash ./scripts/cluster.sh start; then
         echo ""
         echo "=========================================="
-        echo "❌ Broker failed to start within ${MAX_WAIT}s"
+        echo "❌ Cluster failed to start"
         echo "=========================================="
         exit 1
     fi
 
     # Give it a few more seconds to stabilize
-    echo "Waiting 5s for broker to stabilize..."
+    echo "Waiting 5s for cluster to stabilize..."
     sleep 5
 else
     echo "Skipping broker startup (assuming broker is already running)..."
@@ -261,6 +221,14 @@ fi
 
 # Run tests
 echo "Running integration tests..."
+# Integration tests all hit a single shared broker, so they are broker-bound, not
+# CPU-parallel. nextest's default profile uses 14 test threads; on a 4-core CI runner
+# that oversubscribes the CPU ~3.5x and starves the broker, causing request timeouts
+# (e.g. POST /mcp blocking 10s -> mcp_test failures). Scale concurrency to the available
+# cores so tests and the broker are not fighting over the CPU.
+TEST_THREADS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
 cargo nextest run --fail-fast \
+  --test-threads="${TEST_THREADS}" \
   --package grpc-clients \
   --package robustmq-test

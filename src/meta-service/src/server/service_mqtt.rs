@@ -32,13 +32,13 @@ use crate::server::services::mqtt::subscribe::{
 use crate::server::services::mqtt::topic::{
     create_topic_by_req, create_topic_rewrite_rule_by_req, delete_topic_by_req,
     delete_topic_rewrite_rule_by_req, list_topic_by_req, list_topic_rewrite_rule_by_req,
+    update_topic_partitions_by_req,
 };
 use crate::server::services::mqtt::user::{
     create_user_by_req, delete_user_by_req, list_user_by_req,
 };
 use broker_core::cache::NodeCacheManager;
 use delay_task::manager::DelayTaskManager;
-use grpc_clients::pool::ClientPool;
 use node_call::NodeCallManager;
 use prost_validate::Validator;
 use protocol::meta::meta_service_mqtt::mqtt_service_server::MqttService;
@@ -58,6 +58,7 @@ use protocol::meta::meta_service_mqtt::{
     ListSessionRequest, ListSubscribeReply, ListSubscribeRequest, ListTopicReply, ListTopicRequest,
     ListTopicRewriteRuleReply, ListTopicRewriteRuleRequest, ListUserReply, ListUserRequest,
     SetSubscribeReply, SetSubscribeRequest, UpdateConnectorReply, UpdateConnectorRequest,
+    UpdateTopicPartitionsReply, UpdateTopicPartitionsRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -72,7 +73,6 @@ pub struct GrpcMqttService {
     delay_task_manager: Arc<DelayTaskManager>,
     call_manager: Arc<NodeCallManager>,
     node_cache: Arc<NodeCacheManager>,
-    client_pool: Arc<ClientPool>,
 }
 
 impl GrpcMqttService {
@@ -83,7 +83,6 @@ impl GrpcMqttService {
         delay_task_manager: Arc<DelayTaskManager>,
         call_manager: Arc<NodeCallManager>,
         node_cache: Arc<NodeCacheManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcMqttService {
             cache_manager,
@@ -91,7 +90,6 @@ impl GrpcMqttService {
             rocksdb_engine_handler,
             delay_task_manager,
             call_manager,
-            client_pool,
             node_cache,
         }
     }
@@ -181,15 +179,10 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        create_session_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &self.client_pool,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        create_session_by_req(&self.raft_manager, &self.call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn delete_session(
@@ -264,7 +257,24 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
+            &req,
+        )
+        .await
+        .map_err(Self::to_status)
+        .map(Response::new)
+    }
+
+    async fn update_topic_partitions(
+        &self,
+        request: Request<UpdateTopicPartitionsRequest>,
+    ) -> Result<Response<UpdateTopicPartitionsReply>, Status> {
+        let req = request.into_inner();
+        self.validate_request(&req)?;
+
+        update_topic_partitions_by_req(
+            &self.raft_manager,
+            &self.call_manager,
+            &self.rocksdb_engine_handler,
             &req,
         )
         .await
@@ -428,15 +438,10 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        set_subscribe_by_req(
-            &self.raft_manager,
-            &self.call_manager,
-            &self.client_pool,
-            &req,
-        )
-        .await
-        .map_err(Self::to_status)
-        .map(Response::new)
+        set_subscribe_by_req(&self.raft_manager, &self.call_manager, &req)
+            .await
+            .map_err(Self::to_status)
+            .map(Response::new)
     }
 
     async fn delete_subscribe(
@@ -518,7 +523,6 @@ impl MqttService for GrpcMqttService {
             &self.rocksdb_engine_handler,
             &self.raft_manager,
             &self.call_manager,
-            &self.client_pool,
             &req,
         )
         .await

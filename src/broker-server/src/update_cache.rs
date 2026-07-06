@@ -15,10 +15,15 @@
 use broker_core::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
+use kafka_broker::core::cache::KafkaCacheManager;
+use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
 use metadata_struct::connector::MQTTConnector;
+use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
+use metadata_struct::kafka::quota::KafkaClientQuota;
+use metadata_struct::kafka::scram::KafkaScramCredential;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
 use metadata_struct::nats::subscribe::NatsSubscribe;
@@ -39,12 +44,14 @@ use protocol::broker::broker::{
     BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType, UpdateCacheRecord,
 };
 use std::str::FromStr;
+use std::sync::Arc;
 use storage_engine::{core::dynamic_cache::update_storage_cache_metadata, StorageEngineParams};
 
 pub async fn update_cache(
     mqtt_params: &MqttBrokerServerParams,
     nats_params: &NatsBrokerServerParams,
     storage_params: &StorageEngineParams,
+    kafka_cache: &Arc<KafkaCacheManager>,
     record: &UpdateCacheRecord,
 ) -> ResultCommonError {
     match record.resource_type() {
@@ -83,6 +90,42 @@ pub async fn update_cache(
             }
         }
 
+        // Kafka
+        BrokerUpdateCacheResourceType::KafkaQuota => {
+            let quota: KafkaClientQuota = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    kafka_cache.set_quota(quota);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    kafka_cache.remove_quota(&quota.entity_key());
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::KafkaDelegationToken => match record.action_type() {
+            BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                let token: KafkaDelegationToken = serialize::deserialize(&record.data)?;
+                kafka_cache.set_delegation_token(token);
+            }
+            BrokerUpdateCacheActionType::Delete => {
+                let token_id: String = serialize::deserialize(&record.data)?;
+                kafka_cache.remove_delegation_token(&token_id);
+            }
+        },
+
+        BrokerUpdateCacheResourceType::KafkaScram => {
+            let credential: KafkaScramCredential = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    kafka_cache.set_scram_credential(credential);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    kafka_cache.remove_scram_credential(&credential.entity_key());
+                }
+            }
+        }
+
         // NATS / MQ9
         BrokerUpdateCacheResourceType::NatsSubscribe
         | BrokerUpdateCacheResourceType::Mq9Mail
@@ -90,7 +133,6 @@ pub async fn update_cache(
             if let Err(e) = update_nats_cache_metadata(
                 &nats_params.cache_manager,
                 &nats_params.subscribe_manager,
-                &nats_params.client_pool,
                 record,
             )
             .await
@@ -278,18 +320,23 @@ pub async fn update_cluster_cache_metadata(
             }
         }
 
-        BrokerUpdateCacheResourceType::GroupOffset => {
-            let group: ShareGroup = serialize::deserialize(&record.data)?;
-            match record.action_type() {
-                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {}
-                BrokerUpdateCacheActionType::Delete => {
-                    mqtt_params
-                        .storage_driver_manager
-                        .offset_manager
-                        .remove_group(&group.tenant, &group.group_name);
-                }
+        BrokerUpdateCacheResourceType::GroupOffset => match record.action_type() {
+            BrokerUpdateCacheActionType::Create => {}
+            BrokerUpdateCacheActionType::Update => {
+                let del: GroupOffsetShardsDelete = serialize::deserialize(&record.data)?;
+                mqtt_params
+                    .storage_driver_manager
+                    .offset_manager
+                    .remove_shards(&del.tenant, &del.group_name, &del.shard_names);
             }
-        }
+            BrokerUpdateCacheActionType::Delete => {
+                let group: ShareGroup = serialize::deserialize(&record.data)?;
+                mqtt_params
+                    .storage_driver_manager
+                    .offset_manager
+                    .remove_group(&group.tenant, &group.group_name);
+            }
+        },
 
         BrokerUpdateCacheResourceType::ShareGroup => {
             let group: ShareGroup = serialize::deserialize(&record.data)?;

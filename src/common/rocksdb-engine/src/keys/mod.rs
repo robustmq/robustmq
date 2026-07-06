@@ -15,10 +15,8 @@
 pub mod broker;
 pub mod engine;
 pub mod meta;
-pub mod storage;
 
 pub const PREFIX_META: &str = "/meta/";
 pub const PREFIX_BROKER: &str = "/broker/";
-pub const PREFIX_STORAGE: &str = "/storage/";
 pub const PREFIX_ENGINE: &str = "/engine/";
 pub const SEP: char = '/';

@@ -15,12 +15,15 @@
 use crate::quic::stream::QuicFramedWriteStream;
 use axum::extract::ws::{Message, WebSocket};
 use common_base::tools::now_second;
+use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
 use protocol::codec::RobustMQCodec;
 use protocol::robust::RobustMQProtocol;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -40,13 +43,32 @@ type TcpTlsWriter = Arc<
 type WebSocketWriter = Arc<Mutex<SplitSink<WebSocket, Message>>>;
 type QuicWriter = Arc<Mutex<QuicFramedWriteStream>>;
 
-#[derive(Clone, Default)]
 pub struct ConnectionManager {
     pub connections: DashMap<u64, NetworkConnection>,
     pub tcp_write_list: DashMap<u64, TcpWriter>,
     pub tcp_tls_write_list: DashMap<u64, TcpTlsWriter>,
     pub websocket_write_list: DashMap<u64, WebSocketWriter>,
     pub quic_write_list: DashMap<u64, QuicWriter>,
+    pub ip_conn_count: DashMap<IpAddr, AtomicU64>,
+}
+
+impl Default for ConnectionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Clone for ConnectionManager {
+    fn clone(&self) -> Self {
+        Self {
+            connections: self.connections.clone(),
+            tcp_write_list: self.tcp_write_list.clone(),
+            tcp_tls_write_list: self.tcp_tls_write_list.clone(),
+            websocket_write_list: self.websocket_write_list.clone(),
+            quic_write_list: self.quic_write_list.clone(),
+            ip_conn_count: DashMap::with_capacity(64),
+        }
+    }
 }
 
 // connection manager
@@ -57,17 +79,23 @@ impl ConnectionManager {
         let tcp_tls_write_list = DashMap::with_capacity(64);
         let websocket_write_list = DashMap::with_capacity(64);
         let quic_write_list = DashMap::with_capacity(64);
+        let ip_conn_count = DashMap::with_capacity(64);
         ConnectionManager {
             connections,
             tcp_write_list,
             tcp_tls_write_list,
             websocket_write_list,
             quic_write_list,
+            ip_conn_count,
         }
     }
 
     pub fn add_connection(&self, connection: NetworkConnection) -> u64 {
         let connection_id = connection.connection_id();
+        self.ip_conn_count
+            .entry(connection.addr.ip())
+            .or_insert_with(|| AtomicU64::new(0))
+            .fetch_add(1, Ordering::Relaxed);
         self.connections.insert(connection_id, connection);
         connection_id
     }
@@ -121,6 +149,13 @@ impl ConnectionManager {
         if let Some(mut connect) = self.connections.get_mut(&connect_id) {
             connect.set_heartbeat_time(time);
         }
+    }
+
+    pub fn ip_connection_count(&self, addr: &SocketAddr) -> u64 {
+        self.ip_conn_count
+            .get(&addr.ip())
+            .map(|r| r.load(Ordering::Relaxed))
+            .unwrap_or(0)
     }
 }
 
@@ -204,7 +239,18 @@ impl ConnectionManager {
     }
 
     pub async fn close_connect(&self, connection_id: u64) {
-        self.connections.remove(&connection_id);
+        if let Some((_, conn)) = self.connections.remove(&connection_id) {
+            let ip = conn.addr.ip();
+            match self.ip_conn_count.entry(ip) {
+                Entry::Occupied(entry) => {
+                    let prev = entry.get().fetch_sub(1, Ordering::Relaxed);
+                    if prev == 1 {
+                        entry.remove();
+                    }
+                }
+                Entry::Vacant(_) => {}
+            }
+        }
 
         if let Some((id, writer)) = self.tcp_write_list.remove(&connection_id) {
             match tokio::time::timeout(CLOSE_TIMEOUT, async {
@@ -298,5 +344,130 @@ impl ConnectionManager {
         for id in gc_ids {
             self.close_connect(id).await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use metadata_struct::connection::NetworkConnectionType;
+    use std::net::SocketAddr;
+
+    fn addr(s: &str) -> SocketAddr {
+        s.parse().unwrap()
+    }
+
+    fn new_conn(addr: &SocketAddr) -> NetworkConnection {
+        NetworkConnection::new(NetworkConnectionType::Tcp, *addr, None)
+    }
+
+    #[tokio::test]
+    async fn add_connection_tracks_ip_count() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+        let conn = new_conn(&addr1);
+
+        cm.add_connection(conn);
+        assert_eq!(cm.ip_connection_count(&addr1), 1);
+    }
+
+    #[tokio::test]
+    async fn ip_connection_count_returns_zero_for_unknown_ip() {
+        let cm = ConnectionManager::new();
+        let addr = addr("127.0.0.1:8080");
+        assert_eq!(cm.ip_connection_count(&addr), 0);
+    }
+
+    #[tokio::test]
+    async fn multiple_connections_same_ip_increment_count() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr1));
+        assert_eq!(cm.ip_connection_count(&addr1), 3);
+    }
+
+    #[tokio::test]
+    async fn different_ips_tracked_independently() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+        let addr2 = addr("192.168.1.1:9090");
+        let addr3 = addr("10.0.0.1:3000");
+
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr2));
+        cm.add_connection(new_conn(&addr3));
+        cm.add_connection(new_conn(&addr3));
+
+        assert_eq!(cm.ip_connection_count(&addr1), 2);
+        assert_eq!(cm.ip_connection_count(&addr2), 1);
+        assert_eq!(cm.ip_connection_count(&addr3), 2);
+    }
+
+    #[tokio::test]
+    async fn close_connect_decrements_ip_count() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+
+        let id1 = cm.add_connection(new_conn(&addr1));
+        let id2 = cm.add_connection(new_conn(&addr1));
+        assert_eq!(cm.ip_connection_count(&addr1), 2);
+
+        cm.close_connect(id1).await;
+        assert_eq!(cm.ip_connection_count(&addr1), 1);
+        assert!(!cm.connections.contains_key(&id1));
+        assert!(cm.connections.contains_key(&id2));
+    }
+
+    #[tokio::test]
+    async fn close_connect_removes_ip_entry_when_count_reaches_zero() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+
+        let id = cm.add_connection(new_conn(&addr1));
+        assert_eq!(cm.ip_connection_count(&addr1), 1);
+
+        cm.close_connect(id).await;
+        assert_eq!(cm.ip_connection_count(&addr1), 0);
+        assert!(!cm.ip_conn_count.contains_key(&addr1.ip()));
+    }
+
+    #[tokio::test]
+    async fn close_connect_on_unknown_id_does_not_panic() {
+        let cm = ConnectionManager::new();
+        cm.close_connect(99999).await;
+    }
+
+    #[tokio::test]
+    async fn close_all_connect_cleans_up_ip_counts() {
+        let cm = ConnectionManager::new();
+        let addr1 = addr("127.0.0.1:8080");
+        let addr2 = addr("192.168.1.1:9090");
+
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr1));
+        cm.add_connection(new_conn(&addr2));
+
+        cm.close_all_connect().await;
+
+        assert_eq!(cm.ip_connection_count(&addr1), 0);
+        assert_eq!(cm.ip_connection_count(&addr2), 0);
+        assert_eq!(cm.connections.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn same_ip_different_ports_share_count() {
+        let cm = ConnectionManager::new();
+        let addr_a = addr("127.0.0.1:8080");
+        let addr_b = addr("127.0.0.1:9090");
+
+        cm.add_connection(new_conn(&addr_a));
+        cm.add_connection(new_conn(&addr_b));
+
+        assert_eq!(cm.ip_connection_count(&addr_a), 2);
+        assert_eq!(cm.ip_connection_count(&addr_b), 2);
     }
 }

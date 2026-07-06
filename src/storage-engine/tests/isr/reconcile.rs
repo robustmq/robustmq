@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// T6 — reconcile_idempotent
-//
-// Verifies that apply_leader_and_isr is idempotent: re-applying the same
-// segment (same leader_epoch + segment_epoch) does NOT reset follower progress.
-// This guards against a bug where a reconcile loop triggered a spurious progress
-// wipe every interval.
+// T6 — apply_leader_and_isr reconcile semantics: idempotent re-apply keeps
+// follower progress; a new leader_epoch resets it.
 
 #[cfg(test)]
 mod tests {
@@ -28,7 +24,7 @@ mod tests {
     use rocksdb_engine::test::test_rocksdb_instance;
     use storage_engine::clients::manager::ClientConnectionManager;
     use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-    use storage_engine::commitlog::offset::ShardOffsetState;
+    use storage_engine::core::offset::ShardOffsetState;
     use storage_engine::isr::apply::apply_leader_and_isr;
     use storage_engine::isr::fetcher_manager::{
         build_engine_fetcher_manager, ReplicaFetcherManager,
@@ -39,11 +35,13 @@ mod tests {
 
     fn make_fetcher_manager(engine: &Arc<MemoryStorageEngine>) -> Arc<ReplicaFetcherManager> {
         let cm = engine.cache_manager.clone();
+        let db = engine.commit_log_offset.rocksdb_engine_handler.clone();
         let client = Arc::new(ClientConnectionManager::new(cm.clone(), 1));
         Arc::new(build_engine_fetcher_manager(
             cm,
             engine.clone(),
             make_rocksdb(engine),
+            db,
             client,
         ))
     }
@@ -55,10 +53,36 @@ mod tests {
         Arc<RocksDBEngine>,
         Arc<ReplicaFetcherManager>,
     ) {
+        use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
         let engine = make_engine();
         let cm = engine.cache_manager.clone();
         let mgr = make_fetcher_manager(&engine);
         set_broker_id(&cm, 1);
+        cm.set_shard(EngineShard {
+            shard_name: "t6-shard".to_string(),
+            config: EngineShardConfig::default(),
+            ..Default::default()
+        });
+        cm.set_segment(&EngineSegment {
+            shard_name: "t6-shard".to_string(),
+            segment_seq: 0,
+            leader: 1,
+            leader_epoch: 0,
+            replicas: vec![
+                Replica {
+                    replica_seq: 0,
+                    node_id: 1,
+                    fold: String::new(),
+                },
+                Replica {
+                    replica_seq: 1,
+                    node_id: 2,
+                    fold: String::new(),
+                },
+            ],
+            isr: vec![1, 2],
+            ..Default::default()
+        });
         cm.add_segment_replica("t6-shard", 0);
         cm.save_offset_state("t6-shard".to_string(), ShardOffsetState::default());
         (engine, test_rocksdb_instance(), mgr)
@@ -88,7 +112,7 @@ mod tests {
         }
     }
 
-    // T6: second apply with same leader_epoch keeps follower_progress intact.
+    // T6a: re-applying the same leader_epoch keeps follower_progress intact.
     #[tokio::test]
     async fn reconcile_apply_is_idempotent() {
         let (engine, db, mgr) = leader_setup();
@@ -96,20 +120,15 @@ mod tests {
 
         let seg = segment_v(1, 2);
 
-        // First apply: becomes leader, follower_progress is empty
         apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
-        // simulate dynamic_cache.rs: set_segment is called after apply
         cm.set_segment(&seg);
 
-        // Simulate follower 2 starting to fetch
         let state = cm.get_segment_replica("t6-shard", 0).unwrap();
         update_follower_progress(&state, 2, 1, 5, 10, 0).unwrap();
         assert!(state.contains_key(&2), "follower progress should be seeded");
 
-        // Second apply with identical segment (same leader_epoch=1, segment_epoch=2)
         apply_leader_and_isr(&cm, &db, &mgr, &seg).await.unwrap();
 
-        // follower_progress must NOT be cleared (leader_epoch did not change)
         let state2 = cm.get_segment_replica("t6-shard", 0).unwrap();
         assert!(
             state2.contains_key(&2),
@@ -117,31 +136,32 @@ mod tests {
         );
     }
 
-    // T6b: new leader_epoch DOES clear follower_progress (expected reset on leader switch)
+    // T6b: a new leader_epoch resets follower_progress — the entry is wiped and
+    // reseeded from ISR, dropping the previously recorded leo/broker_epoch.
     #[tokio::test]
     async fn reconcile_new_epoch_resets_progress() {
         let (engine, db, mgr) = leader_setup();
         let cm = engine.cache_manager.clone();
 
-        // First apply: epoch=1
         apply_leader_and_isr(&cm, &db, &mgr, &segment_v(1, 0))
             .await
             .unwrap();
 
         let state = cm.get_segment_replica("t6-shard", 0).unwrap();
         update_follower_progress(&state, 2, 1, 5, 10, 0).unwrap();
-        assert!(state.contains_key(&2));
+        assert_eq!(state.get(&2).unwrap().leo, 5);
 
-        // Second apply: epoch=2 → leader_epoch changed → should reset
+        // epoch 1 -> 2 resets progress
         apply_leader_and_isr(&cm, &db, &mgr, &segment_v(2, 0))
             .await
             .unwrap();
 
         let state2 = cm.get_segment_replica("t6-shard", 0).unwrap();
-        assert!(
-            state2.is_empty(),
-            "leader_epoch change should reset follower progress"
-        );
+        let fp = state2
+            .get(&2)
+            .expect("follower reseeded from ISR after reset");
+        assert_eq!(fp.leo, 0, "recorded leo must be reset");
+        assert_eq!(fp.follower_broker_epoch, 0, "broker epoch must be reset");
     }
 
     // Cluster-level placeholder: reconcile catches up a broker that missed a

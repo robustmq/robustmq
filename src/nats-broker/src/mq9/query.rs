@@ -62,7 +62,7 @@ async fn query_by_key(
 ) -> Result<Vec<MsgItem>, NatsBrokerError> {
     let tenant = get_tenant();
     let sk = super::scoped_key(&tenant, mail_address, key);
-    let key_refs: Vec<&str> = vec![sk.as_str()];
+    let key_refs: Vec<&[u8]> = vec![sk.as_bytes()];
     let result = ctx
         .storage_driver_manager
         .read_by_keys(&tenant, mail_address, &key_refs)
@@ -149,6 +149,7 @@ async fn query_by_since(
         max_size: 1024 * 1024 * 30,
     };
 
+    // mq9 mail topics are always single-partition, so partition 0 is the only entry.
     let start_offset = ctx
         .storage_driver_manager
         .get_offset_by_timestamp(
@@ -158,7 +159,10 @@ async fn query_by_since(
             AdapterOffsetStrategy::Earliest,
         )
         .await
-        .map_err(NatsBrokerError::from)?;
+        .map_err(NatsBrokerError::from)?
+        .get(&0)
+        .copied()
+        .unwrap_or(0);
 
     let mut offsets: HashMap<String, u64> = HashMap::new();
     offsets.insert(mail_address.to_string(), start_offset);

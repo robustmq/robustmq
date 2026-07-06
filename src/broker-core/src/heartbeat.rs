@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, timeout};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{cache::NodeCacheManager, cluster::ClusterStorage};
 
@@ -46,23 +46,45 @@ pub async fn register_node_and_start_heartbeat(
     stop_send: broadcast::Sender<bool>,
 ) {
     let config = broker_config();
-    match register_node(client_pool, cache_manager).await {
-        Ok(()) => {
-            let raw_client_pool = client_pool.clone();
-            let broker_cache = cache_manager.clone();
 
-            task_supervisor.spawn(
-                TaskKind::BrokerNodeHeartbeat.to_string(),
-                Box::pin(async move {
-                    report_heartbeat(&raw_client_pool, &broker_cache, stop_send).await;
-                }),
-            );
-            info!("Node {} has been successfully registered", config.broker_id);
-        }
-        Err(e) => {
-            error!("Node registration failed. Error message:{}", e);
+    let mut last_err = None;
+    for attempt in 1..=30 {
+        match register_node(client_pool, cache_manager).await {
+            Ok(()) => {
+                last_err = None;
+                break;
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("not initialized") || msg.contains("not retried") {
+                    debug!(
+                        "Node {} registration attempt {}/30 failed (peer not ready yet): {}",
+                        config.broker_id, attempt, msg
+                    );
+                    last_err = Some(e);
+                    sleep(Duration::from_secs(2)).await;
+                } else {
+                    panic!("Node {} registration failed: {}", config.broker_id, e);
+                }
+            }
         }
     }
+    if let Some(e) = last_err {
+        panic!(
+            "Node {} registration failed after 30 attempts: {}",
+            config.broker_id, e
+        );
+    }
+    info!("Node {} has been successfully registered", config.broker_id);
+
+    let raw_client_pool = client_pool.clone();
+    let broker_cache = cache_manager.clone();
+    task_supervisor.spawn(
+        TaskKind::BrokerNodeHeartbeat.to_string(),
+        Box::pin(async move {
+            report_heartbeat(&raw_client_pool, &broker_cache, stop_send).await;
+        }),
+    );
 }
 
 pub async fn report_heartbeat(
@@ -70,12 +92,6 @@ pub async fn report_heartbeat(
     cache_manager: &Arc<NodeCacheManager>,
     stop_send: broadcast::Sender<bool>,
 ) {
-    let config = broker_config();
-    info!(
-        "Heartbeat task started for node {}, reporting every 3s",
-        config.broker_id
-    );
-
     let ac_fn = async || -> ResultCommonError {
         let cluster_storage = ClusterStorage::new(client_pool.clone());
         let config = broker_config();
@@ -86,15 +102,12 @@ pub async fn report_heartbeat(
             }
             Ok(Err(e)) => {
                 if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
-                    warn!(
-                        "Node {} does not exist in Meta Service, attempting to re-register",
-                        config.broker_id
-                    );
                     if let Err(register_err) = register_node(client_pool, cache_manager).await {
                         error!(
                             "Failed to re-register node {} after heartbeat failure: {}",
                             config.broker_id, register_err
                         );
+                        return Ok(());
                     } else {
                         info!("Node {} successfully re-registered", config.broker_id);
                         return Ok(());

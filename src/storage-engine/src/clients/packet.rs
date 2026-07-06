@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::utils::serialize::deserialize;
 use metadata_struct::storage::{adapter_read_config::AdapterWriteRespRow, record::StorageRecord};
 use protocol::storage::protocol::{
     ApiKey, FetchReq, FetchReqBody, ReadReq, ReadReqBody, ReadReqMessage, ReadResp, ReadRespBody,
@@ -107,6 +108,13 @@ pub fn write_resp_parse(resp: &WriteResp) -> Result<Vec<AdapterWriteRespRow>, St
     Ok(results)
 }
 
-pub fn read_resp_parse(_resp: &ReadResp) -> Result<Vec<StorageRecord>, StorageEngineError> {
-    Ok(Vec::new())
+pub fn read_resp_parse(resp: &ReadResp) -> Result<Vec<StorageRecord>, StorageEngineError> {
+    if let Some(err) = &resp.header.error {
+        return Err(StorageEngineError::CommonErrorStr(err.to_str()));
+    }
+    let mut records = Vec::with_capacity(resp.body.messages.len());
+    for msg in &resp.body.messages {
+        records.push(deserialize::<StorageRecord>(msg)?);
+    }
+    Ok(records)
 }

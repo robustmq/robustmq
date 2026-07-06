@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::core::error::StorageEngineError;
-use crate::{commitlog::offset::CommitLogOffset, core::cache::StorageCacheManager};
+use crate::core::{cache::StorageCacheManager, offset::ShardOffset};
 use dashmap::DashMap;
 use rocksdb_engine::rocksdb::RocksDBEngine;
-use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_BROKER;
+use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_STORAGE_ENGINE;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ pub struct IndexInfo {
 pub struct RocksDBStorageEngine {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     pub cache_manager: Arc<StorageCacheManager>,
-    pub commitlog_offset: Arc<CommitLogOffset>,
+    pub commitlog_offset: Arc<ShardOffset>,
     pub shard_write_locks: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
 }
 
@@ -41,17 +41,17 @@ impl RocksDBStorageEngine {
             rocksdb_engine_handler: db.clone(),
             cache_manager: cache_manager.clone(),
             shard_write_locks: DashMap::with_capacity(8),
-            commitlog_offset: Arc::new(CommitLogOffset::new(cache_manager.clone(), db.clone())),
+            commitlog_offset: Arc::new(ShardOffset::new(cache_manager.clone(), db.clone())),
         }
     }
 
     pub fn get_cf(&self) -> Result<Arc<rocksdb::BoundColumnFamily<'_>>, StorageEngineError> {
         self.rocksdb_engine_handler
-            .cf_handle(DB_COLUMN_FAMILY_BROKER)
+            .cf_handle(DB_COLUMN_FAMILY_STORAGE_ENGINE)
             .ok_or_else(|| {
                 StorageEngineError::CommonErrorStr(format!(
                     "Column family '{}' not found",
-                    DB_COLUMN_FAMILY_BROKER
+                    DB_COLUMN_FAMILY_STORAGE_ENGINE
                 ))
             })
     }

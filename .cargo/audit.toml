@@ -30,7 +30,6 @@ ignore = [
     "RUSTSEC-2023-0071", # rsa Marvin Attack - no fix available yet, monitoring upstream
     "RUSTSEC-2024-0421", # idna Punycode issue - indirect dependency via trust-dns-proto, will upgrade when mongodb updates
     "RUSTSEC-2026-0041", # lz4_flex vulnerability - blocked by clickhouse 0.14.2 (latest), waiting for upstream release
-    "RUSTSEC-2026-0037", # quinn-proto vulnerability - blocked by quinn 0.11.9 (latest), waiting for upstream release
 
     # New vulnerabilities (2026-03-21)
     "RUSTSEC-2026-0049", # rustls-webpki CRL matching - blocked by mongodb 2.8 (needs rustls 0.21) and rumqttc 0.25.1; no upstream fix yet
@@ -39,6 +38,11 @@ ignore = [
     # New vulnerabilities (2026-04-15)
     "RUSTSEC-2026-0098", # rustls-webpki URI name constraints - indirect via mongodb/rustls 0.21, tonic/rustls 0.22, rumqttc; blocked by upstream
     "RUSTSEC-2026-0099", # rustls-webpki wildcard name constraints - same indirect chain as above; blocked by upstream
+
+    # New vulnerabilities (2026-07-04)
+    "RUSTSEC-2026-0104", # rustls-webpki CRL parsing panic - same indirect chain (mongodb rustls 0.21 / async-nats); blocked by upstream
+    "RUSTSEC-2026-0195", # quick-xml memory-exhaustion DoS - blocked by inferno (via pprof) and opendal/reqsign, none republished with quick-xml >=0.41 yet
+    "RUSTSEC-2026-0194", # quick-xml quadratic attribute-name check - same blocked chain as RUSTSEC-2026-0195
 ]
 
 # Ignore yanked crates

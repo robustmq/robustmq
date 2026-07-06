@@ -27,6 +27,7 @@ use protocol::meta::meta_service_journal::UpdateSegmentIsrRequest;
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::warn;
 
 /// Outcome of an ISR update applied by the state machine, encoded into the raft
 /// response value as JSON. A rejection is a normal result (not a fault), so it
@@ -119,6 +120,17 @@ impl DataRouteJournal {
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         let known_broker_epoch = node_storage.get_broker_epoch(req.requester_node_id)?;
         if req.requester_broker_epoch != known_broker_epoch {
+            // Surface why the ISR update was rejected: the requester's broker_epoch
+            // disagrees with meta's persisted value. Otherwise this fence is silent
+            // and the requester just retries forever.
+            warn!(
+                "UpdateSegmentIsr fenced (stale broker_epoch): {}/{} requester_node_id={} requester_broker_epoch={} != registered={}",
+                req.shard_name,
+                req.segment,
+                req.requester_node_id,
+                req.requester_broker_epoch,
+                known_broker_epoch,
+            );
             return Ok(IsrUpdateOutcome::StaleBrokerEpoch.encode());
         }
 

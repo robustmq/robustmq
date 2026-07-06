@@ -28,7 +28,7 @@ use storage_engine::{
     commitlog::memory::engine::MemoryStorageEngine,
     commitlog::rocksdb::engine::RocksDBStorageEngine,
     core::cache::StorageCacheManager,
-    filesegment::write::WriteManager,
+    filesegment::write_manager::WriteManager,
     handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams},
     isr::fetcher_manager::build_engine_fetcher_manager,
     StorageEngineParams, StorageEngineServer,
@@ -68,6 +68,7 @@ pub fn build_storage_engine_params(
         cache_manager.clone(),
         memory_storage_engine.clone(),
         rocksdb_storage_engine.clone(),
+        rocksdb_engine_handler.clone(),
         client_connection_manager.clone(),
     ));
     let storage_engine_handler = Arc::new(StorageEngineHandler::new(StorageEngineHandlerParams {

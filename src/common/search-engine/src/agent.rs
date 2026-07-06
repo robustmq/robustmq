@@ -21,10 +21,19 @@ use arrow_array::{FixedSizeListArray, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, Schema};
 use common_base::error::common::CommonError;
 use lance_arrow::FixedSizeListArrayExt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+use tokio::sync::Mutex;
 
 const TABLE_NAME: &str = "mq9_agents";
 const VECTOR_DIM: i32 = 384;
+// IvfHnswSq index requires at least this many training rows
+const MIN_ROWS_FOR_VECTOR_INDEX: usize = 256;
+
+static WRITE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn write_lock() -> &'static Mutex<()> {
+    WRITE_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 fn err(msg: impl Into<String>) -> Box<CommonError> {
     Box::new(CommonError::CommonError(msg.into()))
@@ -106,6 +115,8 @@ pub async fn register_agent(
     agent_info_json: &str,
     vector: Vec<f32>,
 ) -> SearchResult<()> {
+    let _guard = write_lock().lock().await;
+
     let schema = make_schema();
     let table = match open_table(TABLE_NAME).await {
         Ok(t) => {
@@ -126,7 +137,13 @@ pub async fn register_agent(
     insert(&table, batch).await?;
 
     create_fts_index(&table, &["search_text"]).await?;
-    create_vector_index(&table, "vector").await
+
+    let row_count = table.count_rows(None).await.unwrap_or(0);
+    if row_count >= MIN_ROWS_FOR_VECTOR_INDEX {
+        create_vector_index(&table, "vector").await?;
+    }
+
+    Ok(())
 }
 
 pub async fn unregister_agent(tenant: &str, name: &str) -> SearchResult<()> {

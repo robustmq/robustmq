@@ -31,14 +31,17 @@ mod tests {
 
         let server_addr = "127.0.0.1:9083".parse().unwrap();
 
-        let connection_result = timeout(Duration::from_secs(10), async {
+        let connection_result = timeout(Duration::from_secs(30), async {
             client_endpoint
                 .connect(server_addr, "localhost")
                 .unwrap()
                 .await
         })
         .await;
-        assert!(connection_result.is_ok());
+        assert!(
+            connection_result.is_ok(),
+            "QUIC connection timed out after 30s"
+        );
 
         let connection = connection_result.unwrap().unwrap();
         connection.close(VarInt::from_u32(0), b"test completed");

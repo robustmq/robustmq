@@ -31,7 +31,7 @@ pub(crate) async fn save_delay_task_index(
         AdapterWriteRecord::new(DELAY_TASK_INDEX_TOPIC, data).with_key(task.task_id.clone());
 
     let result = storage_driver_manager
-        .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record])
+        .write(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[record], 1)
         .await?;
 
     let resp = result.first().ok_or_else(|| {
@@ -58,7 +58,11 @@ pub(crate) async fn delete_delay_task_index(
     task_id: &str,
 ) -> Result<(), CommonError> {
     storage_driver_manager
-        .delete_by_keys(DEFAULT_TENANT, DELAY_TASK_INDEX_TOPIC, &[task_id])
+        .delete_by_keys(
+            DEFAULT_TENANT,
+            DELAY_TASK_INDEX_TOPIC,
+            &[task_id.as_bytes()],
+        )
         .await?;
     debug!("Deleted delay task index: task_id={}", task_id);
     Ok(())

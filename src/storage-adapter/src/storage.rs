@@ -37,10 +37,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use storage_engine::clients::manager::ClientConnectionManager;
 use storage_engine::commitlog::memory::engine::MemoryStorageEngine;
-use storage_engine::commitlog::offset::CommitLogOffset;
 use storage_engine::commitlog::rocksdb::engine::RocksDBStorageEngine;
 use storage_engine::core::cache::StorageCacheManager;
-use storage_engine::filesegment::write::WriteManager;
+use storage_engine::core::offset::ShardOffset;
+use storage_engine::filesegment::write_manager::WriteManager;
 use storage_engine::handler::adapter::{StorageEngineHandler, StorageEngineHandlerParams};
 
 #[async_trait]
@@ -58,6 +58,7 @@ pub trait StorageAdapter {
         &self,
         shard: &str,
         data: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError>;
 
     async fn read_by_offset(
@@ -78,12 +79,20 @@ pub trait StorageAdapter {
     async fn read_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError>;
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError>;
 
-    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError>;
+    async fn delete_by_keys(&self, shard: &str, keys: &[&[u8]]) -> Result<(), CommonError>;
 
     async fn delete_by_offsets(&self, shard: &str, offsets: &[u64]) -> Result<(), CommonError>;
+
+    /// Delete all records with offset < `target_offset` (Kafka DeleteRecords
+    /// semantics). Returns the achieved low_watermark.
+    async fn delete_records_before(
+        &self,
+        shard: &str,
+        target_offset: u64,
+    ) -> Result<u64, CommonError>;
 
     async fn get_offset_by_timestamp(
         &self,
@@ -175,7 +184,7 @@ pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_
             segment_seq: 0,
             ..Default::default()
         });
-    let commit_offset = CommitLogOffset::new(
+    let commit_offset = ShardOffset::new(
         storage_driver_manager
             .engine_storage_handler
             .cache_manager
@@ -185,6 +194,16 @@ pub fn test_add_topic(storage_driver_manager: &Arc<StorageDriverManager>, topic_
             .rocksdb_engine_handler
             .clone(),
     );
+    storage_driver_manager
+        .engine_storage_handler
+        .cache_manager
+        .save_offset_state(
+            shard_name.clone(),
+            storage_engine::core::offset::ShardOffsetState::default(),
+        );
     commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
     commit_offset.save_latest_offset(&shard_name, 0).unwrap();
+    commit_offset
+        .save_high_watermark_offset(&shard_name, 0)
+        .unwrap();
 }

@@ -17,8 +17,8 @@
 use crate::clients::manager::ClientConnectionManager;
 use crate::commitlog::memory::engine::MemoryStorageEngine;
 use crate::commitlog::rocksdb::engine::RocksDBStorageEngine;
-use crate::filesegment::expire::start_segment_expire_thread;
-use crate::filesegment::write::WriteManager;
+use crate::filesegment::expire::{start_orphan_clean_thread, start_segment_expire_thread};
+use crate::filesegment::write_manager::WriteManager;
 use crate::handler::adapter::StorageEngineHandler;
 use crate::isr::fetcher_manager::ReplicaFetcherManager;
 use crate::server::Server;
@@ -38,6 +38,7 @@ pub mod core;
 pub mod filesegment;
 pub mod handler;
 pub mod isr;
+pub mod objectsegment;
 pub mod server;
 
 #[derive(Clone)]
@@ -111,8 +112,6 @@ impl StorageEngineServer {
     pub async fn start(&self) -> Result<(), std::io::Error> {
         crate::isr::recover::recover_local_segments(
             &self.cache_manager,
-            &self.memory_storage_engine,
-            &self.rocksdb_storage_engine,
             &self.rocksdb_engine_handler,
         )
         .await;
@@ -143,15 +142,30 @@ impl StorageEngineServer {
             });
 
         // segment engine expire
+        let stop_sx = self.stop.clone();
         let client_pool = self.client_pool.clone();
         let cache_manager = self.cache_manager.clone();
-        let stop_sx = self.stop.clone();
         self.task_supervisor.spawn(
             TaskKind::StorageEngineSegmentExpire.to_string(),
             async move {
                 start_segment_expire_thread(client_pool, cache_manager, &stop_sx).await;
             },
         );
+
+        let stop_sx = self.stop.clone();
+        let client_pool = self.client_pool.clone();
+        let cache_manager = self.cache_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        self.task_supervisor
+            .spawn(TaskKind::StorageEngineOrphanClean.to_string(), async move {
+                start_orphan_clean_thread(
+                    client_pool,
+                    cache_manager,
+                    rocksdb_engine_handler,
+                    &stop_sx,
+                )
+                .await;
+            });
 
         // rocksdb engine expire
         let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
@@ -205,6 +219,27 @@ impl StorageEngineServer {
                     cache_manager,
                     fetcher_manager,
                     rocksdb_engine_handler,
+                    &stop_sx,
+                )
+                .await;
+            },
+        );
+
+        let cache_manager = self.cache_manager.clone();
+        let rocksdb_engine_handler = self.rocksdb_engine_handler.clone();
+        let memory_engine = self.memory_storage_engine.clone();
+        let rocksdb_storage_engine = self.rocksdb_storage_engine.clone();
+        let fetcher_manager = self.fetcher_manager.clone();
+        let stop_sx = self.stop.clone();
+        self.task_supervisor.spawn(
+            TaskKind::StorageEngineDeleteWorker.to_string(),
+            async move {
+                crate::core::delete::start_delete_worker(
+                    cache_manager,
+                    rocksdb_engine_handler,
+                    memory_engine,
+                    rocksdb_storage_engine,
+                    fetcher_manager,
                     &stop_sx,
                 )
                 .await;

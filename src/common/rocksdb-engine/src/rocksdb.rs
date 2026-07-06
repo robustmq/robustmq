@@ -116,7 +116,7 @@ impl RocksDBEngine {
     pub fn read<T: DeserializeOwned>(
         &self,
         cf: Arc<BoundColumnFamily<'_>>,
-        key: &str,
+        key: impl AsRef<[u8]>,
     ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(&cf, key) {
             Ok(Some(data)) => {

@@ -22,7 +22,9 @@ use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::record::StorageRecord;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use storage_engine::handler::adapter::StorageEngineHandler;
+use tokio::time::sleep;
 pub struct EngineStorageAdapter {
     adapter: Arc<StorageEngineHandler>,
 }
@@ -54,8 +56,33 @@ impl StorageAdapter for EngineStorageAdapter {
         &self,
         shard: &str,
         records: &[AdapterWriteRecord],
+        acks: i8,
     ) -> Result<Vec<AdapterWriteRespRow>, CommonError> {
-        self.adapter.write(shard, records).await
+        let mut pending: Vec<AdapterWriteRecord> = records.to_vec();
+        let mut final_results: Vec<AdapterWriteRespRow> = Vec::with_capacity(records.len());
+
+        loop {
+            let resp = self.adapter.write(shard, &pending, acks).await?;
+
+            let mut overflow_record_ids: Vec<u64> = Vec::new();
+            for row in resp {
+                if row.need_next_segment {
+                    overflow_record_ids.push(row.pkid);
+                } else {
+                    final_results.push(row);
+                }
+            }
+
+            if overflow_record_ids.is_empty() {
+                break;
+            }
+
+            pending.retain(|r| overflow_record_ids.contains(&r.record_id));
+
+            sleep(Duration::from_millis(5)).await;
+        }
+
+        Ok(final_results)
     }
 
     async fn read_by_offset(
@@ -84,8 +111,8 @@ impl StorageAdapter for EngineStorageAdapter {
     async fn read_by_keys(
         &self,
         shard: &str,
-        keys: &[&str],
-    ) -> Result<HashMap<String, Vec<StorageRecord>>, CommonError> {
+        keys: &[&[u8]],
+    ) -> Result<HashMap<Vec<u8>, Vec<StorageRecord>>, CommonError> {
         let mut result = HashMap::with_capacity(keys.len());
         for &key in keys {
             let records = self
@@ -93,12 +120,12 @@ impl StorageAdapter for EngineStorageAdapter {
                 .read_by_key(shard, key)
                 .await
                 .map_err(|e| CommonError::CommonError(e.to_string()))?;
-            result.insert(key.to_string(), records);
+            result.insert(key.to_vec(), records);
         }
         Ok(result)
     }
 
-    async fn delete_by_keys(&self, shard: &str, keys: &[&str]) -> Result<(), CommonError> {
+    async fn delete_by_keys(&self, shard: &str, keys: &[&[u8]]) -> Result<(), CommonError> {
         self.adapter
             .delete_by_keys(shard, keys)
             .await
@@ -108,6 +135,17 @@ impl StorageAdapter for EngineStorageAdapter {
     async fn delete_by_offsets(&self, shard: &str, offsets: &[u64]) -> Result<(), CommonError> {
         self.adapter
             .delete_by_offsets(shard, offsets)
+            .await
+            .map_err(|e| CommonError::CommonError(e.to_string()))
+    }
+
+    async fn delete_records_before(
+        &self,
+        shard: &str,
+        target_offset: u64,
+    ) -> Result<u64, CommonError> {
+        self.adapter
+            .delete_records_before(shard, target_offset)
             .await
             .map_err(|e| CommonError::CommonError(e.to_string()))
     }

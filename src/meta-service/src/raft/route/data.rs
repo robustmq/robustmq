@@ -59,6 +59,15 @@ pub enum StorageDataType {
     ResourceConfigDelete,
     OffsetSet,
     OffsetDelete,
+    OffsetDeleteShards,
+
+    // Kafka
+    KafkaSetQuota,
+    KafkaDeleteQuota,
+    KafkaSetDelegationToken,
+    KafkaDeleteDelegationToken,
+    KafkaSetScram,
+    KafkaDeleteScram,
 
     // StorageEngine
     StorageEngineSetShard,
@@ -125,6 +134,15 @@ impl fmt::Display for StorageDataType {
             StorageDataType::ResourceConfigDelete => write!(f, "ResourceConfigDelete"),
             StorageDataType::OffsetSet => write!(f, "OffsetSet"),
             StorageDataType::OffsetDelete => write!(f, "OffsetDelete"),
+            StorageDataType::OffsetDeleteShards => write!(f, "OffsetDeleteShards"),
+            StorageDataType::KafkaSetQuota => write!(f, "KafkaSetQuota"),
+            StorageDataType::KafkaDeleteQuota => write!(f, "KafkaDeleteQuota"),
+            StorageDataType::KafkaSetDelegationToken => write!(f, "KafkaSetDelegationToken"),
+            StorageDataType::KafkaSetScram => write!(f, "KafkaSetScram"),
+            StorageDataType::KafkaDeleteScram => write!(f, "KafkaDeleteScram"),
+            StorageDataType::KafkaDeleteDelegationToken => {
+                write!(f, "KafkaDeleteDelegationToken")
+            }
 
             StorageDataType::StorageEngineSetShard => write!(f, "StorageEngineSetShard"),
             StorageDataType::StorageEngineDeleteShard => write!(f, "StorageEngineDeleteShard"),

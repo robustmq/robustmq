@@ -14,6 +14,7 @@
 
 pub mod common;
 pub mod journal;
+pub mod kafka;
 pub mod mq9;
 pub mod mqtt;
 pub mod nats;

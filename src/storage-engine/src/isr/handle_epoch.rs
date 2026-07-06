@@ -111,6 +111,7 @@ fn leo_for(
     match storage_type_of(cache_manager, shard) {
         Some(StorageType::EngineRocksDB) => engines.rocksdb.latest_offset(shard, segment_seq).ok(),
         Some(StorageType::EngineMemory) => engines.memory.latest_offset(shard, segment_seq).ok(),
+        Some(StorageType::EngineSegment) => engines.segment.latest_offset(shard, segment_seq).ok(),
         _ => None,
     }
 }
@@ -143,6 +144,10 @@ pub fn query_local_replica_state(
             .unwrap_or(0),
         Some(StorageType::EngineMemory) => engines
             .memory
+            .log_start_offset(shard, segment_seq)
+            .unwrap_or(0),
+        Some(StorageType::EngineSegment) => engines
+            .segment
             .log_start_offset(shard, segment_seq)
             .unwrap_or(0),
         _ => 0,
@@ -198,7 +203,7 @@ mod tests {
         cm.add_segment_replica("s", 0);
         cm.save_offset_state(
             "s".to_string(),
-            crate::commitlog::offset::ShardOffsetState::default(),
+            crate::core::offset::ShardOffsetState::default(),
         );
         let records: Vec<_> = (0..leo).map(|o| record(o, "v")).collect();
         if !records.is_empty() {
@@ -211,6 +216,10 @@ mod tests {
         let engines = FetchEngines {
             memory,
             rocksdb: Arc::new(test_build_rocksdb_engine()),
+            segment: Arc::new(crate::filesegment::replica::FileSegmentReplicaLog::new(
+                cm.clone(),
+                db.clone(),
+            )),
         };
         (engines, cm, db)
     }
@@ -227,55 +236,47 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn returns_next_epoch_start() {
+    async fn truncate_offset_paths() {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
+
+        // follower at epoch 1 → next epoch (2) starts at offset 5
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(1, 2)).await;
         assert_eq!(resp.error_code, FetchErrorCode::None.as_u32());
         assert_eq!(resp.truncate_epoch, 1);
         assert_eq!(resp.truncate_offset, 5);
-    }
 
-    #[tokio::test]
-    async fn latest_epoch_returns_leo() {
-        let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
+        // follower at latest epoch (2) → LEO
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(2, 2)).await;
         assert_eq!(resp.truncate_epoch, 2);
         assert_eq!(resp.truncate_offset, 8);
-    }
 
-    #[tokio::test]
-    async fn follower_epoch_ahead_returns_leo() {
-        let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
+        // follower epoch ahead of leader → epoch=-1, LEO
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(9, 2)).await;
         assert_eq!(resp.truncate_epoch, -1);
         assert_eq!(resp.truncate_offset, 8);
     }
 
     #[tokio::test]
-    async fn fences_stale_current_epoch() {
+    async fn error_responses() {
         let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
-        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(1, 1)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::FencedLeaderEpoch.as_u32());
-    }
 
-    #[tokio::test]
-    async fn unknown_when_current_epoch_ahead() {
-        let (engines, cm, db) = leader_with_epochs(&[(1, 0), (2, 5)], 8).await;
-        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(2, 3)).await;
-        assert_eq!(resp.error_code, FetchErrorCode::UnknownLeaderEpoch.as_u32());
-        assert_eq!(resp.current_leader_epoch, 2);
-    }
-
-    #[tokio::test]
-    async fn not_leader_when_segment_missing() {
-        let (engines, cm, db) = leader_with_epochs(&[(1, 0)], 1).await;
-        let mut r = req(1, 1);
+        // segment not found → NotLeaderForPartition
+        let mut r = req(1, 2);
         r.shard_name = "missing".to_string();
         let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &r).await;
         assert_eq!(
             resp.error_code,
             FetchErrorCode::NotLeaderForPartition.as_u32()
         );
+
+        // current_leader_epoch < actual → Fenced
+        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(1, 1)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::FencedLeaderEpoch.as_u32());
+
+        // current_leader_epoch > actual → Unknown
+        let resp = handle_offsets_for_leader_epoch(&engines, &cm, &db, &req(2, 3)).await;
+        assert_eq!(resp.error_code, FetchErrorCode::UnknownLeaderEpoch.as_u32());
+        assert_eq!(resp.current_leader_epoch, 2);
     }
 
     #[tokio::test]

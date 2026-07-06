@@ -48,6 +48,8 @@ service MetaServiceService {
 
   rpc GetOffsetData(GetOffsetDataRequest) returns (GetOffsetDataReply) {}
 
+  rpc DeleteOffsetData(DeleteOffsetDataRequest) returns (DeleteOffsetDataReply) {}
+
   // Schema
   rpc ListSchema(ListSchemaRequest) returns (stream ListSchemaReply) {}
 
@@ -200,6 +202,8 @@ message SaveOffsetData {
 message SaveOffsetDataRequestOffset {
   string shard_name = 2 [(validate.rules).string.min_len = 1];
   uint64 offset = 3 [(validate.rules).uint64.gte = 0];
+  string topic = 4 [(validate.rules).string.min_len = 1];
+  uint32 partition = 5;
 }
 
 message SaveOffsetDataReply {}
@@ -216,7 +220,19 @@ message GetOffsetDataReply {
 message GetOffsetDataReplyOffset {
   string shard_name = 2;
   uint64 offset = 3;
+  string topic = 4;
+  uint32 partition = 5;
 }
+
+message DeleteOffsetDataRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string group = 2 [(validate.rules).string.min_len = 1];
+  // The shard names to delete offsets for. Empty is rejected — use the
+  // group-GC path (whole-group deletion) if that's the intent.
+  repeated string shard_names = 3 [(validate.rules).repeated.min_items = 1];
+}
+
+message DeleteOffsetDataReply {}
 
 message ListSchemaRequest {
   string tenant = 1;

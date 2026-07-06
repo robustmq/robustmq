@@ -21,7 +21,6 @@ use crate::{
     },
 };
 use bytes::Bytes;
-use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::{segment::EngineSegment, segment_meta::EngineSegmentMetadata};
 use node_call::NodeCallManager;
 use std::sync::Arc;
@@ -33,7 +32,6 @@ async fn update_segment_metadata<F>(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
     update_fn: F,
@@ -71,7 +69,6 @@ pub async fn update_last_offset_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
     last_offset: i64,
@@ -80,7 +77,6 @@ pub async fn update_last_offset_by_segment_metadata(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         shard_name,
         segment,
         |meta| meta.end_offset = last_offset,
@@ -92,7 +88,6 @@ pub async fn update_start_timestamp_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
     start_timestamp: u64,
@@ -105,7 +100,6 @@ pub async fn update_start_timestamp_by_segment_metadata(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         shard_name,
         segment,
         |meta| meta.start_timestamp = timestamp_i64,
@@ -117,7 +111,6 @@ pub async fn update_end_timestamp_by_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    client_pool: &Arc<ClientPool>,
     shard_name: &str,
     segment: u32,
     end_timestamp: u64,
@@ -130,7 +123,6 @@ pub async fn update_end_timestamp_by_segment_metadata(
         cache_manager,
         raft_manager,
         call_manager,
-        client_pool,
         shard_name,
         segment,
         |meta| meta.end_timestamp = timestamp_i64,
@@ -142,7 +134,6 @@ pub async fn create_segment_metadata(
     cache_manager: &Arc<MetaCacheManager>,
     raft_manager: &Arc<MultiRaftManager>,
     call_manager: &Arc<NodeCallManager>,
-    _client_pool: &Arc<ClientPool>,
     segment: &EngineSegment,
     start_offset: i64,
 ) -> Result<(), MetaServiceError> {
@@ -157,7 +148,7 @@ pub async fn create_segment_metadata(
         shard_name: segment.shard_name.clone(),
         segment_seq: segment.segment_seq,
         start_offset,
-        end_offset: start_offset, // When creating a new segment, the end offset is equal to the start offset.
+        end_offset: 0, // 0 means "no upper bound yet"; set by create_next_segment when the segment is sealed.
         start_timestamp: UNINITIALIZED_TIMESTAMP,
         end_timestamp: UNINITIALIZED_TIMESTAMP,
     };

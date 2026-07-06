@@ -21,8 +21,8 @@ use metadata_struct::storage::{
     adapter_offset::AdapterOffsetStrategy, adapter_read_config::AdapterReadConfig,
     record::StorageRecord,
 };
-use rocksdb_engine::keys::storage::{
-    key_index_key, shard_record_key, shard_record_key_prefix, tag_index_tag_prefix,
+use rocksdb_engine::keys::engine::{
+    key_index_key, record_key, record_prefix, tag_index_key, tag_index_tag_prefix,
     timestamp_index_prefix,
 };
 
@@ -34,25 +34,21 @@ impl RocksDBStorageEngine {
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let end_offset = self.commitlog_offset.get_latest_offset(shard)?;
+        let cf = self.get_cf()?;
 
         let mut records = Vec::new();
         let mut total_size = 0u64;
         let mut cursor = start_offset;
 
-        'outer: loop {
-            if cursor > end_offset {
-                break;
-            }
-
-            let batch_end = cursor.saturating_add(100).min(end_offset.saturating_add(1));
+        'outer: while cursor < end_offset {
+            let batch_end = cursor.saturating_add(100).min(end_offset);
             let keys: Vec<String> = (cursor..batch_end)
-                .map(|i| shard_record_key(shard, 0, i))
+                .map(|i| record_key(shard, 0, i))
                 .collect();
 
-            let cf = self.get_cf()?;
             let batch_results = self
                 .rocksdb_engine_handler
-                .multi_get::<StorageRecord>(cf, &keys)?;
+                .multi_get::<StorageRecord>(cf.clone(), &keys)?;
 
             for record_opt in batch_results {
                 let Some(record) = record_opt else {
@@ -67,7 +63,7 @@ impl RocksDBStorageEngine {
                     break 'outer;
                 }
                 let record_bytes = record.data.len() as u64;
-                if total_size + record_bytes > read_config.max_size {
+                if !records.is_empty() && total_size + record_bytes > read_config.max_size {
                     break 'outer;
                 }
                 total_size += record_bytes;
@@ -88,37 +84,39 @@ impl RocksDBStorageEngine {
         read_config: &AdapterReadConfig,
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let cf = self.get_cf()?;
-        let tag_offset_key_prefix = tag_index_tag_prefix(shard, tag);
-        let tag_entries = self
-            .rocksdb_engine_handler
-            .read_prefix(cf.clone(), &tag_offset_key_prefix)?;
+        let tag_prefix = tag_index_tag_prefix(shard, tag);
+        // tag keys sort by offset, so seek straight to start_offset.
+        let seek_key = match start_offset {
+            Some(so) => tag_index_key(shard, tag, so),
+            None => tag_prefix.clone(),
+        };
 
-        // Filter offsets >= start_offset
         let mut offsets = Vec::new();
-        for (_key, value) in tag_entries {
-            let record_offset: IndexInfo = deserialize::<IndexInfo>(&value)?;
-
-            if let Some(so) = start_offset {
-                if record_offset.offset < so {
-                    continue;
-                }
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(seek_key.as_bytes());
+        while iter.valid() {
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+            if !key_bytes.starts_with(tag_prefix.as_bytes()) {
+                break;
             }
-
-            offsets.push(record_offset.offset);
+            let Some(value) = iter.value() else {
+                break;
+            };
+            offsets.push(deserialize::<IndexInfo>(value)?.offset);
+            iter.next();
         }
 
         if offsets.is_empty() {
             return Ok(Vec::new());
         }
 
-        // Build record keys from offsets
+        // Limit after fetching so holes/expired entries don't cause under-reads.
         let keys: Vec<String> = offsets
             .iter()
-            .map(|off| shard_record_key(shard, 0, *off))
+            .map(|off| record_key(shard, 0, *off))
             .collect();
-
-        // Batch read records; apply max_record_num/max_size limits here,
-        // after fetching, so holes and expired entries don't cause under-reads.
         let batch_results = self
             .rocksdb_engine_handler
             .multi_get::<StorageRecord>(cf, &keys)?;
@@ -139,7 +137,7 @@ impl RocksDBStorageEngine {
             }
 
             let record_bytes = record.data.len() as u64;
-            if total_size + record_bytes > read_config.max_size {
+            if !records.is_empty() && total_size + record_bytes > read_config.max_size {
                 break;
             }
 
@@ -153,7 +151,7 @@ impl RocksDBStorageEngine {
     pub async fn read_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Vec<StorageRecord>, StorageEngineError> {
         let index = if let Some(index) = self.get_offset_by_key(shard, key).await? {
             index
@@ -162,10 +160,10 @@ impl RocksDBStorageEngine {
         };
 
         let cf: std::sync::Arc<rocksdb::BoundColumnFamily<'_>> = self.get_cf()?;
-        let shard_record_key = shard_record_key(shard, 0, index.offset);
+        let record_key = record_key(shard, 0, index.offset);
         let Some(record) = self
             .rocksdb_engine_handler
-            .read::<StorageRecord>(cf, &shard_record_key)?
+            .read::<StorageRecord>(cf, &record_key)?
         else {
             return Ok(Vec::new());
         };
@@ -180,7 +178,7 @@ impl RocksDBStorageEngine {
     pub async fn get_offset_by_key(
         &self,
         shard: &str,
-        key: &str,
+        key: &[u8],
     ) -> Result<Option<IndexInfo>, StorageEngineError> {
         let cf = self.get_cf()?;
         let key_index = key_index_key(shard, key);
@@ -204,14 +202,10 @@ impl RocksDBStorageEngine {
         timestamp: u64,
         strategy: AdapterOffsetStrategy,
     ) -> Result<u64, StorageEngineError> {
+        // Scan from the log head even without an index hint, else retention can stall.
         let index = self.search_index_by_timestamp(shard, timestamp).await?;
-        if let Some(idx) = index {
-            if let Some(found_offset) = self
-                .read_data_by_time(shard, &Some(idx.clone()), timestamp)
-                .await?
-            {
-                return Ok(found_offset);
-            }
+        if let Some(found_offset) = self.read_data_by_time(shard, &index, timestamp).await? {
+            return Ok(found_offset);
         }
         match strategy {
             AdapterOffsetStrategy::Earliest => {
@@ -236,22 +230,12 @@ impl RocksDBStorageEngine {
             let Some(key_bytes) = iter.key() else {
                 break;
             };
-
+            if !key_bytes.starts_with(timestamp_index_prefix.as_bytes()) {
+                break;
+            }
             let Some(value_byte) = iter.value() else {
                 break;
             };
-
-            let key = match String::from_utf8(key_bytes.to_vec()) {
-                Ok(k) => k,
-                Err(_) => {
-                    iter.next();
-                    continue;
-                }
-            };
-
-            if !key.starts_with(&timestamp_index_prefix) {
-                break;
-            }
 
             let index = deserialize::<IndexInfo>(value_byte)?;
 
@@ -276,37 +260,28 @@ impl RocksDBStorageEngine {
         start_index: &Option<IndexInfo>,
         timestamp: u64,
     ) -> Result<Option<u64>, StorageEngineError> {
+        const MAX_SCAN: u64 = 10000;
         let cf = self.get_cf()?;
-        let seek_key = if let Some(si) = start_index {
-            shard_record_key(shard, 0, si.offset)
-        } else {
-            shard_record_key_prefix(shard, 0)
+        let prefix = record_prefix(shard, 0);
+        let seek_key = match start_index {
+            Some(si) => record_key(shard, 0, si.offset),
+            None => prefix.clone(),
         };
-        let prefix = shard_record_key_prefix(shard, 0);
 
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
-        iter.seek(&seek_key);
+        iter.seek(seek_key.as_bytes());
 
-        while iter.valid() {
+        let mut scanned = 0u64;
+        while iter.valid() && scanned < MAX_SCAN {
             let Some(key_bytes) = iter.key() else {
                 break;
             };
-
+            if !key_bytes.starts_with(prefix.as_bytes()) {
+                break;
+            }
             let Some(value_byte) = iter.value() else {
                 break;
             };
-
-            let key = match String::from_utf8(key_bytes.to_vec()) {
-                Ok(k) => k,
-                Err(_) => {
-                    iter.next();
-                    continue;
-                }
-            };
-
-            if !key.starts_with(&prefix) {
-                break;
-            }
 
             if let Ok(engine_record) = deserialize::<StorageRecord>(value_byte) {
                 if engine_record.metadata.create_t >= timestamp {
@@ -314,6 +289,7 @@ impl RocksDBStorageEngine {
                 }
             }
 
+            scanned += 1;
             iter.next();
         }
 
@@ -326,8 +302,8 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::commitlog::offset::CommitLogOffset;
     use crate::core::cache::StorageCacheManager;
+    use crate::core::offset::ShardOffset;
     use crate::core::test_tool::test_build_rocksdb_engine;
     use broker_core::cache::NodeCacheManager;
     use common_base::uuid::unique_id;
@@ -341,7 +317,7 @@ mod tests {
         let broker_cache = Arc::new(NodeCacheManager::new(BrokerConfig::default()));
         let cache_manager = Arc::new(StorageCacheManager::new(broker_cache));
         let commit_offset =
-            CommitLogOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
+            ShardOffset::new(cache_manager.clone(), engine.rocksdb_engine_handler.clone());
 
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
@@ -379,7 +355,7 @@ mod tests {
         assert_eq!(tag_records[0].metadata.offset, 0);
         assert_eq!(tag_records[3].metadata.offset, 9);
 
-        let key_records = engine.read_by_key(&shard_name, "key5").await.unwrap();
+        let key_records = engine.read_by_key(&shard_name, b"key5").await.unwrap();
         assert_eq!(key_records.len(), 1);
         assert_eq!(key_records[0].metadata.offset, 5);
     }

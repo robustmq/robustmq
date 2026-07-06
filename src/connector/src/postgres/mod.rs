@@ -68,7 +68,11 @@ impl PostgresBridgePlugin {
         pool: &Pool<Postgres>,
     ) -> Result<(), CommonError> {
         for record in records {
-            let client_id = &record.metadata.key;
+            let client_id = record
+                .metadata
+                .key
+                .as_deref()
+                .map(|k| String::from_utf8_lossy(k).into_owned());
             let timestamp = record.metadata.create_t as i64;
             let topic = record
                 .metadata
@@ -140,7 +144,11 @@ impl PostgresBridgePlugin {
         let mut data_vec = Vec::with_capacity(records.len());
 
         for record in records {
-            let client_id = record.metadata.key.clone();
+            let client_id = record
+                .metadata
+                .key
+                .as_deref()
+                .map(|k| String::from_utf8_lossy(k).into_owned());
             let timestamp = record.metadata.create_t as i64;
             let topic = record
                 .metadata

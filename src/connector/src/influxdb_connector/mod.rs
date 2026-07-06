@@ -76,7 +76,10 @@ impl InfluxDBBridgePlugin {
         let mut tags = String::new();
         if let Some(key) = &record.metadata.key {
             if !key.is_empty() {
-                tags.push_str(&format!(",key={}", escape_tag_value(key)));
+                tags.push_str(&format!(
+                    ",key={}",
+                    escape_tag_value(&String::from_utf8_lossy(key))
+                ));
             }
         }
 

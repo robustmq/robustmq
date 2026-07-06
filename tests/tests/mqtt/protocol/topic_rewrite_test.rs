@@ -73,7 +73,7 @@ mod tests {
         admin_client.create_topic_rewrite(&req).await.unwrap();
 
         // write rewrite topic
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(10)).await;
 
         // publish data（write rewrite_topic)
         let message = "pub_sub_rewrite_test p1 message".to_string();
@@ -146,7 +146,7 @@ mod tests {
         };
         admin_client.create_topic_rewrite(&req).await.unwrap();
 
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(10)).await;
 
         let network = "tcp";
         let protocol = 5;

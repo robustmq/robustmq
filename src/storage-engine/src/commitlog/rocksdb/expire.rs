@@ -16,14 +16,13 @@ use crate::{commitlog::rocksdb::engine::RocksDBStorageEngine, core::error::Stora
 use common_base::{
     error::{common::CommonError, ResultCommonError},
     tools::{loop_select_ticket, now_second},
+    utils::serialize::deserialize,
 };
 use common_config::{broker::broker_config, storage::StorageType};
-use metadata_struct::storage::{
-    adapter_offset::AdapterOffsetStrategy, record::StorageRecord, shard::EngineShard,
-};
+use metadata_struct::storage::{record::StorageRecord, shard::EngineShard};
 use rocksdb::WriteBatch;
-use rocksdb_engine::keys::storage::{
-    key_index_key, shard_record_key, tag_index_key, timestamp_index_key,
+use rocksdb_engine::keys::engine::{
+    key_index_key, record_key, record_prefix, tag_index_key, timestamp_index_key,
 };
 use tokio::sync::broadcast;
 
@@ -81,6 +80,8 @@ impl RocksDBStorageEngine {
         Ok(())
     }
 
+    // Single forward pass: delete the expired prefix (create_t older than the
+    // retention cutoff) plus its indices, stopping at the first live record.
     async fn scan_and_delete_data_by_shard(
         &self,
         shard: EngineShard,
@@ -89,72 +90,74 @@ impl RocksDBStorageEngine {
         let earliest_offset = self
             .commitlog_offset
             .get_earliest_offset(&shard.shard_name)?;
-        let new_earliest_offset = self
-            .get_offset_by_timestamp(
-                &shard.shard_name,
-                earliest_timestamp,
-                AdapterOffsetStrategy::Earliest,
-            )
-            .await?;
-
-        if new_earliest_offset <= earliest_offset {
-            return Ok(());
-        }
-
         let cf = self.get_cf()?;
 
-        const BATCH_SIZE: u64 = 1000;
-        let mut current_offset = earliest_offset;
+        let prefix = record_prefix(&shard.shard_name, 0);
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(&cf);
+        iter.seek(record_key(&shard.shard_name, 0, earliest_offset).as_bytes());
 
-        while current_offset < new_earliest_offset {
-            let batch_end = (current_offset + BATCH_SIZE).min(new_earliest_offset);
-            let keys: Vec<String> = (current_offset..batch_end)
-                .map(|off| shard_record_key(&shard.shard_name, 0, off))
-                .collect();
+        const FLUSH_EVERY: u64 = 1000;
+        let mut batch = WriteBatch::default();
+        let mut pending = 0u64;
+        let mut new_earliest = earliest_offset;
 
-            let records = self
-                .rocksdb_engine_handler
-                .multi_get::<StorageRecord>(cf.clone(), &keys)?;
+        while iter.valid() {
+            let Some(key_bytes) = iter.key() else {
+                break;
+            };
+            if !key_bytes.starts_with(prefix.as_bytes()) {
+                break;
+            }
+            let Some(value) = iter.value() else {
+                break;
+            };
+            let Ok(record) = deserialize::<StorageRecord>(value) else {
+                iter.next();
+                continue;
+            };
 
-            let mut batch = WriteBatch::default();
-            for (i, record_opt) in records.into_iter().enumerate() {
-                if let Some(record) = record_opt {
-                    let offset = current_offset + i as u64;
-                    let record_key = &keys[i];
+            if record.metadata.create_t >= earliest_timestamp {
+                break;
+            }
 
-                    batch.delete_cf(&cf, record_key.as_bytes());
-
-                    if let Some(key) = &record.metadata.key {
-                        let key_idx = key_index_key(&shard.shard_name, key);
-                        batch.delete_cf(&cf, key_idx.as_bytes());
-                    }
-
-                    if let Some(tags) = &record.metadata.tags {
-                        for tag in tags.iter() {
-                            let tag_idx = tag_index_key(&shard.shard_name, tag, offset);
-                            batch.delete_cf(&cf, tag_idx.as_bytes());
-                        }
-                    }
-
-                    if offset.is_multiple_of(5000) && record.metadata.create_t > 0 {
-                        let ts_idx = timestamp_index_key(
-                            &shard.shard_name,
-                            record.metadata.create_t,
-                            offset,
-                        );
-                        batch.delete_cf(&cf, ts_idx.as_bytes());
-                    }
+            let offset = record.metadata.offset;
+            batch.delete_cf(&cf, key_bytes);
+            if let Some(key) = &record.metadata.key {
+                batch.delete_cf(&cf, key_index_key(&shard.shard_name, key));
+            }
+            if let Some(tags) = &record.metadata.tags {
+                for tag in tags.iter() {
+                    batch.delete_cf(
+                        &cf,
+                        tag_index_key(&shard.shard_name, tag, offset).as_bytes(),
+                    );
                 }
             }
-            if !batch.is_empty() {
-                self.rocksdb_engine_handler.write_batch(batch)?;
+            if offset.is_multiple_of(5000) && record.metadata.create_t > 0 {
+                batch.delete_cf(
+                    &cf,
+                    timestamp_index_key(&shard.shard_name, record.metadata.create_t, offset)
+                        .as_bytes(),
+                );
             }
+            new_earliest = offset + 1;
 
-            current_offset = batch_end;
+            pending += 1;
+            if pending >= FLUSH_EVERY {
+                self.rocksdb_engine_handler
+                    .write_batch(std::mem::take(&mut batch))?;
+                pending = 0;
+            }
+            iter.next();
         }
 
-        self.commitlog_offset
-            .save_earliest_offset(&shard.shard_name, new_earliest_offset)?;
+        if pending > 0 {
+            self.rocksdb_engine_handler.write_batch(batch)?;
+        }
+        if new_earliest > earliest_offset {
+            self.commitlog_offset
+                .save_earliest_offset(&shard.shard_name, new_earliest)?;
+        }
 
         Ok(())
     }
@@ -163,11 +166,10 @@ impl RocksDBStorageEngine {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commitlog::{offset::CommitLogOffset, rocksdb::engine::RocksDBStorageEngine},
-        core::cache::StorageCacheManager,
+        commitlog::rocksdb::engine::RocksDBStorageEngine,
+        core::{cache::StorageCacheManager, offset::ShardOffset},
     };
     use broker_core::cache::NodeCacheManager;
-    use bytes::Bytes;
     use common_base::uuid::unique_id;
     use common_config::config::BrokerConfig;
     use metadata_struct::storage::{
@@ -179,83 +181,101 @@ mod tests {
 
     #[tokio::test]
     async fn test_scan_and_delete_expire_data() {
+        use common_base::tools::now_second;
+        use common_config::storage::StorageType;
+        use metadata_struct::storage::record::StorageRecord;
+        use metadata_struct::storage::shard::EngineShardConfig;
+        use rocksdb_engine::keys::engine::record_key;
+
         let shard_name = unique_id();
         let db = test_rocksdb_instance();
         let cache_manager = Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
             BrokerConfig::default(),
         ))));
-
-        let commit_offset = CommitLogOffset::new(cache_manager.clone(), db.clone());
-
+        let commit_offset = ShardOffset::new(cache_manager.clone(), db.clone());
         commit_offset.save_earliest_offset(&shard_name, 0).unwrap();
         commit_offset.save_latest_offset(&shard_name, 0).unwrap();
 
         let engine = RocksDBStorageEngine::new(cache_manager.clone(), db);
         cache_manager.set_shard(EngineShard {
             shard_name: shard_name.clone(),
+            config: EngineShardConfig {
+                storage_type: StorageType::EngineRocksDB,
+                retention_sec: 100,
+                ..Default::default()
+            },
             ..Default::default()
         });
 
-        let mut expired_records = Vec::new();
-        for i in 0..5 {
-            let record = AdapterWriteRecord {
-                data: Bytes::from(format!("expired{}", i)),
-                key: Some(format!("exp_key{}", i)),
-                tags: Some(vec!["exp_tag".to_string()]),
+        let messages: Vec<AdapterWriteRecord> = (0..10)
+            .map(|i| AdapterWriteRecord {
+                key: Some(format!("key{i}").into()),
+                tags: Some(vec![format!("t{i}")]),
                 ..Default::default()
-            };
-            expired_records.push(record);
-        }
+            })
+            .collect();
+        engine.batch_write(&shard_name, &messages).await.unwrap();
 
-        let mut valid_records = Vec::new();
-        for i in 5..10 {
-            let record = AdapterWriteRecord {
-                data: Bytes::from(format!("valid{}", i)),
-                key: Some(format!("val_key{}", i)),
-                tags: Some(vec!["val_tag".to_string()]),
-                ..Default::default()
-            };
-            valid_records.push(record);
+        let cf = engine.get_cf().unwrap();
+        let old_ts = now_second() - 200;
+        for off in 0..3u64 {
+            let key = record_key(&shard_name, 0, off);
+            let mut record = engine
+                .rocksdb_engine_handler
+                .read::<StorageRecord>(cf.clone(), &key)
+                .unwrap()
+                .unwrap();
+            record.metadata.create_t = old_ts;
+            engine
+                .rocksdb_engine_handler
+                .write(cf.clone(), &key, &record)
+                .unwrap();
         }
-
-        let mut all_records = expired_records.clone();
-        all_records.extend(valid_records.clone());
-        engine.batch_write(&shard_name, &all_records).await.unwrap();
 
         engine.scan_and_delete_expire_data().await.unwrap();
 
-        let earliest_after = engine
-            .commitlog_offset
-            .get_earliest_offset(&shard_name)
-            .unwrap();
-
+        assert_eq!(
+            engine
+                .commitlog_offset
+                .get_earliest_offset(&shard_name)
+                .unwrap(),
+            3
+        );
         let read_config = AdapterReadConfig {
-            max_record_num: 5,
+            max_record_num: 100,
             max_size: 1024 * 1024,
         };
         let records = engine
-            .read_by_offset(&shard_name, earliest_after, &read_config)
+            .read_by_offset(&shard_name, 0, &read_config)
             .await
             .unwrap();
-        assert_eq!(records.len(), 5);
-        assert_eq!(records[0].metadata.offset, 0);
-
-        let expired_key_records = engine.read_by_key(&shard_name, "exp_key0").await.unwrap();
-        assert_eq!(expired_key_records.len(), 1);
-
-        let valid_key_records = engine.read_by_key(&shard_name, "val_key5").await.unwrap();
-        assert_eq!(valid_key_records.len(), 1);
-
-        let expired_tag_records = engine
-            .read_by_tag(&shard_name, "exp_tag", None, &read_config)
+        assert_eq!(records.len(), 7);
+        assert_eq!(records[0].metadata.offset, 3);
+        assert!(engine
+            .read_by_key(&shard_name, b"key0")
             .await
-            .unwrap();
-        assert_eq!(expired_tag_records.len(), 5);
-
-        let valid_tag_records = engine
-            .read_by_tag(&shard_name, "val_tag", None, &read_config)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            engine
+                .read_by_key(&shard_name, b"key5")
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(engine
+            .read_by_tag(&shard_name, "t0", None, &read_config)
             .await
-            .unwrap();
-        assert_eq!(valid_tag_records.len(), 5);
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            engine
+                .read_by_tag(&shard_name, "t5", None, &read_config)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
     }
 }
