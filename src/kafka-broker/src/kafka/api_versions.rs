@@ -15,17 +15,6 @@
 use kafka_protocol::messages::{api_versions_response::ApiVersion, ApiKey, ApiVersionsResponse};
 use protocol::kafka::packet::KafkaPacket;
 
-// Version ranges are aligned with Redpanda's declared min_supported/max_supported
-// values (src/v/kafka/server/handlers/api_versions.cc, dev branch).
-// Only APIs Redpanda exposes to clients are listed here; internal KRaft/broker
-// APIs (e.g. Vote, BrokerRegistration) are intentionally excluded.
-fn v(key: ApiKey, min: i16, max: i16) -> ApiVersion {
-    ApiVersion::default()
-        .with_api_key(key as i16)
-        .with_min_version(min)
-        .with_max_version(max)
-}
-
 pub fn process_api_versions() -> Option<KafkaPacket> {
     let api_keys = vec![
         // ── Core produce / consume ────────────────────────────────────────
@@ -97,4 +86,15 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         .with_api_keys(api_keys);
 
     Some(KafkaPacket::ApiVersionResponse(resp))
+}
+
+// Version ranges are aligned with Redpanda's declared min_supported/max_supported
+// values (src/v/kafka/server/handlers/api_versions.cc, dev branch).
+// Only APIs Redpanda exposes to clients are listed here; internal KRaft/broker
+// APIs (e.g. Vote, BrokerRegistration) are intentionally excluded.
+fn v(key: ApiKey, min: i16, max: i16) -> ApiVersion {
+    ApiVersion::default()
+        .with_api_key(key as i16)
+        .with_min_version(min)
+        .with_max_version(max)
 }

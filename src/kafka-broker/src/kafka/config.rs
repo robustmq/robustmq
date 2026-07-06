@@ -54,6 +54,55 @@ const CONFIG_SOURCE_DYNAMIC_BROKER: i8 = 2;
 const CONFIG_SOURCE_DEFAULT: i8 = 5;
 const CONFIG_SOURCE_UNKNOWN: i8 = -1;
 
+/// `AlterConfigOp.OpType` wire values (KIP-248). `Append`/`Subtract` only
+/// make sense for list-valued configs; RobustMQ doesn't track which stored
+/// configs are list-typed, so those two are rejected rather than silently
+/// doing something wrong to an opaque string value.
+const CONFIG_OP_SET: i8 = 0;
+const CONFIG_OP_DELETE: i8 = 1;
+
+pub async fn process_describe_configs(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DescribeConfigsRequest,
+) -> Option<KafkaPacket> {
+    let mut results = Vec::with_capacity(req.resources.len());
+    for resource in &req.resources {
+        results.push(describe_one_resource(sdm, resource, req.include_documentation).await);
+    }
+
+    Some(KafkaPacket::DescribeConfigsResponse(
+        DescribeConfigsResponse::default().with_results(results),
+    ))
+}
+
+pub async fn process_alter_configs(
+    sdm: &Arc<StorageDriverManager>,
+    req: &AlterConfigsRequest,
+) -> Option<KafkaPacket> {
+    let mut responses = Vec::with_capacity(req.resources.len());
+    for resource in &req.resources {
+        responses.push(alter_one_resource(sdm, resource, req.validate_only).await);
+    }
+
+    Some(KafkaPacket::AlterConfigsResponse(
+        AlterConfigsResponse::default().with_responses(responses),
+    ))
+}
+
+pub async fn process_incremental_alter_configs(
+    sdm: &Arc<StorageDriverManager>,
+    req: &IncrementalAlterConfigsRequest,
+) -> Option<KafkaPacket> {
+    let mut responses = Vec::with_capacity(req.resources.len());
+    for resource in &req.resources {
+        responses.push(incremental_alter_one_resource(sdm, resource, req.validate_only).await);
+    }
+
+    Some(KafkaPacket::IncrementalAlterConfigsResponse(
+        IncrementalAlterConfigsResponse::default().with_responses(responses),
+    ))
+}
+
 /// Build one config entry: prefer the stored (dynamically-set) value, fall
 /// back to the static default from `core::dynamic_config` if this resource
 /// never had it set, or report it as present-with-no-value (`UNKNOWN`
@@ -213,20 +262,6 @@ async fn describe_one_resource(
     base.with_error_code(0).with_configs(configs)
 }
 
-pub async fn process_describe_configs(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DescribeConfigsRequest,
-) -> Option<KafkaPacket> {
-    let mut results = Vec::with_capacity(req.resources.len());
-    for resource in &req.resources {
-        results.push(describe_one_resource(sdm, resource, req.include_documentation).await);
-    }
-
-    Some(KafkaPacket::DescribeConfigsResponse(
-        DescribeConfigsResponse::default().with_results(results),
-    ))
-}
-
 /// Resource-key prefix under which this resource's config blob is stored,
 /// plus a name validator for `AlterConfigsResource.configs`. `BrokerLogger`
 /// has no fixed name list — logger names are an open set, so any name is
@@ -356,27 +391,6 @@ async fn alter_one_resource(
 
     base.with_error_code(0)
 }
-
-pub async fn process_alter_configs(
-    sdm: &Arc<StorageDriverManager>,
-    req: &AlterConfigsRequest,
-) -> Option<KafkaPacket> {
-    let mut responses = Vec::with_capacity(req.resources.len());
-    for resource in &req.resources {
-        responses.push(alter_one_resource(sdm, resource, req.validate_only).await);
-    }
-
-    Some(KafkaPacket::AlterConfigsResponse(
-        AlterConfigsResponse::default().with_responses(responses),
-    ))
-}
-
-/// `AlterConfigOp.OpType` wire values (KIP-248). `Append`/`Subtract` only
-/// make sense for list-valued configs; RobustMQ doesn't track which stored
-/// configs are list-typed, so those two are rejected rather than silently
-/// doing something wrong to an opaque string value.
-const CONFIG_OP_SET: i8 = 0;
-const CONFIG_OP_DELETE: i8 = 1;
 
 /// Apply a validated list of SET/DELETE operations onto an existing config
 /// map in place. Pulled out of `incremental_alter_one_resource` so the
@@ -519,20 +533,6 @@ async fn incremental_alter_one_resource(
     }
 
     base.with_error_code(0)
-}
-
-pub async fn process_incremental_alter_configs(
-    sdm: &Arc<StorageDriverManager>,
-    req: &IncrementalAlterConfigsRequest,
-) -> Option<KafkaPacket> {
-    let mut responses = Vec::with_capacity(req.resources.len());
-    for resource in &req.resources {
-        responses.push(incremental_alter_one_resource(sdm, resource, req.validate_only).await);
-    }
-
-    Some(KafkaPacket::IncrementalAlterConfigsResponse(
-        IncrementalAlterConfigsResponse::default().with_responses(responses),
-    ))
 }
 
 #[cfg(test)]

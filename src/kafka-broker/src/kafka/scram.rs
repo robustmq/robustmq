@@ -45,6 +45,200 @@ use sha2::{Digest, Sha256, Sha512};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
+pub async fn process_alter_user_scram_credentials(
+    sdm: &Arc<StorageDriverManager>,
+    req: &AlterUserScramCredentialsRequest,
+) -> Option<KafkaPacket> {
+    let client_pool = sdm.engine_storage_handler.client_pool.clone();
+    let addrs = broker_config().get_meta_service_addr();
+
+    let stored = match list_credentials(sdm).await {
+        Ok(credentials) => credentials,
+        Err(e) => {
+            warn!("Kafka AlterUserScramCredentials failed to list: {}", e);
+            let users: BTreeMap<String, (i16, Option<String>)> = req
+                .deletions
+                .iter()
+                .map(|d| d.name.to_string())
+                .chain(req.upsertions.iter().map(|u| u.name.to_string()))
+                .map(|u| {
+                    (
+                        u,
+                        (ResponseError::UnknownServerError.code(), Some(e.clone())),
+                    )
+                })
+                .collect();
+            return Some(alter_response(users));
+        }
+    };
+
+    // First error per user wins; later ops for an already-failed user are skipped.
+    let mut results: BTreeMap<String, (i16, Option<String>)> = BTreeMap::new();
+    for user in duplicate_users(req) {
+        results.insert(
+            user,
+            (
+                ResponseError::DuplicateResource.code(),
+                Some("duplicate (user, mechanism) in request".to_string()),
+            ),
+        );
+    }
+
+    for deletion in &req.deletions {
+        let user = deletion.name.to_string();
+        if results.get(&user).is_some_and(|(code, _)| *code != 0) {
+            continue;
+        }
+        let outcome = match validate_deletion(deletion) {
+            Ok(()) => {
+                let exists = stored
+                    .iter()
+                    .any(|c| c.user == user && c.mechanism == deletion.mechanism);
+                if !exists {
+                    Err((
+                        ResponseError::ResourceNotFound.code(),
+                        "no such SCRAM credential".to_string(),
+                    ))
+                } else {
+                    delete_scram_credential(
+                        &client_pool,
+                        &addrs,
+                        DeleteScramCredentialRequest {
+                            tenant: get_tenant().to_string(),
+                            user: user.clone(),
+                            mechanism: deletion.mechanism as i32,
+                        },
+                    )
+                    .await
+                    .map(|_| ())
+                    .map_err(|e| (ResponseError::UnknownServerError.code(), e.to_string()))
+                }
+            }
+            Err(e) => Err(e),
+        };
+        record_outcome(&mut results, user, outcome);
+    }
+
+    for upsertion in &req.upsertions {
+        let user = upsertion.name.to_string();
+        if results.get(&user).is_some_and(|(code, _)| *code != 0) {
+            continue;
+        }
+        let outcome = match validate_upsertion(upsertion) {
+            Ok(()) => match derive_keys(upsertion.mechanism, &upsertion.salted_password) {
+                Some((stored_key, server_key)) => {
+                    let credential = KafkaScramCredential {
+                        tenant: get_tenant().to_string(),
+                        user: user.clone(),
+                        mechanism: upsertion.mechanism,
+                        iterations: upsertion.iterations,
+                        salt: upsertion.salt.to_vec(),
+                        stored_key,
+                        server_key,
+                    };
+                    match credential.encode() {
+                        Ok(encoded) => set_scram_credential(
+                            &client_pool,
+                            &addrs,
+                            SetScramCredentialRequest {
+                                credential: encoded,
+                            },
+                        )
+                        .await
+                        .map(|_| ())
+                        .map_err(|e| (ResponseError::UnknownServerError.code(), e.to_string())),
+                        Err(e) => Err((ResponseError::UnknownServerError.code(), e.to_string())),
+                    }
+                }
+                None => Err((
+                    ResponseError::UnsupportedSaslMechanism.code(),
+                    "failed to derive SCRAM keys".to_string(),
+                )),
+            },
+            Err(e) => Err(e),
+        };
+        record_outcome(&mut results, user, outcome);
+    }
+
+    Some(alter_response(results))
+}
+
+pub async fn process_describe_user_scram_credentials(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DescribeUserScramCredentialsRequest,
+) -> Option<KafkaPacket> {
+    let stored = match list_credentials(sdm).await {
+        Ok(credentials) => credentials,
+        Err(e) => {
+            warn!("Kafka DescribeUserScramCredentials failed to list: {}", e);
+            return Some(KafkaPacket::DescribeUserScramCredentialsResponse(
+                DescribeUserScramCredentialsResponse::default()
+                    .with_error_code(ResponseError::UnknownServerError.code())
+                    .with_error_message(Some(StrBytes::from(e))),
+            ));
+        }
+    };
+
+    // Only mechanism + iterations are ever exposed; keys and salt stay server-side.
+    let mut by_user: BTreeMap<String, Vec<CredentialInfo>> = BTreeMap::new();
+    for credential in &stored {
+        by_user.entry(credential.user.clone()).or_default().push(
+            CredentialInfo::default()
+                .with_mechanism(credential.mechanism)
+                .with_iterations(credential.iterations),
+        );
+    }
+
+    let results = match &req.users {
+        None => by_user
+            .into_iter()
+            .map(|(user, infos)| user_result(user, 0, None, infos))
+            .collect(),
+        Some(users) if users.is_empty() => by_user
+            .into_iter()
+            .map(|(user, infos)| user_result(user, 0, None, infos))
+            .collect(),
+        Some(users) => {
+            let mut seen = HashSet::new();
+            let mut duplicated = HashSet::new();
+            for u in users {
+                if !seen.insert(u.name.to_string()) {
+                    duplicated.insert(u.name.to_string());
+                }
+            }
+            seen.into_iter()
+                .collect::<std::collections::BTreeSet<String>>()
+                .into_iter()
+                .map(|user| {
+                    if duplicated.contains(&user) {
+                        return user_result(
+                            user,
+                            ResponseError::DuplicateResource.code(),
+                            Some("user requested more than once".to_string()),
+                            vec![],
+                        );
+                    }
+                    match by_user.remove(&user) {
+                        Some(infos) => user_result(user, 0, None, infos),
+                        None => user_result(
+                            user,
+                            ResponseError::ResourceNotFound.code(),
+                            Some("no SCRAM credentials for this user".to_string()),
+                            vec![],
+                        ),
+                    }
+                })
+                .collect()
+        }
+    };
+
+    Some(KafkaPacket::DescribeUserScramCredentialsResponse(
+        DescribeUserScramCredentialsResponse::default()
+            .with_error_code(0)
+            .with_results(results),
+    ))
+}
+
 // RFC 5802: ClientKey = HMAC(SaltedPassword, "Client Key"); StoredKey = H(ClientKey);
 // ServerKey = HMAC(SaltedPassword, "Server Key"). Only the derived keys are kept;
 // the salted password is discarded after this call.
@@ -164,124 +358,6 @@ async fn list_credentials(
     Ok(credentials)
 }
 
-pub async fn process_alter_user_scram_credentials(
-    sdm: &Arc<StorageDriverManager>,
-    req: &AlterUserScramCredentialsRequest,
-) -> Option<KafkaPacket> {
-    let client_pool = sdm.engine_storage_handler.client_pool.clone();
-    let addrs = broker_config().get_meta_service_addr();
-
-    let stored = match list_credentials(sdm).await {
-        Ok(credentials) => credentials,
-        Err(e) => {
-            warn!("Kafka AlterUserScramCredentials failed to list: {}", e);
-            let users: BTreeMap<String, (i16, Option<String>)> = req
-                .deletions
-                .iter()
-                .map(|d| d.name.to_string())
-                .chain(req.upsertions.iter().map(|u| u.name.to_string()))
-                .map(|u| {
-                    (
-                        u,
-                        (ResponseError::UnknownServerError.code(), Some(e.clone())),
-                    )
-                })
-                .collect();
-            return Some(alter_response(users));
-        }
-    };
-
-    // First error per user wins; later ops for an already-failed user are skipped.
-    let mut results: BTreeMap<String, (i16, Option<String>)> = BTreeMap::new();
-    for user in duplicate_users(req) {
-        results.insert(
-            user,
-            (
-                ResponseError::DuplicateResource.code(),
-                Some("duplicate (user, mechanism) in request".to_string()),
-            ),
-        );
-    }
-
-    for deletion in &req.deletions {
-        let user = deletion.name.to_string();
-        if results.get(&user).is_some_and(|(code, _)| *code != 0) {
-            continue;
-        }
-        let outcome = match validate_deletion(deletion) {
-            Ok(()) => {
-                let exists = stored
-                    .iter()
-                    .any(|c| c.user == user && c.mechanism == deletion.mechanism);
-                if !exists {
-                    Err((
-                        ResponseError::ResourceNotFound.code(),
-                        "no such SCRAM credential".to_string(),
-                    ))
-                } else {
-                    delete_scram_credential(
-                        &client_pool,
-                        &addrs,
-                        DeleteScramCredentialRequest {
-                            tenant: get_tenant().to_string(),
-                            user: user.clone(),
-                            mechanism: deletion.mechanism as i32,
-                        },
-                    )
-                    .await
-                    .map(|_| ())
-                    .map_err(|e| (ResponseError::UnknownServerError.code(), e.to_string()))
-                }
-            }
-            Err(e) => Err(e),
-        };
-        record_outcome(&mut results, user, outcome);
-    }
-
-    for upsertion in &req.upsertions {
-        let user = upsertion.name.to_string();
-        if results.get(&user).is_some_and(|(code, _)| *code != 0) {
-            continue;
-        }
-        let outcome = match validate_upsertion(upsertion) {
-            Ok(()) => match derive_keys(upsertion.mechanism, &upsertion.salted_password) {
-                Some((stored_key, server_key)) => {
-                    let credential = KafkaScramCredential {
-                        tenant: get_tenant().to_string(),
-                        user: user.clone(),
-                        mechanism: upsertion.mechanism,
-                        iterations: upsertion.iterations,
-                        salt: upsertion.salt.to_vec(),
-                        stored_key,
-                        server_key,
-                    };
-                    match credential.encode() {
-                        Ok(encoded) => set_scram_credential(
-                            &client_pool,
-                            &addrs,
-                            SetScramCredentialRequest {
-                                credential: encoded,
-                            },
-                        )
-                        .await
-                        .map(|_| ())
-                        .map_err(|e| (ResponseError::UnknownServerError.code(), e.to_string())),
-                        Err(e) => Err((ResponseError::UnknownServerError.code(), e.to_string())),
-                    }
-                }
-                None => Err((
-                    ResponseError::UnsupportedSaslMechanism.code(),
-                    "failed to derive SCRAM keys".to_string(),
-                )),
-            },
-            Err(e) => Err(e),
-        };
-        record_outcome(&mut results, user, outcome);
-    }
-
-    Some(alter_response(results))
-}
-
 fn record_outcome(
     results: &mut BTreeMap<String, (i16, Option<String>)>,
     user: String,
@@ -310,82 +386,6 @@ fn alter_response(results: BTreeMap<String, (i16, Option<String>)>) -> KafkaPack
     KafkaPacket::AlterUserScramCredentialsResponse(
         AlterUserScramCredentialsResponse::default().with_results(results),
     )
-}
-
-pub async fn process_describe_user_scram_credentials(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DescribeUserScramCredentialsRequest,
-) -> Option<KafkaPacket> {
-    let stored = match list_credentials(sdm).await {
-        Ok(credentials) => credentials,
-        Err(e) => {
-            warn!("Kafka DescribeUserScramCredentials failed to list: {}", e);
-            return Some(KafkaPacket::DescribeUserScramCredentialsResponse(
-                DescribeUserScramCredentialsResponse::default()
-                    .with_error_code(ResponseError::UnknownServerError.code())
-                    .with_error_message(Some(StrBytes::from(e))),
-            ));
-        }
-    };
-
-    // Only mechanism + iterations are ever exposed; keys and salt stay server-side.
-    let mut by_user: BTreeMap<String, Vec<CredentialInfo>> = BTreeMap::new();
-    for credential in &stored {
-        by_user.entry(credential.user.clone()).or_default().push(
-            CredentialInfo::default()
-                .with_mechanism(credential.mechanism)
-                .with_iterations(credential.iterations),
-        );
-    }
-
-    let results = match &req.users {
-        None => by_user
-            .into_iter()
-            .map(|(user, infos)| user_result(user, 0, None, infos))
-            .collect(),
-        Some(users) if users.is_empty() => by_user
-            .into_iter()
-            .map(|(user, infos)| user_result(user, 0, None, infos))
-            .collect(),
-        Some(users) => {
-            let mut seen = HashSet::new();
-            let mut duplicated = HashSet::new();
-            for u in users {
-                if !seen.insert(u.name.to_string()) {
-                    duplicated.insert(u.name.to_string());
-                }
-            }
-            seen.into_iter()
-                .collect::<std::collections::BTreeSet<String>>()
-                .into_iter()
-                .map(|user| {
-                    if duplicated.contains(&user) {
-                        return user_result(
-                            user,
-                            ResponseError::DuplicateResource.code(),
-                            Some("user requested more than once".to_string()),
-                            vec![],
-                        );
-                    }
-                    match by_user.remove(&user) {
-                        Some(infos) => user_result(user, 0, None, infos),
-                        None => user_result(
-                            user,
-                            ResponseError::ResourceNotFound.code(),
-                            Some("no SCRAM credentials for this user".to_string()),
-                            vec![],
-                        ),
-                    }
-                })
-                .collect()
-        }
-    };
-
-    Some(KafkaPacket::DescribeUserScramCredentialsResponse(
-        DescribeUserScramCredentialsResponse::default()
-            .with_error_code(0)
-            .with_results(results),
-    ))
 }
 
 fn user_result(

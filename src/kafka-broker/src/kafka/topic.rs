@@ -45,6 +45,66 @@ use storage_adapter::{
 };
 use tracing::warn;
 
+pub async fn process_create_topics(
+    sdm: &Arc<StorageDriverManager>,
+    req: &CreateTopicsRequest,
+) -> Option<KafkaPacket> {
+    let mut results = Vec::with_capacity(req.topics.len());
+    for creatable in &req.topics {
+        results.push(create_one_topic(sdm, creatable, req.validate_only).await);
+    }
+
+    Some(KafkaPacket::CreateTopicsResponse(
+        CreateTopicsResponse::default().with_topics(results),
+    ))
+}
+
+pub async fn process_delete_topics(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DeleteTopicsRequest,
+) -> Option<KafkaPacket> {
+    let mut responses = Vec::with_capacity(req.topics.len() + req.topic_names.len());
+
+    for t in &req.topics {
+        responses.push(delete_one_topic(sdm, t.name.as_ref(), t.topic_id).await);
+    }
+    for name in &req.topic_names {
+        responses.push(delete_one_topic(sdm, Some(name), Uuid::nil()).await);
+    }
+
+    Some(KafkaPacket::DeleteTopicsResponse(
+        DeleteTopicsResponse::default().with_responses(responses),
+    ))
+}
+
+pub async fn process_delete_records(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DeleteRecordsRequest,
+) -> Option<KafkaPacket> {
+    let mut topics = Vec::with_capacity(req.topics.len());
+    for t in &req.topics {
+        topics.push(delete_records_for_topic(sdm, t).await);
+    }
+
+    Some(KafkaPacket::DeleteRecordsResponse(
+        DeleteRecordsResponse::default().with_topics(topics),
+    ))
+}
+
+pub async fn process_create_partitions(
+    sdm: &Arc<StorageDriverManager>,
+    req: &CreatePartitionsRequest,
+) -> Option<KafkaPacket> {
+    let mut results = Vec::with_capacity(req.topics.len());
+    for t in &req.topics {
+        results.push(create_partitions_for_topic(sdm, t, req.validate_only).await);
+    }
+
+    Some(KafkaPacket::CreatePartitionsResponse(
+        CreatePartitionsResponse::default().with_results(results),
+    ))
+}
+
 fn topic_error(
     name: kafka_protocol::messages::TopicName,
     err: ResponseError,
@@ -148,20 +208,6 @@ async fn create_one_topic(
     }
 }
 
-pub async fn process_create_topics(
-    sdm: &Arc<StorageDriverManager>,
-    req: &CreateTopicsRequest,
-) -> Option<KafkaPacket> {
-    let mut results = Vec::with_capacity(req.topics.len());
-    for creatable in &req.topics {
-        results.push(create_one_topic(sdm, creatable, req.validate_only).await);
-    }
-
-    Some(KafkaPacket::CreateTopicsResponse(
-        CreateTopicsResponse::default().with_topics(results),
-    ))
-}
-
 fn delete_error(name: Option<TopicName>, err: ResponseError) -> DeletableTopicResult {
     DeletableTopicResult::default()
         .with_name(name)
@@ -222,24 +268,6 @@ async fn delete_one_topic(
             delete_error(response_name, ResponseError::UnknownServerError)
         }
     }
-}
-
-pub async fn process_delete_topics(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DeleteTopicsRequest,
-) -> Option<KafkaPacket> {
-    let mut responses = Vec::with_capacity(req.topics.len() + req.topic_names.len());
-
-    for t in &req.topics {
-        responses.push(delete_one_topic(sdm, t.name.as_ref(), t.topic_id).await);
-    }
-    for name in &req.topic_names {
-        responses.push(delete_one_topic(sdm, Some(name), Uuid::nil()).await);
-    }
-
-    Some(KafkaPacket::DeleteTopicsResponse(
-        DeleteTopicsResponse::default().with_responses(responses),
-    ))
 }
 
 async fn delete_records_for_topic(
@@ -345,20 +373,6 @@ async fn delete_records_for_topic(
         .with_partitions(partitions)
 }
 
-pub async fn process_delete_records(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DeleteRecordsRequest,
-) -> Option<KafkaPacket> {
-    let mut topics = Vec::with_capacity(req.topics.len());
-    for t in &req.topics {
-        topics.push(delete_records_for_topic(sdm, t).await);
-    }
-
-    Some(KafkaPacket::DeleteRecordsResponse(
-        DeleteRecordsResponse::default().with_topics(topics),
-    ))
-}
-
 fn partitions_error(name: TopicName, err: ResponseError) -> CreatePartitionsTopicResult {
     CreatePartitionsTopicResult::default()
         .with_name(name)
@@ -414,18 +428,4 @@ async fn create_partitions_for_topic(
             partitions_error(t.name.clone(), ResponseError::UnknownServerError)
         }
     }
-}
-
-pub async fn process_create_partitions(
-    sdm: &Arc<StorageDriverManager>,
-    req: &CreatePartitionsRequest,
-) -> Option<KafkaPacket> {
-    let mut results = Vec::with_capacity(req.topics.len());
-    for t in &req.topics {
-        results.push(create_partitions_for_topic(sdm, t, req.validate_only).await);
-    }
-
-    Some(KafkaPacket::CreatePartitionsResponse(
-        CreatePartitionsResponse::default().with_results(results),
-    ))
 }

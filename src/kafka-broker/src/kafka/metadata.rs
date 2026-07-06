@@ -45,6 +45,21 @@ const ENDPOINT_TYPE_BROKERS: i8 = 1;
 // than fabricating a bitmask we can't back up.
 const ALL_OPERATIONS_AUTHORIZED: i32 = -1;
 
+struct PartitionReplicaState {
+    leader_id: i32,
+    leader_epoch: i32,
+    replica_nodes: Vec<i32>,
+    isr_nodes: Vec<i32>,
+}
+
+struct TopicPartitionCount {
+    name: String,
+    partition_count: u32,
+}
+
+type TopicCursor = (String, i32);
+type TopicPage = (usize, Range<u32>);
+
 pub fn process_metadata(
     broker_cache: &Arc<NodeCacheManager>,
     sdm: &Arc<StorageDriverManager>,
@@ -62,22 +77,6 @@ pub fn process_metadata(
     Some(KafkaPacket::MetadataResponse(resp))
 }
 
-fn build_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<MetadataResponseBroker> {
-    cache
-        .node_list()
-        .into_iter()
-        .filter_map(|node| {
-            let (host, port) = split_host_port(&node.extend.kafka.tcp_addr)?;
-            Some(
-                MetadataResponseBroker::default()
-                    .with_node_id((node.node_id as i32).into())
-                    .with_host(StrBytes::from(host))
-                    .with_port(port),
-            )
-        })
-        .collect()
-}
-
 pub fn process_describe_cluster(
     broker_cache: &Arc<NodeCacheManager>,
     _req: &DescribeClusterRequest,
@@ -93,6 +92,94 @@ pub fn process_describe_cluster(
         .with_cluster_authorized_operations(ALL_OPERATIONS_AUTHORIZED);
 
     Some(KafkaPacket::DescribeClusterResponse(resp))
+}
+
+pub fn process_describe_topic_partitions(
+    broker_cache: &Arc<NodeCacheManager>,
+    sdm: &Arc<StorageDriverManager>,
+    req: &DescribeTopicPartitionsRequest,
+) -> Option<KafkaPacket> {
+    let mut names: Vec<String> = req.topics.iter().map(|t| t.name.to_string()).collect();
+    names.sort();
+
+    let topics: Vec<(String, Option<Topic>)> = names
+        .into_iter()
+        .map(|name| {
+            let topic = broker_cache.get_topic_by_name(get_tenant(), &name);
+            (name, topic)
+        })
+        .collect();
+
+    let counts: Vec<TopicPartitionCount> = topics
+        .iter()
+        .map(|(name, topic)| TopicPartitionCount {
+            name: name.clone(),
+            partition_count: topic.as_ref().map_or(0, |t| t.partition.max(1)),
+        })
+        .collect();
+
+    let cursor = req
+        .cursor
+        .as_ref()
+        .map(|c| (c.topic_name.to_string(), c.partition_index));
+    let limit = effective_partition_limit(req);
+    let (pages, next_cursor) = paginate_topic_partitions(&counts, cursor, limit);
+
+    let topics_resp: Vec<DescribeTopicPartitionsResponseTopic> = pages
+        .into_iter()
+        .map(|(topic_idx, range)| {
+            let (name, topic) = &topics[topic_idx];
+            let name = Some(TopicName(StrBytes::from(name.clone())));
+            match topic {
+                None => DescribeTopicPartitionsResponseTopic::default()
+                    .with_error_code(ResponseError::UnknownTopicOrPartition.code())
+                    .with_name(name)
+                    .with_is_internal(false)
+                    .with_partitions(vec![])
+                    .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED),
+                Some(topic) => {
+                    let partitions = range
+                        .map(|i| describe_topic_partition(i as i32, topic, sdm))
+                        .collect();
+                    DescribeTopicPartitionsResponseTopic::default()
+                        .with_error_code(0)
+                        .with_topic_id(topic_uuid(get_tenant(), &topic.topic_name))
+                        .with_name(name)
+                        .with_is_internal(false)
+                        .with_partitions(partitions)
+                        .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED)
+                }
+            }
+        })
+        .collect();
+
+    let next_cursor = next_cursor.map(|(name, partition_index)| {
+        Cursor::default()
+            .with_topic_name(TopicName(StrBytes::from(name)))
+            .with_partition_index(partition_index)
+    });
+
+    Some(KafkaPacket::DescribeTopicPartitionsResponse(
+        DescribeTopicPartitionsResponse::default()
+            .with_topics(topics_resp)
+            .with_next_cursor(next_cursor),
+    ))
+}
+
+fn build_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<MetadataResponseBroker> {
+    cache
+        .node_list()
+        .into_iter()
+        .filter_map(|node| {
+            let (host, port) = split_host_port(&node.extend.kafka.tcp_addr)?;
+            Some(
+                MetadataResponseBroker::default()
+                    .with_node_id((node.node_id as i32).into())
+                    .with_host(StrBytes::from(host))
+                    .with_port(port),
+            )
+        })
+        .collect()
 }
 
 // RobustMQ tracks neither rack placement nor a KRaft-style fenced state, so
@@ -166,13 +253,6 @@ fn topic_to_metadata(topic: Topic, sdm: &Arc<StorageDriverManager>) -> MetadataR
         .with_partitions(partitions)
 }
 
-struct PartitionReplicaState {
-    leader_id: i32,
-    leader_epoch: i32,
-    replica_nodes: Vec<i32>,
-    isr_nodes: Vec<i32>,
-}
-
 // Partition leader/replicas/ISR are read from the shard's active segment
 // (owned by storage-engine's ISR/leader-rebalance machinery) rather than
 // tracked separately here, so failover and rebalancing stay in sync
@@ -238,14 +318,6 @@ fn describe_topic_partition(
         .with_offline_replicas(vec![])
 }
 
-struct TopicPartitionCount {
-    name: String,
-    partition_count: u32,
-}
-
-type TopicCursor = (String, i32);
-type TopicPage = (usize, Range<u32>);
-
 /// Decide which (topic, partition-range) slices belong on this page and
 /// where the next page should resume, per the DescribeTopicPartitions
 /// cursor protocol (KIP-966): topics are walked in name order (`topics`
@@ -296,78 +368,6 @@ fn effective_partition_limit(req: &DescribeTopicPartitionsRequest) -> usize {
         cap
     };
     requested.min(cap)
-}
-
-pub fn process_describe_topic_partitions(
-    broker_cache: &Arc<NodeCacheManager>,
-    sdm: &Arc<StorageDriverManager>,
-    req: &DescribeTopicPartitionsRequest,
-) -> Option<KafkaPacket> {
-    let mut names: Vec<String> = req.topics.iter().map(|t| t.name.to_string()).collect();
-    names.sort();
-
-    let topics: Vec<(String, Option<Topic>)> = names
-        .into_iter()
-        .map(|name| {
-            let topic = broker_cache.get_topic_by_name(get_tenant(), &name);
-            (name, topic)
-        })
-        .collect();
-
-    let counts: Vec<TopicPartitionCount> = topics
-        .iter()
-        .map(|(name, topic)| TopicPartitionCount {
-            name: name.clone(),
-            partition_count: topic.as_ref().map_or(0, |t| t.partition.max(1)),
-        })
-        .collect();
-
-    let cursor = req
-        .cursor
-        .as_ref()
-        .map(|c| (c.topic_name.to_string(), c.partition_index));
-    let limit = effective_partition_limit(req);
-    let (pages, next_cursor) = paginate_topic_partitions(&counts, cursor, limit);
-
-    let topics_resp: Vec<DescribeTopicPartitionsResponseTopic> = pages
-        .into_iter()
-        .map(|(topic_idx, range)| {
-            let (name, topic) = &topics[topic_idx];
-            let name = Some(TopicName(StrBytes::from(name.clone())));
-            match topic {
-                None => DescribeTopicPartitionsResponseTopic::default()
-                    .with_error_code(ResponseError::UnknownTopicOrPartition.code())
-                    .with_name(name)
-                    .with_is_internal(false)
-                    .with_partitions(vec![])
-                    .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED),
-                Some(topic) => {
-                    let partitions = range
-                        .map(|i| describe_topic_partition(i as i32, topic, sdm))
-                        .collect();
-                    DescribeTopicPartitionsResponseTopic::default()
-                        .with_error_code(0)
-                        .with_topic_id(topic_uuid(get_tenant(), &topic.topic_name))
-                        .with_name(name)
-                        .with_is_internal(false)
-                        .with_partitions(partitions)
-                        .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED)
-                }
-            }
-        })
-        .collect();
-
-    let next_cursor = next_cursor.map(|(name, partition_index)| {
-        Cursor::default()
-            .with_topic_name(TopicName(StrBytes::from(name)))
-            .with_partition_index(partition_index)
-    });
-
-    Some(KafkaPacket::DescribeTopicPartitionsResponse(
-        DescribeTopicPartitionsResponse::default()
-            .with_topics(topics_resp)
-            .with_next_cursor(next_cursor),
-    ))
 }
 
 #[cfg(test)]

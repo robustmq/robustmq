@@ -51,6 +51,140 @@ const MATCH_TYPE_ANY: i8 = 2;
 const SUPPORTED_QUOTA_KEYS: [&str; 2] =
     [QUOTA_KEY_PRODUCER_BYTE_RATE, QUOTA_KEY_CONSUMER_BYTE_RATE];
 
+pub async fn process_alter_client_quotas(
+    sdm: &Arc<StorageDriverManager>,
+    req: &AlterClientQuotasRequest,
+) -> Option<KafkaPacket> {
+    let stored = match list_quotas(sdm).await {
+        Ok(quotas) => quotas,
+        Err(e) => {
+            warn!("Kafka AlterClientQuotas failed to list quotas: {}", e);
+            let entries = req
+                .entries
+                .iter()
+                .map(|entry| {
+                    entry_response(
+                        entry,
+                        ResponseError::UnknownServerError.code(),
+                        Some(e.clone()),
+                    )
+                })
+                .collect();
+            return Some(KafkaPacket::AlterClientQuotasResponse(
+                AlterClientQuotasResponse::default().with_entries(entries),
+            ));
+        }
+    };
+
+    let client_pool = sdm.engine_storage_handler.client_pool.clone();
+    let addrs = broker_config().get_meta_service_addr();
+
+    // Track the effective state across entries: two entries touching the same
+    // entity within one request must see each other's changes.
+    let mut current: HashMap<Option<String>, KafkaClientQuota> = stored
+        .into_iter()
+        .filter(|q| q.entity_type == QUOTA_ENTITY_CLIENT_ID)
+        .map(|q| (q.entity_name.clone(), q))
+        .collect();
+
+    let mut entries = Vec::with_capacity(req.entries.len());
+    for entry in &req.entries {
+        let result: Result<(), (i16, String)> = match validate_entry(entry) {
+            Ok(entity_name) => {
+                if req.validate_only {
+                    Ok(())
+                } else {
+                    let merged = merge_ops(
+                        current.get(&entity_name).cloned(),
+                        entity_name.clone(),
+                        entry,
+                    );
+                    match persist_quota(&client_pool, &addrs, &merged).await {
+                        Ok(()) => {
+                            if merged.quotas.is_empty() {
+                                current.remove(&entity_name);
+                            } else {
+                                current.insert(entity_name, merged);
+                            }
+                            Ok(())
+                        }
+                        Err(e) => {
+                            warn!("Kafka AlterClientQuotas failed to persist: {}", e);
+                            Err((ResponseError::UnknownServerError.code(), e))
+                        }
+                    }
+                }
+            }
+            Err(e) => Err(e),
+        };
+
+        let (code, message) = match result {
+            Ok(()) => (0, None),
+            Err((code, message)) => (code, Some(message)),
+        };
+        entries.push(entry_response(entry, code, message));
+    }
+
+    Some(KafkaPacket::AlterClientQuotasResponse(
+        AlterClientQuotasResponse::default().with_entries(entries),
+    ))
+}
+
+pub async fn process_describe_client_quotas(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DescribeClientQuotasRequest,
+) -> Option<KafkaPacket> {
+    let stored = match list_quotas(sdm).await {
+        Ok(quotas) => quotas,
+        Err(e) => {
+            warn!("Kafka DescribeClientQuotas failed to list quotas: {}", e);
+            return Some(KafkaPacket::DescribeClientQuotasResponse(
+                DescribeClientQuotasResponse::default()
+                    .with_error_code(ResponseError::UnknownServerError.code())
+                    .with_error_message(Some(StrBytes::from(e))),
+            ));
+        }
+    };
+
+    let mut entries: Vec<DescribeEntry> = stored
+        .iter()
+        .filter(|q| quota_matches(q, req))
+        .map(|q| {
+            let mut values: Vec<ValueData> = q
+                .quotas
+                .iter()
+                .map(|(key, value)| {
+                    ValueData::default()
+                        .with_key(StrBytes::from(key.clone()))
+                        .with_value(*value)
+                })
+                .collect();
+            values.sort_by(|a, b| a.key.cmp(&b.key));
+
+            DescribeEntry::default()
+                .with_entity(vec![DescribeEntity::default()
+                    .with_entity_type(StrBytes::from(q.entity_type.clone()))
+                    .with_entity_name(q.entity_name.clone().map(StrBytes::from))])
+                .with_values(values)
+        })
+        .collect();
+    entries.sort_by(|a, b| {
+        let name_of = |e: &DescribeEntry| {
+            e.entity
+                .first()
+                .and_then(|en| en.entity_name.as_ref().map(|n| n.to_string()))
+                .unwrap_or_default()
+        };
+        name_of(a).cmp(&name_of(b))
+    });
+
+    Some(KafkaPacket::DescribeClientQuotasResponse(
+        DescribeClientQuotasResponse::default()
+            .with_error_code(0)
+            .with_entries(Some(entries)),
+    ))
+}
+
 // Validate one Alter entry down to (entity_name, ops); only single-dimension
 // client-id entities and the supported quota keys are representable.
 fn validate_entry(entry: &AlterEntry) -> Result<Option<String>, (i16, String)> {
@@ -163,85 +297,6 @@ async fn list_quotas(sdm: &Arc<StorageDriverManager>) -> Result<Vec<KafkaClientQ
     Ok(quotas)
 }
 
-pub async fn process_alter_client_quotas(
-    sdm: &Arc<StorageDriverManager>,
-    req: &AlterClientQuotasRequest,
-) -> Option<KafkaPacket> {
-    let stored = match list_quotas(sdm).await {
-        Ok(quotas) => quotas,
-        Err(e) => {
-            warn!("Kafka AlterClientQuotas failed to list quotas: {}", e);
-            let entries = req
-                .entries
-                .iter()
-                .map(|entry| {
-                    entry_response(
-                        entry,
-                        ResponseError::UnknownServerError.code(),
-                        Some(e.clone()),
-                    )
-                })
-                .collect();
-            return Some(KafkaPacket::AlterClientQuotasResponse(
-                AlterClientQuotasResponse::default().with_entries(entries),
-            ));
-        }
-    };
-
-    let client_pool = sdm.engine_storage_handler.client_pool.clone();
-    let addrs = broker_config().get_meta_service_addr();
-
-    // Track the effective state across entries: two entries touching the same
-    // entity within one request must see each other's changes.
-    let mut current: HashMap<Option<String>, KafkaClientQuota> = stored
-        .into_iter()
-        .filter(|q| q.entity_type == QUOTA_ENTITY_CLIENT_ID)
-        .map(|q| (q.entity_name.clone(), q))
-        .collect();
-
-    let mut entries = Vec::with_capacity(req.entries.len());
-    for entry in &req.entries {
-        let result: Result<(), (i16, String)> = match validate_entry(entry) {
-            Ok(entity_name) => {
-                if req.validate_only {
-                    Ok(())
-                } else {
-                    let merged = merge_ops(
-                        current.get(&entity_name).cloned(),
-                        entity_name.clone(),
-                        entry,
-                    );
-                    match persist_quota(&client_pool, &addrs, &merged).await {
-                        Ok(()) => {
-                            if merged.quotas.is_empty() {
-                                current.remove(&entity_name);
-                            } else {
-                                current.insert(entity_name, merged);
-                            }
-                            Ok(())
-                        }
-                        Err(e) => {
-                            warn!("Kafka AlterClientQuotas failed to persist: {}", e);
-                            Err((ResponseError::UnknownServerError.code(), e))
-                        }
-                    }
-                }
-            }
-            Err(e) => Err(e),
-        };
-
-        let (code, message) = match result {
-            Ok(()) => (0, None),
-            Err((code, message)) => (code, Some(message)),
-        };
-        entries.push(entry_response(entry, code, message));
-    }
-
-    Some(KafkaPacket::AlterClientQuotasResponse(
-        AlterClientQuotasResponse::default().with_entries(entries),
-    ))
-}
-
 fn entry_response(entry: &AlterEntry, code: i16, message: Option<String>) -> AlterRespEntry {
     let entity = entry
         .entity
@@ -291,61 +346,6 @@ fn quota_matches(quota: &KafkaClientQuota, req: &DescribeClientQuotasRequest) ->
         }
     }
     true
-}
-
-pub async fn process_describe_client_quotas(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DescribeClientQuotasRequest,
-) -> Option<KafkaPacket> {
-    let stored = match list_quotas(sdm).await {
-        Ok(quotas) => quotas,
-        Err(e) => {
-            warn!("Kafka DescribeClientQuotas failed to list quotas: {}", e);
-            return Some(KafkaPacket::DescribeClientQuotasResponse(
-                DescribeClientQuotasResponse::default()
-                    .with_error_code(ResponseError::UnknownServerError.code())
-                    .with_error_message(Some(StrBytes::from(e))),
-            ));
-        }
-    };
-
-    let mut entries: Vec<DescribeEntry> = stored
-        .iter()
-        .filter(|q| quota_matches(q, req))
-        .map(|q| {
-            let mut values: Vec<ValueData> = q
-                .quotas
-                .iter()
-                .map(|(key, value)| {
-                    ValueData::default()
-                        .with_key(StrBytes::from(key.clone()))
-                        .with_value(*value)
-                })
-                .collect();
-            values.sort_by(|a, b| a.key.cmp(&b.key));
-
-            DescribeEntry::default()
-                .with_entity(vec![DescribeEntity::default()
-                    .with_entity_type(StrBytes::from(q.entity_type.clone()))
-                    .with_entity_name(q.entity_name.clone().map(StrBytes::from))])
-                .with_values(values)
-        })
-        .collect();
-    entries.sort_by(|a, b| {
-        let name_of = |e: &DescribeEntry| {
-            e.entity
-                .first()
-                .and_then(|en| en.entity_name.as_ref().map(|n| n.to_string()))
-                .unwrap_or_default()
-        };
-        name_of(a).cmp(&name_of(b))
-    });
-
-    Some(KafkaPacket::DescribeClientQuotasResponse(
-        DescribeClientQuotasResponse::default()
-            .with_error_code(0)
-            .with_entries(Some(entries)),
-    ))
 }
 
 #[cfg(test)]

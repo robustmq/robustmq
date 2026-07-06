@@ -76,6 +76,218 @@ const ANONYMOUS_PRINCIPAL_NAME: &str = "ANONYMOUS";
 // default (`delegation.token.max.lifetime.ms`).
 const DEFAULT_TOKEN_LIFETIME_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 
+pub async fn process_create_delegation_token(
+    sdm: &Arc<StorageDriverManager>,
+    req: &CreateDelegationTokenRequest,
+) -> Option<KafkaPacket> {
+    ensure_reaper_started(sdm);
+
+    let client_pool = &sdm.engine_storage_handler.client_pool;
+    let addrs = broker_config().get_meta_service_addr();
+
+    let secret = match get_or_create_secret_key(client_pool, &addrs).await {
+        Ok(s) => s,
+        Err(e) => {
+            warn!(
+                "Kafka CreateDelegationToken failed to get the signing key: {}",
+                e
+            );
+            return Some(create_error_response(
+                ResponseError::UnknownServerError.code(),
+            ));
+        }
+    };
+
+    let token_id = unique_id();
+    let hmac = match compute_hmac(&secret, &token_id) {
+        Ok(h) => h,
+        Err(e) => {
+            warn!("Kafka CreateDelegationToken failed to compute hmac: {}", e);
+            return Some(create_error_response(
+                ResponseError::UnknownServerError.code(),
+            ));
+        }
+    };
+
+    let issue_timestamp_ms = now_millis() as i64;
+    let max_lifetime_ms = if req.max_lifetime_ms > 0 {
+        req.max_lifetime_ms
+    } else {
+        DEFAULT_TOKEN_LIFETIME_MS
+    };
+    let max_timestamp_ms = issue_timestamp_ms.saturating_add(max_lifetime_ms);
+
+    let requester = KafkaTokenPrincipal {
+        principal_type: ANONYMOUS_PRINCIPAL_TYPE.to_string(),
+        principal_name: ANONYMOUS_PRINCIPAL_NAME.to_string(),
+    };
+    let owner = match (&req.owner_principal_type, &req.owner_principal_name) {
+        (Some(principal_type), Some(principal_name)) => KafkaTokenPrincipal {
+            principal_type: principal_type.to_string(),
+            principal_name: principal_name.to_string(),
+        },
+        _ => requester.clone(),
+    };
+    let renewers = req
+        .renewers
+        .iter()
+        .map(|r| KafkaTokenPrincipal {
+            principal_type: r.principal_type.to_string(),
+            principal_name: r.principal_name.to_string(),
+        })
+        .collect();
+
+    let token = KafkaDelegationToken {
+        tenant: get_tenant().to_string(),
+        token_id: token_id.clone(),
+        hmac: hmac.clone(),
+        owner: owner.clone(),
+        token_requester: requester.clone(),
+        renewers,
+        issue_timestamp_ms,
+        expiry_timestamp_ms: max_timestamp_ms,
+        max_timestamp_ms,
+    };
+
+    if let Err(e) = save_token(client_pool, &addrs, &token).await {
+        warn!("Kafka CreateDelegationToken storage error: {}", e);
+        return Some(create_error_response(
+            ResponseError::UnknownServerError.code(),
+        ));
+    }
+
+    Some(KafkaPacket::CreateDelegationTokenResponse(
+        CreateDelegationTokenResponse::default()
+            .with_error_code(0)
+            .with_principal_type(StrBytes::from(owner.principal_type))
+            .with_principal_name(StrBytes::from(owner.principal_name))
+            .with_token_requester_principal_type(StrBytes::from(requester.principal_type))
+            .with_token_requester_principal_name(StrBytes::from(requester.principal_name))
+            .with_issue_timestamp_ms(issue_timestamp_ms)
+            .with_expiry_timestamp_ms(max_timestamp_ms)
+            .with_max_timestamp_ms(max_timestamp_ms)
+            .with_token_id(StrBytes::from(token_id))
+            .with_hmac(bytes::Bytes::from(hmac)),
+    ))
+}
+
+pub async fn process_renew_delegation_token(
+    sdm: &Arc<StorageDriverManager>,
+    req: &RenewDelegationTokenRequest,
+) -> Option<KafkaPacket> {
+    ensure_reaper_started(sdm);
+    let renew_period_ms = if req.renew_period_ms > 0 {
+        req.renew_period_ms
+    } else {
+        DEFAULT_TOKEN_LIFETIME_MS
+    };
+
+    let result = update_expiry(sdm, &req.hmac, |now, max_timestamp_ms| {
+        now.saturating_add(renew_period_ms).min(max_timestamp_ms)
+    })
+    .await;
+
+    match result {
+        Ok(expiry_timestamp_ms) => Some(KafkaPacket::RenewDelegationTokenResponse(
+            RenewDelegationTokenResponse::default()
+                .with_error_code(0)
+                .with_expiry_timestamp_ms(expiry_timestamp_ms),
+        )),
+        Err((code, message)) => {
+            warn!("Kafka RenewDelegationToken failed: {}", message);
+            Some(KafkaPacket::RenewDelegationTokenResponse(
+                RenewDelegationTokenResponse::default().with_error_code(code),
+            ))
+        }
+    }
+}
+
+pub async fn process_expire_delegation_token(
+    sdm: &Arc<StorageDriverManager>,
+    req: &ExpireDelegationTokenRequest,
+) -> Option<KafkaPacket> {
+    ensure_reaper_started(sdm);
+    let expiry_time_period_ms = req.expiry_time_period_ms;
+
+    let result = update_expiry(sdm, &req.hmac, |now, max_timestamp_ms| {
+        if expiry_time_period_ms <= 0 {
+            now
+        } else {
+            now.saturating_add(expiry_time_period_ms)
+                .min(max_timestamp_ms)
+        }
+    })
+    .await;
+
+    match result {
+        Ok(expiry_timestamp_ms) => Some(KafkaPacket::ExpireDelegationTokenResponse(
+            ExpireDelegationTokenResponse::default()
+                .with_error_code(0)
+                .with_expiry_timestamp_ms(expiry_timestamp_ms),
+        )),
+        Err((code, message)) => {
+            warn!("Kafka ExpireDelegationToken failed: {}", message);
+            Some(KafkaPacket::ExpireDelegationTokenResponse(
+                ExpireDelegationTokenResponse::default().with_error_code(code),
+            ))
+        }
+    }
+}
+
+pub async fn process_describe_delegation_token(
+    sdm: &Arc<StorageDriverManager>,
+    req: &DescribeDelegationTokenRequest,
+) -> Option<KafkaPacket> {
+    ensure_reaper_started(sdm);
+    let client_pool = &sdm.engine_storage_handler.client_pool;
+    let addrs = broker_config().get_meta_service_addr();
+
+    let reply = match list_kafka_delegation_token(
+        client_pool,
+        &addrs,
+        ListKafkaDelegationTokenRequest {
+            tenant: get_tenant().to_string(),
+        },
+    )
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            warn!("Kafka DescribeDelegationToken failed to list tokens: {}", e);
+            return Some(KafkaPacket::DescribeDelegationTokenResponse(
+                DescribeDelegationTokenResponse::default()
+                    .with_error_code(ResponseError::UnknownServerError.code()),
+            ));
+        }
+    };
+
+    let mut tokens = Vec::with_capacity(reply.tokens.len());
+    for raw in reply.tokens {
+        let token = match KafkaDelegationToken::decode(&raw) {
+            Ok(t) => t,
+            Err(e) => {
+                warn!(
+                    "Kafka DescribeDelegationToken failed to decode a stored token: {}",
+                    e
+                );
+                return Some(KafkaPacket::DescribeDelegationTokenResponse(
+                    DescribeDelegationTokenResponse::default()
+                        .with_error_code(ResponseError::UnknownServerError.code()),
+                ));
+            }
+        };
+        if owner_matches(&token, req) {
+            tokens.push(to_described_token(token));
+        }
+    }
+
+    Some(KafkaPacket::DescribeDelegationTokenResponse(
+        DescribeDelegationTokenResponse::default()
+            .with_error_code(0)
+            .with_tokens(tokens),
+    ))
+}
+
 fn secret_key_resource() -> Vec<String> {
     vec!["kafka".to_string(), "delegation_token_secret".to_string()]
 }
@@ -249,101 +461,6 @@ fn create_error_response(code: i16) -> KafkaPacket {
     )
 }
 
-pub async fn process_create_delegation_token(
-    sdm: &Arc<StorageDriverManager>,
-    req: &CreateDelegationTokenRequest,
-) -> Option<KafkaPacket> {
-    ensure_reaper_started(sdm);
-
-    let client_pool = &sdm.engine_storage_handler.client_pool;
-    let addrs = broker_config().get_meta_service_addr();
-
-    let secret = match get_or_create_secret_key(client_pool, &addrs).await {
-        Ok(s) => s,
-        Err(e) => {
-            warn!(
-                "Kafka CreateDelegationToken failed to get the signing key: {}",
-                e
-            );
-            return Some(create_error_response(
-                ResponseError::UnknownServerError.code(),
-            ));
-        }
-    };
-
-    let token_id = unique_id();
-    let hmac = match compute_hmac(&secret, &token_id) {
-        Ok(h) => h,
-        Err(e) => {
-            warn!("Kafka CreateDelegationToken failed to compute hmac: {}", e);
-            return Some(create_error_response(
-                ResponseError::UnknownServerError.code(),
-            ));
-        }
-    };
-
-    let issue_timestamp_ms = now_millis() as i64;
-    let max_lifetime_ms = if req.max_lifetime_ms > 0 {
-        req.max_lifetime_ms
-    } else {
-        DEFAULT_TOKEN_LIFETIME_MS
-    };
-    let max_timestamp_ms = issue_timestamp_ms.saturating_add(max_lifetime_ms);
-
-    let requester = KafkaTokenPrincipal {
-        principal_type: ANONYMOUS_PRINCIPAL_TYPE.to_string(),
-        principal_name: ANONYMOUS_PRINCIPAL_NAME.to_string(),
-    };
-    let owner = match (&req.owner_principal_type, &req.owner_principal_name) {
-        (Some(principal_type), Some(principal_name)) => KafkaTokenPrincipal {
-            principal_type: principal_type.to_string(),
-            principal_name: principal_name.to_string(),
-        },
-        _ => requester.clone(),
-    };
-    let renewers = req
-        .renewers
-        .iter()
-        .map(|r| KafkaTokenPrincipal {
-            principal_type: r.principal_type.to_string(),
-            principal_name: r.principal_name.to_string(),
-        })
-        .collect();
-
-    let token = KafkaDelegationToken {
-        tenant: get_tenant().to_string(),
-        token_id: token_id.clone(),
-        hmac: hmac.clone(),
-        owner: owner.clone(),
-        token_requester: requester.clone(),
-        renewers,
-        issue_timestamp_ms,
-        expiry_timestamp_ms: max_timestamp_ms,
-        max_timestamp_ms,
-    };
-
-    if let Err(e) = save_token(client_pool, &addrs, &token).await {
-        warn!("Kafka CreateDelegationToken storage error: {}", e);
-        return Some(create_error_response(
-            ResponseError::UnknownServerError.code(),
-        ));
-    }
-
-    Some(KafkaPacket::CreateDelegationTokenResponse(
-        CreateDelegationTokenResponse::default()
-            .with_error_code(0)
-            .with_principal_type(StrBytes::from(owner.principal_type))
-            .with_principal_name(StrBytes::from(owner.principal_name))
-            .with_token_requester_principal_type(StrBytes::from(requester.principal_type))
-            .with_token_requester_principal_name(StrBytes::from(requester.principal_name))
-            .with_issue_timestamp_ms(issue_timestamp_ms)
-            .with_expiry_timestamp_ms(max_timestamp_ms)
-            .with_max_timestamp_ms(max_timestamp_ms)
-            .with_token_id(StrBytes::from(token_id))
-            .with_hmac(bytes::Bytes::from(hmac)),
-    ))
-}
-
 // Renew and Expire share the same shape: find the token by the `hmac` the
 // client presents (proof of possession, not `token_id`), recompute
 // `expiry_timestamp_ms` capped at `max_timestamp_ms`, and write the record
@@ -388,69 +505,6 @@ async fn update_expiry(
     Ok(token.expiry_timestamp_ms)
 }
 
-pub async fn process_renew_delegation_token(
-    sdm: &Arc<StorageDriverManager>,
-    req: &RenewDelegationTokenRequest,
-) -> Option<KafkaPacket> {
-    ensure_reaper_started(sdm);
-    let renew_period_ms = if req.renew_period_ms > 0 {
-        req.renew_period_ms
-    } else {
-        DEFAULT_TOKEN_LIFETIME_MS
-    };
-
-    let result = update_expiry(sdm, &req.hmac, |now, max_timestamp_ms| {
-        now.saturating_add(renew_period_ms).min(max_timestamp_ms)
-    })
-    .await;
-
-    match result {
-        Ok(expiry_timestamp_ms) => Some(KafkaPacket::RenewDelegationTokenResponse(
-            RenewDelegationTokenResponse::default()
-                .with_error_code(0)
-                .with_expiry_timestamp_ms(expiry_timestamp_ms),
-        )),
-        Err((code, message)) => {
-            warn!("Kafka RenewDelegationToken failed: {}", message);
-            Some(KafkaPacket::RenewDelegationTokenResponse(
-                RenewDelegationTokenResponse::default().with_error_code(code),
-            ))
-        }
-    }
-}
-
-pub async fn process_expire_delegation_token(
-    sdm: &Arc<StorageDriverManager>,
-    req: &ExpireDelegationTokenRequest,
-) -> Option<KafkaPacket> {
-    ensure_reaper_started(sdm);
-    let expiry_time_period_ms = req.expiry_time_period_ms;
-
-    let result = update_expiry(sdm, &req.hmac, |now, max_timestamp_ms| {
-        if expiry_time_period_ms <= 0 {
-            now
-        } else {
-            now.saturating_add(expiry_time_period_ms)
-                .min(max_timestamp_ms)
-        }
-    })
-    .await;
-
-    match result {
-        Ok(expiry_timestamp_ms) => Some(KafkaPacket::ExpireDelegationTokenResponse(
-            ExpireDelegationTokenResponse::default()
-                .with_error_code(0)
-                .with_expiry_timestamp_ms(expiry_timestamp_ms),
-        )),
-        Err((code, message)) => {
-            warn!("Kafka ExpireDelegationToken failed: {}", message);
-            Some(KafkaPacket::ExpireDelegationTokenResponse(
-                ExpireDelegationTokenResponse::default().with_error_code(code),
-            ))
-        }
-    }
-}
-
 // DescribeDelegationToken owner filter: `owners = None` means "every token".
 // We also treat `Some([])` (an explicitly empty list) as "every token" —
 // this is our own choice, not something verified against real Kafka's
@@ -489,60 +543,6 @@ fn to_described_token(token: KafkaDelegationToken) -> DescribedDelegationToken {
         .with_token_id(StrBytes::from(token.token_id))
         .with_hmac(bytes::Bytes::from(token.hmac))
         .with_renewers(renewers)
-}
-
-pub async fn process_describe_delegation_token(
-    sdm: &Arc<StorageDriverManager>,
-    req: &DescribeDelegationTokenRequest,
-) -> Option<KafkaPacket> {
-    ensure_reaper_started(sdm);
-    let client_pool = &sdm.engine_storage_handler.client_pool;
-    let addrs = broker_config().get_meta_service_addr();
-
-    let reply = match list_kafka_delegation_token(
-        client_pool,
-        &addrs,
-        ListKafkaDelegationTokenRequest {
-            tenant: get_tenant().to_string(),
-        },
-    )
-    .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            warn!("Kafka DescribeDelegationToken failed to list tokens: {}", e);
-            return Some(KafkaPacket::DescribeDelegationTokenResponse(
-                DescribeDelegationTokenResponse::default()
-                    .with_error_code(ResponseError::UnknownServerError.code()),
-            ));
-        }
-    };
-
-    let mut tokens = Vec::with_capacity(reply.tokens.len());
-    for raw in reply.tokens {
-        let token = match KafkaDelegationToken::decode(&raw) {
-            Ok(t) => t,
-            Err(e) => {
-                warn!(
-                    "Kafka DescribeDelegationToken failed to decode a stored token: {}",
-                    e
-                );
-                return Some(KafkaPacket::DescribeDelegationTokenResponse(
-                    DescribeDelegationTokenResponse::default()
-                        .with_error_code(ResponseError::UnknownServerError.code()),
-                ));
-            }
-        };
-        if owner_matches(&token, req) {
-            tokens.push(to_described_token(token));
-        }
-    }
-
-    Some(KafkaPacket::DescribeDelegationTokenResponse(
-        DescribeDelegationTokenResponse::default()
-            .with_error_code(0)
-            .with_tokens(tokens),
-    ))
 }
 
 #[cfg(test)]

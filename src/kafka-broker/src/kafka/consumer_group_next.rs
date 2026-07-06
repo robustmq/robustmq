@@ -36,27 +36,6 @@ use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 use uuid::Uuid;
 
-fn heartbeat_error_response(code: i16, message: &str) -> KafkaPacket {
-    KafkaPacket::ConsumerGroupHeartbeatResponse(
-        ConsumerGroupHeartbeatResponse::default()
-            .with_error_code(code)
-            .with_error_message(Some(StrBytes::from(message.to_string()))),
-    )
-}
-
-fn to_wire_assignment(assignment: HashMap<Uuid, Vec<i32>>) -> Assignment {
-    let mut topic_partitions: Vec<TopicPartitions> = assignment
-        .into_iter()
-        .map(|(topic_id, partitions)| {
-            TopicPartitions::default()
-                .with_topic_id(topic_id)
-                .with_partitions(partitions)
-        })
-        .collect();
-    topic_partitions.sort_by_key(|t| t.topic_id);
-    Assignment::default().with_topic_partitions(topic_partitions)
-}
-
 pub async fn process_consumer_group_heartbeat(
     coordinator: &GroupCoordinator,
     sdm: &Arc<StorageDriverManager>,
@@ -118,25 +97,6 @@ pub async fn process_consumer_group_heartbeat(
             .with_heartbeat_interval_ms(coordinator.consumer_heartbeat_interval_ms())
             .with_assignment(result.assignment.map(to_wire_assignment)),
     ))
-}
-
-fn to_described_assignment(
-    assignment: &HashMap<Uuid, Vec<i32>>,
-    topic_names: &HashMap<Uuid, String>,
-) -> DescribedAssignment {
-    let mut topic_partitions: Vec<DescribedTopicPartitions> = assignment
-        .iter()
-        .map(|(topic_id, partitions)| {
-            DescribedTopicPartitions::default()
-                .with_topic_id(*topic_id)
-                .with_topic_name(TopicName(StrBytes::from(
-                    topic_names.get(topic_id).cloned().unwrap_or_default(),
-                )))
-                .with_partitions(partitions.clone())
-        })
-        .collect();
-    topic_partitions.sort_by_key(|t| t.topic_id);
-    DescribedAssignment::default().with_topic_partitions(topic_partitions)
 }
 
 pub async fn process_consumer_group_describe(
@@ -222,4 +182,44 @@ pub async fn process_consumer_group_describe(
     Some(KafkaPacket::ConsumerGroupDescribeResponse(
         ConsumerGroupDescribeResponse::default().with_groups(groups),
     ))
+}
+
+fn heartbeat_error_response(code: i16, message: &str) -> KafkaPacket {
+    KafkaPacket::ConsumerGroupHeartbeatResponse(
+        ConsumerGroupHeartbeatResponse::default()
+            .with_error_code(code)
+            .with_error_message(Some(StrBytes::from(message.to_string()))),
+    )
+}
+
+fn to_wire_assignment(assignment: HashMap<Uuid, Vec<i32>>) -> Assignment {
+    let mut topic_partitions: Vec<TopicPartitions> = assignment
+        .into_iter()
+        .map(|(topic_id, partitions)| {
+            TopicPartitions::default()
+                .with_topic_id(topic_id)
+                .with_partitions(partitions)
+        })
+        .collect();
+    topic_partitions.sort_by_key(|t| t.topic_id);
+    Assignment::default().with_topic_partitions(topic_partitions)
+}
+
+fn to_described_assignment(
+    assignment: &HashMap<Uuid, Vec<i32>>,
+    topic_names: &HashMap<Uuid, String>,
+) -> DescribedAssignment {
+    let mut topic_partitions: Vec<DescribedTopicPartitions> = assignment
+        .iter()
+        .map(|(topic_id, partitions)| {
+            DescribedTopicPartitions::default()
+                .with_topic_id(*topic_id)
+                .with_topic_name(TopicName(StrBytes::from(
+                    topic_names.get(topic_id).cloned().unwrap_or_default(),
+                )))
+                .with_partitions(partitions.clone())
+        })
+        .collect();
+    topic_partitions.sort_by_key(|t| t.topic_id);
+    DescribedAssignment::default().with_topic_partitions(topic_partitions)
 }

@@ -81,14 +81,6 @@ pub async fn process_find_coordinator(
     ))
 }
 
-fn join_group_error(code: i16) -> KafkaPacket {
-    KafkaPacket::JoinGroupResponse(
-        JoinGroupResponse::default()
-            .with_error_code(code)
-            .with_generation_id(-1),
-    )
-}
-
 pub async fn process_join_group(
     coordinator: &GroupCoordinator,
     sdm: &Arc<StorageDriverManager>,
@@ -333,24 +325,6 @@ pub fn process_list_groups(
     ))
 }
 
-async fn delete_persisted_group_offsets(
-    sdm: &Arc<StorageDriverManager>,
-    group_id: &str,
-) -> Result<bool, String> {
-    let offsets = sdm
-        .get_offset_by_group(get_tenant(), group_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    if offsets.is_empty() {
-        return Ok(false);
-    }
-    let shard_names: Vec<String> = offsets.into_iter().map(|o| o.shard_name).collect();
-    sdm.delete_group_offset(get_tenant(), group_id, &shard_names)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(true)
-}
-
 pub async fn process_delete_groups(
     coordinator: &GroupCoordinator,
     sdm: &Arc<StorageDriverManager>,
@@ -403,4 +377,30 @@ pub async fn process_delete_groups(
     Some(KafkaPacket::DeleteGroupsResponse(
         DeleteGroupsResponse::default().with_results(results),
     ))
+}
+
+fn join_group_error(code: i16) -> KafkaPacket {
+    KafkaPacket::JoinGroupResponse(
+        JoinGroupResponse::default()
+            .with_error_code(code)
+            .with_generation_id(-1),
+    )
+}
+
+async fn delete_persisted_group_offsets(
+    sdm: &Arc<StorageDriverManager>,
+    group_id: &str,
+) -> Result<bool, String> {
+    let offsets = sdm
+        .get_offset_by_group(get_tenant(), group_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    if offsets.is_empty() {
+        return Ok(false);
+    }
+    let shard_names: Vec<String> = offsets.into_iter().map(|o| o.shard_name).collect();
+    sdm.delete_group_offset(get_tenant(), group_id, &shard_names)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(true)
 }

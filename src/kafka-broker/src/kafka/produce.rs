@@ -33,6 +33,44 @@ use crate::core::constants::{NO_BASE_OFFSET, NO_LOG_APPEND_TIME, PRODUCE_ACKS_NO
 
 const VALID_ACKS: [i16; 3] = [-1, 0, 1];
 
+pub async fn process_produce(
+    sdm: &Arc<StorageDriverManager>,
+    req: &ProduceRequest,
+) -> Option<KafkaPacket> {
+    if !VALID_ACKS.contains(&req.acks) {
+        return Some(KafkaPacket::ProduceResponse(produce_error_response(
+            req,
+            ResponseError::InvalidRequiredAcks,
+        )));
+    }
+
+    // Transactional/idempotent produce is not implemented: rather than
+    // silently accepting the write with no transactional guarantee at all,
+    // reject it so the client's transaction fails loudly instead of
+    // succeeding under a false assumption of atomicity/exactly-once.
+    if req.transactional_id.is_some() {
+        return Some(KafkaPacket::ProduceResponse(produce_error_response(
+            req,
+            ResponseError::TransactionalIdAuthorizationFailed,
+        )));
+    }
+
+    let topic_responses = join_all(
+        req.topic_data
+            .iter()
+            .map(|topic_data| produce_to_topic(sdm, topic_data, req.acks)),
+    )
+    .await;
+
+    if req.acks == PRODUCE_ACKS_NONE {
+        return None;
+    }
+
+    Some(KafkaPacket::ProduceResponse(
+        ProduceResponse::default().with_responses(topic_responses),
+    ))
+}
+
 fn produce_partition_error(index: i32, err: ResponseError) -> PartitionProduceResponse {
     PartitionProduceResponse::default()
         .with_index(index)
@@ -222,44 +260,6 @@ fn produce_error_response(req: &ProduceRequest, err: ResponseError) -> ProduceRe
         })
         .collect();
     ProduceResponse::default().with_responses(topic_responses)
-}
-
-pub async fn process_produce(
-    sdm: &Arc<StorageDriverManager>,
-    req: &ProduceRequest,
-) -> Option<KafkaPacket> {
-    if !VALID_ACKS.contains(&req.acks) {
-        return Some(KafkaPacket::ProduceResponse(produce_error_response(
-            req,
-            ResponseError::InvalidRequiredAcks,
-        )));
-    }
-
-    // Transactional/idempotent produce is not implemented: rather than
-    // silently accepting the write with no transactional guarantee at all,
-    // reject it so the client's transaction fails loudly instead of
-    // succeeding under a false assumption of atomicity/exactly-once.
-    if req.transactional_id.is_some() {
-        return Some(KafkaPacket::ProduceResponse(produce_error_response(
-            req,
-            ResponseError::TransactionalIdAuthorizationFailed,
-        )));
-    }
-
-    let topic_responses = join_all(
-        req.topic_data
-            .iter()
-            .map(|topic_data| produce_to_topic(sdm, topic_data, req.acks)),
-    )
-    .await;
-
-    if req.acks == PRODUCE_ACKS_NONE {
-        return None;
-    }
-
-    Some(KafkaPacket::ProduceResponse(
-        ProduceResponse::default().with_responses(topic_responses),
-    ))
 }
 
 #[cfg(test)]

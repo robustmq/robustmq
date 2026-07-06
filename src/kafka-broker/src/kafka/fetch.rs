@@ -35,16 +35,6 @@ use tracing::warn;
 
 use crate::core::constants::{NO_LAST_STABLE_OFFSET, NO_OFFSET, NO_PRODUCER_EPOCH, NO_PRODUCER_ID};
 
-fn fetch_partition_error(index: i32, err: ResponseError) -> PartitionData {
-    PartitionData::default()
-        .with_partition_index(index)
-        .with_error_code(err.code())
-        .with_high_watermark(NO_OFFSET)
-        .with_last_stable_offset(NO_LAST_STABLE_OFFSET)
-        .with_log_start_offset(NO_OFFSET)
-        .with_records(None)
-}
-
 /// A single requested (topic, partition), either rejected up front or
 /// resolved to a concrete shard ready to be read.
 enum FetchUnitPlan {
@@ -64,6 +54,112 @@ struct FetchUnit {
     partition_index: i32,
     plan: FetchUnitPlan,
     records: Vec<StorageRecord>,
+}
+
+pub async fn process_fetch(
+    sdm: &Arc<StorageDriverManager>,
+    req: &FetchRequest,
+) -> Option<KafkaPacket> {
+    let start = Instant::now();
+
+    let mut topic_names: Vec<TopicName> = Vec::with_capacity(req.topics.len());
+    let mut units: Vec<FetchUnit> = Vec::new();
+    for (topic_idx, fetch_topic) in req.topics.iter().enumerate() {
+        topic_names.push(fetch_topic.topic.clone());
+        units.extend(resolve_fetch_topic(sdm, topic_idx, fetch_topic, req).await);
+    }
+
+    let first_pass = read_all_units(&units).await;
+    for (unit, records) in units.iter_mut().zip(first_pass) {
+        unit.records = records;
+    }
+
+    let min_bytes = req.min_bytes.max(0) as u64;
+    let max_wait = Duration::from_millis(req.max_wait_ms.max(0) as u64);
+    let total_bytes: u64 = units
+        .iter()
+        .flat_map(|u| u.records.iter())
+        .map(|r| r.data.len() as u64)
+        .sum();
+
+    // Long-poll once: if min_bytes isn't met yet, wait up to the remaining
+    // max_wait_ms for new data on the still-empty partitions, then re-read
+    // exactly once more. We deliberately don't loop re-checking min_bytes
+    // against max_wait — one wait-then-reread pass matches what real
+    // consumers need and keeps the latency bound simple to reason about.
+    if total_bytes < min_bytes {
+        let remaining = max_wait.saturating_sub(start.elapsed());
+        if !remaining.is_zero() {
+            let waiting_indices: Vec<usize> = units
+                .iter()
+                .enumerate()
+                .filter(|(_, u)| {
+                    u.records.is_empty() && matches!(u.plan, FetchUnitPlan::Data { .. })
+                })
+                .map(|(i, _)| i)
+                .collect();
+
+            if !waiting_indices.is_empty() {
+                let remaining_ms = remaining.as_millis() as u64;
+                join_all(waiting_indices.iter().map(|&i| {
+                    let engine_storage_handler = sdm.engine_storage_handler.clone();
+                    let (_, shard_name, fetch_offset, _) = data_plan_fields(&units[i]);
+                    let shard_name = shard_name.to_string();
+                    async move {
+                        engine_storage_handler
+                            .wait_for_new_data(&shard_name, fetch_offset, remaining_ms)
+                            .await;
+                    }
+                }))
+                .await;
+
+                let second_pass =
+                    join_all(waiting_indices.iter().map(|&i| {
+                        let (driver, shard_name, fetch_offset, max_bytes) =
+                            data_plan_fields(&units[i]);
+                        let driver = driver.clone();
+                        let shard_name = shard_name.to_string();
+                        async move {
+                            read_fetch_unit(&driver, &shard_name, fetch_offset, max_bytes).await
+                        }
+                    }))
+                    .await;
+
+                for (&i, records) in waiting_indices.iter().zip(second_pass) {
+                    units[i].records = records;
+                }
+            }
+        }
+    }
+
+    let mut topic_responses: Vec<FetchableTopicResponse> = topic_names
+        .into_iter()
+        .map(|name| FetchableTopicResponse::default().with_topic(name))
+        .collect();
+    let mut per_topic_partitions: Vec<Vec<PartitionData>> = vec![Vec::new(); topic_responses.len()];
+    for unit in &units {
+        per_topic_partitions[unit.topic_idx].push(build_partition_data(unit));
+    }
+    for (resp, partitions) in topic_responses.iter_mut().zip(per_topic_partitions) {
+        *resp = std::mem::take(resp).with_partitions(partitions);
+    }
+
+    let resp = FetchResponse::default()
+        .with_error_code(0)
+        .with_session_id(0)
+        .with_responses(topic_responses);
+
+    Some(KafkaPacket::FetchResponse(resp))
+}
+
+fn fetch_partition_error(index: i32, err: ResponseError) -> PartitionData {
+    PartitionData::default()
+        .with_partition_index(index)
+        .with_error_code(err.code())
+        .with_high_watermark(NO_OFFSET)
+        .with_last_stable_offset(NO_LAST_STABLE_OFFSET)
+        .with_log_start_offset(NO_OFFSET)
+        .with_records(None)
 }
 
 fn effective_max_bytes(req: &FetchRequest, fetch_partition: &FetchPartition) -> u64 {
@@ -290,102 +386,6 @@ fn build_partition_data(unit: &FetchUnit) -> PartitionData {
                 .with_records(records_bytes)
         }
     }
-}
-
-pub async fn process_fetch(
-    sdm: &Arc<StorageDriverManager>,
-    req: &FetchRequest,
-) -> Option<KafkaPacket> {
-    let start = Instant::now();
-
-    let mut topic_names: Vec<TopicName> = Vec::with_capacity(req.topics.len());
-    let mut units: Vec<FetchUnit> = Vec::new();
-    for (topic_idx, fetch_topic) in req.topics.iter().enumerate() {
-        topic_names.push(fetch_topic.topic.clone());
-        units.extend(resolve_fetch_topic(sdm, topic_idx, fetch_topic, req).await);
-    }
-
-    let first_pass = read_all_units(&units).await;
-    for (unit, records) in units.iter_mut().zip(first_pass) {
-        unit.records = records;
-    }
-
-    let min_bytes = req.min_bytes.max(0) as u64;
-    let max_wait = Duration::from_millis(req.max_wait_ms.max(0) as u64);
-    let total_bytes: u64 = units
-        .iter()
-        .flat_map(|u| u.records.iter())
-        .map(|r| r.data.len() as u64)
-        .sum();
-
-    // Long-poll once: if min_bytes isn't met yet, wait up to the remaining
-    // max_wait_ms for new data on the still-empty partitions, then re-read
-    // exactly once more. We deliberately don't loop re-checking min_bytes
-    // against max_wait — one wait-then-reread pass matches what real
-    // consumers need and keeps the latency bound simple to reason about.
-    if total_bytes < min_bytes {
-        let remaining = max_wait.saturating_sub(start.elapsed());
-        if !remaining.is_zero() {
-            let waiting_indices: Vec<usize> = units
-                .iter()
-                .enumerate()
-                .filter(|(_, u)| {
-                    u.records.is_empty() && matches!(u.plan, FetchUnitPlan::Data { .. })
-                })
-                .map(|(i, _)| i)
-                .collect();
-
-            if !waiting_indices.is_empty() {
-                let remaining_ms = remaining.as_millis() as u64;
-                join_all(waiting_indices.iter().map(|&i| {
-                    let engine_storage_handler = sdm.engine_storage_handler.clone();
-                    let (_, shard_name, fetch_offset, _) = data_plan_fields(&units[i]);
-                    let shard_name = shard_name.to_string();
-                    async move {
-                        engine_storage_handler
-                            .wait_for_new_data(&shard_name, fetch_offset, remaining_ms)
-                            .await;
-                    }
-                }))
-                .await;
-
-                let second_pass =
-                    join_all(waiting_indices.iter().map(|&i| {
-                        let (driver, shard_name, fetch_offset, max_bytes) =
-                            data_plan_fields(&units[i]);
-                        let driver = driver.clone();
-                        let shard_name = shard_name.to_string();
-                        async move {
-                            read_fetch_unit(&driver, &shard_name, fetch_offset, max_bytes).await
-                        }
-                    }))
-                    .await;
-
-                for (&i, records) in waiting_indices.iter().zip(second_pass) {
-                    units[i].records = records;
-                }
-            }
-        }
-    }
-
-    let mut topic_responses: Vec<FetchableTopicResponse> = topic_names
-        .into_iter()
-        .map(|name| FetchableTopicResponse::default().with_topic(name))
-        .collect();
-    let mut per_topic_partitions: Vec<Vec<PartitionData>> = vec![Vec::new(); topic_responses.len()];
-    for unit in &units {
-        per_topic_partitions[unit.topic_idx].push(build_partition_data(unit));
-    }
-    for (resp, partitions) in topic_responses.iter_mut().zip(per_topic_partitions) {
-        *resp = std::mem::take(resp).with_partitions(partitions);
-    }
-
-    let resp = FetchResponse::default()
-        .with_error_code(0)
-        .with_session_id(0)
-        .with_responses(topic_responses);
-
-    Some(KafkaPacket::FetchResponse(resp))
 }
 
 #[cfg(test)]

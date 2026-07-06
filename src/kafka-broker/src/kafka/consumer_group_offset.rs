@@ -34,6 +34,12 @@ use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
+struct FetchedPartition {
+    partition_index: i32,
+    offset: i64,
+    error_code: i16,
+}
+
 pub async fn process_offset_commit(
     sdm: &Arc<StorageDriverManager>,
     req: &OffsetCommitRequest,
@@ -124,10 +130,91 @@ pub async fn process_offset_commit(
     ))
 }
 
-struct FetchedPartition {
-    partition_index: i32,
-    offset: i64,
-    error_code: i16,
+pub async fn process_offset_fetch(
+    sdm: &Arc<StorageDriverManager>,
+    req: &OffsetFetchRequest,
+) -> Option<KafkaPacket> {
+    use kafka_protocol::messages::offset_fetch_response::{
+        OffsetFetchResponseGroup, OffsetFetchResponsePartitions, OffsetFetchResponseTopics,
+    };
+
+    // v8+ uses `groups` field; older versions use `topics` field directly.
+    if !req.groups.is_empty() {
+        let mut groups = Vec::with_capacity(req.groups.len());
+        for g in &req.groups {
+            let group_id = g.group_id.to_string();
+            let requested = to_requested_topics(
+                &g.topics,
+                |t| t.name.to_string(),
+                |t| t.partition_indexes.clone(),
+            );
+            let (group_error_code, topic_offsets) =
+                fetch_group_offsets(sdm, &group_id, requested.as_deref()).await;
+
+            let topics = topic_offsets
+                .into_iter()
+                .map(|(topic_name, partitions)| {
+                    let partitions = partitions
+                        .into_iter()
+                        .map(|p| {
+                            OffsetFetchResponsePartitions::default()
+                                .with_partition_index(p.partition_index)
+                                .with_committed_offset(p.offset)
+                                .with_error_code(p.error_code)
+                        })
+                        .collect();
+                    OffsetFetchResponseTopics::default()
+                        .with_name(TopicName(StrBytes::from(topic_name)))
+                        .with_partitions(partitions)
+                })
+                .collect();
+
+            groups.push(
+                OffsetFetchResponseGroup::default()
+                    .with_group_id(g.group_id.clone())
+                    .with_topics(topics)
+                    .with_error_code(group_error_code),
+            );
+        }
+
+        return Some(KafkaPacket::OffsetFetchResponse(
+            OffsetFetchResponse::default().with_groups(groups),
+        ));
+    }
+
+    // Old format: topics directly on request
+    let group_id = req.group_id.to_string();
+    let requested = to_requested_topics(
+        &req.topics,
+        |t| t.name.to_string(),
+        |t| t.partition_indexes.clone(),
+    );
+    let (error_code, topic_offsets) =
+        fetch_group_offsets(sdm, &group_id, requested.as_deref()).await;
+
+    let topics = topic_offsets
+        .into_iter()
+        .map(|(topic_name, partitions)| {
+            let partitions = partitions
+                .into_iter()
+                .map(|p| {
+                    OffsetFetchResponsePartition::default()
+                        .with_partition_index(p.partition_index)
+                        .with_committed_offset(p.offset)
+                        .with_error_code(p.error_code)
+                })
+                .collect();
+            OffsetFetchResponseTopic::default()
+                .with_name(TopicName(StrBytes::from(topic_name)))
+                .with_partitions(partitions)
+        })
+        .collect();
+
+    Some(KafkaPacket::OffsetFetchResponse(
+        OffsetFetchResponse::default()
+            .with_topics(topics)
+            .with_error_code(error_code),
+    ))
 }
 
 // Fetches every offset the group has ever committed, then either returns it
@@ -216,93 +303,6 @@ fn to_requested_topics<T>(
             .map(|t| (name_of(t), partitions_of(t)))
             .collect()
     })
-}
-
-pub async fn process_offset_fetch(
-    sdm: &Arc<StorageDriverManager>,
-    req: &OffsetFetchRequest,
-) -> Option<KafkaPacket> {
-    use kafka_protocol::messages::offset_fetch_response::{
-        OffsetFetchResponseGroup, OffsetFetchResponsePartitions, OffsetFetchResponseTopics,
-    };
-
-    // v8+ uses `groups` field; older versions use `topics` field directly.
-    if !req.groups.is_empty() {
-        let mut groups = Vec::with_capacity(req.groups.len());
-        for g in &req.groups {
-            let group_id = g.group_id.to_string();
-            let requested = to_requested_topics(
-                &g.topics,
-                |t| t.name.to_string(),
-                |t| t.partition_indexes.clone(),
-            );
-            let (group_error_code, topic_offsets) =
-                fetch_group_offsets(sdm, &group_id, requested.as_deref()).await;
-
-            let topics = topic_offsets
-                .into_iter()
-                .map(|(topic_name, partitions)| {
-                    let partitions = partitions
-                        .into_iter()
-                        .map(|p| {
-                            OffsetFetchResponsePartitions::default()
-                                .with_partition_index(p.partition_index)
-                                .with_committed_offset(p.offset)
-                                .with_error_code(p.error_code)
-                        })
-                        .collect();
-                    OffsetFetchResponseTopics::default()
-                        .with_name(TopicName(StrBytes::from(topic_name)))
-                        .with_partitions(partitions)
-                })
-                .collect();
-
-            groups.push(
-                OffsetFetchResponseGroup::default()
-                    .with_group_id(g.group_id.clone())
-                    .with_topics(topics)
-                    .with_error_code(group_error_code),
-            );
-        }
-
-        return Some(KafkaPacket::OffsetFetchResponse(
-            OffsetFetchResponse::default().with_groups(groups),
-        ));
-    }
-
-    // Old format: topics directly on request
-    let group_id = req.group_id.to_string();
-    let requested = to_requested_topics(
-        &req.topics,
-        |t| t.name.to_string(),
-        |t| t.partition_indexes.clone(),
-    );
-    let (error_code, topic_offsets) =
-        fetch_group_offsets(sdm, &group_id, requested.as_deref()).await;
-
-    let topics = topic_offsets
-        .into_iter()
-        .map(|(topic_name, partitions)| {
-            let partitions = partitions
-                .into_iter()
-                .map(|p| {
-                    OffsetFetchResponsePartition::default()
-                        .with_partition_index(p.partition_index)
-                        .with_committed_offset(p.offset)
-                        .with_error_code(p.error_code)
-                })
-                .collect();
-            OffsetFetchResponseTopic::default()
-                .with_name(TopicName(StrBytes::from(topic_name)))
-                .with_partitions(partitions)
-        })
-        .collect();
-
-    Some(KafkaPacket::OffsetFetchResponse(
-        OffsetFetchResponse::default()
-            .with_topics(topics)
-            .with_error_code(error_code),
-    ))
 }
 
 #[cfg(test)]

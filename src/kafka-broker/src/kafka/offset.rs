@@ -34,34 +34,6 @@ use crate::core::constants::{
     LIST_OFFSETS_EARLIEST_TIMESTAMP, LIST_OFFSETS_LATEST_TIMESTAMP, NO_OFFSET,
 };
 
-/// Pick the offset ListOffsets should report for one partition: the shard's
-/// known start/high-watermark for the earliest/latest sentinels, or the
-/// pre-resolved timestamp lookup result (falling back to start_offset if the
-/// timestamp scan found nothing for this partition).
-fn resolve_offset_for_partition(
-    timestamp: i64,
-    partition: u32,
-    detail: &AdapterShardDetail,
-    resolved_by_timestamp: &HashMap<i64, HashMap<u32, u64>>,
-) -> u64 {
-    match timestamp {
-        LIST_OFFSETS_EARLIEST_TIMESTAMP => detail.offset.start_offset,
-        LIST_OFFSETS_LATEST_TIMESTAMP => detail.offset.high_watermark,
-        ts => resolved_by_timestamp
-            .get(&ts)
-            .and_then(|offsets| offsets.get(&partition))
-            .copied()
-            .unwrap_or(detail.offset.start_offset),
-    }
-}
-
-fn unknown_partition_response(partition_index: i32) -> ListOffsetsPartitionResponse {
-    ListOffsetsPartitionResponse::default()
-        .with_partition_index(partition_index)
-        .with_error_code(ResponseError::UnknownTopicOrPartition.code())
-        .with_offset(NO_OFFSET)
-}
-
 pub async fn process_list_offsets(
     sdm: &Arc<StorageDriverManager>,
     req: &ListOffsetsRequest,
@@ -242,6 +214,34 @@ pub async fn process_offset_delete(
             .with_error_code(delete_error_code)
             .with_topics(topics),
     ))
+}
+
+/// Pick the offset ListOffsets should report for one partition: the shard's
+/// known start/high-watermark for the earliest/latest sentinels, or the
+/// pre-resolved timestamp lookup result (falling back to start_offset if the
+/// timestamp scan found nothing for this partition).
+fn resolve_offset_for_partition(
+    timestamp: i64,
+    partition: u32,
+    detail: &AdapterShardDetail,
+    resolved_by_timestamp: &HashMap<i64, HashMap<u32, u64>>,
+) -> u64 {
+    match timestamp {
+        LIST_OFFSETS_EARLIEST_TIMESTAMP => detail.offset.start_offset,
+        LIST_OFFSETS_LATEST_TIMESTAMP => detail.offset.high_watermark,
+        ts => resolved_by_timestamp
+            .get(&ts)
+            .and_then(|offsets| offsets.get(&partition))
+            .copied()
+            .unwrap_or(detail.offset.start_offset),
+    }
+}
+
+fn unknown_partition_response(partition_index: i32) -> ListOffsetsPartitionResponse {
+    ListOffsetsPartitionResponse::default()
+        .with_partition_index(partition_index)
+        .with_error_code(ResponseError::UnknownTopicOrPartition.code())
+        .with_offset(NO_OFFSET)
 }
 
 #[cfg(test)]

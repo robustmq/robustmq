@@ -35,10 +35,6 @@ use crate::core::sasl::{
 
 const SERVER_NONCE_LEN: usize = 24;
 
-fn configured_mechanisms() -> Vec<String> {
-    broker_config().kafka_runtime.sasl.mechanisms.clone()
-}
-
 pub fn process_sasl_handshake(
     cache: &Arc<KafkaCacheManager>,
     connection_id: u64,
@@ -68,24 +64,6 @@ pub fn process_sasl_handshake(
             .with_error_code(error_code)
             .with_mechanisms(mechanisms.into_iter().map(StrBytes::from).collect()),
     ))
-}
-
-fn authenticate_error(code: i16, message: &str) -> KafkaPacket {
-    KafkaPacket::SaslAuthenticateResponse(
-        SaslAuthenticateResponse::default()
-            .with_error_code(code)
-            .with_error_message(Some(StrBytes::from(message.to_string()))),
-    )
-}
-
-fn authenticate_ok(auth_bytes: Bytes) -> KafkaPacket {
-    KafkaPacket::SaslAuthenticateResponse(
-        SaslAuthenticateResponse::default()
-            .with_error_code(0)
-            .with_auth_bytes(auth_bytes)
-            // 0 = no server-imposed re-authentication window (KIP-368 deferred).
-            .with_session_lifetime_ms(0),
-    )
 }
 
 pub fn process_sasl_authenticate(
@@ -120,6 +98,28 @@ pub fn process_sasl_authenticate(
             "SaslAuthenticate received before a successful SaslHandshake",
         )),
     }
+}
+
+fn configured_mechanisms() -> Vec<String> {
+    broker_config().kafka_runtime.sasl.mechanisms.clone()
+}
+
+fn authenticate_error(code: i16, message: &str) -> KafkaPacket {
+    KafkaPacket::SaslAuthenticateResponse(
+        SaslAuthenticateResponse::default()
+            .with_error_code(code)
+            .with_error_message(Some(StrBytes::from(message.to_string()))),
+    )
+}
+
+fn authenticate_ok(auth_bytes: Bytes) -> KafkaPacket {
+    KafkaPacket::SaslAuthenticateResponse(
+        SaslAuthenticateResponse::default()
+            .with_error_code(0)
+            .with_auth_bytes(auth_bytes)
+            // 0 = no server-imposed re-authentication window (KIP-368 deferred).
+            .with_session_lifetime_ms(0),
+    )
 }
 
 fn handle_client_first(
