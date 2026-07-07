@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use crate::config::{
-    DelayTask, MetaRuntime, MqttFlappingDetect, MqttKeepAlive, MqttOfflineMessage,
-    MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer, MqttSlowSubscribeConfig,
-    MqttSystemMonitor, Network, Runtime, SchemaFailedOperation, SchemaStrategy, StorageRuntime,
+    DelayMessageConfig, DelayTask, MetaRuntime, MqttFlappingDetect, MqttKeepAlive,
+    MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer,
+    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Runtime, SchemaFailedOperation,
+    SchemaStrategy, StorageRuntime,
 };
 use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
@@ -476,4 +477,20 @@ pub fn default_delay_task_handler_concurrency() -> usize {
     std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(4)
+}
+
+// DelayMessage
+pub fn default_delay_message() -> DelayMessageConfig {
+    DelayMessageConfig {
+        max_retries: default_delay_message_max_retries(),
+        initial_retry_delay_sec: default_delay_message_initial_retry_delay_sec(),
+    }
+}
+
+pub fn default_delay_message_max_retries() -> u32 {
+    3
+}
+
+pub fn default_delay_message_initial_retry_delay_sec() -> u64 {
+    2
 }

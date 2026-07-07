@@ -71,7 +71,7 @@ function extractTags(title: string, content: string): string[] {
     '分布式', '一致性', '容错', '扩展性', '延迟', '吞吐量', '弹性',
     '协议', '多协议', '存算分离', '临时会话', '持久会话'
   ]
-  
+
   // 英文关键字列表
   const enKeywords = [
     'RobustMQ', 'Rust', 'MQTT', 'Kafka', 'AMQP', 'RocketMQ', 'GRPC', 'TLS', 'SSL',
@@ -82,16 +82,16 @@ function extractTags(title: string, content: string): string[] {
     'Optimization', 'Design', 'Open Source', 'Community', 'WebSocket', 'HTTP',
     'Distributed', 'Consistency', 'Fault Tolerance', 'Scalability', 'Latency', 'Throughput'
   ]
-  
+
   const keywords = [...zhKeywords, ...enKeywords]
   const tags: string[] = []
-  
+
   // 移除数字前缀（如 "02: "）
   const cleanTitle = title.replace(/^\d+:\s*/, '')
-  
+
   // 合并标题和内容前500字符来提取标签
   const textToSearch = cleanTitle + ' ' + content.substring(0, 500)
-  
+
   // 查找标题和内容中包含的关键字
   for (const keyword of keywords) {
     if (textToSearch.includes(keyword) && !tags.includes(keyword)) {
@@ -99,7 +99,7 @@ function extractTags(title: string, content: string): string[] {
       if (tags.length >= 3) break // 固定提取3个标签
     }
   }
-  
+
   // 如果不足3个，补充默认标签
   while (tags.length < 3) {
     if (!tags.includes('技术博客')) {
@@ -111,7 +111,7 @@ function extractTags(title: string, content: string): string[] {
       break
     }
   }
-  
+
   // 固定返回3个标签
   return tags.slice(0, 3)
 }
@@ -128,32 +128,32 @@ export default {
         const numB = parseInt(b.replace('.md', ''))
         return numB - numA
       })
-    
+
     const zhPosts: BlogPost[] = []
-    
+
     for (const file of zhFiles) {
       const filePath = path.join(zhBlogsDir, file)
       const content = fs.readFileSync(filePath, 'utf-8')
       const number = parseInt(file.replace('.md', ''))
-      
+
       const publishedDate = formatPostDate(getGitCreatedDate(filePath), 'zh')
-      
+
       // 提取标题（第一行的 # 标题）
       const titleMatch = content.match(/^#\s+(.+)$/m)
       const title = titleMatch ? titleMatch[1] : file
-      
+
       // 提取标签（从标题和内容）
       const tags = extractTags(title, content)
-      
+
       // 提取摘要（第一段非空内容，跳过 frontmatter、标题和图片）
       const lines = content.split('\n')
       let excerpt = ''
       let inFrontmatter = false
       let frontmatterCount = 0
-      
+
       for (const line of lines) {
         const trimmed = line.trim()
-        
+
         // 跳过 frontmatter
         if (trimmed === '---') {
           frontmatterCount++
@@ -163,11 +163,11 @@ export default {
         if (inFrontmatter || frontmatterCount < 2) {
           continue
         }
-        
+
         // 提取有效内容
-        if (trimmed && 
-            !trimmed.startsWith('#') && 
-            !trimmed.startsWith('<') && 
+        if (trimmed &&
+            !trimmed.startsWith('#') &&
+            !trimmed.startsWith('<') &&
             !trimmed.startsWith('>') &&
             !trimmed.startsWith('!') &&
             !trimmed.startsWith('-') &&
@@ -177,7 +177,7 @@ export default {
           break
         }
       }
-      
+
       zhPosts.push({
         title,
         url: `/zh/Blogs/${file.replace('.md', '')}`,
@@ -189,10 +189,10 @@ export default {
         pinned: number === PINNED_POST_NUMBER
       })
     }
-    
+
     // 读取英文博客
     const enBlogsDir = path.resolve(__dirname, '../../en/Blogs')
-    const enFiles = fs.existsSync(enBlogsDir) 
+    const enFiles = fs.existsSync(enBlogsDir)
       ? fs.readdirSync(enBlogsDir)
           .filter(file => file.endsWith('.md') && file !== 'index.md')
           .sort((a, b) => {
@@ -201,30 +201,30 @@ export default {
             return numB - numA
           })
       : []
-    
+
     const enPosts: BlogPost[] = []
-    
+
     for (const file of enFiles) {
       const filePath = path.join(enBlogsDir, file)
       const content = fs.readFileSync(filePath, 'utf-8')
       const number = parseInt(file.replace('.md', ''))
-      
+
       const publishedDate = formatPostDate(getGitCreatedDate(filePath), 'en')
-      
+
       const titleMatch = content.match(/^#\s+(.+)$/m)
       const title = titleMatch ? titleMatch[1] : file
-      
+
       // 提取标签（从标题和内容）
       const tags = extractTags(title, content)
-      
+
       const lines = content.split('\n')
       let excerpt = ''
       let inFrontmatter = false
       let frontmatterCount = 0
-      
+
       for (const line of lines) {
         const trimmed = line.trim()
-        
+
         // 跳过 frontmatter
         if (trimmed === '---') {
           frontmatterCount++
@@ -234,11 +234,11 @@ export default {
         if (inFrontmatter || frontmatterCount < 2) {
           continue
         }
-        
+
         // 提取有效内容
-        if (trimmed && 
-            !trimmed.startsWith('#') && 
-            !trimmed.startsWith('<') && 
+        if (trimmed &&
+            !trimmed.startsWith('#') &&
+            !trimmed.startsWith('<') &&
             !trimmed.startsWith('>') &&
             !trimmed.startsWith('!') &&
             !trimmed.startsWith('-') &&
@@ -248,7 +248,7 @@ export default {
           break
         }
       }
-      
+
       enPosts.push({
         title,
         url: `/en/Blogs/${file.replace('.md', '')}`,
@@ -260,7 +260,7 @@ export default {
         pinned: number === PINNED_POST_NUMBER
       })
     }
-    
+
     return {
       zh: zhPosts,
       en: enPosts
