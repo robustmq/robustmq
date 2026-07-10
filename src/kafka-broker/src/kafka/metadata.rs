@@ -15,8 +15,9 @@
 use std::ops::Range;
 use std::sync::Arc;
 
+use crate::core::constants::{ALL_OPERATIONS_AUTHORIZED, ENDPOINT_TYPE_BROKERS};
 use crate::core::consumer_group_meta::topic_uuid;
-use crate::core::coordinator_locator::split_host_port;
+use crate::core::coordinator_locator::{coordinator_node_id, split_host_port};
 use crate::handler::tenant::get_tenant;
 use broker_core::cache::NodeCacheManager;
 use common_config::broker::broker_config;
@@ -33,17 +34,9 @@ use kafka_protocol::messages::{
     DescribeTopicPartitionsResponse, MetadataRequest, MetadataResponse, TopicName,
 };
 use kafka_protocol::protocol::StrBytes;
-use metadata_struct::topic::Topic;
+use metadata_struct::topic::{Topic, TopicSource};
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::StorageDriverManager;
-
-// RobustMQ has no KRaft-style separate controller listener, so DescribeCluster
-// always describes the broker endpoint regardless of what the request asked for.
-const ENDPOINT_TYPE_BROKERS: i8 = 1;
-
-// ACLs aren't enforced yet, so report every operation as authorized rather
-// than fabricating a bitmask we can't back up.
-const ALL_OPERATIONS_AUTHORIZED: i32 = -1;
 
 struct PartitionReplicaState {
     leader_id: i32,
@@ -60,14 +53,14 @@ struct TopicPartitionCount {
 type TopicCursor = (String, i32);
 type TopicPage = (usize, Range<u32>);
 
-pub fn process_metadata(
+pub async fn process_metadata(
     broker_cache: &Arc<NodeCacheManager>,
     sdm: &Arc<StorageDriverManager>,
     req: &MetadataRequest,
 ) -> Option<KafkaPacket> {
-    let topics = build_topics_from_cache(broker_cache, sdm, req);
+    let topics = build_topics_from_cache(broker_cache, sdm, req).await;
     let brokers = build_brokers_from_cache(broker_cache);
-    let controller_id = pick_controller_id(broker_cache);
+    let controller_id = pick_controller_id(sdm).await;
 
     let resp = MetadataResponse::default()
         .with_brokers(brokers)
@@ -77,12 +70,13 @@ pub fn process_metadata(
     Some(KafkaPacket::MetadataResponse(resp))
 }
 
-pub fn process_describe_cluster(
+pub async fn process_describe_cluster(
     broker_cache: &Arc<NodeCacheManager>,
+    sdm: &Arc<StorageDriverManager>,
     _req: &DescribeClusterRequest,
 ) -> Option<KafkaPacket> {
     let brokers = build_cluster_brokers_from_cache(broker_cache);
-    let controller_id = pick_controller_id(broker_cache);
+    let controller_id = pick_controller_id(sdm).await;
 
     let resp = DescribeClusterResponse::default()
         .with_endpoint_type(ENDPOINT_TYPE_BROKERS)
@@ -145,7 +139,7 @@ pub fn process_describe_topic_partitions(
                         .with_error_code(0)
                         .with_topic_id(topic_uuid(get_tenant(), &topic.topic_name))
                         .with_name(name)
-                        .with_is_internal(false)
+                        .with_is_internal(topic.source == TopicSource::SystemInner)
                         .with_partitions(partitions)
                         .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED)
                 }
@@ -182,8 +176,6 @@ fn build_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<MetadataRespon
         .collect()
 }
 
-// RobustMQ tracks neither rack placement nor a KRaft-style fenced state, so
-// both fields fall back to their "unset"/"healthy" defaults for every node.
 fn build_cluster_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<DescribeClusterBroker> {
     cache
         .node_list()
@@ -202,17 +194,14 @@ fn build_cluster_brokers_from_cache(cache: &Arc<NodeCacheManager>) -> Vec<Descri
         .collect()
 }
 
-// todo
-fn pick_controller_id(cache: &Arc<NodeCacheManager>) -> i32 {
-    cache
-        .node_list()
-        .into_iter()
-        .map(|n| n.node_id as i32)
-        .min()
-        .unwrap_or(0)
+async fn pick_controller_id(sdm: &Arc<StorageDriverManager>) -> i32 {
+    coordinator_node_id(sdm)
+        .await
+        .map(|id| id as i32)
+        .unwrap_or(-1)
 }
 
-fn build_topics_from_cache(
+async fn build_topics_from_cache(
     cache: &Arc<NodeCacheManager>,
     sdm: &Arc<StorageDriverManager>,
     req: &MetadataRequest,
@@ -227,18 +216,30 @@ fn build_topics_from_cache(
             .collect();
     }
 
-    requested
-        .iter()
-        .filter_map(|t| t.name.clone())
-        .map(|name| match cache.get_topic_by_name(get_tenant(), &name) {
+    let auto_create = req.allow_auto_topic_creation
+        && cache
+            .get_cluster_config()
+            .kafka_dynamic
+            .auto_create_topics_enable;
+
+    let mut topics = Vec::with_capacity(requested.len());
+    for name in requested.iter().filter_map(|t| t.name.clone()) {
+        let existing = cache.get_topic_by_name(get_tenant(), &name);
+        let resolved = match existing {
+            Some(topic) => Some(topic),
+            None if auto_create => crate::kafka::topic::auto_create_topic(sdm, &name).await,
+            None => None,
+        };
+        topics.push(match resolved {
             Some(topic) => topic_to_metadata(topic, sdm),
             None => MetadataResponseTopic::default()
                 .with_error_code(ResponseError::UnknownTopicOrPartition.code())
                 .with_name(Some(name))
                 .with_is_internal(false)
                 .with_partitions(vec![]),
-        })
-        .collect()
+        });
+    }
+    topics
 }
 
 fn topic_to_metadata(topic: Topic, sdm: &Arc<StorageDriverManager>) -> MetadataResponseTopic {
@@ -248,16 +249,11 @@ fn topic_to_metadata(topic: Topic, sdm: &Arc<StorageDriverManager>) -> MetadataR
     MetadataResponseTopic::default()
         .with_error_code(0)
         .with_topic_id(topic_uuid(get_tenant(), &topic.topic_name))
+        .with_is_internal(topic.source == TopicSource::SystemInner)
         .with_name(Some(TopicName(StrBytes::from(topic.topic_name))))
-        .with_is_internal(false)
         .with_partitions(partitions)
 }
 
-// Partition leader/replicas/ISR are read from the shard's active segment
-// (owned by storage-engine's ISR/leader-rebalance machinery) rather than
-// tracked separately here, so failover and rebalancing stay in sync
-// automatically. Falls back to broker 0 when the shard has no active
-// segment yet (e.g. topic storage type without ISR, or not yet created).
 fn partition_replica_state(
     partition_index: i32,
     topic: &Topic,
@@ -318,14 +314,6 @@ fn describe_topic_partition(
         .with_offline_replicas(vec![])
 }
 
-/// Decide which (topic, partition-range) slices belong on this page and
-/// where the next page should resume, per the DescribeTopicPartitions
-/// cursor protocol (KIP-966): topics are walked in name order (`topics`
-/// must already be sorted), partitions within a topic in index order, and
-/// the page stops once `limit` partitions have been emitted. A topic with
-/// `partition_count == 0` (unknown topic, reported as an error entry with
-/// no partitions) never consumes budget, so it's always included as soon
-/// as the walk reaches it.
 fn paginate_topic_partitions(
     topics: &[TopicPartitionCount],
     cursor: Option<TopicCursor>,
@@ -385,34 +373,20 @@ mod tests {
     }
 
     #[test]
-    fn paginate_topic_partitions_returns_everything_when_budget_is_not_exceeded() {
-        let topics = counts(&[("t1", 2), ("t2", 1)]);
-        let (pages, next) = paginate_topic_partitions(&topics, None, 10);
-        assert_eq!(pages, vec![(0, 0..2), (1, 0..1)]);
-        assert_eq!(next, None);
-    }
-
-    #[test]
-    fn paginate_topic_partitions_resumes_mid_topic_from_cursor() {
+    fn paginate_cuts_off_at_budget_then_resumes_from_cursor() {
         let topics = counts(&[("t1", 3), ("t2", 1)]);
-        let (pages, next) = paginate_topic_partitions(&topics, Some(("t1".to_string(), 2)), 10);
+
+        let (pages, next) = paginate_topic_partitions(&topics, None, 2);
+        assert_eq!(pages, vec![(0, 0..2)]);
+        assert_eq!(next, Some(("t1".to_string(), 2)));
+
+        let (pages, next) = paginate_topic_partitions(&topics, next, 10);
         assert_eq!(pages, vec![(0, 2..3), (1, 0..1)]);
         assert_eq!(next, None);
     }
 
     #[test]
-    fn paginate_topic_partitions_cuts_off_mid_topic_when_budget_runs_out() {
-        let topics = counts(&[("t1", 3), ("t2", 2)]);
-        let (pages, next) = paginate_topic_partitions(&topics, None, 2);
-        assert_eq!(pages, vec![(0, 0..2)]);
-        assert_eq!(next, Some(("t1".to_string(), 2)));
-    }
-
-    #[test]
-    fn paginate_topic_partitions_always_includes_unknown_topic_regardless_of_budget() {
-        // "missing" topic has partition_count 0 (reported as an error entry
-        // with no partitions), so it never consumes budget and is included
-        // as soon as the walk reaches it, even with zero budget left.
+    fn paginate_includes_zero_partition_topic_without_consuming_budget() {
         let topics = counts(&[("t1", 2), ("missing", 0), ("t3", 1)]);
         let (pages, next) = paginate_topic_partitions(&topics, None, 2);
         assert_eq!(pages, vec![(0, 0..2), (1, 0..0)]);

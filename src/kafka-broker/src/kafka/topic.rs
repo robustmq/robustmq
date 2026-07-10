@@ -105,6 +105,33 @@ pub async fn process_create_partitions(
     ))
 }
 
+pub(crate) async fn auto_create_topic(
+    sdm: &Arc<StorageDriverManager>,
+    topic_name: &str,
+) -> Option<Topic> {
+    let conf = broker_config();
+    let topic = Topic::new(get_tenant(), topic_name, StorageType::EngineSegment)
+        .with_source(TopicSource::Kafka)
+        .with_partition(conf.runtime.default_topic_partition_num)
+        .with_replication(conf.runtime.default_topic_replica_num)
+        .with_config(TopicConfig::default());
+
+    match create_topic_full(
+        &sdm.broker_cache,
+        sdm,
+        &sdm.engine_storage_handler.client_pool,
+        &topic,
+    )
+    .await
+    {
+        Ok(()) => sdm.broker_cache.get_topic_by_name(get_tenant(), topic_name),
+        Err(e) => {
+            warn!("Kafka auto-create topic failed for {}: {}", topic_name, e);
+            None
+        }
+    }
+}
+
 fn topic_error(
     name: kafka_protocol::messages::TopicName,
     err: ResponseError,

@@ -18,8 +18,8 @@ use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_config::config::{
-    BrokerConfig, MetaRuntime, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig,
-    MqttSchema, MqttSlowSubscribeConfig, MqttSystemMonitor,
+    BrokerConfig, KafkaDynamic, MetaRuntime, MqttFlappingDetect, MqttOfflineMessage,
+    MqttProtocolConfig, MqttSchema, MqttSlowSubscribeConfig, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
 use std::sync::Arc;
@@ -37,6 +37,7 @@ pub enum ClusterDynamicConfig {
     MqttLimit,
     ClusterLimit,
     MetaRuntime,
+    KafkaDynamic,
 }
 
 pub async fn build_cluster_config(
@@ -65,6 +66,10 @@ pub async fn build_cluster_config(
 
     if let Some(data) = get_system_monitor(client_pool).await? {
         conf.mqtt_system_monitor = data;
+    }
+
+    if let Some(data) = get_kafka_dynamic(client_pool).await? {
+        conf.kafka_dynamic = data;
     }
 
     Ok(conf)
@@ -103,6 +108,9 @@ pub fn update_cluster_dynamic_config(
         }
         ClusterDynamicConfig::MetaRuntime => {
             new_config.meta_runtime = serde_json::from_slice::<MetaRuntime>(&config)?;
+        }
+        ClusterDynamicConfig::KafkaDynamic => {
+            new_config.kafka_dynamic = serde_json::from_slice(&config)?;
         }
     }
     node_cache.set_cluster_config(new_config);
@@ -202,6 +210,21 @@ async fn get_system_monitor(
 
     if !data.is_empty() {
         return Ok(Some(serde_json::from_slice::<MqttSystemMonitor>(&data)?));
+    }
+
+    Ok(None)
+}
+
+async fn get_kafka_dynamic(
+    client_pool: &Arc<ClientPool>,
+) -> Result<Option<KafkaDynamic>, CommonError> {
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
+    let data = cluster_storage
+        .get_dynamic_config(&ClusterDynamicConfig::KafkaDynamic.to_string())
+        .await?;
+
+    if !data.is_empty() {
+        return Ok(Some(serde_json::from_slice::<KafkaDynamic>(&data)?));
     }
 
     Ok(None)

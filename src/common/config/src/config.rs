@@ -198,6 +198,8 @@ pub struct BrokerConfig {
     // Kafka
     #[serde(default)]
     pub kafka_runtime: KafkaRuntime,
+    #[serde(default)]
+    pub kafka_dynamic: KafkaDynamic,
 
     // AMQP
     #[serde(default)]
@@ -254,6 +256,7 @@ impl Default for BrokerConfig {
 
             // Kafka
             kafka_runtime: KafkaRuntime::default(),
+            kafka_dynamic: KafkaDynamic::default(),
 
             // AMQP
             amqp_runtime: AmqpRuntime::default(),
@@ -813,6 +816,12 @@ impl Default for KafkaSasl {
 
 fn default_kafka_sasl_mechanisms() -> Vec<String> {
     vec!["SCRAM-SHA-256".to_string(), "SCRAM-SHA-512".to_string()]
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct KafkaDynamic {
+    #[serde(default)]
+    pub auto_create_topics_enable: bool,
 }
 
 fn default_kafka_max_describe_topic_partitions() -> u32 {

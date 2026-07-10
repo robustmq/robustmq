@@ -44,3 +44,6 @@ pub const NO_PRODUCER_ID: i64 = -1;
 pub const NO_PRODUCER_EPOCH: i16 = -1;
 /// Fetch: last stable offset unknown (transactions not yet supported).
 pub const NO_LAST_STABLE_OFFSET: i64 = -1;
+
+pub const ENDPOINT_TYPE_BROKERS: i8 = 1;
+pub const ALL_OPERATIONS_AUTHORIZED: i32 = -1;

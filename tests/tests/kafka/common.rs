@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod engine;
-pub mod group_gc;
-pub mod kafka;
-pub mod mcp_test;
-pub mod mqtt;
-pub mod nats;
-pub mod node_call;
-pub mod offset_test;
-pub mod raft_cluster_drill;
-pub mod topic_test;
+use rdkafka::config::ClientConfig;
+use rdkafka::consumer::BaseConsumer;
+
+pub fn bootstrap_servers() -> String {
+    std::env::var("KAFKA_BOOTSTRAP_SERVERS").unwrap_or_else(|_| "localhost:9092".to_string())
+}
+
+pub fn consumer() -> BaseConsumer {
+    ClientConfig::new()
+        .set("bootstrap.servers", bootstrap_servers())
+        .create()
+        .expect("create kafka consumer")
+}

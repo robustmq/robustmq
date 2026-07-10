@@ -59,3 +59,9 @@ a2a-types.workspace = true
 reqwest.workspace = true
 meta-service.workspace = true
 async-trait.workspace = true
+
+[target.'cfg(not(windows))'.dev-dependencies]
+rdkafka = { workspace = true }
+
+[target.'cfg(windows)'.dev-dependencies]
+rdkafka = { workspace = true, features = ["cmake-build"] }

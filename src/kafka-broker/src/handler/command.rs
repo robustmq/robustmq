@@ -102,6 +102,7 @@ impl Command for KafkaHandlerCommand {
             }
             KafkaPacket::MetadataReq(req) => {
                 metadata::process_metadata(&self.broker_cache, &self.storage_driver_manager, req)
+                    .await
             }
             // Consumer Group Management
             KafkaPacket::OffsetCommitReq(req) => {
@@ -285,7 +286,12 @@ impl Command for KafkaHandlerCommand {
             }
             KafkaPacket::UpdateFeaturesReq(req) => admin::process_update_features(req),
             KafkaPacket::DescribeClusterReq(req) => {
-                metadata::process_describe_cluster(&self.broker_cache, req)
+                metadata::process_describe_cluster(
+                    &self.broker_cache,
+                    &self.storage_driver_manager,
+                    req,
+                )
+                .await
             }
             KafkaPacket::DescribeProducersReq(req) => admin::process_describe_producers(req),
             KafkaPacket::DescribeTopicPartitionsReq(req) => {

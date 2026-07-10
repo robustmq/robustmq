@@ -51,6 +51,7 @@ pub async fn cluster_config_set(
         "MqttLimit" => ClusterDynamicConfig::MqttLimit,
         "ClusterLimit" => ClusterDynamicConfig::ClusterLimit,
         "MetaRuntime" => ClusterDynamicConfig::MetaRuntime,
+        "KafkaDynamic" => ClusterDynamicConfig::KafkaDynamic,
         other => {
             return error_response(format!("Unknown config_type: {other}"));
         }
