@@ -23,6 +23,16 @@ use prometheus_client::encoding::EncodeLabelSet;
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq, Default)]
 pub struct DelayLabel {}
 
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct DelayRetryLabel {
+    pub status: String,
+}
+
+#[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
+pub struct DelayRetryCountLabel {
+    pub attempt: String,
+}
+
 // ── Metrics ─────────────────────────────────────────────────────────────────
 
 register_counter_metric!(
@@ -74,7 +84,38 @@ register_counter_metric!(
     DelayLabel
 );
 
+register_counter_metric!(
+    DELAY_MSG_RETRY_TOTAL,
+    "delay_message_retry_total",
+    "Total number of delay message retry attempts, labeled by outcome",
+    DelayRetryLabel
+);
+
+register_counter_metric!(
+    DELAY_MSG_RETRY_COUNT,
+    "delay_message_retry_count",
+    "Number of retry attempts per message, labeled by attempt number",
+    DelayRetryCountLabel
+);
+
+register_counter_metric!(
+    DELAY_MSG_REENQUEUED_TOTAL,
+    "delay_message_reenqueued_total",
+    "Total number of delay messages re-enqueued after retry exhaustion",
+    DelayLabel
+);
+
+register_counter_metric!(
+    DELAY_MSG_DEAD_LETTER_TOTAL,
+    "delay_message_dead_letter_total",
+    "Total number of delay messages sent to dead letter queue",
+    DelayLabel
+);
+
 // ── Public API ──────────────────────────────────────────────────────────────
+
+const STATUS_SUCCESS: &str = "success";
+const STATUS_FAILED: &str = "failed";
 
 fn label() -> DelayLabel {
     DelayLabel {}
@@ -115,10 +156,53 @@ pub fn record_delay_msg_recover_expired() {
     counter_metric_inc!(DELAY_MSG_RECOVER_EXPIRED_TOTAL, l);
 }
 
+pub fn record_delay_msg_retry(success: bool) {
+    let l = DelayRetryLabel {
+        status: if success {
+            STATUS_SUCCESS
+        } else {
+            STATUS_FAILED
+        }
+        .to_string(),
+    };
+    counter_metric_inc!(DELAY_MSG_RETRY_TOTAL, l);
+}
+
+pub fn record_delay_msg_retry_count(attempt: u32) {
+    let l = DelayRetryCountLabel {
+        attempt: attempt.to_string(),
+    };
+    counter_metric_inc!(DELAY_MSG_RETRY_COUNT, l);
+}
+
+pub fn record_delay_msg_reenqueued() {
+    let l = label();
+    counter_metric_inc!(DELAY_MSG_REENQUEUED_TOTAL, l);
+}
+
+pub fn record_delay_msg_dead_letter() {
+    let l = label();
+    counter_metric_inc!(DELAY_MSG_DEAD_LETTER_TOTAL, l);
+}
+
 pub fn init() {
     counter_metric_touch!(DELAY_MSG_ENQUEUE_TOTAL, DelayLabel {});
     counter_metric_touch!(DELAY_MSG_DELIVER_TOTAL, DelayLabel {});
     counter_metric_touch!(DELAY_MSG_DELIVER_FAIL_TOTAL, DelayLabel {});
     counter_metric_touch!(DELAY_MSG_RECOVER_TOTAL, DelayLabel {});
     counter_metric_touch!(DELAY_MSG_RECOVER_EXPIRED_TOTAL, DelayLabel {});
+    counter_metric_touch!(
+        DELAY_MSG_RETRY_TOTAL,
+        DelayRetryLabel {
+            status: String::new(),
+        }
+    );
+    counter_metric_touch!(
+        DELAY_MSG_RETRY_COUNT,
+        DelayRetryCountLabel {
+            attempt: String::new(),
+        }
+    );
+    counter_metric_touch!(DELAY_MSG_REENQUEUED_TOTAL, DelayLabel {});
+    counter_metric_touch!(DELAY_MSG_DEAD_LETTER_TOTAL, DelayLabel {});
 }

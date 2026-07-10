@@ -270,6 +270,7 @@ impl BrokerServer {
                 base.client_pool.clone(),
                 storage_driver_manager.clone(),
                 5,
+                config.delay_message.clone(),
             )
             .await
             {

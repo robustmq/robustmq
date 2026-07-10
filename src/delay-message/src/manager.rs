@@ -19,6 +19,7 @@ use crate::{pop::spawn_delay_message_pop_threads, recover::recover_delay_queue};
 use common_base::task::TaskSupervisor;
 use common_base::uuid::unique_id;
 use common_base::{error::common::CommonError, tools::now_second};
+use common_config::config::DelayMessageConfig;
 use common_metrics::mqtt::delay::{record_delay_msg_enqueue, record_delay_msg_enqueue_duration};
 use dashmap::DashMap;
 use grpc_clients::pool::ClientPool;
@@ -83,6 +84,7 @@ pub struct DelayMessageManager {
     pub incr_no: AtomicU32,
     /// unique_id → (shard_no, queue key).
     message_key_map: DashMap<String, (u32, delay_queue::Key)>,
+    pub delay_message_config: DelayMessageConfig,
 }
 
 impl DelayMessageManager {
@@ -90,6 +92,7 @@ impl DelayMessageManager {
         client_pool: Arc<ClientPool>,
         storage_driver_manager: Arc<StorageDriverManager>,
         delay_queue_num: u32,
+        delay_message_config: DelayMessageConfig,
     ) -> Result<Self, CommonError> {
         let driver = DelayMessageManager {
             client_pool,
@@ -99,6 +102,7 @@ impl DelayMessageManager {
             incr_no: AtomicU32::new(0),
             delay_queue_num,
             message_key_map: DashMap::new(),
+            delay_message_config,
         };
         Ok(driver)
     }
@@ -298,6 +302,11 @@ impl DelayMessageManager {
 
     pub fn add_delay_queue_pop_thread(&self, shard_no: u32, stop_send: broadcast::Sender<bool>) {
         self.delay_queue_pop_thread.insert(shard_no, stop_send);
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn is_message_in_queue(&self, unique_id: &str) -> bool {
+        self.message_key_map.contains_key(unique_id)
     }
 }
 
