@@ -407,7 +407,7 @@ pub fn default_topic_partition_num() -> u32 {
     1
 }
 pub fn default_topic_replica_num() -> u32 {
-    2
+    1
 }
 
 // ClusterLimit

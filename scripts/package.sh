@@ -137,19 +137,34 @@ error() { echo "[ERROR] $*" >&2; }
 
 cd "${REMOTE_DIR}"
 
-# Switch branch if needed
+# Switch to the same branch as local, creating it if it does not exist on origin
+# yet (the branch may live only on upstream, or be brand new). The push below
+# then creates it on origin.
 REMOTE_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 info "Remote branch: ${REMOTE_BRANCH}"
 if [[ "${REMOTE_BRANCH}" != "${LOCAL_BRANCH}" ]]; then
   info "Switching to branch ${LOCAL_BRANCH} ..."
-  git fetch origin
-  git checkout "${LOCAL_BRANCH}" 2>/dev/null \
-    || git checkout -b "${LOCAL_BRANCH}" "origin/${LOCAL_BRANCH}"
+  git fetch origin --prune || true
+  git fetch upstream --prune 2>/dev/null || true
+  if git rev-parse --verify --quiet "refs/heads/${LOCAL_BRANCH}" >/dev/null; then
+    git checkout "${LOCAL_BRANCH}"
+  elif git rev-parse --verify --quiet "refs/remotes/origin/${LOCAL_BRANCH}" >/dev/null; then
+    git checkout -b "${LOCAL_BRANCH}" "origin/${LOCAL_BRANCH}"
+  elif git rev-parse --verify --quiet "refs/remotes/upstream/${LOCAL_BRANCH}" >/dev/null; then
+    info "Branch only on upstream; basing ${LOCAL_BRANCH} on upstream/${LOCAL_BRANCH}."
+    git checkout -b "${LOCAL_BRANCH}" "upstream/${LOCAL_BRANCH}"
+  else
+    info "Branch ${LOCAL_BRANCH} not found on any remote; creating from current HEAD."
+    git checkout -b "${LOCAL_BRANCH}"
+  fi
 fi
 
-# Pull latest before extracting so conflicts are resolved in order
-info "Pulling origin/${LOCAL_BRANCH} ..."
-git pull origin "${LOCAL_BRANCH}"
+# Pull latest before extracting only when the branch exists on origin, so a
+# not-yet-pushed branch does not fail the sync.
+if git rev-parse --verify --quiet "refs/remotes/origin/${LOCAL_BRANCH}" >/dev/null; then
+  info "Pulling origin/${LOCAL_BRANCH} ..."
+  git pull --no-rebase origin "${LOCAL_BRANCH}"
+fi
 
 # Extract the uploaded archive (overwrites pulled content with local changes)
 if [[ "${SKIP_ARCHIVE}" -eq 0 && -f "${ARCHIVE_NAME}" ]]; then

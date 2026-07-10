@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use admin_server::client::AdminHttpClient;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::BaseConsumer;
 
@@ -24,4 +25,22 @@ pub fn consumer() -> BaseConsumer {
         .set("bootstrap.servers", bootstrap_servers())
         .create()
         .expect("create kafka consumer")
+}
+
+pub fn admin_http_addr() -> String {
+    std::env::var("ROBUSTMQ_ADMIN_ADDR").unwrap_or_else(|_| "http://127.0.0.1:58080".to_string())
+}
+
+// Toggle the cluster-level Kafka `auto_create_topics_enable` dynamic config
+// through the admin HTTP API.
+pub async fn set_auto_create_topics(enabled: bool) {
+    let client = AdminHttpClient::new(&admin_http_addr());
+    let body = serde_json::json!({
+        "config_type": "KafkaDynamic",
+        "config": format!("{{\"auto_create_topics_enable\":{}}}", enabled),
+    });
+    client
+        .post_raw("/api/cluster/config/set", &body)
+        .await
+        .expect("set KafkaDynamic auto_create_topics_enable");
 }

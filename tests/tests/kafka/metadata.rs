@@ -14,9 +14,53 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::kafka::common::consumer;
-    use rdkafka::consumer::Consumer;
+    use crate::kafka::common::{bootstrap_servers, consumer, set_auto_create_topics};
+    use rdkafka::config::ClientConfig;
+    use rdkafka::consumer::{BaseConsumer, Consumer};
     use std::time::Duration;
+
+    fn topic_exists(topic_name: &str) -> bool {
+        consumer()
+            .fetch_metadata(None, Duration::from_secs(10))
+            .expect("fetch cluster metadata")
+            .topics()
+            .iter()
+            .any(|t| t.name() == topic_name)
+    }
+
+    #[tokio::test]
+    async fn metadata_auto_creates_topic_when_enabled() {
+        let consumer: BaseConsumer = ClientConfig::new()
+            .set("bootstrap.servers", bootstrap_servers())
+            .set("allow.auto.create.topics", "true")
+            .create()
+            .expect("create kafka consumer");
+
+        let topic_name = format!("it-autocreate-{}", uuid::Uuid::new_v4());
+
+        set_auto_create_topics(false).await;
+        let _ = consumer.fetch_metadata(Some(&topic_name), Duration::from_secs(10));
+        assert!(
+            !topic_exists(&topic_name),
+            "topic was created while auto-create was disabled"
+        );
+
+        set_auto_create_topics(true).await;
+
+        let mut created = false;
+        for _ in 0..10 {
+            let _ = consumer.fetch_metadata(Some(&topic_name), Duration::from_secs(10));
+            if topic_exists(&topic_name) {
+                created = true;
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        set_auto_create_topics(false).await;
+
+        assert!(created, "topic was not auto-created after enabling the switch");
+    }
 
     #[test]
     fn fetch_cluster_metadata_returns_brokers() {
@@ -64,5 +108,20 @@ mod tests {
             assert!(!broker.host().is_empty(), "broker host is empty");
             assert!(broker.port() > 0, "broker port is not set");
         }
+
+        // rdkafka's Metadata omits controller_id; read it via the C API.
+        let controller_id = unsafe {
+            rdkafka::bindings::rd_kafka_controllerid(consumer.client().native_ptr(), 10_000)
+        };
+        println!("controller_id: {}", controller_id);
+        assert!(
+            controller_id >= 0,
+            "no controller id reported by the cluster"
+        );
+        assert!(
+            metadata.brokers().iter().any(|b| b.id() == controller_id),
+            "controller id {} is not present in the broker list",
+            controller_id
+        );
     }
 }
