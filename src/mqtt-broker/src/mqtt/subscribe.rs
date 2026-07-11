@@ -386,7 +386,7 @@ async fn subscribe_validator(
 ) -> (Vec<SubscribeReasonCode>, String) {
     if subscribe.packet_identifier == 0 {
         return (
-            vec![SubscribeReasonCode::PkidInUse],
+            vec![SubscribeReasonCode::Unspecified],
             "Packet identifier must be non-zero".to_string(),
         );
     }
@@ -403,7 +403,7 @@ async fn subscribe_validator(
             if protocol.is_mqtt5() {
                 if sub_id == 0 || sub_id > 268_435_455 {
                     return (
-                        vec![SubscribeReasonCode::SubscriptionIdNotSupported],
+                        vec![SubscribeReasonCode::TopicFilterInvalid],
                         format!(
                             "Subscription identifier must be in range 1-268435455, got {}",
                             sub_id
@@ -520,7 +520,7 @@ fn un_subscribe_validator(
     // Validate that at least one topic filter is present
     if un_subscribe.filters.is_empty() {
         return (
-            vec![],
+            vec![UnsubAckReason::TopicFilterInvalid],
             "UNSUBSCRIBE must contain at least one topic filter".to_string(),
         );
     }
@@ -561,4 +561,267 @@ fn un_subscribe_validator(
     };
 
     (return_codes, error_msg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::tool::test_build_mqtt_cache_manager;
+    use common_base::tools::now_second;
+    use common_security::manager::SecurityManager;
+    use dashmap::DashMap;
+    use metadata_struct::mqtt::connection::MQTTConnection;
+    use protocol::mqtt::common::{
+        Filter, MqttProtocol, QoS, Subscribe, SubscribeProperties, Unsubscribe,
+    };
+    use std::sync::Arc;
+
+    fn build_test_connection() -> MQTTConnection {
+        MQTTConnection {
+            connect_id: 1,
+            tenant: "test_tenant".to_string(),
+            client_id: "test_client".to_string(),
+            is_login: true,
+            source_ip_addr: "127.0.0.1".to_string(),
+            source_ip: "127.0.0.1".to_string(),
+            clean_session: true,
+            login_user: None,
+            keep_alive: 60,
+            topic_alias: DashMap::new(),
+            client_max_receive_maximum: 100,
+            max_packet_size: 1024 * 1024,
+            topic_alias_max: 10,
+            request_problem_info: 1,
+            create_time: now_second(),
+        }
+    }
+
+    fn build_test_subscribe(pkid: u16, filters: Vec<Filter>) -> Subscribe {
+        Subscribe {
+            packet_identifier: pkid,
+            filters,
+        }
+    }
+
+    fn build_test_filter(path: &str, qos: QoS) -> Filter {
+        Filter {
+            path: path.to_string(),
+            qos,
+            ..Default::default()
+        }
+    }
+
+    async fn run_subscribe_validator(
+        subscribe: Subscribe,
+        properties: Option<SubscribeProperties>,
+        protocol: MqttProtocol,
+    ) -> (Vec<SubscribeReasonCode>, String) {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let security_manager = Arc::new(SecurityManager::new());
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let connection = build_test_connection();
+
+        subscribe_validator(
+            &cache_manager,
+            &security_manager,
+            &subscribe_manager,
+            &connection,
+            &subscribe,
+            &properties,
+            &protocol,
+        )
+        .await
+    }
+
+    fn sub_id_props(id: usize) -> SubscribeProperties {
+        SubscribeProperties {
+            subscription_identifier: Some(id),
+            ..Default::default()
+        }
+    }
+
+    // =========================================================================
+    // SUBSCRIBE validator tests
+    // =========================================================================
+
+    /// pkid=0 is a malformed packet, not "PkidInUse".
+    /// Expected: `Unspecified` (0x80), not `PkidInUse` (0x91).
+    #[tokio::test]
+    async fn subscribe_validator_pkid_zero_returns_unspecified() {
+        let subscribe = build_test_subscribe(0, vec![build_test_filter("/test", QoS::AtLeastOnce)]);
+        let (codes, msg) = run_subscribe_validator(subscribe, None, MqttProtocol::Mqtt5).await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::Unspecified]);
+        assert!(msg.contains("non-zero"));
+    }
+
+    /// Subscription identifier 0 is out of the valid range (1–268435455).
+    /// Expected: `TopicFilterInvalid` (0x8F), not `SubscriptionIdNotSupported` (0xA1).
+    #[tokio::test]
+    async fn subscribe_validator_sub_id_zero_returns_topic_filter_invalid() {
+        let subscribe = build_test_subscribe(1, vec![build_test_filter("/test", QoS::AtLeastOnce)]);
+        let (codes, _) =
+            run_subscribe_validator(subscribe, Some(sub_id_props(0)), MqttProtocol::Mqtt5).await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::TopicFilterInvalid]);
+    }
+
+    /// Subscription identifier above max (268435456) is out of range.
+    /// Expected: `TopicFilterInvalid` (0x8F).
+    #[tokio::test]
+    async fn subscribe_validator_sub_id_above_max_returns_topic_filter_invalid() {
+        let subscribe = build_test_subscribe(1, vec![build_test_filter("/test", QoS::AtLeastOnce)]);
+        let (codes, _) = run_subscribe_validator(
+            subscribe,
+            Some(sub_id_props(268_435_456)),
+            MqttProtocol::Mqtt5,
+        )
+        .await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::TopicFilterInvalid]);
+    }
+
+    /// Empty filter list is rejected with `TopicFilterInvalid`.
+    #[tokio::test]
+    async fn subscribe_validator_empty_filters_returns_topic_filter_invalid() {
+        let subscribe = build_test_subscribe(1, vec![]);
+        let (codes, msg) = run_subscribe_validator(subscribe, None, MqttProtocol::Mqtt5).await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::TopicFilterInvalid]);
+        assert!(!msg.is_empty());
+    }
+
+    /// Malformed topic filter (e.g. `#` not at end) is rejected.
+    #[tokio::test]
+    async fn subscribe_validator_invalid_topic_filter_path() {
+        let subscribe =
+            build_test_subscribe(1, vec![build_test_filter("/test/#/bad", QoS::AtLeastOnce)]);
+        let (codes, _) = run_subscribe_validator(subscribe, None, MqttProtocol::Mqtt5).await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::TopicFilterInvalid]);
+    }
+
+    /// Normal subscribe with a valid filter succeeds (returns empty codes vec).
+    #[tokio::test]
+    async fn subscribe_validator_success_returns_empty() {
+        let subscribe =
+            build_test_subscribe(1, vec![build_test_filter("/test/topic", QoS::AtLeastOnce)]);
+        let (codes, msg) = run_subscribe_validator(subscribe, None, MqttProtocol::Mqtt5).await;
+
+        assert!(codes.is_empty(), "expected empty vec, got {:?}", codes);
+        assert!(msg.is_empty());
+    }
+
+    /// A valid subscription identifier (within range) succeeds.
+    #[tokio::test]
+    async fn subscribe_validator_valid_sub_id_succeeds() {
+        let subscribe =
+            build_test_subscribe(1, vec![build_test_filter("/test/topic", QoS::AtLeastOnce)]);
+        let (codes, msg) =
+            run_subscribe_validator(subscribe, Some(sub_id_props(42)), MqttProtocol::Mqtt5).await;
+
+        assert!(codes.is_empty(), "expected empty vec, got {:?}", codes);
+        assert!(msg.is_empty());
+    }
+
+    /// MQTT v3.1.1/4 rejects subscription identifiers entirely.
+    #[tokio::test]
+    async fn subscribe_validator_nonzero_sub_id_rejected_in_mqtt4() {
+        let subscribe =
+            build_test_subscribe(1, vec![build_test_filter("/test/topic", QoS::AtLeastOnce)]);
+        let (codes, _) =
+            run_subscribe_validator(subscribe, Some(sub_id_props(1)), MqttProtocol::Mqtt4).await;
+
+        assert_eq!(codes, vec![SubscribeReasonCode::SubscriptionIdNotSupported]);
+    }
+
+    // =========================================================================
+    // UNSUBSCRIBE validator tests
+    // =========================================================================
+    #[test]
+    fn un_subscribe_validator_empty_filters_returns_error() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let un_subscribe = Unsubscribe {
+            pkid: 1,
+            filters: vec![],
+        };
+
+        let (codes, msg) =
+            un_subscribe_validator("tenant", "client", &subscribe_manager, &un_subscribe);
+
+        assert!(
+            !codes.is_empty(),
+            "BUG: empty filters must return at least one error reason code"
+        );
+        assert_eq!(codes[0], UnsubAckReason::TopicFilterInvalid);
+        assert!(msg.contains("at least one"));
+    }
+
+    /// pkid=0 is a malformed UNSUBSCRIBE packet.
+    #[test]
+    fn un_subscribe_validator_pkid_zero_returns_unspecified_error() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let un_subscribe = Unsubscribe {
+            pkid: 0,
+            filters: vec!["/test".to_string()],
+        };
+
+        let (codes, msg) =
+            un_subscribe_validator("tenant", "client", &subscribe_manager, &un_subscribe);
+
+        assert_eq!(codes, vec![UnsubAckReason::UnspecifiedError]);
+        assert!(msg.contains("non-zero"));
+    }
+
+    /// Invalid topic filter format is rejected per-filter.
+    #[test]
+    fn un_subscribe_validator_invalid_topic_filter() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let un_subscribe = Unsubscribe {
+            pkid: 1,
+            filters: vec!["/test/#/bad".to_string()],
+        };
+
+        let (codes, _) =
+            un_subscribe_validator("tenant", "client", &subscribe_manager, &un_subscribe);
+
+        assert_eq!(codes, vec![UnsubAckReason::TopicFilterInvalid]);
+    }
+
+    /// Topic filter without an active subscription returns NoSubscriptionExisted.
+    #[test]
+    fn un_subscribe_validator_no_subscription_existed() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let un_subscribe = Unsubscribe {
+            pkid: 1,
+            filters: vec!["/nonexistent".to_string()],
+        };
+
+        let (codes, _) =
+            un_subscribe_validator("tenant", "client", &subscribe_manager, &un_subscribe);
+
+        assert_eq!(codes, vec![UnsubAckReason::NoSubscriptionExisted]);
+    }
+
+    #[test]
+    fn un_subscribe_validator_mixed_valid_and_invalid() {
+        let subscribe_manager = Arc::new(SubscribeManager::new());
+        let un_subscribe = Unsubscribe {
+            pkid: 1,
+            filters: vec!["/valid/topic".to_string(), "/bad/#/invalid".to_string()],
+        };
+
+        let (codes, _) =
+            un_subscribe_validator("tenant", "client", &subscribe_manager, &un_subscribe);
+
+        // /valid/topic has no subscription -> NoSubscriptionExisted
+        // /bad/#/invalid is malformed -> TopicFilterInvalid
+        assert_eq!(
+            codes,
+            vec![
+                UnsubAckReason::NoSubscriptionExisted,
+                UnsubAckReason::TopicFilterInvalid,
+            ]
+        );
+    }
 }
