@@ -320,8 +320,10 @@ impl BrokerServer {
 
         // All broker protocols share one RequestChannel; the unified handler pool
         // is started once in start() via start_broker_handler_pool().
-        let shared_request_channel =
-            Arc::new(RequestChannel::new(config.broker_network.queue_size));
+        let shared_request_channel = Arc::new(RequestChannel::new(
+            config.broker_network.queue_size,
+            config.broker_network.handler_thread_num,
+        ));
 
         let security_manager = Arc::new(SecurityManager::new());
 

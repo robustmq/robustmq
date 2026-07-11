@@ -57,7 +57,9 @@ pub fn handler_process(
         let raw_connect_manager = connection_manager.clone();
         let raw_command = commands.clone();
         let mut raw_stop_rx = stop_sx.subscribe();
-        let receiver = request_channel.receiver.clone();
+        // Worker `index` (1-based) owns shard `index - 1`, so every request from a
+        // given connection is handled by one worker in order.
+        let receiver = request_channel.receiver(index - 1);
         let raw_handler_module = handler_module.to_string();
         let channel_size = request_channel.channel_size;
 

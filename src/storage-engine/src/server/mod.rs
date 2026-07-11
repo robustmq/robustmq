@@ -78,7 +78,10 @@ impl Server {
             ..Default::default()
         };
 
-        let request_channel = Arc::new(RequestChannel::new(conf.broker_network.queue_size));
+        let request_channel = Arc::new(RequestChannel::new(
+            conf.broker_network.queue_size,
+            conf.broker_network.handler_thread_num,
+        ));
 
         let context: ServerContext = ServerContext {
             connection_manager: params.connection_manager.clone(),

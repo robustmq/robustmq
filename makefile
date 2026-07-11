@@ -89,6 +89,12 @@ ig-test-ci: ## Run integration tests with broker startup (for CI)
 	@echo "Running integration tests with broker startup..."
 	/bin/bash ./scripts/ig-test.sh --start-broker
 
+.PHONY: kafka-test
+kafka-test: ## Run Kafka Java-client integration tests (assumes broker is already running)
+	@echo "Running Kafka integration tests (broker must be running)..."
+	cd tests/kafka-java && mvn -q test \
+		$(if $(KAFKA_CLIENTS_VERSION),-Dkafka.clients.version=$(KAFKA_CLIENTS_VERSION),)
+
 ##@ Clean
 .PHONY: clean
 clean: ## Clean all build artifacts

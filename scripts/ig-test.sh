@@ -232,3 +232,11 @@ cargo nextest run --fail-fast \
   --test-threads="${TEST_THREADS}" \
   --package grpc-clients \
   --package robustmq-test
+
+# Kafka Java-client integration tests hit the same running broker.
+echo "Running Kafka Java-client integration tests..."
+if ! command -v mvn >/dev/null 2>&1; then
+    echo "ERROR: mvn (Maven) not found; it is required for the Kafka Java integration tests."
+    exit 1
+fi
+(cd tests/kafka-java && mvn -q test)

@@ -15,7 +15,6 @@
 pub mod common;
 pub mod engine;
 pub mod group_gc;
-pub mod kafka;
 pub mod mcp_test;
 pub mod mqtt;
 pub mod nats;
