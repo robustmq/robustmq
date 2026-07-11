@@ -70,7 +70,7 @@ impl StorageDriverManager {
         config: &EngineShardConfig,
     ) -> Result<(), CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
-        for (_, shard_name) in topic.storage_name_list.iter() {
+        for shard_name in topic.storage_name_list.values() {
             driver
                 .create_shard(&AdapterShardInfo {
                     shard_name: shard_name.to_string(),

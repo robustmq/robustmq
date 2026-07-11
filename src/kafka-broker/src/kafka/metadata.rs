@@ -73,17 +73,25 @@ pub async fn process_metadata(
 pub async fn process_describe_cluster(
     broker_cache: &Arc<NodeCacheManager>,
     sdm: &Arc<StorageDriverManager>,
-    _req: &DescribeClusterRequest,
+    req: &DescribeClusterRequest,
 ) -> Option<KafkaPacket> {
     let brokers = build_cluster_brokers_from_cache(broker_cache);
     let controller_id = pick_controller_id(sdm).await;
+
+    // Only populate authorized operations when the client asked for them; the
+    // "not requested" sentinel is i32::MIN.
+    let authorized_operations = if req.include_cluster_authorized_operations {
+        ALL_OPERATIONS_AUTHORIZED
+    } else {
+        i32::MIN
+    };
 
     let resp = DescribeClusterResponse::default()
         .with_endpoint_type(ENDPOINT_TYPE_BROKERS)
         .with_cluster_id(StrBytes::from(broker_config().cluster_name.clone()))
         .with_controller_id(controller_id.into())
         .with_brokers(brokers)
-        .with_cluster_authorized_operations(ALL_OPERATIONS_AUTHORIZED);
+        .with_cluster_authorized_operations(authorized_operations);
 
     Some(KafkaPacket::DescribeClusterResponse(resp))
 }
