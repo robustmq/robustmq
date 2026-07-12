@@ -163,6 +163,15 @@ mod tests {
         assert!(resp.error.is_none());
         assert_eq!(resp.offsets.len(), 5);
         assert_eq!(resp.last_offset, 4);
+        // Offsets must come back in input (ascending) order: Kafka Produce takes
+        // offsets.first() as the batch base offset, so a HashMap-scrambled order
+        // would misreport every record's offset.
+        let offsets: Vec<u64> = resp.offsets.iter().map(|r| r.offset).collect();
+        assert_eq!(
+            offsets,
+            vec![0, 1, 2, 3, 4],
+            "batch offsets must be ordered"
+        );
     }
 
     #[tokio::test]

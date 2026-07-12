@@ -20,13 +20,21 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /** Shared helpers for the Kafka integration tests. */
 final class Support {
@@ -49,6 +57,48 @@ final class Support {
         return Admin.create(props);
     }
 
+    static KafkaProducer<byte[], byte[]> newProducer() {
+        return newProducer(java.util.Map.of());
+    }
+
+    /** A byte[] producer with the safe defaults, plus any per-test overrides. */
+    static KafkaProducer<byte[], byte[]> newProducer(java.util.Map<String, Object> overrides) {
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers());
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        // Idempotence would require InitProducerId (API 22), which the broker does
+        // not implement yet; disable it so the producer sends plain Produce requests.
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
+        props.putAll(overrides);
+        return new KafkaProducer<>(props);
+    }
+
+    /**
+     * A plain byte[] consumer: reads from the earliest offset, no auto-commit.
+     * `groupId` may be null for manual `assign()` usage that never talks to a
+     * group coordinator; pass a real id for `subscribe()`-based group tests.
+     */
+    static KafkaConsumer<byte[], byte[]> newConsumer(String groupId) {
+        return newConsumer(groupId, java.util.Map.of());
+    }
+
+    /** A byte[] consumer (earliest, no auto-commit) plus any per-test overrides. */
+    static KafkaConsumer<byte[], byte[]> newConsumer(String groupId, java.util.Map<String, Object> overrides) {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers());
+        if (groupId != null) {
+            props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        }
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
+        props.putAll(overrides);
+        return new KafkaConsumer<>(props);
+    }
+
     /** A consumer that opts into auto topic creation on metadata lookups. */
     static KafkaConsumer<byte[], byte[]> newAutoCreateConsumer() {
         Properties props = new Properties();
@@ -58,6 +108,30 @@ final class Support {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
         return new KafkaConsumer<>(props);
+    }
+
+    /**
+     * Read every partition of {@code topic} from the beginning with a manual
+     * {@code assign()} (no group), draining until {@code expected} records
+     * arrive or the deadline passes. Used to verify produced content round-trips.
+     */
+    static List<ConsumerRecord<byte[], byte[]>> consumeAllFromBeginning(String topic, int expected) {
+        try (KafkaConsumer<byte[], byte[]> consumer = newConsumer(null)) {
+            List<TopicPartition> tps = new ArrayList<>();
+            for (PartitionInfo pi : consumer.partitionsFor(topic)) {
+                tps.add(new TopicPartition(topic, pi.partition()));
+            }
+            consumer.assign(tps);
+            consumer.seekToBeginning(tps);
+            List<ConsumerRecord<byte[], byte[]>> out = new ArrayList<>();
+            long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
+            while (out.size() < expected && System.nanoTime() < deadline) {
+                for (ConsumerRecord<byte[], byte[]> r : consumer.poll(Duration.ofMillis(300))) {
+                    out.add(r);
+                }
+            }
+            return out;
+        }
     }
 
     /** Toggle the cluster-level Kafka `auto_create_topics_enable` dynamic config via the admin HTTP API. */

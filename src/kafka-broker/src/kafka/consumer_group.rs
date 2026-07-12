@@ -39,8 +39,18 @@ use tracing::warn;
 
 const KEY_TYPE_GROUP: i8 = 0;
 
+/// FindCoordinator restructured its response at v4 (KIP-699): v0-3 carry a
+/// single coordinator in the top-level `error_code`/`node_id`/`host`/`port`
+/// fields, while v4+ carry a batch in the `coordinators` array and leave the
+/// top-level fields at their defaults. Setting a field that doesn't exist at the
+/// negotiated version makes kafka-protocol's encoder reject the whole response
+/// ("a field is set that is not available on the selected protocol version"), so
+/// we populate exactly one shape based on `api_version`.
+const FIND_COORDINATOR_BATCHED_VERSION: i16 = 4;
+
 pub async fn process_find_coordinator(
     sdm: &Arc<StorageDriverManager>,
+    api_version: i16,
     req: &FindCoordinatorRequest,
 ) -> Option<KafkaPacket> {
     let resolved = if req.key_type == KEY_TYPE_GROUP {
@@ -54,31 +64,33 @@ pub async fn process_find_coordinator(
         Err(code) => (code, -1, String::new(), -1),
     };
 
-    let keys = if req.coordinator_keys.is_empty() {
-        vec![req.key.clone()]
+    let resp = if api_version >= FIND_COORDINATOR_BATCHED_VERSION {
+        let keys = if req.coordinator_keys.is_empty() {
+            vec![req.key.clone()]
+        } else {
+            req.coordinator_keys.clone()
+        };
+        let coordinators = keys
+            .into_iter()
+            .map(|key| {
+                Coordinator::default()
+                    .with_key(key)
+                    .with_node_id(node_id.into())
+                    .with_host(StrBytes::from(host.clone()))
+                    .with_port(port)
+                    .with_error_code(error_code)
+            })
+            .collect();
+        FindCoordinatorResponse::default().with_coordinators(coordinators)
     } else {
-        req.coordinator_keys.clone()
-    };
-    let coordinators = keys
-        .into_iter()
-        .map(|key| {
-            Coordinator::default()
-                .with_key(key)
-                .with_node_id(node_id.into())
-                .with_host(StrBytes::from(host.clone()))
-                .with_port(port)
-                .with_error_code(error_code)
-        })
-        .collect();
-
-    Some(KafkaPacket::FindCoordinatorResponse(
         FindCoordinatorResponse::default()
             .with_error_code(error_code)
             .with_node_id(node_id.into())
             .with_host(StrBytes::from(host))
             .with_port(port)
-            .with_coordinators(coordinators),
-    ))
+    };
+
+    Some(KafkaPacket::FindCoordinatorResponse(resp))
 }
 
 pub async fn process_join_group(
@@ -120,12 +132,22 @@ pub async fn process_join_group(
         })
         .collect();
 
+    // `protocol_name` only became nullable at JoinGroup v7 (KIP-559). Before
+    // that the client rejects a null ("non-nullable field protocolName was
+    // serialized as null"), so send an empty string when no protocol is
+    // selected yet (e.g. the MEMBER_ID_REQUIRED round or an error response).
+    let protocol_name = match result.protocol_name {
+        Some(name) => Some(StrBytes::from(name)),
+        None if api_version >= 7 => None,
+        None => Some(StrBytes::from_static_str("")),
+    };
+
     Some(KafkaPacket::JoinGroupResponse(
         JoinGroupResponse::default()
             .with_error_code(result.error_code)
             .with_generation_id(result.generation_id)
             .with_protocol_type(result.protocol_type.map(StrBytes::from))
-            .with_protocol_name(result.protocol_name.map(StrBytes::from))
+            .with_protocol_name(protocol_name)
             .with_leader(StrBytes::from(result.leader_id))
             .with_member_id(StrBytes::from(result.member_id))
             .with_members(members),

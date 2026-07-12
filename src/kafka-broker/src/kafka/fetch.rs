@@ -15,6 +15,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::core::consumer_group_meta::topic_uuid;
 use crate::handler::tenant::get_tenant;
 use common_config::broker::broker_config;
 use futures_util::future::join_all;
@@ -32,6 +33,7 @@ use metadata_struct::storage::record::StorageRecord;
 use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::warn;
+use uuid::Uuid;
 
 use crate::core::constants::{NO_LAST_STABLE_OFFSET, NO_OFFSET, NO_PRODUCER_EPOCH, NO_PRODUCER_ID};
 
@@ -62,11 +64,22 @@ pub async fn process_fetch(
 ) -> Option<KafkaPacket> {
     let start = Instant::now();
 
-    let mut topic_names: Vec<TopicName> = Vec::with_capacity(req.topics.len());
+    // Fetch v12+ identifies topics by UUID (the `topic` name is left empty), so
+    // resolve each requested topic to its name up front and echo the id back on
+    // the response — clients match responses to requests by topic_id at those
+    // versions.
+    let mut topic_idents: Vec<(TopicName, Uuid)> = Vec::with_capacity(req.topics.len());
     let mut units: Vec<FetchUnit> = Vec::new();
     for (topic_idx, fetch_topic) in req.topics.iter().enumerate() {
-        topic_names.push(fetch_topic.topic.clone());
-        units.extend(resolve_fetch_topic(sdm, topic_idx, fetch_topic, req).await);
+        let resolved_name = resolve_fetch_topic_name(sdm, fetch_topic);
+        let response_name = resolved_name
+            .as_deref()
+            .map(|n| TopicName(StrBytes::from_string(n.to_string())))
+            .unwrap_or_else(|| fetch_topic.topic.clone());
+        topic_idents.push((response_name, fetch_topic.topic_id));
+        units.extend(
+            resolve_fetch_topic(sdm, topic_idx, fetch_topic, resolved_name.as_deref(), req).await,
+        );
     }
 
     let first_pass = read_all_units(&units).await;
@@ -132,9 +145,13 @@ pub async fn process_fetch(
         }
     }
 
-    let mut topic_responses: Vec<FetchableTopicResponse> = topic_names
+    let mut topic_responses: Vec<FetchableTopicResponse> = topic_idents
         .into_iter()
-        .map(|name| FetchableTopicResponse::default().with_topic(name))
+        .map(|(name, id)| {
+            FetchableTopicResponse::default()
+                .with_topic(name)
+                .with_topic_id(id)
+        })
         .collect();
     let mut per_topic_partitions: Vec<Vec<PartitionData>> = vec![Vec::new(); topic_responses.len()];
     for unit in &units {
@@ -177,14 +194,37 @@ fn effective_max_bytes(req: &FetchRequest, fetch_partition: &FetchPartition) -> 
 /// Resolve every partition of one Fetch topic to either an error or a
 /// concrete shard, doing the topic/driver lookup and the shard-detail
 /// (high_watermark/log_start_offset) lookup exactly once for the whole topic.
+/// The topic name a Fetch entry refers to. Pre-v12 clients send the name
+/// directly; v12+ clients send only a topic_id (UUID) and leave the name empty,
+/// so we reverse the deterministic `topic_uuid` mapping by scanning the tenant's
+/// topics. Returns None when neither identifier resolves to a known topic.
+fn resolve_fetch_topic_name(
+    sdm: &Arc<StorageDriverManager>,
+    fetch_topic: &FetchTopic,
+) -> Option<String> {
+    let name = fetch_topic.topic.to_string();
+    if !name.is_empty() {
+        return Some(name);
+    }
+
+    let id = fetch_topic.topic_id;
+    if id == Uuid::nil() {
+        return None;
+    }
+    sdm.broker_cache
+        .list_topics_by_tenant(get_tenant())
+        .into_iter()
+        .find(|t| topic_uuid(get_tenant(), &t.topic_name) == id)
+        .map(|t| t.topic_name)
+}
+
 async fn resolve_fetch_topic(
     sdm: &Arc<StorageDriverManager>,
     topic_idx: usize,
     fetch_topic: &FetchTopic,
+    resolved_name: Option<&str>,
     req: &FetchRequest,
 ) -> Vec<FetchUnit> {
-    let topic_name = fetch_topic.topic.to_string();
-
     let to_error_units = |err: ResponseError| {
         fetch_topic
             .partitions
@@ -198,11 +238,15 @@ async fn resolve_fetch_topic(
             .collect::<Vec<_>>()
     };
 
-    let Ok((topic, driver)) = sdm.resolve_topic_driver(get_tenant(), &topic_name).await else {
+    let Some(topic_name) = resolved_name else {
         return to_error_units(ResponseError::UnknownTopicOrPartition);
     };
 
-    let details = match sdm.list_storage_resource(get_tenant(), &topic_name).await {
+    let Ok((topic, driver)) = sdm.resolve_topic_driver(get_tenant(), topic_name).await else {
+        return to_error_units(ResponseError::UnknownTopicOrPartition);
+    };
+
+    let details = match sdm.list_storage_resource(get_tenant(), topic_name).await {
         Ok(details) => details,
         Err(e) => {
             warn!(

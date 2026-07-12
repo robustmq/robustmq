@@ -16,35 +16,33 @@
 package com.robustmq.kafka;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.DescribeClusterResult;
-import org.apache.kafka.common.Node;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 
+// admin.listTopics() sends a Metadata request (API 3) for all topics, so this
+// exercises process_metadata (as opposed to describeCluster/API 60 or
+// describeTopics/API 75, which are covered by their own tests).
 class MetadataTest {
 
     @Test
-    void describeClusterReturnsBrokersAndController() throws Exception {
+    void listTopicsReflectsCreatedTopic() throws Exception {
+        String topic = "it-metadata-" + UUID.randomUUID();
         try (Admin admin = Support.newAdmin()) {
-            DescribeClusterResult cluster = admin.describeCluster();
+            Set<String> before = admin.listTopics().names().get();
+            assertFalse(before.contains(topic), "topic unexpectedly present before creation");
 
-            Collection<Node> nodes = cluster.nodes().get();
-            assertFalse(nodes.isEmpty(), "cluster returned no brokers");
-            for (Node node : nodes) {
-                assertFalse(node.host().isEmpty(), "broker host is empty");
-                assertTrue(node.port() > 0, "broker port is not set");
-            }
+            admin.createTopics(List.of(new NewTopic(topic, 2, (short) 1))).all().get();
 
-            Node controller = cluster.controller().get();
-            assertNotNull(controller, "no controller reported");
-            assertTrue(
-                    nodes.stream().anyMatch(n -> n.id() == controller.id()),
-                    "controller " + controller.id() + " is not in the broker list");
+            Set<String> after = admin.listTopics().names().get();
+            assertFalse(after.isEmpty(), "metadata returned an empty topic list");
+            assertTrue(after.contains(topic), "created topic missing from the metadata topic list");
         }
     }
 }

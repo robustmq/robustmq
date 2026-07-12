@@ -113,7 +113,12 @@ impl Command for KafkaHandlerCommand {
                 consumer_group_offset::process_offset_fetch(&self.storage_driver_manager, req).await
             }
             KafkaPacket::FindCoordinatorReq(req) => {
-                consumer_group::process_find_coordinator(&self.storage_driver_manager, req).await
+                consumer_group::process_find_coordinator(
+                    &self.storage_driver_manager,
+                    wrapper.api_version,
+                    req,
+                )
+                .await
             }
             KafkaPacket::JoinGroupReq(req) => {
                 let client_id = match &wrapper.header {

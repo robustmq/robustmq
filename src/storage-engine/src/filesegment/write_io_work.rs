@@ -402,8 +402,12 @@ async fn batch_write(
         }
     }
 
-    // collect resp
-    let resp_offsets: Vec<AdapterWriteRespRow> = pkid_offset_list
+    // Collect the response rows in ascending offset order. `pkid_offset_list` is
+    // a HashMap, so iterating it directly yields a non-deterministic order; the
+    // caller (e.g. Kafka Produce) needs `offsets.first()` to be the batch's base
+    // offset, and records were assigned contiguous offsets in input order, so
+    // sorting by offset restores that order.
+    let mut resp_offsets: Vec<AdapterWriteRespRow> = pkid_offset_list
         .iter()
         .map(|(&pkid, &offset)| AdapterWriteRespRow {
             pkid,
@@ -411,6 +415,7 @@ async fn batch_write(
             ..Default::default()
         })
         .collect();
+    resp_offsets.sort_by_key(|r| r.offset);
 
     Ok(Some(SegmentWriteResp {
         offsets: resp_offsets,
