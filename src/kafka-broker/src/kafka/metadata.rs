@@ -138,7 +138,7 @@ pub fn process_describe_topic_partitions(
                     .with_name(name)
                     .with_is_internal(false)
                     .with_partitions(vec![])
-                    .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED),
+                    .with_topic_authorized_operations(i32::MIN),
                 Some(topic) => {
                     let partitions = range
                         .map(|i| describe_topic_partition(i as i32, topic, sdm))
@@ -149,7 +149,7 @@ pub fn process_describe_topic_partitions(
                         .with_name(name)
                         .with_is_internal(topic.source == TopicSource::SystemInner)
                         .with_partitions(partitions)
-                        .with_topic_authorized_operations(ALL_OPERATIONS_AUTHORIZED)
+                        .with_topic_authorized_operations(i32::MIN)
                 }
             }
         })
@@ -320,6 +320,10 @@ fn describe_topic_partition(
         .with_replica_nodes(state.replica_nodes.into_iter().map(Into::into).collect())
         .with_isr_nodes(state.isr_nodes.into_iter().map(Into::into).collect())
         .with_offline_replicas(vec![])
+        // ELR fields (KIP-966): empty rather than null — clients call
+        // `.stream()` on them and NPE if they are absent.
+        .with_eligible_leader_replicas(Some(vec![]))
+        .with_last_known_elr(Some(vec![]))
 }
 
 fn paginate_topic_partitions(

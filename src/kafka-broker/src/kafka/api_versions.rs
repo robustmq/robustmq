@@ -79,6 +79,7 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         v(ApiKey::AlterUserScramCredentials, 0, 0),
         // ── Cluster ──────────────────────────────────────────────────────
         v(ApiKey::DescribeCluster, 0, 0),
+        v(ApiKey::DescribeTopicPartitions, 0, 0),
     ];
 
     let resp = ApiVersionsResponse::default()
