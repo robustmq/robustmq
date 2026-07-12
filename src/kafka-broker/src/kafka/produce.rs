@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use crate::core::cache::{KafkaCacheManager, SequenceCheck};
 use crate::handler::tenant::get_tenant;
 use common_base::error::common::CommonError;
 use futures_util::future::join_all;
@@ -29,12 +30,13 @@ use protocol::kafka::packet::KafkaPacket;
 use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::warn;
 
-use crate::core::constants::{NO_BASE_OFFSET, NO_LOG_APPEND_TIME, PRODUCE_ACKS_NONE};
-
-const VALID_ACKS: [i16; 3] = [-1, 0, 1];
+use crate::core::constants::{
+    NO_BASE_OFFSET, NO_LOG_APPEND_TIME, NO_PRODUCER_ID, PRODUCE_ACKS_NONE, VALID_ACKS,
+};
 
 pub async fn process_produce(
     sdm: &Arc<StorageDriverManager>,
+    cache: &Arc<KafkaCacheManager>,
     req: &ProduceRequest,
 ) -> Option<KafkaPacket> {
     if !VALID_ACKS.contains(&req.acks) {
@@ -44,10 +46,9 @@ pub async fn process_produce(
         )));
     }
 
-    // Transactional/idempotent produce is not implemented: rather than
-    // silently accepting the write with no transactional guarantee at all,
-    // reject it so the client's transaction fails loudly instead of
-    // succeeding under a false assumption of atomicity/exactly-once.
+    // Transactions aren't implemented (only KIP-98 idempotence is): reject a
+    // transactional produce rather than accept it with no atomicity guarantee.
+    // Idempotent producers send a null transactional_id and are handled below.
     if req.transactional_id.is_some() {
         return Some(KafkaPacket::ProduceResponse(produce_error_response(
             req,
@@ -58,7 +59,7 @@ pub async fn process_produce(
     let topic_responses = join_all(
         req.topic_data
             .iter()
-            .map(|topic_data| produce_to_topic(sdm, topic_data, req.acks)),
+            .map(|topic_data| produce_to_topic(sdm, cache, topic_data, req.acks)),
     )
     .await;
 
@@ -87,10 +88,15 @@ fn produce_partition_ok(index: i32, base_offset: i64) -> PartitionProduceRespons
         .with_log_append_time_ms(NO_LOG_APPEND_TIME)
 }
 
-fn decode_produce_records(
-    topic_name: &str,
-    records: &bytes::Bytes,
-) -> Option<Vec<AdapterWriteRecord>> {
+/// Decoded produce payload plus the idempotence identity carried on the batch
+/// (each decoded `Record` inherits the batch's producer id / base sequence).
+struct DecodedProduce {
+    records: Vec<AdapterWriteRecord>,
+    producer_id: i64,
+    base_sequence: i32,
+}
+
+fn decode_produce_records(topic_name: &str, records: &bytes::Bytes) -> Option<DecodedProduce> {
     let mut buf = records.clone();
     let batches = match RecordBatchDecoder::decode_all(&mut buf) {
         Ok(batches) => batches,
@@ -103,13 +109,23 @@ fn decode_produce_records(
         }
     };
 
-    Some(
-        batches
+    let kafka_records: Vec<Record> = batches
+        .into_iter()
+        .flat_map(|batch| batch.records)
+        .collect();
+    let (producer_id, base_sequence) = kafka_records
+        .first()
+        .map(|r| (r.producer_id, r.sequence))
+        .unwrap_or((NO_PRODUCER_ID, 0));
+
+    Some(DecodedProduce {
+        records: kafka_records
             .into_iter()
-            .flat_map(|batch| batch.records)
             .map(|record| adapter_record_from_kafka(topic_name, record))
             .collect(),
-    )
+        producer_id,
+        base_sequence,
+    })
 }
 
 fn adapter_record_from_kafka(topic_name: &str, record: Record) -> AdapterWriteRecord {
@@ -138,6 +154,7 @@ fn adapter_record_from_kafka(topic_name: &str, record: Record) -> AdapterWriteRe
 
 async fn produce_to_partition(
     driver: &ArcStorageAdapter,
+    cache: &Arc<KafkaCacheManager>,
     topic: &Topic,
     topic_name: &str,
     partition_data: &PartitionProduceData,
@@ -154,11 +171,11 @@ async fn produce_to_partition(
         return produce_partition_ok(partition_data.index, NO_BASE_OFFSET);
     };
 
-    let Some(adapter_records) = decode_produce_records(topic_name, records) else {
+    let Some(decoded) = decode_produce_records(topic_name, records) else {
         return produce_partition_error(partition_data.index, ResponseError::CorruptMessage);
     };
 
-    if adapter_records.is_empty() {
+    if decoded.records.is_empty() {
         return produce_partition_ok(partition_data.index, NO_BASE_OFFSET);
     }
 
@@ -171,7 +188,45 @@ async fn produce_to_partition(
         );
     };
 
-    let result = driver.write(shard_name, &adapter_records, acks as i8).await;
+    // Idempotent producers (producer_id >= 0) tag each batch with a base
+    // sequence; dedup exact retries and reject gaps so a resend can't create
+    // duplicate records. Non-idempotent produce (producer_id < 0) skips this.
+    let idempotent = decoded.producer_id >= 0;
+    if idempotent {
+        match cache.check_producer_sequence(decoded.producer_id, shard_name, decoded.base_sequence)
+        {
+            SequenceCheck::Accept => {}
+            SequenceCheck::Duplicate(base_offset) => {
+                return produce_partition_ok(partition_data.index, base_offset);
+            }
+            SequenceCheck::OutOfOrder => {
+                return produce_partition_error(
+                    partition_data.index,
+                    ResponseError::OutOfOrderSequenceNumber,
+                );
+            }
+        }
+    }
+
+    let result = driver.write(shard_name, &decoded.records, acks as i8).await;
+
+    if idempotent {
+        if let Ok(rows) = &result {
+            if !rows.iter().any(|r| r.is_error()) {
+                if let Some(base_offset) = rows.first().map(|r| r.offset as i64) {
+                    let last_seq = decoded.base_sequence + decoded.records.len() as i32 - 1;
+                    cache.record_producer_sequence(
+                        decoded.producer_id,
+                        shard_name,
+                        decoded.base_sequence,
+                        last_seq,
+                        base_offset,
+                    );
+                }
+            }
+        }
+    }
+
     build_produce_response(topic_name, partition_data.index, result)
 }
 
@@ -206,6 +261,7 @@ fn build_produce_response(
 
 async fn produce_to_topic(
     sdm: &Arc<StorageDriverManager>,
+    cache: &Arc<KafkaCacheManager>,
     topic_data: &TopicProduceData,
     acks: i16,
 ) -> TopicProduceResponse {
@@ -232,7 +288,7 @@ async fn produce_to_topic(
         topic_data
             .partition_data
             .iter()
-            .map(|p| produce_to_partition(&driver, &topic, &topic_name, p, acks)),
+            .map(|p| produce_to_partition(&driver, cache, &topic, &topic_name, p, acks)),
     )
     .await;
 
@@ -422,11 +478,11 @@ mod tests {
         RecordBatchEncoder::encode(&mut buf, records.iter(), &opts).unwrap();
 
         let decoded = decode_produce_records("my-topic", &buf.freeze()).unwrap();
-        assert_eq!(decoded.len(), 2);
-        assert_eq!(decoded[0].data.as_ref(), b"one");
-        assert_eq!(decoded[0].key(), None);
-        assert_eq!(decoded[1].data.as_ref(), b"two");
-        assert_eq!(decoded[1].key(), Some(b"k".as_ref()));
+        assert_eq!(decoded.records.len(), 2);
+        assert_eq!(decoded.records[0].data.as_ref(), b"one");
+        assert_eq!(decoded.records[0].key(), None);
+        assert_eq!(decoded.records[1].data.as_ref(), b"two");
+        assert_eq!(decoded.records[1].key(), Some(b"k".as_ref()));
     }
 
     #[test]

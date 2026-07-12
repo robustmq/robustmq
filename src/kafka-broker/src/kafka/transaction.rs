@@ -12,14 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::{
     AddOffsetsToTxnRequest, AddPartitionsToTxnRequest, DescribeTransactionsRequest, EndTxnRequest,
-    InitProducerIdRequest, ListTransactionsRequest, TxnOffsetCommitRequest,
+    InitProducerIdRequest, InitProducerIdResponse, ListTransactionsRequest, ProducerId,
+    TxnOffsetCommitRequest,
 };
 use protocol::kafka::packet::KafkaPacket;
 
-pub fn process_init_producer_id(_req: &InitProducerIdRequest) -> Option<KafkaPacket> {
-    None
+use crate::core::cache::KafkaCacheManager;
+
+/// Allocate a producer id for an **idempotent** producer (KIP-98 idempotence
+/// only — transactions are not implemented). A request carrying a
+/// `transactional_id` is rejected, since honoring it would promise
+/// transactional semantics the broker can't provide. A pure idempotent producer
+/// (null transactional id) gets a fresh producer id at epoch 0.
+pub fn process_init_producer_id(
+    cache: &Arc<KafkaCacheManager>,
+    req: &InitProducerIdRequest,
+) -> Option<KafkaPacket> {
+    if req.transactional_id.is_some() {
+        return Some(KafkaPacket::InitProducerIdResponse(
+            InitProducerIdResponse::default()
+                .with_error_code(ResponseError::TransactionalIdAuthorizationFailed.code())
+                .with_producer_id(ProducerId(-1))
+                .with_producer_epoch(-1),
+        ));
+    }
+
+    Some(KafkaPacket::InitProducerIdResponse(
+        InitProducerIdResponse::default()
+            .with_error_code(0)
+            .with_producer_id(ProducerId(cache.next_producer_id()))
+            .with_producer_epoch(0),
+    ))
 }
 
 pub fn process_add_partitions_to_txn(_req: &AddPartitionsToTxnRequest) -> Option<KafkaPacket> {

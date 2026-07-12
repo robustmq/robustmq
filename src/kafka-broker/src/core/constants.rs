@@ -37,6 +37,8 @@ pub const NO_BASE_OFFSET: i64 = -1;
 pub const NO_LOG_APPEND_TIME: i64 = -1;
 /// Produce: acks=0 means the client does not wait for (or want) a response.
 pub const PRODUCE_ACKS_NONE: i16 = 0;
+/// Produce: the acks values a client may request — 0 (none), 1 (leader), -1 (all).
+pub const VALID_ACKS: [i16; 3] = [-1, 0, 1];
 
 /// Fetch: no producer ID (non-transactional / non-idempotent record).
 pub const NO_PRODUCER_ID: i64 = -1;

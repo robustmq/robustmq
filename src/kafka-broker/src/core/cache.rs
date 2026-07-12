@@ -20,6 +20,7 @@ use metadata_struct::kafka::quota::{KafkaClientQuota, QUOTA_DEFAULT_NAME};
 use metadata_struct::kafka::scram::KafkaScramCredential;
 
 use crate::core::sasl::SaslSession;
+use std::sync::atomic::{AtomicI64, Ordering};
 use tokio::sync::oneshot;
 
 use crate::core::assignor::TopicMeta;
@@ -37,6 +38,25 @@ use crate::core::sync::{self, sync_error, SyncOutcome, SyncResult};
 // In-memory data the Kafka broker caches on the coordinator node (consumer-group
 // state, keyed by group_id). Pure lock routing: each method takes the group's
 // per-key lock and delegates to the phase logic in join/sync/leave/heartbeat.
+/// Sequence range + base offset of the last idempotent batch accepted for a
+/// (producer_id, shard), used to dedup exact retries.
+#[derive(Clone)]
+pub struct ProducerSequence {
+    pub first_seq: i32,
+    pub last_seq: i32,
+    pub base_offset: i64,
+}
+
+/// Outcome of an idempotent-batch sequence check.
+pub enum SequenceCheck {
+    /// In order — write it and record the new sequence range.
+    Accept,
+    /// Already written — skip the write and return this recorded base offset.
+    Duplicate(i64),
+    /// A gap in the sequence — reject with OUT_OF_ORDER_SEQUENCE_NUMBER.
+    OutOfOrder,
+}
+
 #[derive(Default)]
 pub struct KafkaCacheManager {
     // Classic-protocol groups.
@@ -52,6 +72,12 @@ pub struct KafkaCacheManager {
     scram_credentials: DashMap<String, KafkaScramCredential>,
     // Per-connection SASL state, keyed by connection id.
     sasl_sessions: DashMap<u64, SaslSession>,
+    // Idempotent-producer id allocator (InitProducerId). Broker-local monotonic
+    // counter — fine for a single node; transactions/cluster-wide blocks are out
+    // of scope.
+    producer_id_counter: AtomicI64,
+    // Per (producer_id, shard) sequence state for idempotent produce dedup.
+    producer_sequences: DashMap<(i64, String), ProducerSequence>,
 }
 
 impl KafkaCacheManager {
@@ -63,7 +89,62 @@ impl KafkaCacheManager {
             delegation_tokens: DashMap::with_capacity(8),
             scram_credentials: DashMap::with_capacity(8),
             sasl_sessions: DashMap::with_capacity(8),
+            producer_id_counter: AtomicI64::new(1),
+            producer_sequences: DashMap::with_capacity(8),
         }
+    }
+
+    /// Allocate a fresh idempotent-producer id (InitProducerId).
+    pub fn next_producer_id(&self) -> i64 {
+        self.producer_id_counter.fetch_add(1, Ordering::SeqCst)
+    }
+
+    /// Decide how to treat an incoming idempotent batch given the last batch
+    /// accepted for this (producer_id, shard). Only the most recent batch is
+    /// tracked, which covers the common in-order + exact-retry cases; a retry of
+    /// an older batch is reported as a duplicate with the last known offset.
+    pub fn check_producer_sequence(
+        &self,
+        producer_id: i64,
+        shard: &str,
+        base_seq: i32,
+    ) -> SequenceCheck {
+        match self
+            .producer_sequences
+            .get(&(producer_id, shard.to_string()))
+        {
+            None => SequenceCheck::Accept,
+            Some(s) => {
+                if base_seq == s.last_seq.wrapping_add(1) {
+                    SequenceCheck::Accept
+                } else if base_seq <= s.last_seq {
+                    // Exact retry of the last batch (base_seq == first_seq) or an
+                    // older duplicate: drop the write, echo the recorded offset.
+                    SequenceCheck::Duplicate(s.base_offset)
+                } else {
+                    SequenceCheck::OutOfOrder
+                }
+            }
+        }
+    }
+
+    /// Record the sequence range and base offset of an accepted idempotent batch.
+    pub fn record_producer_sequence(
+        &self,
+        producer_id: i64,
+        shard: &str,
+        first_seq: i32,
+        last_seq: i32,
+        base_offset: i64,
+    ) {
+        self.producer_sequences.insert(
+            (producer_id, shard.to_string()),
+            ProducerSequence {
+                first_seq,
+                last_seq,
+                base_offset,
+            },
+        );
     }
 
     pub fn set_sasl_session(&self, connection_id: u64, session: SaslSession) {
@@ -297,5 +378,75 @@ impl KafkaCacheManager {
             }
             Entry::Vacant(_) => ResponseError::GroupIdNotFound.code(),
         }
+    }
+}
+
+#[cfg(test)]
+mod producer_sequence_tests {
+    use super::*;
+
+    #[test]
+    fn next_producer_id_is_monotonic() {
+        let cache = KafkaCacheManager::new();
+        let a = cache.next_producer_id();
+        let b = cache.next_producer_id();
+        assert!(b > a, "producer ids must strictly increase: {a} then {b}");
+    }
+
+    #[test]
+    fn sequence_check_accepts_first_batch_and_next_in_order() {
+        let cache = KafkaCacheManager::new();
+        // No state yet: the first batch is always accepted.
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-0", 0),
+            SequenceCheck::Accept
+        ));
+
+        // Record a batch spanning sequences 0..=4 written at base offset 0.
+        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+
+        // The next in-order batch starts at last_seq + 1.
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-0", 5),
+            SequenceCheck::Accept
+        ));
+    }
+
+    #[test]
+    fn sequence_check_dedups_retries_and_rejects_gaps() {
+        let cache = KafkaCacheManager::new();
+        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+
+        // Exact retry of the last batch (base_seq == first_seq) is a duplicate,
+        // answered with the recorded base offset instead of a rewrite.
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-0", 0),
+            SequenceCheck::Duplicate(0)
+        ));
+        // An older/overlapping sequence is also treated as a duplicate.
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-0", 3),
+            SequenceCheck::Duplicate(0)
+        ));
+        // A gap beyond last_seq + 1 is rejected as out of order.
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-0", 7),
+            SequenceCheck::OutOfOrder
+        ));
+    }
+
+    #[test]
+    fn sequence_state_is_isolated_per_producer_and_shard() {
+        let cache = KafkaCacheManager::new();
+        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+        // A different producer, and a different shard, both start fresh.
+        assert!(matches!(
+            cache.check_producer_sequence(8, "shard-0", 0),
+            SequenceCheck::Accept
+        ));
+        assert!(matches!(
+            cache.check_producer_sequence(7, "shard-1", 0),
+            SequenceCheck::Accept
+        ));
     }
 }

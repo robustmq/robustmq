@@ -51,9 +51,14 @@ final class Support {
     }
 
     static Admin newAdmin() {
+        return newAdmin(java.util.Map.of());
+    }
+
+    static Admin newAdmin(java.util.Map<String, Object> overrides) {
         Properties props = new Properties();
         props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers());
         props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10_000);
+        props.putAll(overrides);
         return Admin.create(props);
     }
 
@@ -66,8 +71,9 @@ final class Support {
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
-        // Idempotence would require InitProducerId (API 22), which the broker does
-        // not implement yet; disable it so the producer sends plain Produce requests.
+        // Default to non-idempotent (plain Produce) so these helpers exercise the
+        // simple path; idempotence is supported (see IdempotentProduceTest) and
+        // tests that want it override ENABLE_IDEMPOTENCE_CONFIG back to true.
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());

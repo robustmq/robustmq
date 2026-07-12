@@ -77,6 +77,11 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         // ── SCRAM ────────────────────────────────────────────────────────
         v(ApiKey::DescribeUserScramCredentials, 0, 0),
         v(ApiKey::AlterUserScramCredentials, 0, 0),
+        // ── Delegation tokens (KIP-48, metadata management only) ─────────
+        v(ApiKey::CreateDelegationToken, 0, 3),
+        v(ApiKey::RenewDelegationToken, 0, 2),
+        v(ApiKey::ExpireDelegationToken, 0, 2),
+        v(ApiKey::DescribeDelegationToken, 0, 3),
         // ── Cluster ──────────────────────────────────────────────────────
         v(ApiKey::DescribeCluster, 0, 0),
         v(ApiKey::DescribeTopicPartitions, 0, 0),
