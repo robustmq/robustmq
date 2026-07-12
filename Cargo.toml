@@ -94,7 +94,7 @@ lancedb = "0.27"
 futures-util = "0.3.31"
 async-trait = "0.1.88"
 async-stream = "0.3.6"
-async-nats = "0.38"
+async-nats = "0.49"
 async-channel = "2.3"
 
 # ====================
