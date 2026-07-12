@@ -223,11 +223,27 @@ async fn create_one_topic(
     )
     .await
     {
-        Ok(()) => CreatableTopicResult::default()
-            .with_name(creatable.name.clone())
-            .with_error_code(0)
-            .with_num_partitions(partition as i32)
-            .with_replication_factor(replication as i16),
+        Ok(()) => {
+            // Make the topic-level configs the client passed at creation visible
+            // to DescribeConfigs (they're already applied to the engine config).
+            let requested: std::collections::HashMap<String, String> = creatable
+                .configs
+                .iter()
+                .filter_map(|c| {
+                    c.value
+                        .as_ref()
+                        .map(|v| (c.name.to_string(), v.to_string()))
+                })
+                .collect();
+            if !requested.is_empty() {
+                crate::kafka::config::store_topic_configs(sdm, &topic_name, &requested).await;
+            }
+            CreatableTopicResult::default()
+                .with_name(creatable.name.clone())
+                .with_error_code(0)
+                .with_num_partitions(partition as i32)
+                .with_replication_factor(replication as i16)
+        }
         Err(e) => {
             warn!("Kafka CreateTopics failed for {}: {}", topic_name, e);
             topic_error(creatable.name.clone(), ResponseError::UnknownServerError)

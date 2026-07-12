@@ -44,15 +44,16 @@ use protocol::meta::meta_service_common::{GetResourceConfigRequest, SetResourceC
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
-// `org.apache.kafka.clients.admin.ConfigEntry.ConfigSource` wire ordinals.
-// Not modeled by the `kafka-protocol` crate (no enum, just a raw i8) and
-// purely informational — a wrong value here doesn't break reading the
-// config, just mislabels where a tool says the value came from.
-const CONFIG_SOURCE_DYNAMIC_TOPIC: i8 = 0;
-const CONFIG_SOURCE_DYNAMIC_BROKER_LOGGER: i8 = 1;
+// `DescribeConfigsResponse.ConfigSource` wire ordinals (Kafka protocol). Not
+// modeled by the `kafka-protocol` crate (raw i8), and NOT merely cosmetic:
+// tools like kafka-configs.sh use the source to decide whether a config is a
+// dynamically-set override (shown by plain `--describe` and deletable) or a
+// default. Getting these wrong hides dynamic topic configs from the CLI.
+const CONFIG_SOURCE_DYNAMIC_TOPIC: i8 = 1;
 const CONFIG_SOURCE_DYNAMIC_BROKER: i8 = 2;
 const CONFIG_SOURCE_DEFAULT: i8 = 5;
-const CONFIG_SOURCE_UNKNOWN: i8 = -1;
+const CONFIG_SOURCE_DYNAMIC_BROKER_LOGGER: i8 = 6;
+const CONFIG_SOURCE_UNKNOWN: i8 = 0;
 
 /// `AlterConfigOp.OpType` wire values (KIP-248). `Append`/`Subtract` only
 /// make sense for list-valued configs; RobustMQ doesn't track which stored
@@ -60,6 +61,57 @@ const CONFIG_SOURCE_UNKNOWN: i8 = -1;
 /// doing something wrong to an opaque string value.
 const CONFIG_OP_SET: i8 = 0;
 const CONFIG_OP_DELETE: i8 = 1;
+
+/// Persist topic configs supplied at creation time (CreateTopics `configs`)
+/// into the same resource-config store DescribeConfigs/AlterConfigs use, so
+/// `kafka-topics --create --config k=v` is visible via `--describe` and
+/// editable afterwards. Best-effort: only known topic config names with a
+/// value are stored, and a storage error is logged rather than failing the
+/// already-created topic.
+pub async fn store_topic_configs(
+    sdm: &Arc<StorageDriverManager>,
+    topic_name: &str,
+    configs: &HashMap<String, String>,
+) {
+    let (resource_key, name_is_known) =
+        resource_key_and_validator(ConfigResourceType::Topic, topic_name);
+    let known: HashMap<String, String> = configs
+        .iter()
+        .filter(|(name, _)| name_is_known(name))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    if known.is_empty() {
+        return;
+    }
+
+    let bytes = match serialize(&known) {
+        Ok(b) => b,
+        Err(e) => {
+            warn!(
+                "Kafka CreateTopics failed to serialize configs for '{}': {}",
+                topic_name, e
+            );
+            return;
+        }
+    };
+    let client_pool = &sdm.engine_storage_handler.client_pool;
+    let addrs = broker_config().get_meta_service_addr();
+    if let Err(e) = set_resource_config(
+        client_pool,
+        &addrs,
+        SetResourceConfigRequest {
+            resources: resource_key,
+            config: bytes,
+        },
+    )
+    .await
+    {
+        warn!(
+            "Kafka CreateTopics failed to persist configs for '{}': {}",
+            topic_name, e
+        );
+    }
+}
 
 pub async fn process_describe_configs(
     sdm: &Arc<StorageDriverManager>,
