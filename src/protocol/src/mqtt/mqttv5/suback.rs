@@ -173,6 +173,8 @@ fn reason(code: u8) -> Result<SubscribeReasonCode, MQTTProtocolError> {
         158 => SubscribeReasonCode::SharedSubscriptionsNotSupported,
         161 => SubscribeReasonCode::SubscriptionIdNotSupported,
         162 => SubscribeReasonCode::WildcardSubscriptionsNotSupported,
+        163 => SubscribeReasonCode::ExclusiveSubscriptionDisabled,
+        164 => SubscribeReasonCode::TopicSubscribed,
         v => return Err(MQTTProtocolError::InvalidSubscribeReasonCode(v)),
     };
 
@@ -195,7 +197,45 @@ fn code(value: SubscribeReasonCode) -> u8 {
         SubscribeReasonCode::SharedSubscriptionsNotSupported => 158,
         SubscribeReasonCode::SubscriptionIdNotSupported => 161,
         SubscribeReasonCode::WildcardSubscriptionsNotSupported => 162,
-        SubscribeReasonCode::ExclusiveSubscriptionDisabled => 143,
-        SubscribeReasonCode::TopicSubscribed => 151,
+        SubscribeReasonCode::ExclusiveSubscriptionDisabled => 163,
+        SubscribeReasonCode::TopicSubscribed => 164,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::code;
+    use super::SubscribeReasonCode;
+
+    #[test]
+    fn all_subscribe_reason_codes_have_unique_wire_bytes() {
+        use std::collections::HashSet;
+
+        let codes = [
+            SubscribeReasonCode::QoS0,
+            SubscribeReasonCode::QoS1,
+            SubscribeReasonCode::QoS2,
+            SubscribeReasonCode::Unspecified,
+            SubscribeReasonCode::ImplementationSpecific,
+            SubscribeReasonCode::NotAuthorized,
+            SubscribeReasonCode::TopicFilterInvalid,
+            SubscribeReasonCode::PkidInUse,
+            SubscribeReasonCode::QuotaExceeded,
+            SubscribeReasonCode::SharedSubscriptionsNotSupported,
+            SubscribeReasonCode::SubscriptionIdNotSupported,
+            SubscribeReasonCode::WildcardSubscriptionsNotSupported,
+            SubscribeReasonCode::ExclusiveSubscriptionDisabled,
+            SubscribeReasonCode::TopicSubscribed,
+        ];
+
+        let mut seen = HashSet::new();
+        for &c in &codes {
+            let byte = code(c);
+            assert!(
+                seen.insert(byte),
+                "wire byte 0x{:02X} used by multiple SubscribeReasonCode variants",
+                byte
+            );
+        }
     }
 }
