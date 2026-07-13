@@ -304,6 +304,27 @@ impl MultiRaftManager {
         self.data.write(key, data).await
     }
 
+    /// `None` if this node is the leader of the `data` shard for `key` (read locally),
+    /// else a forward-to-leader error in the format the grpc client redirects on.
+    pub fn data_read_forward(&self, key: &str) -> Option<MetaServiceError> {
+        let raft = self.data.node_for_key(key)?;
+        let m = raft.metrics().borrow().clone();
+        let leader_id = m.current_leader?;
+        if leader_id == m.id {
+            return None;
+        }
+        let leader = m
+            .membership_config
+            .membership()
+            .nodes()
+            .find(|(id, _)| **id == leader_id)
+            .map(|(_, node)| node.clone())?;
+        Some(MetaServiceError::CommonError(format!(
+            "has to forward request to: Some(Node {{ node_id: {}, rpc_addr: \"{}\" }})",
+            leader.node_id, leader.rpc_addr
+        )))
+    }
+
     pub async fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
         let groups: MetricsGroups = [&self.metadata, &self.offset, &self.data]
             .iter()

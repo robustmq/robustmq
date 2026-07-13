@@ -34,9 +34,15 @@ pub type ListAgentStream =
     Result<Pin<Box<dyn Stream<Item = Result<ListAgentReply, Status>> + Send>>, MetaServiceError>;
 
 pub fn list_agent_by_req(
+    raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &ListAgentRequest,
 ) -> ListAgentStream {
+    // Read on the leader; a follower's local replica may be stale after a write.
+    if let Some(forward) = raft_manager.data_read_forward(&req.tenant) {
+        return Err(forward);
+    }
+
     let storage = Mq9AgentStorage::new(rocksdb_engine_handler.clone());
     let agents: Vec<MQ9Agent> = if !req.tenant.is_empty() {
         storage.list_by_tenant(&req.tenant)?
@@ -59,6 +65,11 @@ pub async fn create_agent_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &CreateAgentRequest,
 ) -> Result<CreateAgentReply, MetaServiceError> {
+    // Run the existence gate and write on the leader (a follower replica may be stale).
+    if let Some(forward) = raft_manager.data_read_forward(&req.tenant) {
+        return Err(forward);
+    }
+
     let agent = MQ9Agent::decode(&req.content)?;
 
     let storage = Mq9AgentStorage::new(rocksdb_engine_handler.clone());
@@ -80,6 +91,12 @@ pub async fn delete_agent_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: &DeleteAgentRequest,
 ) -> Result<DeleteAgentReply, MetaServiceError> {
+    // Run the get-gate and write on the leader: on a follower a stale replica would
+    // read `None` and silently no-op the delete.
+    if let Some(forward) = raft_manager.data_read_forward(&req.tenant) {
+        return Err(forward);
+    }
+
     let storage = Mq9AgentStorage::new(rocksdb_engine_handler.clone());
     if let Some(agent) = storage.get(&req.tenant, &req.name)? {
         let data = StorageData::new(StorageDataType::Mq9DeleteAgent, encode_to_bytes(req));

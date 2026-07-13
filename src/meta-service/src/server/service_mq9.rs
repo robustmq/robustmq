@@ -150,7 +150,7 @@ impl Mq9Service for GrpcMq9Service {
         request: Request<ListAgentRequest>,
     ) -> Result<Response<Self::ListAgentStream>, Status> {
         let req = request.into_inner();
-        list_agent_by_req(&self.rocksdb_engine_handler, &req)
+        list_agent_by_req(&self.raft_manager, &self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
     }
