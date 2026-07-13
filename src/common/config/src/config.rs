@@ -849,10 +849,24 @@ fn default_kafka_sasl_mechanisms() -> Vec<String> {
     vec!["SCRAM-SHA-256".to_string(), "SCRAM-SHA-512".to_string()]
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+fn default_auto_create_topics_enable() -> bool {
+    // Match Kafka's broker default (`auto.create.topics.enable=true`); operators
+    // can turn it off via the cluster dynamic config.
+    true
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KafkaDynamic {
-    #[serde(default)]
+    #[serde(default = "default_auto_create_topics_enable")]
     pub auto_create_topics_enable: bool,
+}
+
+impl Default for KafkaDynamic {
+    fn default() -> Self {
+        KafkaDynamic {
+            auto_create_topics_enable: default_auto_create_topics_enable(),
+        }
+    }
 }
 
 fn default_kafka_max_describe_topic_partitions() -> u32 {
