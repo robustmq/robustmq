@@ -113,7 +113,7 @@ pub async fn process_list_offsets(
                 ListOffsetsPartitionResponse::default()
                     .with_partition_index(p.partition_index)
                     .with_error_code(0)
-                    .with_offset(offset as i64)
+                    .with_offset(offset)
             })
             .collect();
 
@@ -218,22 +218,24 @@ pub async fn process_offset_delete(
 
 /// Pick the offset ListOffsets should report for one partition: the shard's
 /// known start/high-watermark for the earliest/latest sentinels, or the
-/// pre-resolved timestamp lookup result (falling back to start_offset if the
-/// timestamp scan found nothing for this partition).
+/// pre-resolved timestamp lookup result. For a real timestamp with no message
+/// at/after it (e.g. a future timestamp), Kafka returns -1 (`NO_OFFSET`) rather
+/// than a real offset, so tools like kafka-get-offsets can tell "no match" from
+/// "offset 0".
 fn resolve_offset_for_partition(
     timestamp: i64,
     partition: u32,
     detail: &AdapterShardDetail,
     resolved_by_timestamp: &HashMap<i64, HashMap<u32, u64>>,
-) -> u64 {
+) -> i64 {
     match timestamp {
-        LIST_OFFSETS_EARLIEST_TIMESTAMP => detail.offset.start_offset,
-        LIST_OFFSETS_LATEST_TIMESTAMP => detail.offset.high_watermark,
+        LIST_OFFSETS_EARLIEST_TIMESTAMP => detail.offset.start_offset as i64,
+        LIST_OFFSETS_LATEST_TIMESTAMP => detail.offset.high_watermark as i64,
         ts => resolved_by_timestamp
             .get(&ts)
             .and_then(|offsets| offsets.get(&partition))
-            .copied()
-            .unwrap_or(detail.offset.start_offset),
+            .map(|&offset| offset as i64)
+            .unwrap_or(NO_OFFSET),
     }
 }
 
@@ -294,11 +296,11 @@ mod tests {
             resolve_offset_for_partition(1234, 0, &detail, &resolved),
             42
         );
-        // Timestamp resolved for other partitions but not this one falls back
-        // to start_offset rather than panicking or returning garbage.
+        // Timestamp resolved for other partitions but not this one (no message
+        // at/after the timestamp here) reports -1, matching Kafka.
         assert_eq!(
             resolve_offset_for_partition(1234, 1, &detail, &resolved),
-            10
+            NO_OFFSET
         );
     }
 }

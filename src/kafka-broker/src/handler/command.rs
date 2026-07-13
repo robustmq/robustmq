@@ -129,11 +129,13 @@ impl Command for KafkaHandlerCommand {
                         .unwrap_or_default(),
                     KafkaHeader::Response(_) => String::new(),
                 };
+                let client_host = format!("/{}", tcp_connection.addr.ip());
                 consumer_group::process_join_group(
                     &self.group_coordinator,
                     &self.storage_driver_manager,
                     wrapper.api_version,
                     client_id,
+                    client_host,
                     req,
                 )
                 .await

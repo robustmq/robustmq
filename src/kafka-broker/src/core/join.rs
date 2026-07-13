@@ -59,6 +59,7 @@ pub struct JoinGroupParams {
     pub member_id: String,
     pub group_instance_id: Option<String>,
     pub client_id: String,
+    pub client_host: String,
     pub session_timeout_ms: i32,
     pub rebalance_timeout_ms: i32,
     pub protocol_type: String,

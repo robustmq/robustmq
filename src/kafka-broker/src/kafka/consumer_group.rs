@@ -98,6 +98,7 @@ pub async fn process_join_group(
     sdm: &Arc<StorageDriverManager>,
     api_version: i16,
     client_id: String,
+    client_host: String,
     req: &JoinGroupRequest,
 ) -> Option<KafkaPacket> {
     if !is_coordinator_node(sdm).await {
@@ -109,6 +110,7 @@ pub async fn process_join_group(
         member_id: req.member_id.to_string(),
         group_instance_id: req.group_instance_id.as_ref().map(|s| s.to_string()),
         client_id,
+        client_host,
         session_timeout_ms: req.session_timeout_ms,
         rebalance_timeout_ms: req.rebalance_timeout_ms,
         protocol_type: req.protocol_type.to_string(),
@@ -294,7 +296,7 @@ pub async fn process_describe_groups(
                             .with_member_id(StrBytes::from(m.member_id))
                             .with_group_instance_id(m.group_instance_id.map(StrBytes::from))
                             .with_client_id(StrBytes::from(m.client_id))
-                            .with_client_host(StrBytes::from_static_str(""))
+                            .with_client_host(StrBytes::from(m.client_host))
                             .with_member_metadata(m.member_metadata)
                             .with_member_assignment(m.member_assignment)
                     })

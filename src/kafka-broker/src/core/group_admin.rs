@@ -20,6 +20,7 @@ pub struct DescribedMemberInfo {
     pub member_id: String,
     pub group_instance_id: Option<String>,
     pub client_id: String,
+    pub client_host: String,
     pub member_metadata: Bytes,
     pub member_assignment: Bytes,
 }
@@ -48,6 +49,7 @@ pub(crate) fn describe(group: &GroupMeta) -> DescribedGroupInfo {
             member_id: m.member_id.clone(),
             group_instance_id: m.group_instance_id.clone(),
             client_id: m.client_id.clone(),
+            client_host: m.client_host.clone(),
             member_metadata: m.metadata_for(selected),
             member_assignment: m.assignment.clone(),
         })

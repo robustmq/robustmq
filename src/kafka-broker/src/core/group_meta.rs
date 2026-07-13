@@ -71,6 +71,8 @@ pub struct MemberMeta {
     pub member_id: String,
     pub group_instance_id: Option<String>,
     pub client_id: String,
+    // Client's remote address (e.g. "/127.0.0.1"), surfaced as HOST in DescribeGroups.
+    pub client_host: String,
     pub session_timeout_ms: i32,
     pub rebalance_timeout_ms: i32,
     pub protocol_type: String,

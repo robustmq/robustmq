@@ -16,6 +16,7 @@
 package com.robustmq.kafka;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -219,7 +220,9 @@ class ProduceTest {
     void largeMessageRoundTrips() throws Exception {
         String topic = name();
         createTopic(topic, 1);
-        byte[] big = new byte[1024 * 1024]; // 1 MiB
+        // Just under the default max.message.bytes (1048588) once batch overhead
+        // is added, so it's accepted and round-trips byte-for-byte.
+        byte[] big = new byte[1_000_000];
         for (int i = 0; i < big.length; i++) {
             big[i] = (byte) (i % 251);
         }
@@ -231,7 +234,23 @@ class ProduceTest {
         List<ConsumerRecord<byte[], byte[]>> records = Support.consumeAllFromBeginning(topic, 1);
         assertEquals(1, records.size());
         org.junit.jupiter.api.Assertions.assertArrayEquals(big, records.get(0).value(),
-                "a 1 MiB payload must round-trip byte-for-byte");
+                "a ~1 MB payload must round-trip byte-for-byte");
+    }
+
+    @Test
+    void oversizedMessageIsRejected() throws Exception {
+        String topic = name();
+        createTopic(topic, 1);
+        // 2 MiB batch exceeds the broker's max.message.bytes (default ~1 MiB).
+        byte[] tooBig = new byte[2 * 1024 * 1024];
+        try (KafkaProducer<byte[], byte[]> producer = Support.newProducer(Map.of(
+                ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 8 * 1024 * 1024,
+                ProducerConfig.BUFFER_MEMORY_CONFIG, 16L * 1024 * 1024))) {
+            ExecutionException ex = assertThrows(ExecutionException.class,
+                    () -> producer.send(new ProducerRecord<>(topic, 0, null, tooBig)).get());
+            assertInstanceOf(org.apache.kafka.common.errors.RecordTooLargeException.class,
+                    ex.getCause(), "an oversized batch must be rejected with MESSAGE_TOO_LARGE");
+        }
     }
 
     // ---- partition routing ------------------------------------------------

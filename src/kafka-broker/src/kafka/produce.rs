@@ -17,6 +17,7 @@ use std::sync::Arc;
 use crate::core::cache::{KafkaCacheManager, SequenceCheck};
 use crate::handler::tenant::get_tenant;
 use common_base::error::common::CommonError;
+use common_config::broker::broker_config;
 use futures_util::future::join_all;
 use kafka_protocol::error::ResponseError;
 use kafka_protocol::messages::produce_request::{PartitionProduceData, TopicProduceData};
@@ -31,7 +32,8 @@ use storage_adapter::driver::{ArcStorageAdapter, StorageDriverManager};
 use tracing::warn;
 
 use crate::core::constants::{
-    NO_BASE_OFFSET, NO_LOG_APPEND_TIME, NO_PRODUCER_ID, PRODUCE_ACKS_NONE, VALID_ACKS,
+    NO_BASE_OFFSET, NO_LOG_APPEND_TIME, NO_PRODUCER_EPOCH, NO_PRODUCER_ID, PRODUCE_ACKS_NONE,
+    VALID_ACKS,
 };
 
 pub async fn process_produce(
@@ -93,6 +95,7 @@ fn produce_partition_ok(index: i32, base_offset: i64) -> PartitionProduceRespons
 struct DecodedProduce {
     records: Vec<AdapterWriteRecord>,
     producer_id: i64,
+    producer_epoch: i16,
     base_sequence: i32,
 }
 
@@ -113,10 +116,10 @@ fn decode_produce_records(topic_name: &str, records: &bytes::Bytes) -> Option<De
         .into_iter()
         .flat_map(|batch| batch.records)
         .collect();
-    let (producer_id, base_sequence) = kafka_records
+    let (producer_id, producer_epoch, base_sequence) = kafka_records
         .first()
-        .map(|r| (r.producer_id, r.sequence))
-        .unwrap_or((NO_PRODUCER_ID, 0));
+        .map(|r| (r.producer_id, r.producer_epoch, r.sequence))
+        .unwrap_or((NO_PRODUCER_ID, NO_PRODUCER_EPOCH, 0));
 
     Some(DecodedProduce {
         records: kafka_records
@@ -124,6 +127,7 @@ fn decode_produce_records(topic_name: &str, records: &bytes::Bytes) -> Option<De
             .map(|record| adapter_record_from_kafka(topic_name, record))
             .collect(),
         producer_id,
+        producer_epoch,
         base_sequence,
     })
 }
@@ -171,6 +175,13 @@ async fn produce_to_partition(
         return produce_partition_ok(partition_data.index, NO_BASE_OFFSET);
     };
 
+    // Reject an oversized batch before decoding/writing it, matching Kafka's
+    // max.message.bytes so a giant record can't exhaust memory or the log.
+    let max_message_bytes = broker_config().kafka_runtime.max_message_bytes as usize;
+    if records.len() > max_message_bytes {
+        return produce_partition_error(partition_data.index, ResponseError::MessageTooLarge);
+    }
+
     let Some(decoded) = decode_produce_records(topic_name, records) else {
         return produce_partition_error(partition_data.index, ResponseError::CorruptMessage);
     };
@@ -193,8 +204,12 @@ async fn produce_to_partition(
     // duplicate records. Non-idempotent produce (producer_id < 0) skips this.
     let idempotent = decoded.producer_id >= 0;
     if idempotent {
-        match cache.check_producer_sequence(decoded.producer_id, shard_name, decoded.base_sequence)
-        {
+        match cache.check_producer_sequence(
+            decoded.producer_id,
+            decoded.producer_epoch,
+            shard_name,
+            decoded.base_sequence,
+        ) {
             SequenceCheck::Accept => {}
             SequenceCheck::Duplicate(base_offset) => {
                 return produce_partition_ok(partition_data.index, base_offset);
@@ -203,6 +218,12 @@ async fn produce_to_partition(
                 return produce_partition_error(
                     partition_data.index,
                     ResponseError::OutOfOrderSequenceNumber,
+                );
+            }
+            SequenceCheck::Fenced => {
+                return produce_partition_error(
+                    partition_data.index,
+                    ResponseError::InvalidProducerEpoch,
                 );
             }
         }
@@ -217,6 +238,7 @@ async fn produce_to_partition(
                     let last_seq = decoded.base_sequence + decoded.records.len() as i32 - 1;
                     cache.record_producer_sequence(
                         decoded.producer_id,
+                        decoded.producer_epoch,
                         shard_name,
                         decoded.base_sequence,
                         last_seq,

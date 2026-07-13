@@ -20,6 +20,7 @@ use metadata_struct::kafka::quota::{KafkaClientQuota, QUOTA_DEFAULT_NAME};
 use metadata_struct::kafka::scram::KafkaScramCredential;
 
 use crate::core::sasl::SaslSession;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicI64, Ordering};
 use tokio::sync::oneshot;
 
@@ -38,23 +39,42 @@ use crate::core::sync::{self, sync_error, SyncOutcome, SyncResult};
 // In-memory data the Kafka broker caches on the coordinator node (consumer-group
 // state, keyed by group_id). Pure lock routing: each method takes the group's
 // per-key lock and delegates to the phase logic in join/sync/leave/heartbeat.
-/// Sequence range + base offset of the last idempotent batch accepted for a
-/// (producer_id, shard), used to dedup exact retries.
-#[derive(Clone)]
-pub struct ProducerSequence {
-    pub first_seq: i32,
-    pub last_seq: i32,
-    pub base_offset: i64,
+/// One accepted idempotent batch: its base sequence and the base offset it was
+/// written at, so a retry (which resends with the same base sequence) can be
+/// answered with the original offset.
+#[derive(Clone, Copy)]
+struct BatchRecord {
+    first_seq: i32,
+    base_offset: i64,
 }
+
+/// Per (producer_id, shard) idempotence state: the current producer epoch, the
+/// next expected base sequence, and a small window of recently-accepted batches
+/// (Kafka keeps the last 5, matching the default max in-flight requests) so a
+/// retry of any in-flight batch — not just the most recent — is deduped.
+struct ProducerState {
+    epoch: i16,
+    next_seq: i32,
+    recent: VecDeque<BatchRecord>,
+}
+
+/// How many recent batches to remember per producer for retry dedup — mirrors
+/// Kafka's `max.in.flight.requests.per.connection` cap of 5 for idempotence.
+const PRODUCER_DEDUP_WINDOW: usize = 5;
 
 /// Outcome of an idempotent-batch sequence check.
 pub enum SequenceCheck {
     /// In order — write it and record the new sequence range.
     Accept,
-    /// Already written — skip the write and return this recorded base offset.
+    /// Already written (retry within the window) — skip the write and return
+    /// this recorded base offset.
     Duplicate(i64),
-    /// A gap in the sequence — reject with OUT_OF_ORDER_SEQUENCE_NUMBER.
+    /// A gap in, or a stale sequence outside the window — reject with
+    /// OUT_OF_ORDER_SEQUENCE_NUMBER.
     OutOfOrder,
+    /// The batch carries an older producer epoch than the one we've seen —
+    /// reject with INVALID_PRODUCER_EPOCH (the producer has been fenced).
+    Fenced,
 }
 
 #[derive(Default)]
@@ -77,7 +97,7 @@ pub struct KafkaCacheManager {
     // of scope.
     producer_id_counter: AtomicI64,
     // Per (producer_id, shard) sequence state for idempotent produce dedup.
-    producer_sequences: DashMap<(i64, String), ProducerSequence>,
+    producer_sequences: DashMap<(i64, String), ProducerState>,
 }
 
 impl KafkaCacheManager {
@@ -99,13 +119,16 @@ impl KafkaCacheManager {
         self.producer_id_counter.fetch_add(1, Ordering::SeqCst)
     }
 
-    /// Decide how to treat an incoming idempotent batch given the last batch
-    /// accepted for this (producer_id, shard). Only the most recent batch is
-    /// tracked, which covers the common in-order + exact-retry cases; a retry of
-    /// an older batch is reported as a duplicate with the last known offset.
+    /// Decide how to treat an incoming idempotent batch for this
+    /// (producer_id, shard) at `epoch` with base sequence `base_seq`:
+    /// - older epoch than seen  → `Fenced` (INVALID_PRODUCER_EPOCH)
+    /// - newer epoch, or first batch, or the expected next sequence → `Accept`
+    /// - a base sequence still in the recent window → `Duplicate(base_offset)`
+    /// - anything else (gap ahead, or stale beyond the window) → `OutOfOrder`
     pub fn check_producer_sequence(
         &self,
         producer_id: i64,
+        epoch: i16,
         shard: &str,
         base_seq: i32,
     ) -> SequenceCheck {
@@ -115,12 +138,16 @@ impl KafkaCacheManager {
         {
             None => SequenceCheck::Accept,
             Some(s) => {
-                if base_seq == s.last_seq.wrapping_add(1) {
+                if epoch < s.epoch {
+                    SequenceCheck::Fenced
+                } else if epoch > s.epoch {
+                    // A new producer incarnation resets the sequence space.
                     SequenceCheck::Accept
-                } else if base_seq <= s.last_seq {
-                    // Exact retry of the last batch (base_seq == first_seq) or an
-                    // older duplicate: drop the write, echo the recorded offset.
-                    SequenceCheck::Duplicate(s.base_offset)
+                } else if base_seq == s.next_seq {
+                    SequenceCheck::Accept
+                } else if let Some(b) = s.recent.iter().find(|b| b.first_seq == base_seq) {
+                    // Retry of a batch still in the window: echo its offset.
+                    SequenceCheck::Duplicate(b.base_offset)
                 } else {
                     SequenceCheck::OutOfOrder
                 }
@@ -128,23 +155,37 @@ impl KafkaCacheManager {
         }
     }
 
-    /// Record the sequence range and base offset of an accepted idempotent batch.
+    /// Record an accepted idempotent batch, advancing the expected sequence and
+    /// appending to the recent-batch window (a newer epoch resets the window).
     pub fn record_producer_sequence(
         &self,
         producer_id: i64,
+        epoch: i16,
         shard: &str,
         first_seq: i32,
         last_seq: i32,
         base_offset: i64,
     ) {
-        self.producer_sequences.insert(
-            (producer_id, shard.to_string()),
-            ProducerSequence {
-                first_seq,
-                last_seq,
-                base_offset,
-            },
-        );
+        let mut state = self
+            .producer_sequences
+            .entry((producer_id, shard.to_string()))
+            .or_insert_with(|| ProducerState {
+                epoch,
+                next_seq: 0,
+                recent: VecDeque::with_capacity(PRODUCER_DEDUP_WINDOW),
+            });
+        if epoch > state.epoch {
+            state.epoch = epoch;
+            state.recent.clear();
+        }
+        state.recent.push_back(BatchRecord {
+            first_seq,
+            base_offset,
+        });
+        while state.recent.len() > PRODUCER_DEDUP_WINDOW {
+            state.recent.pop_front();
+        }
+        state.next_seq = last_seq.wrapping_add(1);
     }
 
     pub fn set_sasl_session(&self, connection_id: u64, session: SaslSession) {
@@ -398,54 +439,108 @@ mod producer_sequence_tests {
         let cache = KafkaCacheManager::new();
         // No state yet: the first batch is always accepted.
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-0", 0),
+            cache.check_producer_sequence(7, 0, "shard-0", 0),
             SequenceCheck::Accept
         ));
 
         // Record a batch spanning sequences 0..=4 written at base offset 0.
-        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+        cache.record_producer_sequence(7, 0, "shard-0", 0, 4, 0);
 
         // The next in-order batch starts at last_seq + 1.
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-0", 5),
+            cache.check_producer_sequence(7, 0, "shard-0", 5),
             SequenceCheck::Accept
         ));
     }
 
     #[test]
-    fn sequence_check_dedups_retries_and_rejects_gaps() {
+    fn sequence_dedups_any_in_flight_retry_within_the_window() {
         let cache = KafkaCacheManager::new();
-        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+        // Three in-flight batches, each written at base offset == first_seq.
+        cache.record_producer_sequence(7, 0, "shard-0", 0, 4, 0);
+        cache.record_producer_sequence(7, 0, "shard-0", 5, 9, 5);
+        cache.record_producer_sequence(7, 0, "shard-0", 10, 14, 10);
 
-        // Exact retry of the last batch (base_seq == first_seq) is a duplicate,
-        // answered with the recorded base offset instead of a rewrite.
+        // Next in-order batch is accepted.
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-0", 0),
+            cache.check_producer_sequence(7, 0, "shard-0", 15),
+            SequenceCheck::Accept
+        ));
+        // A retry of ANY batch still in the window — not just the latest — is a
+        // duplicate answered with that batch's own base offset.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 0, "shard-0", 0),
             SequenceCheck::Duplicate(0)
         ));
-        // An older/overlapping sequence is also treated as a duplicate.
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-0", 3),
-            SequenceCheck::Duplicate(0)
+            cache.check_producer_sequence(7, 0, "shard-0", 5),
+            SequenceCheck::Duplicate(5)
         ));
-        // A gap beyond last_seq + 1 is rejected as out of order.
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-0", 7),
+            cache.check_producer_sequence(7, 0, "shard-0", 10),
+            SequenceCheck::Duplicate(10)
+        ));
+        // A gap ahead of the expected next sequence is out of order.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 0, "shard-0", 20),
             SequenceCheck::OutOfOrder
+        ));
+    }
+
+    #[test]
+    fn sequence_window_evicts_batches_beyond_the_last_five() {
+        let cache = KafkaCacheManager::new();
+        // Six batches: the first (0..=4) is pushed out of the 5-entry window.
+        for i in 0..6 {
+            let first = i * 5;
+            cache.record_producer_sequence(7, 0, "shard-0", first, first + 4, first as i64);
+        }
+        // The evicted oldest batch can no longer be deduped → out of order.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 0, "shard-0", 0),
+            SequenceCheck::OutOfOrder
+        ));
+        // A batch still in the window is still deduped.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 0, "shard-0", 5),
+            SequenceCheck::Duplicate(5)
+        ));
+    }
+
+    #[test]
+    fn epoch_fencing_rejects_old_and_resets_on_new() {
+        let cache = KafkaCacheManager::new();
+        cache.record_producer_sequence(7, 3, "shard-0", 0, 4, 0);
+
+        // An older epoch is fenced.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 2, "shard-0", 5),
+            SequenceCheck::Fenced
+        ));
+        // A newer epoch is a fresh incarnation: its sequence space restarts.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 4, "shard-0", 0),
+            SequenceCheck::Accept
+        ));
+        cache.record_producer_sequence(7, 4, "shard-0", 0, 4, 100);
+        // The old epoch stays fenced afterwards.
+        assert!(matches!(
+            cache.check_producer_sequence(7, 3, "shard-0", 5),
+            SequenceCheck::Fenced
         ));
     }
 
     #[test]
     fn sequence_state_is_isolated_per_producer_and_shard() {
         let cache = KafkaCacheManager::new();
-        cache.record_producer_sequence(7, "shard-0", 0, 4, 0);
+        cache.record_producer_sequence(7, 0, "shard-0", 0, 4, 0);
         // A different producer, and a different shard, both start fresh.
         assert!(matches!(
-            cache.check_producer_sequence(8, "shard-0", 0),
+            cache.check_producer_sequence(8, 0, "shard-0", 0),
             SequenceCheck::Accept
         ));
         assert!(matches!(
-            cache.check_producer_sequence(7, "shard-1", 0),
+            cache.check_producer_sequence(7, 0, "shard-1", 0),
             SequenceCheck::Accept
         ));
     }
