@@ -48,10 +48,12 @@ use metadata_struct::connector::{
     status::MQTTStatus,
     ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
+use common_config::broker::broker_config;
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
 
 use crate::{
+    client::AdminHttpClient,
     state::HttpState,
     tool::extractor::ValidatedJson,
     tool::{
@@ -496,16 +498,26 @@ pub async fn connector_detail(
     State(state): State<Arc<HttpState>>,
     Query(params): Query<ConnectorDetailReq>,
 ) -> String {
-    if state
+    let Some(connector) = state
         .mqtt_context
         .connector_manager
         .get_connector_by_tenant(&params.tenant, &params.connector_name)
-        .is_none()
-    {
+    else {
         return error_response(format!(
             "Connector {} does not exist.",
             params.connector_name
         ));
+    };
+
+    // Runtime stats (send_success_total, ...) live only in the in-memory
+    // ConnectorManager of the node actually running the connector. When it runs
+    // on another broker, forward the query there instead of reporting a missing
+    // local thread.
+    let local_broker_id = broker_config().broker_id;
+    if let Some(broker_id) = connector.broker_id {
+        if broker_id != local_broker_id {
+            return forward_connector_detail(&state, broker_id, &params).await;
+        }
     }
 
     match state
@@ -525,6 +537,45 @@ pub async fn connector_detail(
         None => error_response(format!(
             "Connector thread {} does not exist.",
             params.connector_name
+        )),
+    }
+}
+
+/// Forward a connector-detail query to the broker running the connector. That
+/// node reports it locally (broker_id == its own id), so no further forward.
+async fn forward_connector_detail(
+    state: &Arc<HttpState>,
+    broker_id: u64,
+    params: &ConnectorDetailReq,
+) -> String {
+    let Some(node) = state
+        .broker_cache
+        .node_lists
+        .get(&broker_id)
+        .map(|n| n.clone())
+    else {
+        return error_response(format!(
+            "Connector runs on broker {} which is not in the node cache.",
+            broker_id
+        ));
+    };
+
+    if node.http_addr.is_empty() {
+        return error_response(format!(
+            "Broker node {} has no http_addr registered",
+            broker_id
+        ));
+    }
+
+    let client = AdminHttpClient::new(format!("http://{}", node.http_addr));
+    match client
+        .get_connector_detail::<ConnectorDetailReq, ConnectorDetailResp>(params)
+        .await
+    {
+        Ok(resp) => success_response(resp),
+        Err(e) => error_response(format!(
+            "Failed to fetch connector detail from broker {}: {}",
+            broker_id, e
         )),
     }
 }
