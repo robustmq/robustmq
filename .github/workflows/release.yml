@@ -223,11 +223,13 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
+          # No layer cache: this image only downloads a prebuilt release tarball (no
+          # compilation), so caching adds no speedup, and exporting the multi-arch
+          # layers to the GHA cache overruns the 10GB quota and fails the release with
+          # "failed to reserve cache" — after the image has already been pushed.
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
             GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Summary
         run: |
