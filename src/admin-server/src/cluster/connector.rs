@@ -18,6 +18,7 @@ use common_base::{
     tools::now_second,
     utils::time_util::timestamp_to_local_datetime,
 };
+use common_config::broker::broker_config;
 use metadata_struct::connector::{
     config_cassandra::CassandraConnectorConfig,
     config_clickhouse::ClickHouseConnectorConfig,
@@ -48,7 +49,6 @@ use metadata_struct::connector::{
     status::MQTTStatus,
     ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
-use common_config::broker::broker_config;
 use mqtt_broker::storage::connector::ConnectorStorage;
 use std::sync::Arc;
 
