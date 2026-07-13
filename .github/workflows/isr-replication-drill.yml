@@ -60,7 +60,7 @@ jobs:
           sudo docker image prune --all --force
           sudo apt-get clean
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.97.0
 
       - name: Install system dependencies
         run: |

@@ -83,7 +83,7 @@ jobs:
           free -h
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.97.0
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'

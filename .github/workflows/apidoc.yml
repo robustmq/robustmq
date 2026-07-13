@@ -39,10 +39,10 @@ jobs:
     - uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: dtolnay/rust-toolchain@master
+    - uses: dtolnay/rust-toolchain@1.97.0
       with:
-        # Read version from rust-toolchain.toml
-        toolchain: stable
+        # Keep in sync with rust-toolchain.toml
+        toolchain: "1.97.0"
     - name: Install system dependencies
       run: |
         sudo apt-get update

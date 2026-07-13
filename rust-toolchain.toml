@@ -13,9 +13,10 @@
 # limitations under the License.
 
 [toolchain]
-# Use latest stable Rust version
-# Locking to a specific version ensures reproducibility across team and CI
-channel = "stable"
+# Pin a specific stable version so `cargo`/`clippy` behave identically for the
+# whole team and match what CI runs — a floating "stable" let local (older)
+# clippy pass code that a newer CI clippy rejected (e.g. clippy::question_mark).
+channel = "1.97.0"
 components = [ "rustfmt", "rust-src", "rust-analyzer", "clippy" ]
 # The component named miri is supported in the nightly version
 # so we will use it until the stable version can be supported.

@@ -172,13 +172,12 @@ impl NatsBucketsManager {
             None => return None,
         };
 
-        let subscriber = if let Some(bucket) = self.buckets_data_list.get(&bucket_id) {
+        let subscriber = {
+            let bucket = self.buckets_data_list.get(&bucket_id)?;
             match bucket.remove(&seq) {
                 Some((_, sub)) => sub,
                 None => return None,
             }
-        } else {
-            return None;
         };
 
         // Clean connect_id index

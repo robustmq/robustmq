@@ -73,7 +73,7 @@ jobs:
           df -h
           echo "==========================================="
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.97.0
 
       - name: Install system dependencies
         run: |
