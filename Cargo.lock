@@ -67,7 +67,7 @@ dependencies = [
  "common-metrics",
  "common-security",
  "connector",
- "dashmap 6.2.1",
+ "dashmap",
  "grpc-clients",
  "jsonwebtoken",
  "metadata-struct",
@@ -236,7 +236,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "grpc-clients",
  "metadata-struct",
  "network-server",
@@ -1504,7 +1504,7 @@ dependencies = [
  "bytes",
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "grpc-clients",
  "metadata-struct",
  "protocol",
@@ -1952,7 +1952,7 @@ dependencies = [
  "clap",
  "clap-cargo",
  "common-base",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "hdrhistogram",
@@ -2124,7 +2124,7 @@ dependencies = [
  "clap",
  "console-subscriber",
  "crc32fast",
- "dashmap 6.2.1",
+ "dashmap",
  "governor",
  "lapin",
  "local-ip-address",
@@ -2174,7 +2174,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "grpc-clients",
  "metadata-struct",
  "protocol",
@@ -2190,7 +2190,7 @@ version = "0.4.8"
 dependencies = [
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "governor",
  "tracing",
 ]
@@ -2223,7 +2223,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "hex",
@@ -2299,7 +2299,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "elasticsearch",
  "futures",
  "governor",
@@ -2811,19 +2811,6 @@ dependencies = [
 
 [[package]]
 name = "dashmap"
-version = "5.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
-dependencies = [
- "cfg-if",
- "hashbrown 0.14.5",
- "lock_api",
- "once_cell",
- "parking_lot_core",
-]
-
-[[package]]
-name = "dashmap"
 version = "6.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6361d5c062261c78a176addb82d4c821ae42bed6089de0e12603cd25de2059c"
@@ -2906,7 +2893,7 @@ checksum = "9997731f90fa5398ef831ad0e69600f92c861b79c0d38bd1a29b6f0e3a0ce4c8"
 dependencies = [
  "arrow",
  "async-trait",
- "dashmap 6.2.1",
+ "dashmap",
  "datafusion-common",
  "datafusion-common-runtime",
  "datafusion-datasource",
@@ -3092,7 +3079,7 @@ dependencies = [
  "arrow",
  "async-trait",
  "chrono",
- "dashmap 6.2.1",
+ "dashmap",
  "datafusion-common",
  "datafusion-expr",
  "futures",
@@ -3491,7 +3478,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "metadata-struct",
@@ -3511,7 +3498,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "metadata-struct",
@@ -4702,7 +4689,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9efcab3c1958580ff1f25a2a41be1668f7603d849bb63af523b208a3cc1223b8"
 dependencies = [
  "cfg-if",
- "dashmap 6.2.1",
+ "dashmap",
  "futures-sink",
  "futures-timer",
  "futures-util",
@@ -4815,7 +4802,7 @@ dependencies = [
  "a2a-types",
  "common-base",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "llm-engine",
  "metadata-struct",
  "protocol",
@@ -4873,10 +4860,6 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
-dependencies = [
- "ahash 0.8.12",
- "allocator-api2",
-]
 
 [[package]]
 name = "hashbrown"
@@ -5014,12 +4997,6 @@ dependencies = [
  "never-say-never",
  "paste",
 ]
-
-[[package]]
-name = "histogram"
-version = "0.6.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cb882ccb290b8646e554b157ab0b71e64e8d5bef775cd66b6531e52d302669"
 
 [[package]]
 name = "hkdf"
@@ -5275,7 +5252,7 @@ checksum = "4c6b649701667bbe825c3b7e6388cb521c23d88644678e83c0c4d0a621a34b43"
 dependencies = [
  "displaydoc",
  "potential_utf",
- "yoke 0.8.1",
+ "yoke",
  "zerofrom",
  "zerovec",
 ]
@@ -5342,7 +5319,7 @@ dependencies = [
  "displaydoc",
  "icu_locale_core",
  "writeable",
- "yoke 0.8.1",
+ "yoke",
  "zerofrom",
  "zerotrie",
  "zerovec",
@@ -5773,7 +5750,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-security",
- "dashmap 6.2.1",
+ "dashmap",
  "futures-util",
  "grpc-clients",
  "hmac 0.12.1",
@@ -5832,7 +5809,7 @@ dependencies = [
  "bytes",
  "chrono",
  "crossbeam-skiplist",
- "dashmap 6.2.1",
+ "dashmap",
  "datafusion",
  "datafusion-expr",
  "datafusion-functions",
@@ -6609,7 +6586,7 @@ version = "0.4.8"
 dependencies = [
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "fastembed",
  "genai",
  "governor",
@@ -6905,7 +6882,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "delay-task",
  "grpc-clients",
  "llm-engine",
@@ -6939,7 +6916,7 @@ dependencies = [
  "clap",
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "protocol",
  "pulsar",
  "rkyv 0.8.17",
@@ -7164,7 +7141,7 @@ dependencies = [
  "common-metrics",
  "common-security",
  "connector",
- "dashmap 6.2.1",
+ "dashmap",
  "delay-message",
  "elasticsearch",
  "futures",
@@ -7438,7 +7415,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-security",
- "dashmap 6.2.1",
+ "dashmap",
  "delay-message",
  "grpc-clients",
  "metadata-struct",
@@ -7516,7 +7493,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "futures-util",
  "grpc-clients",
@@ -7598,7 +7575,7 @@ dependencies = [
  "broker-core",
  "bytes",
  "common-base",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "metadata-struct",
@@ -9157,7 +9134,7 @@ version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "itertools 0.14.0",
  "log",
  "multimap",
@@ -9177,7 +9154,7 @@ version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03da047801ff44bb6a4d407d4860c05fd70bb81714e6b2f3812603d5b145b042"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "itertools 0.14.0",
  "log",
  "multimap",
@@ -9868,11 +9845,11 @@ dependencies = [
 
 [[package]]
 name = "rand_pcg"
-version = "0.3.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59cad018caf63deb318e5a4586d99a24424a364f40f1e5778c29aca23f4fc73e"
+checksum = "b48ac3f7ffaab7fac4d2376632268aa5f89abdb55f7ebf8f4d11fffccb2320f7"
 dependencies = [
- "rand_core 0.6.4",
+ "rand_core 0.9.5",
 ]
 
 [[package]]
@@ -9910,7 +9887,7 @@ dependencies = [
  "broker-core",
  "common-base",
  "common-config",
- "dashmap 6.2.1",
+ "dashmap",
  "governor",
  "tokio",
 ]
@@ -10495,7 +10472,7 @@ dependencies = [
  "common-config",
  "common-group",
  "common-security",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "meta-service",
@@ -10541,7 +10518,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "rocksdb",
  "serde",
@@ -10947,7 +10924,7 @@ version = "0.4.8"
 dependencies = [
  "apache-avro",
  "common-base",
- "dashmap 6.2.1",
+ "dashmap",
  "metadata-struct",
  "protofish",
  "serde",
@@ -11014,28 +10991,23 @@ dependencies = [
 
 [[package]]
 name = "scylla"
-version = "0.15.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0408e59e11f589071d1cefc3928270aa8fe4d03f654cb118e0c24d16013ea82"
+checksum = "4febc4a3c0b2b6a6ab0b25670a28015a7b87f6998b01ad324be19bb583237ad9"
 dependencies = [
  "arc-swap",
  "async-trait",
- "byteorder",
  "bytes",
  "chrono",
- "dashmap 5.5.3",
+ "dashmap",
  "futures",
- "hashbrown 0.14.5",
- "histogram",
- "itertools 0.13.0",
- "lazy_static",
- "lz4_flex 0.11.6",
- "rand 0.8.6",
+ "hashbrown 0.15.5",
+ "itertools 0.14.0",
+ "rand 0.9.4",
  "rand_pcg",
  "scylla-cql",
- "scylla-macros",
+ "scylla-cql-core",
  "smallvec",
- "snap",
  "socket2 0.5.10",
  "thiserror 2.0.18",
  "tokio",
@@ -11045,28 +11017,44 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "0.4.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0cefd8b924bb8f67525937a811038d5662f9febc30c74c778a8205f63c4b365"
+checksum = "7898c851387b20e0996b33d6d98426c432cc0b45ed9af3cb4bd8b4d540ad7ade"
 dependencies = [
- "async-trait",
  "byteorder",
  "bytes",
+ "chrono",
+ "itertools 0.14.0",
  "lz4_flex 0.11.6",
- "scylla-macros",
+ "scylla-cql-core",
  "snap",
  "stable_deref_trait",
  "thiserror 2.0.18",
  "tokio",
  "uuid",
- "yoke 0.7.5",
+ "yoke",
+]
+
+[[package]]
+name = "scylla-cql-core"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e609d59933b27489fb329e0e290469f0a027fd75a598f8d219b1479ed6213d0"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "chrono",
+ "itertools 0.14.0",
+ "scylla-macros",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
 name = "scylla-macros"
-version = "0.7.1"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e878bfb8a235207864ac3fb0b51d7954c77fd38486e0e4fb4e037935ff7eb46c"
+checksum = "275a0290cc00fc50a46b302ad09490ccce2eff1203d648addab1bd8ae833b96e"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
@@ -11579,7 +11567,7 @@ version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.118",
@@ -11591,7 +11579,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54254b8531cafa275c5e096f62d48c81435d1015405a91198ddb11e967301d40"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.118",
@@ -11911,7 +11899,7 @@ dependencies = [
  "common-base",
  "common-config",
  "common-group",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "grpc-clients",
  "metadata-struct",
@@ -11941,7 +11929,7 @@ dependencies = [
  "common-config",
  "common-group",
  "common-metrics",
- "dashmap 6.2.1",
+ "dashmap",
  "futures",
  "futures-util",
  "grpc-clients",
@@ -14443,37 +14431,13 @@ checksum = "7a5a4b21e1a62b67a2970e6831bc091d7b87e119e7f9791aef9702e3bef04448"
 
 [[package]]
 name = "yoke"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "120e6aef9aa629e3d4f52dc8cc43a015c7724194c97dfaf45180d2daf2b77f40"
-dependencies = [
- "serde",
- "stable_deref_trait",
- "yoke-derive 0.7.5",
- "zerofrom",
-]
-
-[[package]]
-name = "yoke"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72d6e5c6afb84d73944e5cedb052c4680d5657337201555f9f2a16b7406d4954"
 dependencies = [
  "stable_deref_trait",
- "yoke-derive 0.8.1",
+ "yoke-derive",
  "zerofrom",
-]
-
-[[package]]
-name = "yoke-derive"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2380878cad4ac9aac1e2435f3eb4020e8374b5f13c296cb75b4620ff8e229154"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.118",
- "synstructure",
 ]
 
 [[package]]
@@ -14556,7 +14520,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a59c17a5562d507e4b54960e8569ebee33bee890c70aa3fe7b97e85a9fd7851"
 dependencies = [
  "displaydoc",
- "yoke 0.8.1",
+ "yoke",
  "zerofrom",
 ]
 
@@ -14566,7 +14530,7 @@ version = "0.11.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c28719294829477f525be0186d13efa9a3c602f7ec202ca9e353d310fb9a002"
 dependencies = [
- "yoke 0.8.1",
+ "yoke",
  "zerofrom",
  "zerovec-derive",
 ]
