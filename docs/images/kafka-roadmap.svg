@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <style>
+      .ltitle { font-size: 13px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 11.5px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="420" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Roadmap</text>
+  <text x="30" y="46" class="note">Broad compatibility shipped; several behaviors still being deepened</text>
+
+  <!-- Done -->
+  <rect x="30" y="66" width="400" height="330" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="46" y="88" class="ltitle">Done</text>
+  <text x="46" y="116" class="btext">&#10003; Data plane: Produce / Fetch / ListOffsets</text>
+  <text x="46" y="140" class="btext">&#10003; Idempotent producer</text>
+  <text x="46" y="164" class="btext">&#10003; Consumer groups: classic + KIP-848</text>
+  <text x="46" y="188" class="btext">&#10003; Topic &amp; partition management</text>
+  <text x="46" y="212" class="btext">&#10003; Config read/write (Describe / Alter)</text>
+  <text x="46" y="236" class="btext">&#10003; SASL / SCRAM authentication</text>
+  <text x="46" y="260" class="btext">&#10003; ACL &amp; quota metadata</text>
+  <text x="46" y="284" class="btext">&#10003; Delegation tokens</text>
+  <text x="46" y="308" class="btext">&#10003; CLI tool compatibility</text>
+  <text x="46" y="332" class="btext">&#10003; DescribeCluster / DescribeTopicPartitions</text>
+  <text x="46" y="356" class="note">Standard clients (Java / librdkafka) work end-to-end.</text>
+
+  <!-- In progress / planned -->
+  <rect x="470" y="66" width="400" height="330" rx="9" fill="#fbf4ec" stroke="#f2e2cf"/>
+  <text x="486" y="88" class="ltitle">In progress / Planned</text>
+  <text x="486" y="116" class="btext">&#9711; Fetch response compression</text>
+  <text x="486" y="140" class="btext">&#9711; Incremental fetch sessions</text>
+  <text x="486" y="164" class="btext">&#9711; leader_epoch semantics</text>
+  <text x="486" y="188" class="btext">&#9711; Config enforcement in the engine</text>
+  <text x="486" y="212" class="btext">&#9711; ACL / quota enforcement</text>
+  <text x="486" y="236" class="btext">&#9711; Transactions (exactly-once)</text>
+  <text x="486" y="260" class="btext">&#9711; Share Group (KIP-932)</text>
+  <text x="486" y="284" class="btext">&#9711; On-disk record compression</text>
+  <text x="486" y="356" class="note">Most config keys persist &amp; echo today; enforcement is landing.</text>
+</svg>

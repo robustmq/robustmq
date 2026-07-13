@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .stext { font-size: 11px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="430" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Idempotent Producer</text>
+  <text x="30" y="46" class="note">Dedup state per (producer_id, shard): epoch, next_seq, window of last 5 batches.</text>
+
+  <!-- Decision rules -->
+  <rect x="30" y="66" width="400" height="326" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="44" y="86" class="ltitle">Sequence check (base_seq vs state)</text>
+
+  <rect x="46" y="98" width="368" height="34" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="60" y="119" class="stext">epoch &lt; seen  &#8594;  INVALID_PRODUCER_EPOCH (fenced)</text>
+  <rect x="46" y="144" width="368" height="34" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="60" y="165" class="stext">epoch &gt; seen  &#8594;  new incarnation, reset window</text>
+  <rect x="46" y="190" width="368" height="34" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="60" y="211" class="stext">base_seq == next_seq  &#8594;  Accept, write records</text>
+  <rect x="46" y="236" width="368" height="34" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="60" y="257" class="stext">base_seq in window  &#8594;  Duplicate, echo base_offset</text>
+  <rect x="46" y="282" width="368" height="34" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="60" y="303" class="stext">otherwise  &#8594;  OUT_OF_ORDER_SEQUENCE_NUMBER</text>
+
+  <text x="46" y="344" class="note">Window size 5 matches max.in.flight.requests.per.connection.</text>
+  <text x="46" y="362" class="note">InitProducerId assigns a broker-local producer id + epoch 0.</text>
+  <text x="46" y="380" class="note">Transactional id is rejected (transactions unsupported).</text>
+
+  <!-- Timeline -->
+  <rect x="450" y="66" width="420" height="326" rx="9" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="464" y="86" class="ltitle">Retry dedup timeline</text>
+
+  <text x="500" y="108" text-anchor="middle" class="note">Producer</text>
+  <text x="800" y="108" text-anchor="middle" class="note">Broker</text>
+  <line x1="500" y1="116" x2="500" y2="372" stroke="#8e6fce" stroke-width="1.2"/>
+  <line x1="800" y1="116" x2="800" y2="372" stroke="#8e6fce" stroke-width="1.2"/>
+
+  <line x1="500" y1="140" x2="800" y2="140" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="650" y="134" text-anchor="middle" class="stext">seq 0  &#8594; Accept, offset 0</text>
+  <line x1="500" y1="180" x2="800" y2="180" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="650" y="174" text-anchor="middle" class="stext">seq 1  &#8594; Accept, offset 1</text>
+  <line x1="500" y1="220" x2="800" y2="220" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="650" y="214" text-anchor="middle" class="stext">seq 2  &#8594; Accept, offset 2</text>
+
+  <line x1="500" y1="272" x2="800" y2="272" stroke="#d9862a" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <text x="650" y="266" text-anchor="middle" class="stext">seq 1 (retry, ack lost)</text>
+  <line x1="800" y1="300" x2="500" y2="300" stroke="#d9862a" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <text x="650" y="294" text-anchor="middle" class="stext">Duplicate: offset 1, no rewrite</text>
+
+  <text x="464" y="358" class="note">Retried batch is still in the window, so its</text>
+  <text x="464" y="374" class="note">original base_offset is returned unchanged.</text>
+</svg>

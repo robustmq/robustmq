@@ -169,7 +169,69 @@ const items = [
     collapsed: true,
     items: [
       { text: "Overview", link: "/en/RobustMQ-Kafka/Overview" },
+      { text: "Core Concepts", link: "/en/RobustMQ-Kafka/KafkaCoreConcepts" },
+      { text: "System Architecture", link: "/en/RobustMQ-Kafka/SystemArchitecture" },
       { text: "Protocol Support", link: "/en/RobustMQ-Kafka/Protocol" },
+      { text: "Quick Start", link: "/en/RobustMQ-Kafka/QuickStart" },
+      { text: "CLI Guide", link: "/en/RobustMQ-Kafka/CLI-Guide" },
+      {
+        text: "Messaging",
+        collapsed: true,
+        items: [
+          { text: "Producer", link: "/en/RobustMQ-Kafka/Producer" },
+          { text: "Idempotent Producer", link: "/en/RobustMQ-Kafka/Idempotence" },
+          { text: "Consumer", link: "/en/RobustMQ-Kafka/Consumer" },
+          { text: "Consumer Group", link: "/en/RobustMQ-Kafka/ConsumerGroup" },
+          { text: "Next-Gen Consumer Group (KIP-848)", link: "/en/RobustMQ-Kafka/ConsumerGroupNext" },
+          { text: "Offset Management", link: "/en/RobustMQ-Kafka/OffsetManagement" },
+        ],
+      },
+      {
+        text: "Storage",
+        collapsed: true,
+        items: [
+          { text: "Storage Model", link: "/en/RobustMQ-Kafka/Storage" },
+          { text: "Delete Records & Retention", link: "/en/RobustMQ-Kafka/DeleteRecords" },
+        ],
+      },
+      {
+        text: "Security",
+        collapsed: true,
+        items: [
+          { text: "Overview", link: "/en/RobustMQ-Kafka/Security/Overview" },
+          { text: "SASL/SCRAM Authentication", link: "/en/RobustMQ-Kafka/Security/Authentication-SASL-SCRAM" },
+          { text: "Authorization (ACL)", link: "/en/RobustMQ-Kafka/Security/Authorization-ACL" },
+          { text: "Client Quota", link: "/en/RobustMQ-Kafka/Security/Quota" },
+          { text: "Delegation Token", link: "/en/RobustMQ-Kafka/Security/DelegationToken" },
+        ],
+      },
+      {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+          { text: "Broker Config", link: "/en/RobustMQ-Kafka/Configuration/BrokerConfig" },
+          { text: "Topic Config", link: "/en/RobustMQ-Kafka/Configuration/TopicConfig" },
+          { text: "Cluster Dynamic Config", link: "/en/RobustMQ-Kafka/Configuration/DynamicConfig" },
+        ],
+      },
+      {
+        text: "Operations",
+        collapsed: true,
+        items: [
+          { text: "Cluster & Controller", link: "/en/RobustMQ-Kafka/Operations/ClusterAndController" },
+          { text: "Advertised Listeners", link: "/en/RobustMQ-Kafka/Operations/AdvertisedListeners" },
+          { text: "Deployment", link: "/en/RobustMQ-Kafka/Operations/Deployment" },
+        ],
+      },
+      {
+        text: "Client SDK",
+        collapsed: true,
+        items: [
+          { text: "Java Client", link: "/en/RobustMQ-Kafka/SDK/java-client" },
+        ],
+      },
+      { text: "Compatibility & Limitations", link: "/en/RobustMQ-Kafka/Compatibility-and-Limitations" },
+      { text: "Roadmap", link: "/en/RobustMQ-Kafka/Roadmap" },
     ],
   },
   {

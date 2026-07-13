@@ -59,14 +59,14 @@ pub fn process_api_versions() -> Option<KafkaPacket> {
         v(ApiKey::ListPartitionReassignments, 0, 0),
         // ── Idempotent producer ───────────────────────────────────────────
         v(ApiKey::InitProducerId, 0, 3),
-        // ── Transactions ─────────────────────────────────────────────────
-        v(ApiKey::AddPartitionsToTxn, 0, 3),
-        v(ApiKey::AddOffsetsToTxn, 0, 1),
-        v(ApiKey::EndTxn, 0, 3),
-        v(ApiKey::TxnOffsetCommit, 0, 3),
-        v(ApiKey::DescribeTransactions, 0, 0),
-        v(ApiKey::ListTransactions, 0, 0),
-        v(ApiKey::DescribeProducers, 0, 0),
+        // NOTE: transactions are NOT implemented, so the transaction APIs
+        // (AddPartitionsToTxn/AddOffsetsToTxn/EndTxn/TxnOffsetCommit/
+        // DescribeTransactions/ListTransactions) and DescribeProducers are
+        // deliberately NOT advertised. Their handlers return no response, and
+        // advertising them would make a client send the request and then hang.
+        // A transactional producer still fails fast: InitProducerId with a
+        // transactional_id returns TRANSACTIONAL_ID_AUTHORIZATION_FAILED, and an
+        // unadvertised API surfaces as UnsupportedVersionException client-side.
         // ── ACL ──────────────────────────────────────────────────────────
         v(ApiKey::DescribeAcls, 0, 2),
         v(ApiKey::CreateAcls, 0, 2),

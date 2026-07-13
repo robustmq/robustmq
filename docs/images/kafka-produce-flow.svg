@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="380" viewBox="0 0 900 380" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <marker id="arrowback" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#3aa564"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="380" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Produce Flow</text>
+  <text x="30" y="46" class="note">Storage assigns continuous offsets; one Produce carries many records.</text>
+
+  <!-- Producer -->
+  <rect x="30" y="70" width="185" height="188" rx="9" fill="#eef4fb" stroke="#cfe0f2"/>
+  <text x="44" y="90" class="ltitle">Producer (client)</text>
+  <rect x="46" y="102" width="153" height="30" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="122" y="122" text-anchor="middle" class="btext">Batch of records</text>
+  <rect x="46" y="140" width="153" height="30" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="122" y="160" text-anchor="middle" class="btext">acks = -1 / 0 / 1</text>
+  <rect x="46" y="178" width="153" height="30" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="122" y="198" text-anchor="middle" class="btext">key &#8594; partition</text>
+  <text x="122" y="228" text-anchor="middle" class="note">partition routing is</text>
+  <text x="122" y="243" text-anchor="middle" class="note">client-side</text>
+
+  <!-- Protocol -->
+  <rect x="245" y="70" width="185" height="188" rx="9" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="259" y="90" class="ltitle">Protocol</text>
+  <rect x="261" y="110" width="153" height="34" rx="7" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="337" y="132" text-anchor="middle" class="btext">Decode Produce</text>
+  <rect x="261" y="156" width="153" height="34" rx="7" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="337" y="173" text-anchor="middle" class="btext">Per-API header</text>
+  <text x="337" y="187" text-anchor="middle" class="btext">version</text>
+
+  <!-- Core -->
+  <rect x="460" y="70" width="185" height="188" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="474" y="90" class="ltitle">Core &#183; Produce</text>
+  <rect x="476" y="102" width="153" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="552" y="122" text-anchor="middle" class="btext">Validate acks</text>
+  <rect x="476" y="140" width="153" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="552" y="160" text-anchor="middle" class="btext">size &#8804; max.msg.bytes</text>
+  <rect x="476" y="178" width="153" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="552" y="198" text-anchor="middle" class="btext">idempotence check</text>
+  <rect x="476" y="216" width="153" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="552" y="236" text-anchor="middle" class="btext">decode batch &#8594; records</text>
+
+  <!-- Storage -->
+  <rect x="675" y="70" width="195" height="188" rx="9" fill="#fbf4ec" stroke="#f2e2cf"/>
+  <text x="689" y="90" class="ltitle">Storage &#183; Segment</text>
+  <rect x="691" y="120" width="163" height="34" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="772" y="142" text-anchor="middle" class="btext">Append to segment</text>
+  <rect x="691" y="166" width="163" height="34" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="772" y="183" text-anchor="middle" class="btext">assign continuous</text>
+  <text x="772" y="197" text-anchor="middle" class="btext">offsets</text>
+
+  <!-- forward arrows -->
+  <line x1="215" y1="150" x2="245" y2="150" stroke="#5b6b7b" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="430" y1="150" x2="460" y2="150" stroke="#5b6b7b" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="645" y1="150" x2="675" y2="150" stroke="#5b6b7b" stroke-width="1.4" marker-end="url(#arrow)"/>
+
+  <!-- response return -->
+  <line x1="772" y1="258" x2="772" y2="310" stroke="#3aa564" stroke-width="1.4"/>
+  <line x1="772" y1="310" x2="126" y2="310" stroke="#3aa564" stroke-width="1.4"/>
+  <line x1="126" y1="310" x2="126" y2="258" stroke="#3aa564" stroke-width="1.4" marker-end="url(#arrowback)"/>
+  <text x="449" y="303" text-anchor="middle" class="note">Response: base_offset per partition (skipped when acks = 0)</text>
+
+  <text x="30" y="352" class="note">Compression gzip / snappy / lz4 / zstd is decoded on write; LogAppendTime is not applied yet.</text>
+</svg>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+      .lead { font-size: 11px; font-weight: 700; fill: #d24b63; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="430" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Controller &amp; Coordinator</text>
+  <text x="30" y="46" class="note">Controller / group / txn coordinator all resolve to the current Raft Leader</text>
+
+  <!-- Client -->
+  <rect x="30" y="66" width="220" height="120" rx="9" fill="#eef4fb" stroke="#cfe0f2"/>
+  <text x="44" y="86" class="ltitle">Kafka Client</text>
+  <rect x="48" y="98" width="184" height="30" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="140" y="118" text-anchor="middle" class="btext">Metadata &#8594; controller_id</text>
+  <rect x="48" y="134" width="184" height="30" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="140" y="154" text-anchor="middle" class="btext">FindCoordinator &#8594; node</text>
+
+  <!-- Meta cluster -->
+  <rect x="330" y="60" width="540" height="220" rx="9" fill="#fdeef0" stroke="#f7d6dc"/>
+  <text x="344" y="80" class="ltitle">meta-service &#183; Raft group</text>
+
+  <rect x="360" y="98" width="200" height="150" rx="9" fill="#ffffff" stroke="#d24b63" stroke-width="2"/>
+  <text x="460" y="120" text-anchor="middle" class="lead">Node 1 &#183; LEADER</text>
+  <text x="460" y="142" text-anchor="middle" class="btext">= controller_id</text>
+  <text x="460" y="162" text-anchor="middle" class="btext">= group coordinator</text>
+  <text x="460" y="182" text-anchor="middle" class="btext">= txn coordinator</text>
+  <text x="460" y="212" text-anchor="middle" class="note">handles coordination</text>
+  <text x="460" y="228" text-anchor="middle" class="note">requests</text>
+
+  <rect x="590" y="98" width="120" height="66" rx="8" fill="#ffffff" stroke="#c48a96"/>
+  <text x="650" y="128" text-anchor="middle" class="btext">Node 2</text>
+  <text x="650" y="148" text-anchor="middle" class="note">Follower</text>
+  <rect x="590" y="180" width="120" height="66" rx="8" fill="#ffffff" stroke="#c48a96"/>
+  <text x="650" y="210" text-anchor="middle" class="btext">Node 3</text>
+  <text x="650" y="230" text-anchor="middle" class="note">Follower</text>
+
+  <rect x="732" y="98" width="118" height="148" rx="8" fill="#fbeef0" stroke="#e6b8c1"/>
+  <text x="791" y="120" text-anchor="middle" class="note">On follower:</text>
+  <text x="791" y="140" text-anchor="middle" class="note">coordinate</text>
+  <text x="791" y="156" text-anchor="middle" class="note">request &#8594;</text>
+  <text x="791" y="176" text-anchor="middle" class="btext">NOT_</text>
+  <text x="791" y="192" text-anchor="middle" class="btext">COORDINATOR</text>
+  <text x="791" y="216" text-anchor="middle" class="note">client re-</text>
+  <text x="791" y="232" text-anchor="middle" class="note">locates</text>
+
+  <!-- arrows -->
+  <line x1="250" y1="113" x2="358" y2="150" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="250" y1="149" x2="358" y2="170" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <text x="30" y="320" class="note">controller_id in a Metadata response = current Raft Leader node id (resolved via ~3s TTL-cached gRPC lookup).</text>
+  <text x="30" y="340" class="note">DescribeCluster returns cluster id (= cluster_name) + the broker list built from the node registry.</text>
+  <text x="30" y="360" class="note">A coordination request that lands on a follower returns NOT_COORDINATOR; the client re-runs FindCoordinator.</text>
+</svg>

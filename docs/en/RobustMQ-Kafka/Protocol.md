@@ -1,226 +1,149 @@
-# RobustMQ Kafka Protocol Support
+# Protocol Compatibility Matrix
 
-This document lists the Kafka protocol APIs that RobustMQ needs to support as a Kafka Broker, along with their priority and description.
+This document lists RobustMQ Kafka's compatibility per API: the supported version range, implementation status, and differences from native Kafka. It is the authoritative reference for deciding whether your client / tool can connect directly.
 
-References:
-- [Kafka Protocol Guide (4.2)](https://kafka.apache.org/42/design/protocol/)
-- [kafka-protocol crate 0.17.0](https://docs.rs/kafka-protocol/0.17.0)
+![RobustMQ Kafka API Coverage](../../images/kafka-api-coverage.svg)
 
----
+## Status legend
 
-## 1. Core Data Plane (Required)
+| Icon | Meaning |
+|---|---|
+| ✅ | **Full**: implemented per protocol semantics, ready to use |
+| 🟡 | **Partial**: advertised and accepts requests, but semantics are trimmed (e.g. no-op, not enforced) |
+| ⚪ | **Intentionally unsupported**: returns an explicit error instead of crashing; not offered by design |
+| ❌ | **Not implemented**: not advertised in `ApiVersions`; clients using it fail fast |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 0 | **Produce** | Producer writes messages | ❌ |
-| 1 | **Fetch** | Consumer fetches messages | ❌ |
-| 2 | **ListOffsets** | Query topic/partition offsets (earliest / latest / by timestamp) | ❌ |
-| 3 | **Metadata** | Fetch cluster topology, topic / partition / broker info on startup | ❌ |
+> "Supported versions" is the range RobustMQ advertises in `ApiVersions`; where no version is noted, the API is handled at the version the client negotiates.
 
----
+## Data plane
 
-## 2. Consumer Group Management (Required)
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 0 | Produce | v0–7 | ✅ | Idempotent writes supported; transactional writes rejected; `LogAppendTime` not applied |
+| 1 | Fetch | v4–13 | ✅ | Consumer side always returns uncompressed records; no incremental fetch session; `partition_leader_epoch=0`; no `read_committed` |
+| 2 | ListOffsets | v0–6 | ✅ | earliest / latest / by timestamp |
+| 3 | Metadata | v0–12 | ✅ | Auto-creates topics by default (`auto.create.topics.enable`) |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 8 | **OffsetCommit** | Commit consumed offsets | ❌ |
-| 9 | **OffsetFetch** | Fetch committed offsets | ❌ |
-| 10 | **FindCoordinator** | Find the Group / Transaction Coordinator broker | ❌ |
-| 11 | **JoinGroup** | Join a consumer group, triggers rebalance | ❌ |
-| 12 | **Heartbeat** | Consumer heartbeat to maintain group membership | ❌ |
-| 13 | **LeaveGroup** | Voluntarily leave a consumer group | ❌ |
-| 14 | **SyncGroup** | Sync partition assignment after rebalance | ❌ |
-| 15 | **DescribeGroups** | Query consumer group state | ❌ |
-| 16 | **ListGroups** | List all consumer groups | ❌ |
-| 42 | **DeleteGroups** | Delete consumer groups | ❌ |
-| 47 | **OffsetDelete** | Delete committed offsets | ❌ |
+## Consumer group (classic protocol)
 
----
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 8 | OffsetCommit | — | ✅ | Commit consumed offsets |
+| 9 | OffsetFetch | — | ✅ | v8 supports multi-group batch queries |
+| 10 | FindCoordinator | v0–4 | ✅ | Returns the coordinator for both group and transaction; transaction fails fast in later APIs |
+| 11 | JoinGroup | v0–6 | ✅ | Join a group, trigger rebalance |
+| 12 | Heartbeat | — | ✅ | Maintain membership |
+| 13 | LeaveGroup | — | ✅ | Voluntarily leave |
+| 14 | SyncGroup | — | ✅ | Sync partition assignment |
+| 15 | DescribeGroups | — | ✅ | Query group state |
+| 16 | ListGroups | — | ✅ | List all groups |
+| 42 | DeleteGroups | — | ✅ | Delete groups |
+| 47 | OffsetDelete | — | ✅ | Delete committed offsets |
 
-## 3. Connection & Authentication (Required)
+## Consumer group (KIP-848, next generation)
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 17 | **SaslHandshake** | SASL authentication handshake, selects mechanism | ❌ |
-| 18 | **ApiVersions** | First request after connection, negotiates supported API versions | ❌ |
-| 36 | **SaslAuthenticate** | SASL token exchange (used with SaslHandshake v1+) | ❌ |
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 68 | ConsumerGroupHeartbeat | v0–1 | ✅ | Server-side assignment; **no** `subscribed_topic_regex` |
+| 69 | ConsumerGroupDescribe | v0–1 | ✅ | Query next-gen consumer groups |
 
----
+## Idempotent Producer
 
-## 4. Topic / Partition Management (Required)
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 22 | InitProducerId | v0–3 | ✅ | Idempotent only; with `transactional_id` returns `TRANSACTIONAL_ID_AUTHORIZATION_FAILED` |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 19 | **CreateTopics** | Create topics | ❌ |
-| 20 | **DeleteTopics** | Delete topics | ❌ |
-| 21 | **DeleteRecords** | Delete records before a given offset in a partition | ❌ |
-| 37 | **CreatePartitions** | Increase partition count | ❌ |
+## Authentication & handshake
 
----
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 17 | SaslHandshake | v1 | ✅ | Select SASL mechanism (SCRAM-SHA-256 / SCRAM-SHA-512) |
+| 18 | ApiVersions | v0–4 | ✅ | First request after connect, negotiates available APIs |
+| 36 | SaslAuthenticate | — | ✅ | SASL token exchange |
 
-## 5. Configuration Management (Required)
+## Topic / Partition management
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 32 | **DescribeConfigs** | Query topic / broker configuration | ❌ |
-| 33 | **AlterConfigs** | Modify configuration | ❌ |
-| 44 | **IncrementalAlterConfigs** | Incrementally modify configuration (recommended over AlterConfigs) | ❌ |
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 19 | CreateTopics | v0–7 | ✅ | Rejects manual replica assignment (replicas managed by storage) |
+| 20 | DeleteTopics | — | ✅ | Delete topics |
+| 21 | DeleteRecords | — | ✅ | `offset > HW` returns `OffsetOutOfRange` |
+| 37 | CreatePartitions | — | ✅ | Add partitions |
 
----
+## Configuration management
 
-## 6. Transaction Support (Exactly-Once, Optional)
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 32 | DescribeConfigs | — | ✅ | Query configuration |
+| 33 | AlterConfigs | — | ✅ | Modify configuration |
+| 44 | IncrementalAlterConfigs | — | ✅ | Incrementally modify configuration |
+| 74 | ListConfigResources | — | 🟡 | no-op: advertised but returns no resources |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 22 | **InitProducerId** | Obtain producer id (required for idempotent / transactional produce) | ❌ |
-| 24 | **AddPartitionsToTxn** | Add partitions to a transaction | ❌ |
-| 25 | **AddOffsetsToTxn** | Add consumer offsets to a transaction | ❌ |
-| 26 | **EndTxn** | Commit or abort a transaction | ❌ |
-| 28 | **TxnOffsetCommit** | Commit offsets within a transaction | ❌ |
-| 65 | **DescribeTransactions** | Query transaction state | ❌ |
-| 66 | **ListTransactions** | List all transactions | ❌ |
+> Most configs are **storable but not enforced**; see [Compatibility & Limitations](./Compatibility-and-Limitations.md).
 
----
+## Cluster & operations
 
-## 7. ACL Access Control (Optional)
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 60 | DescribeCluster | — | ✅ | Cluster info |
+| 75 | DescribeTopicPartitions | v0 | ✅ | Topic partition details |
+| 61 | DescribeProducers | — | ❌ | Not advertised |
+| 34 | AlterReplicaLogDirs | — | ⚪ | Intentionally unsupported (returns error, does not crash) |
+| 35 | DescribeLogDirs | — | ⚪ | Intentionally unsupported |
+| 43 | ElectLeaders | — | ⚪ | Intentionally unsupported (leaders managed by storage) |
+| 45 | AlterPartitionReassignments | — | ⚪ | Intentionally unsupported (replicas auto-managed) |
+| 46 | ListPartitionReassignments | — | ⚪ | Intentionally unsupported |
+| 57 | UpdateFeatures | — | ⚪ | Intentionally unsupported |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 29 | **DescribeAcls** | Query ACL rules | ❌ |
-| 30 | **CreateAcls** | Create ACL rules | ❌ |
-| 31 | **DeleteAcls** | Delete ACL rules | ❌ |
+## Security: ACL / quotas / SCRAM credentials
 
----
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 29 | DescribeAcls | — | ✅ | Query ACLs (**not enforced** for authorization) |
+| 30 | CreateAcls | — | ✅ | Create ACLs (not enforced) |
+| 31 | DeleteAcls | — | ✅ | Delete ACLs (not enforced) |
+| 48 | DescribeClientQuotas | — | ✅ | Query quotas (`client-id` only, **not enforced** for throttling) |
+| 49 | AlterClientQuotas | — | ✅ | Modify quotas (not enforced) |
+| 50 | DescribeUserScramCredentials | — | ✅ | Query SCRAM credentials |
+| 51 | AlterUserScramCredentials | — | ✅ | Add/remove SCRAM credentials (SASL auth validates against these) |
 
-## 8. Quota Management (Optional)
+## Delegation tokens
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 48 | **DescribeClientQuotas** | Query client quotas | ❌ |
-| 49 | **AlterClientQuotas** | Modify client quotas | ❌ |
-| 50 | **DescribeUserScramCredentials** | Query SCRAM credential info | ❌ |
-| 51 | **AlterUserScramCredentials** | Modify SCRAM credentials | ❌ |
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 38 | CreateDelegationToken | — | ✅ | Metadata management; tokens **do not participate in auth** |
+| 39 | RenewDelegationToken | — | ✅ | Renew (metadata) |
+| 40 | ExpireDelegationToken | — | ✅ | Expire (metadata) |
+| 41 | DescribeDelegationToken | — | ✅ | Query (metadata) |
 
----
+## Client telemetry (KIP-714)
 
-## 9. Delegation Token Authentication (Optional)
+| Key | API | Versions | Status | Differences / Notes |
+|---|---|---|---|---|
+| 71 | GetTelemetrySubscriptions | — | 🟡 | no-op: accepted but no subscription pushed |
+| 72 | PushTelemetry | — | 🟡 | no-op: accepted but metrics not processed |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 38 | **CreateDelegationToken** | Create a delegation token | ❌ |
-| 39 | **RenewDelegationToken** | Renew a delegation token | ❌ |
-| 40 | **ExpireDelegationToken** | Expire a delegation token | ❌ |
-| 41 | **DescribeDelegationToken** | Query delegation token info | ❌ |
+## Transactions (unsupported)
 
----
+The following APIs are **not advertised in `ApiVersions`**; clients enabling transactions fail fast.
 
-## 10. Client Telemetry (Optional, KIP-714)
+| Key | API | Status |
+|---|---|---|
+| 24 | AddPartitionsToTxn | ❌ |
+| 25 | AddOffsetsToTxn | ❌ |
+| 26 | EndTxn | ❌ |
+| 28 | TxnOffsetCommit | ❌ |
+| 65 | DescribeTransactions | ❌ |
+| 66 | ListTransactions | ❌ |
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 71 | **GetTelemetrySubscriptions** | Get client telemetry subscription config | ❌ |
-| 72 | **PushTelemetry** | Client pushes telemetry metrics | ❌ |
-| 74 | **ListConfigResources** | List configuration resources | ❌ |
+> `FindCoordinator` returns a coordinator for transactions, but the subsequent transaction APIs fail immediately; `InitProducerId` supports idempotent mode only.
 
----
+## Share Group (KIP-932, unsupported)
 
-## 11. Operations & Administration (Optional)
+All Share Group APIs are **❌ unsupported** (`ShareGroupHeartbeat` / `ShareGroupDescribe` / `ShareFetch` / `ShareAcknowledge` / `DescribeShareGroupOffsets` / `AlterShareGroupOffsets` / `DeleteShareGroupOffsets`, etc.).
 
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 23 | **OffsetForLeaderEpoch** | Used by follower / consumer for leader epoch validation | ❌ |
-| 34 | **AlterReplicaLogDirs** | Migrate log directories | ❌ |
-| 35 | **DescribeLogDirs** | Query log storage directory info | ❌ |
-| 43 | **ElectLeaders** | Manually trigger leader election | ❌ |
-| 45 | **AlterPartitionReassignments** | Reassign partition replicas | ❌ |
-| 46 | **ListPartitionReassignments** | Query partition reassignment progress | ❌ |
-| 57 | **UpdateFeatures** | Update broker feature flags | ❌ |
-| 60 | **DescribeCluster** | Query cluster information | ❌ |
-| 61 | **DescribeProducers** | Query active producer information | ❌ |
-| 75 | **DescribeTopicPartitions** | Query topic partition details | ❌ |
+## Further reading
 
----
-
-## 12. Next-Generation Consumer Group Protocol (Optional, KIP-848)
-
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 68 | **ConsumerGroupHeartbeat** | New consumer group protocol heartbeat | ❌ |
-| 69 | **ConsumerGroupDescribe** | New consumer group query | ❌ |
-
----
-
-## 13. Share Group (Optional, KIP-932, Kafka 4.0+)
-
-Share Group is a new consumption model introduced in Kafka 4.0, supporting shared message consumption (non-exclusive partitions):
-
-| API Key | API Name | Description | Supported |
-|---------|----------|-------------|-----------|
-| 76 | **ShareGroupHeartbeat** | Share Group heartbeat | ❌ |
-| 77 | **ShareGroupDescribe** | Query Share Group state | ❌ |
-| 78 | **ShareFetch** | Share Group fetch messages | ❌ |
-| 79 | **ShareAcknowledge** | Share Group acknowledge messages | ❌ |
-| 90 | **DescribeShareGroupOffsets** | Query Share Group offsets | ❌ |
-| 91 | **AlterShareGroupOffsets** | Modify Share Group offsets | ❌ |
-| 92 | **DeleteShareGroupOffsets** | Delete Share Group offsets | ❌ |
-
----
-
-## 14. Not Required (KRaft / Internal Cluster Communication)
-
-The following APIs are used only for Kafka internal cluster communication (replica management, KRaft elections, Controller communication). RobustMQ does not need to implement these:
-
-| API Key | API Name | Description |
-|---------|----------|-------------|
-| 4 | LeaderAndIsr | Inter-broker replica management |
-| 5 | StopReplica | Inter-broker stop replica |
-| 6 | UpdateMetadata | Controller broadcasts metadata |
-| 7 | ControlledShutdown | Orderly broker shutdown |
-| 27 | WriteTxnMarkers | Transaction Coordinator writes to broker (internal) |
-| 52 | Vote | KRaft voting |
-| 53 | BeginQuorumEpoch | KRaft |
-| 54 | EndQuorumEpoch | KRaft |
-| 55 | DescribeQuorum | KRaft quorum state |
-| 56 | AlterPartition | KRaft ISR change |
-| 58 | Envelope | Controller request forwarding |
-| 59 | FetchSnapshot | KRaft log snapshot |
-| 62 | BrokerRegistration | KRaft broker registration |
-| 63 | BrokerHeartbeat | KRaft broker heartbeat |
-| 64 | UnregisterBroker | KRaft broker deregistration |
-| 67 | AllocateProducerIds | KRaft Controller allocates Producer IDs |
-| 70 | ControllerRegistration | KRaft Controller registration |
-| 73 | AssignReplicasToDirs | Internal replica directory assignment |
-| 80 | AddRaftVoter | KRaft |
-| 81 | RemoveRaftVoter | KRaft |
-| 82 | UpdateRaftVoter | KRaft |
-| 83 | InitializeShareGroupState | Share Group state internal storage |
-| 84 | ReadShareGroupState | Share Group state internal read |
-| 85 | WriteShareGroupState | Share Group state internal write |
-| 86 | DeleteShareGroupState | Share Group state internal delete |
-| 87 | ReadShareGroupStateSummary | Share Group state summary internal read |
-
----
-
-## Implementation Roadmap
-
-### Phase 1: Standard Client Compatibility
-
-After implementing the following APIs, standard Kafka producer / consumer clients will work correctly:
-
-```text
-ApiVersions(18) → Metadata(3) → SaslHandshake(17) / SaslAuthenticate(36)
-→ Produce(0) / Fetch(1) / ListOffsets(2)
-→ FindCoordinator(10) → JoinGroup(11) / SyncGroup(14) / Heartbeat(12) / LeaveGroup(13)
-→ OffsetCommit(8) / OffsetFetch(9)
-→ CreateTopics(19) / DeleteTopics(20) → DescribeConfigs(32)
-```
-
-Approximately **20 APIs** in total.
-
-### Phase 2: Transaction Support
-
-Add transaction-related APIs on top of Phase 1 (22, 24, 25, 26, 28, 65, 66).
-
-### Phase 3: Full Management Coverage
-
-Complete ACL, Quota, and operations management APIs.
+- [Core Concepts](./KafkaCoreConcepts.md)
+- [Compatibility & Limitations](./Compatibility-and-Limitations.md) — root causes of the differences
+- [CLI Guide](./CLI-Guide.md)

@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .btitle { font-size: 12px; font-weight: 700; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="500" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Core Concepts</text>
+  <text x="30" y="46" class="note">A Broker serves partitions; Controller and Coordinator are the meta-service Raft leader.</text>
+
+  <!-- Producer -->
+  <rect x="30" y="150" width="150" height="70" rx="9" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="105" y="182" text-anchor="middle" class="btitle">Producer</text>
+  <text x="105" y="202" text-anchor="middle" class="note">record &#8594; RecordBatch</text>
+
+  <!-- Topic -->
+  <rect x="220" y="72" width="420" height="232" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="236" y="92" class="ltitle">Topic &#183; ordered per partition</text>
+
+  <text x="236" y="120" class="btext">Partition 0</text>
+  <rect x="300" y="124" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="328" y="143" text-anchor="middle" class="note">0</text>
+  <rect x="356" y="124" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="384" y="143" text-anchor="middle" class="note">1</text>
+  <rect x="412" y="124" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="440" y="143" text-anchor="middle" class="note">2</text>
+  <rect x="468" y="124" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="496" y="143" text-anchor="middle" class="note">3</text>
+  <rect x="524" y="124" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564" stroke-dasharray="3 3"/>
+  <text x="552" y="143" text-anchor="middle" class="note">&#8230;</text>
+
+  <text x="236" y="176" class="btext">Partition 1</text>
+  <rect x="300" y="180" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="328" y="199" text-anchor="middle" class="note">0</text>
+  <rect x="356" y="180" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="384" y="199" text-anchor="middle" class="note">1</text>
+  <rect x="412" y="180" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564"/>
+  <text x="440" y="199" text-anchor="middle" class="note">2</text>
+  <rect x="468" y="180" width="56" height="28" rx="4" fill="#ffffff" stroke="#3aa564" stroke-dasharray="3 3"/>
+  <text x="496" y="199" text-anchor="middle" class="note">&#8230;</text>
+
+  <text x="580" y="143" class="note">offset &#8594;</text>
+  <text x="236" y="240" class="note">Record = key / value / headers / timestamp</text>
+  <text x="236" y="258" class="note">Offset = position within a partition</text>
+  <text x="236" y="276" class="note">Producer groups records into a RecordBatch;</text>
+  <text x="236" y="292" class="note">RobustMQ decodes and stores each record by offset.</text>
+
+  <!-- Consumer Group -->
+  <rect x="690" y="110" width="180" height="180" rx="9" fill="#eef4fb" stroke="#cfe0f2"/>
+  <text x="704" y="130" class="ltitle">Consumer Group</text>
+  <rect x="706" y="140" width="148" height="46" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="780" y="160" text-anchor="middle" class="btext">Consumer A</text>
+  <text x="780" y="177" text-anchor="middle" class="note">assigned P0</text>
+  <rect x="706" y="196" width="148" height="46" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="780" y="216" text-anchor="middle" class="btext">Consumer B</text>
+  <text x="780" y="233" text-anchor="middle" class="note">assigned P1</text>
+  <text x="704" y="266" class="note">1 partition &#8594; 1 member</text>
+
+  <!-- top flow arrows -->
+  <line x1="180" y1="185" x2="216" y2="185" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="198" y="176" text-anchor="middle" class="note">produce</text>
+  <line x1="640" y1="150" x2="686" y2="150" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="663" y="141" text-anchor="middle" class="note">fetch</text>
+
+  <!-- Storage -->
+  <rect x="30" y="350" width="430" height="118" rx="9" fill="#fbf4ec" stroke="#f2e2cf"/>
+  <text x="44" y="370" class="ltitle">Storage &#183; File Segment (per partition)</text>
+  <rect x="48" y="380" width="192" height="30" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="144" y="400" text-anchor="middle" class="btext">Segment: append / seal / scroll</text>
+  <rect x="250" y="380" width="192" height="30" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="346" y="400" text-anchor="middle" class="btext">offset &#8594; position (mmap)</text>
+  <rect x="48" y="420" width="394" height="30" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="245" y="440" text-anchor="middle" class="btext">Protocol-neutral records &#183; ISR + leader_epoch</text>
+
+  <!-- Coordination -->
+  <rect x="480" y="350" width="390" height="118" rx="9" fill="#fdeef0" stroke="#f7d6dc"/>
+  <text x="494" y="370" class="ltitle">Coordination &#183; meta-service Raft</text>
+  <rect x="498" y="380" width="182" height="30" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="589" y="400" text-anchor="middle" class="btext">Controller = Raft Leader</text>
+  <rect x="690" y="380" width="166" height="30" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="773" y="400" text-anchor="middle" class="btext">Group Coordinator</text>
+  <rect x="498" y="420" width="358" height="30" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="677" y="440" text-anchor="middle" class="btext">Offsets &#183; configs &#183; SASL/SCRAM &#183; ACL</text>
+
+  <!-- down arrows -->
+  <line x1="360" y1="304" x2="250" y2="348" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="300" y="330" text-anchor="middle" class="note">persist</text>
+  <line x1="778" y1="290" x2="720" y2="348" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="772" y="326" text-anchor="middle" class="note">commit / heartbeat</text>
+
+  <text x="30" y="488" class="note">Kafka and MQTT share the same topic store, so records are kept protocol-neutral rather than as Kafka-private batches.</text>
+</svg>

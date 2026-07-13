@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" viewBox="0 0 900 500" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .stext { font-size: 11px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+      .mono { font-size: 10.5px; fill: #33475b; font-family: 'SFMono-Regular', Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="500" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; SASL / SCRAM handshake</text>
+  <text x="30" y="46" class="note">Default SCRAM-SHA-256 / SCRAM-SHA-512 (RFC 5802) over SASL_PLAINTEXT</text>
+
+  <!-- lifelines -->
+  <rect x="150" y="70" width="180" height="36" rx="7" fill="#eef4fb" stroke="#4a90d9"/>
+  <text x="240" y="93" text-anchor="middle" class="btext">Kafka Client</text>
+  <rect x="570" y="70" width="180" height="36" rx="7" fill="#eef7f0" stroke="#3aa564"/>
+  <text x="660" y="93" text-anchor="middle" class="btext">RobustMQ Broker</text>
+  <line x1="240" y1="106" x2="240" y2="470" stroke="#c7d0d9" stroke-width="1.4"/>
+  <line x1="660" y1="106" x2="660" y2="470" stroke="#c7d0d9" stroke-width="1.4"/>
+
+  <!-- 1 handshake -->
+  <line x1="240" y1="140" x2="660" y2="140" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="134" text-anchor="middle" class="stext">SaslHandshake(mechanism = SCRAM-SHA-256)</text>
+  <line x1="660" y1="172" x2="240" y2="172" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="166" text-anchor="middle" class="note">enabled mechanisms &#8592;</text>
+
+  <!-- 2 client-first -->
+  <line x1="240" y1="212" x2="660" y2="212" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="200" text-anchor="middle" class="stext">SaslAuthenticate &#183; client-first</text>
+  <text x="450" y="228" text-anchor="middle" class="mono">n=user, r=cNonce</text>
+
+  <!-- 3 server-first -->
+  <line x1="660" y1="272" x2="240" y2="272" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="260" text-anchor="middle" class="stext">SaslAuthenticate &#183; server-first</text>
+  <text x="450" y="288" text-anchor="middle" class="mono">r=cNonce+sNonce, s=salt, i=iterations</text>
+
+  <!-- 4 client-final -->
+  <line x1="240" y1="332" x2="660" y2="332" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="320" text-anchor="middle" class="stext">SaslAuthenticate &#183; client-final</text>
+  <text x="450" y="348" text-anchor="middle" class="mono">c=biws, r=&#8230;, p=clientProof</text>
+
+  <!-- broker verify note -->
+  <rect x="540" y="360" width="240" height="34" rx="6" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="660" y="381" text-anchor="middle" class="note">verify proof against stored salt/keys</text>
+
+  <!-- 5 server-final -->
+  <line x1="660" y1="424" x2="240" y2="424" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="450" y="412" text-anchor="middle" class="stext">SaslAuthenticate &#183; server-final</text>
+  <text x="450" y="440" text-anchor="middle" class="mono">v=serverSignature</text>
+
+  <text x="240" y="466" text-anchor="middle" class="btext" fill="#3aa564" font-weight="700">authenticated</text>
+</svg>

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .stext { font-size: 10.5px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+      .mono { font-size: 11px; fill: #1f2d3d; font-family: 'SFMono-Regular', Consolas, monospace; }
+      .cell { font-size: 11px; fill: #1f2d3d; font-family: 'SFMono-Regular', Consolas, monospace; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="420" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; DeleteRecords</text>
+  <text x="30" y="46" class="note">Advances the low watermark (log start offset); data below it becomes unreadable</text>
+
+  <!-- BEFORE row -->
+  <text x="30" y="86" class="ltitle">Before &#183; deleteRecords(beforeOffset = 4)</text>
+  <!-- cells 0..7 -->
+  <g>
+    <rect x="30"  y="98" width="60" height="44" fill="#fbf4ec" stroke="#d9862a"/>
+    <rect x="90"  y="98" width="60" height="44" fill="#fbf4ec" stroke="#d9862a"/>
+    <rect x="150" y="98" width="60" height="44" fill="#fbf4ec" stroke="#d9862a"/>
+    <rect x="210" y="98" width="60" height="44" fill="#fbf4ec" stroke="#d9862a"/>
+    <rect x="270" y="98" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="330" y="98" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="390" y="98" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="450" y="98" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <text x="60"  y="125" class="cell">0</text>
+    <text x="120" y="125" class="cell">1</text>
+    <text x="180" y="125" class="cell">2</text>
+    <text x="240" y="125" class="cell">3</text>
+    <text x="300" y="125" class="cell">4</text>
+    <text x="360" y="125" class="cell">5</text>
+    <text x="420" y="125" class="cell">6</text>
+    <text x="480" y="125" class="cell">7</text>
+  </g>
+  <text x="30" y="162" class="note">low watermark = 0</text>
+  <text x="510" y="125" class="note">&#8592; high watermark = 8</text>
+
+  <!-- arrow -->
+  <line x1="270" y1="185" x2="270" y2="215" stroke="#5b6b7b" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <text x="286" y="205" class="stext">delete offsets &lt; 4</text>
+
+  <!-- AFTER row -->
+  <text x="30" y="248" class="ltitle">After</text>
+  <g>
+    <rect x="30"  y="260" width="60" height="44" fill="#f4f6f8" stroke="#c7d0d9" stroke-dasharray="4 3"/>
+    <rect x="90"  y="260" width="60" height="44" fill="#f4f6f8" stroke="#c7d0d9" stroke-dasharray="4 3"/>
+    <rect x="150" y="260" width="60" height="44" fill="#f4f6f8" stroke="#c7d0d9" stroke-dasharray="4 3"/>
+    <rect x="210" y="260" width="60" height="44" fill="#f4f6f8" stroke="#c7d0d9" stroke-dasharray="4 3"/>
+    <rect x="270" y="260" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="330" y="260" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="390" y="260" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <rect x="450" y="260" width="60" height="44" fill="#eef7f0" stroke="#3aa564"/>
+    <text x="60"  y="287" class="cell" fill="#a0acb8">0</text>
+    <text x="120" y="287" class="cell" fill="#a0acb8">1</text>
+    <text x="180" y="287" class="cell" fill="#a0acb8">2</text>
+    <text x="240" y="287" class="cell" fill="#a0acb8">3</text>
+    <text x="300" y="287" class="cell">4</text>
+    <text x="360" y="287" class="cell">5</text>
+    <text x="420" y="287" class="cell">6</text>
+    <text x="480" y="287" class="cell">7</text>
+  </g>
+  <text x="270" y="332" class="note" text-anchor="middle">new low watermark = 4</text>
+  <text x="30" y="332" class="note">unreadable (below LW)</text>
+
+  <!-- semantics legend -->
+  <rect x="560" y="98" width="310" height="206" rx="9" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="574" y="116" class="ltitle">beforeOffset semantics</text>
+  <text x="574" y="138" class="mono">N &gt; 0</text><text x="648" y="138" class="stext">delete offsets &lt; N</text>
+  <text x="574" y="160" class="mono">-1</text><text x="648" y="160" class="stext">up to high watermark</text>
+  <text x="574" y="182" class="mono">0</text><text x="648" y="182" class="stext">no-op (returns LW, ok)</text>
+  <text x="574" y="204" class="mono">&lt; -1</text><text x="648" y="204" class="stext">OFFSET_OUT_OF_RANGE</text>
+  <text x="574" y="226" class="mono">&gt; HW</text><text x="648" y="226" class="stext">OFFSET_OUT_OF_RANGE</text>
+  <line x1="574" y1="242" x2="856" y2="242" stroke="#ddd3f2"/>
+  <text x="574" y="262" class="note">Consumers then read from the new</text>
+  <text x="574" y="278" class="note">low watermark; retention also</text>
+  <text x="574" y="294" class="note">advances it automatically over time.</text>
+</svg>

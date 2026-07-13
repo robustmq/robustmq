@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .stext { font-size: 11px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="470" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Classic Consumer Group</text>
+  <text x="30" y="46" class="note">Client leader computes the assignment; the broker relays it. Coordinator = Raft leader.</text>
+
+  <!-- lanes -->
+  <rect x="120" y="66" width="180" height="30" rx="7" fill="#eef4fb" stroke="#4a90d9"/>
+  <text x="210" y="86" text-anchor="middle" class="btext">Consumers (A, B)</text>
+  <rect x="600" y="66" width="200" height="30" rx="7" fill="#fdeef0" stroke="#d24b63"/>
+  <text x="700" y="86" text-anchor="middle" class="btext">Coordinator (Raft leader)</text>
+  <line x1="210" y1="96" x2="210" y2="392" stroke="#4a90d9" stroke-width="1.2"/>
+  <line x1="700" y1="96" x2="700" y2="392" stroke="#d24b63" stroke-width="1.2"/>
+
+  <line x1="210" y1="120" x2="700" y2="120" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="114" text-anchor="middle" class="stext">FindCoordinator &#8594; locate coordinator</text>
+
+  <line x1="210" y1="156" x2="700" y2="156" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="150" text-anchor="middle" class="stext">JoinGroup (no member id)</text>
+  <line x1="700" y1="184" x2="210" y2="184" stroke="#d9862a" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="178" text-anchor="middle" class="stext">MEMBER_ID_REQUIRED + assigned id</text>
+
+  <line x1="210" y1="220" x2="700" y2="220" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="214" text-anchor="middle" class="stext">JoinGroup (with member id)</text>
+  <line x1="700" y1="248" x2="210" y2="248" stroke="#3aa564" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="242" text-anchor="middle" class="stext">leader + member list + generation</text>
+
+  <line x1="210" y1="284" x2="700" y2="284" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="278" text-anchor="middle" class="stext">SyncGroup (leader sends assignment)</text>
+  <line x1="700" y1="312" x2="210" y2="312" stroke="#3aa564" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="306" text-anchor="middle" class="stext">per-member assignment relayed back</text>
+
+  <line x1="210" y1="348" x2="700" y2="348" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="342" text-anchor="middle" class="stext">Heartbeat (keepalive)  &#183;  LeaveGroup on exit</text>
+
+  <line x1="700" y1="376" x2="210" y2="376" stroke="#d9862a" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="455" y="370" text-anchor="middle" class="stext">REBALANCE_IN_PROGRESS &#8594; rejoin</text>
+
+  <!-- rebalance note -->
+  <rect x="30" y="404" width="840" height="48" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="44" y="424" class="note">Rebalance: a member joining or leaving bumps the generation; partitions are split across the new member set</text>
+  <text x="44" y="440" class="note">(e.g. two consumers each take half). The assignor (range, etc.) runs on the client leader, not the broker.</text>
+</svg>

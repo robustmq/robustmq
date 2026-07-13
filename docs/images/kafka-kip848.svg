@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="440" viewBox="0 0 900 440" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .stext { font-size: 11px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="440" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Next-Gen Consumer Group (KIP-848)</text>
+  <text x="30" y="46" class="note">group.protocol = consumer. The broker computes the assignment; heartbeats reconcile it incrementally.</text>
+
+  <!-- Sequence -->
+  <rect x="30" y="66" width="410" height="340" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="44" y="86" class="ltitle">Heartbeat + server-side assignment</text>
+
+  <rect x="60" y="98" width="140" height="28" rx="7" fill="#eef4fb" stroke="#4a90d9"/>
+  <text x="130" y="117" text-anchor="middle" class="stext">Consumer</text>
+  <rect x="270" y="98" width="150" height="28" rx="7" fill="#fdeef0" stroke="#d24b63"/>
+  <text x="345" y="117" text-anchor="middle" class="stext">Coordinator</text>
+  <line x1="130" y1="126" x2="130" y2="392" stroke="#4a90d9" stroke-width="1.2"/>
+  <line x1="345" y1="126" x2="345" y2="392" stroke="#d24b63" stroke-width="1.2"/>
+
+  <line x1="130" y1="152" x2="345" y2="152" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="237" y="146" text-anchor="middle" class="note">Heartbeat (subscribed topics)</text>
+  <line x1="345" y1="188" x2="130" y2="188" stroke="#3aa564" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="237" y="182" text-anchor="middle" class="note">target assignment (computed)</text>
+
+  <rect x="70" y="206" width="120" height="44" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="130" y="224" text-anchor="middle" class="note">reconcile:</text>
+  <text x="130" y="240" text-anchor="middle" class="note">revoke then add</text>
+
+  <line x1="130" y1="272" x2="345" y2="272" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="237" y="266" text-anchor="middle" class="note">Heartbeat (ack epoch)</text>
+  <line x1="345" y1="308" x2="130" y2="308" stroke="#3aa564" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <text x="237" y="302" text-anchor="middle" class="note">ack, steady state</text>
+
+  <text x="60" y="344" class="note">A single ConsumerGroupHeartbeat replaces the classic</text>
+  <text x="60" y="360" class="note">JoinGroup / SyncGroup / Heartbeat trio.</text>
+  <text x="60" y="382" class="note">subscribed_topic_regex is not supported.</text>
+
+  <!-- Comparison -->
+  <rect x="460" y="66" width="410" height="340" rx="9" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="474" y="86" class="ltitle">Classic vs KIP-848</text>
+
+  <text x="476" y="118" class="note">Aspect</text>
+  <text x="600" y="118" class="note">Classic</text>
+  <text x="740" y="118" class="note">KIP-848</text>
+  <line x1="474" y1="126" x2="856" y2="126" stroke="#ddd3f2" stroke-width="1"/>
+
+  <text x="476" y="150" class="stext">Assignment</text>
+  <text x="600" y="150" class="stext">client leader</text>
+  <text x="740" y="150" class="stext">broker</text>
+
+  <text x="476" y="186" class="stext">Protocol</text>
+  <text x="600" y="186" class="stext">join / sync /</text>
+  <text x="600" y="201" class="stext">heartbeat</text>
+  <text x="740" y="186" class="stext">one heartbeat</text>
+
+  <text x="476" y="237" class="stext">Rebalance</text>
+  <text x="600" y="237" class="stext">eager (stop</text>
+  <text x="600" y="252" class="stext">the world)</text>
+  <text x="740" y="237" class="stext">incremental</text>
+  <text x="740" y="252" class="stext">reconcile</text>
+
+  <text x="476" y="288" class="stext">Enable via</text>
+  <text x="600" y="288" class="stext">default</text>
+  <text x="740" y="288" class="stext">group.protocol</text>
+  <text x="740" y="303" class="stext">= consumer</text>
+
+  <line x1="474" y1="322" x2="856" y2="322" stroke="#ddd3f2" stroke-width="1"/>
+  <text x="476" y="346" class="note">Both protocols share the same committed offsets</text>
+  <text x="476" y="362" class="note">and the same coordinator (the Raft leader).</text>
+</svg>

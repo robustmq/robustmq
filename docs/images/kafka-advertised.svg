@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="380" viewBox="0 0 900 380" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+      .step { font-size: 11px; font-weight: 700; fill: #3aa564; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="380" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Advertised Address</text>
+  <text x="30" y="46" class="note">Clients connect to the advertised host:port from the node registry, not the bind address</text>
+
+  <!-- Client -->
+  <rect x="30" y="80" width="200" height="120" rx="9" fill="#eef4fb" stroke="#cfe0f2"/>
+  <text x="44" y="100" class="ltitle">Kafka Client</text>
+  <text x="44" y="126" class="note">bootstrap.servers</text>
+  <text x="44" y="144" class="note">= any broker</text>
+
+  <!-- Meta -->
+  <rect x="330" y="70" width="250" height="140" rx="9" fill="#fdeef0" stroke="#f7d6dc"/>
+  <text x="344" y="90" class="ltitle">Node Registry &#183; Raft</text>
+  <rect x="348" y="104" width="214" height="34" rx="7" fill="#ffffff" stroke="#d24b63"/>
+  <text x="455" y="126" text-anchor="middle" class="btext">kafka.tcp_addr per node</text>
+  <text x="344" y="160" class="note">= broker_ip (or local IP)</text>
+  <text x="344" y="178" class="note">+ kafka_runtime.tcp_port</text>
+
+  <!-- Leader broker -->
+  <rect x="660" y="70" width="210" height="140" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="674" y="90" class="ltitle">Target Broker (leader)</text>
+  <text x="674" y="118" class="note">bind: 0.0.0.0:9092</text>
+  <text x="674" y="140" class="note">advertised: host:9092</text>
+  <text x="674" y="168" class="btext">Produce / Fetch</text>
+
+  <!-- flow -->
+  <line x1="230" y1="120" x2="328" y2="120" stroke="#5b6b7b" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="238" y="112" class="step">1 Metadata / FindCoordinator</text>
+
+  <line x1="330" y1="150" x2="230" y2="165" stroke="#5b6b7b" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="238" y="185" class="step">2 advertised host:port</text>
+
+  <line x1="230" y1="120" x2="658" y2="120" stroke="#3aa564" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="470" y="60" class="step">3 direct connect to advertised address</text>
+
+  <text x="30" y="266" class="note">bind address = what the socket listens on (may be 0.0.0.0 in containers).</text>
+  <text x="30" y="286" class="note">advertised address = what clients are told to dial; each node registers it into the Raft node registry at startup.</text>
+  <text x="30" y="306" class="note">Docker / k8s / NAT: set broker_ip to a client-reachable host, else clients receive an unreachable address.</text>
+  <text x="30" y="326" class="note">Shared mechanism: MQTT / NATS register their own advertised addresses through the same registry path.</text>
+</svg>

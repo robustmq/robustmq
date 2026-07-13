@@ -169,7 +169,69 @@ const items = [
     collapsed: true,
     items: [
       { text: "概览", link: "/zh/RobustMQ-Kafka/Overview" },
+      { text: "核心概念", link: "/zh/RobustMQ-Kafka/KafkaCoreConcepts" },
+      { text: "系统架构", link: "/zh/RobustMQ-Kafka/SystemArchitecture" },
       { text: "协议支持", link: "/zh/RobustMQ-Kafka/Protocol" },
+      { text: "快速开始", link: "/zh/RobustMQ-Kafka/QuickStart" },
+      { text: "命令行指南", link: "/zh/RobustMQ-Kafka/CLI-Guide" },
+      {
+        text: "消息",
+        collapsed: true,
+        items: [
+          { text: "生产", link: "/zh/RobustMQ-Kafka/Producer" },
+          { text: "幂等 Producer", link: "/zh/RobustMQ-Kafka/Idempotence" },
+          { text: "消费", link: "/zh/RobustMQ-Kafka/Consumer" },
+          { text: "消费组", link: "/zh/RobustMQ-Kafka/ConsumerGroup" },
+          { text: "新一代消费组 (KIP-848)", link: "/zh/RobustMQ-Kafka/ConsumerGroupNext" },
+          { text: "位点管理", link: "/zh/RobustMQ-Kafka/OffsetManagement" },
+        ],
+      },
+      {
+        text: "存储",
+        collapsed: true,
+        items: [
+          { text: "存储模型", link: "/zh/RobustMQ-Kafka/Storage" },
+          { text: "数据删除与保留", link: "/zh/RobustMQ-Kafka/DeleteRecords" },
+        ],
+      },
+      {
+        text: "安全",
+        collapsed: true,
+        items: [
+          { text: "概览", link: "/zh/RobustMQ-Kafka/Security/Overview" },
+          { text: "SASL/SCRAM 认证", link: "/zh/RobustMQ-Kafka/Security/Authentication-SASL-SCRAM" },
+          { text: "授权 (ACL)", link: "/zh/RobustMQ-Kafka/Security/Authorization-ACL" },
+          { text: "客户端配额", link: "/zh/RobustMQ-Kafka/Security/Quota" },
+          { text: "委托令牌", link: "/zh/RobustMQ-Kafka/Security/DelegationToken" },
+        ],
+      },
+      {
+        text: "配置",
+        collapsed: true,
+        items: [
+          { text: "Broker 配置", link: "/zh/RobustMQ-Kafka/Configuration/BrokerConfig" },
+          { text: "Topic 配置", link: "/zh/RobustMQ-Kafka/Configuration/TopicConfig" },
+          { text: "集群动态配置", link: "/zh/RobustMQ-Kafka/Configuration/DynamicConfig" },
+        ],
+      },
+      {
+        text: "运维",
+        collapsed: true,
+        items: [
+          { text: "集群与 Controller", link: "/zh/RobustMQ-Kafka/Operations/ClusterAndController" },
+          { text: "广告地址", link: "/zh/RobustMQ-Kafka/Operations/AdvertisedListeners" },
+          { text: "部署", link: "/zh/RobustMQ-Kafka/Operations/Deployment" },
+        ],
+      },
+      {
+        text: "客户端 SDK",
+        collapsed: true,
+        items: [
+          { text: "Java 客户端", link: "/zh/RobustMQ-Kafka/SDK/java-client" },
+        ],
+      },
+      { text: "兼容性与限制", link: "/zh/RobustMQ-Kafka/Compatibility-and-Limitations" },
+      { text: "路线图", link: "/zh/RobustMQ-Kafka/Roadmap" },
     ],
   },
 

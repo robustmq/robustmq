@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .btext { font-size: 12px; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="470" fill="#ffffff"/>
+  <text x="30" y="28" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; Architecture</text>
+  <text x="30" y="46" class="note">One data, multiple protocol views (Kafka + MQTT share one store)</text>
+
+  <!-- Client -->
+  <rect x="30" y="60" width="840" height="52" rx="9" fill="#eef4fb" stroke="#cfe0f2"/>
+  <text x="44" y="78" class="ltitle">Client</text>
+  <rect x="120" y="68" width="180" height="36" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="210" y="91" text-anchor="middle" class="btext">Producer / Consumer</text>
+  <rect x="316" y="68" width="130" height="36" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="381" y="91" text-anchor="middle" class="btext">AdminClient</text>
+  <rect x="462" y="68" width="150" height="36" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="537" y="91" text-anchor="middle" class="btext">CLI (kafka-*.sh)</text>
+  <rect x="628" y="68" width="120" height="36" rx="7" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="688" y="91" text-anchor="middle" class="btext">librdkafka</text>
+
+  <!-- Protocol -->
+  <rect x="30" y="126" width="840" height="60" rx="9" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="44" y="144" class="ltitle">Protocol &#183; src/protocol</text>
+  <rect x="140" y="150" width="170" height="28" rx="7" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="225" y="169" text-anchor="middle" class="btext">Codec</text>
+  <rect x="326" y="150" width="240" height="28" rx="7" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="446" y="169" text-anchor="middle" class="btext">Handler dispatch (66 APIs)</text>
+  <rect x="582" y="150" width="180" height="28" rx="7" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="672" y="169" text-anchor="middle" class="btext">Network (ordered)</text>
+
+  <!-- Core -->
+  <rect x="30" y="200" width="840" height="100" rx="9" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="44" y="218" class="ltitle">Core &#183; src/kafka-broker</text>
+  <rect x="60" y="228" width="150" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="135" y="248" text-anchor="middle" class="btext">Produce / Fetch</text>
+  <rect x="220" y="228" width="120" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="280" y="248" text-anchor="middle" class="btext">ListOffsets</text>
+  <rect x="350" y="228" width="255" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="477" y="248" text-anchor="middle" class="btext">Group Coordinator (Classic / KIP-848)</text>
+  <rect x="615" y="228" width="110" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="670" y="248" text-anchor="middle" class="btext">Metadata</text>
+  <rect x="735" y="228" width="105" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="787" y="248" text-anchor="middle" class="btext">Idempotence</text>
+  <rect x="60" y="264" width="150" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="135" y="284" text-anchor="middle" class="btext">SASL / SCRAM</text>
+  <rect x="220" y="264" width="120" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="280" y="284" text-anchor="middle" class="btext">ACL / Quota</text>
+  <rect x="350" y="264" width="130" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="415" y="284" text-anchor="middle" class="btext">Config</text>
+  <rect x="490" y="264" width="230" height="30" rx="7" fill="#ffffff" stroke="#3aa564"/>
+  <text x="605" y="284" text-anchor="middle" class="btext">Topic Mgmt / Delegation</text>
+
+  <!-- Storage -->
+  <rect x="30" y="314" width="520" height="86" rx="9" fill="#fbf4ec" stroke="#f2e2cf"/>
+  <text x="44" y="332" class="ltitle">Storage &#183; File Segment</text>
+  <rect x="56" y="344" width="140" height="46" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="126" y="371" text-anchor="middle" class="btext">Segment</text>
+  <rect x="206" y="344" width="160" height="46" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="286" y="371" text-anchor="middle" class="btext">offset index (mmap)</text>
+  <rect x="376" y="344" width="150" height="46" rx="7" fill="#ffffff" stroke="#d9862a"/>
+  <text x="451" y="371" text-anchor="middle" class="btext">ISR replication</text>
+
+  <!-- Meta -->
+  <rect x="570" y="314" width="300" height="86" rx="9" fill="#fdeef0" stroke="#f7d6dc"/>
+  <text x="584" y="332" class="ltitle">Metadata &#183; Raft</text>
+  <rect x="586" y="342" width="268" height="24" rx="6" fill="#ffffff" stroke="#d24b63"/>
+  <text x="720" y="358" text-anchor="middle" class="btext">Controller / Coordinator = Leader</text>
+  <rect x="586" y="370" width="268" height="24" rx="6" fill="#ffffff" stroke="#d24b63"/>
+  <text x="720" y="386" text-anchor="middle" class="btext">Node Registry / Config / Offsets</text>
+
+  <!-- connectors -->
+  <line x1="450" y1="112" x2="450" y2="126" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="186" x2="450" y2="200" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="290" y1="300" x2="290" y2="314" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="720" y1="300" x2="720" y2="314" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <text x="30" y="426" class="note">Data plane (Produce / Fetch) &#8594; Storage; metadata / coordination / auth / config &#8594; Raft.</text>
+  <text x="30" y="444" class="note">Storage keeps protocol-neutral decoded records, reframed into a RecordBatch on Fetch.</text>
+</svg>

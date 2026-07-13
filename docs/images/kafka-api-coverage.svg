@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="962" height="612" viewBox="0 0 962 612" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <style>
+      .ctitle { font-size: 12.5px; font-weight: 700; fill: #1f2d3d; }
+      .note { font-size: 10.5px; fill: #6b7b8b; }
+      .cap { font-size: 10px; fill: #8a97a3; }
+      .legend { font-size: 11px; fill: #33475b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="962" height="612" fill="#ffffff"/>
+  <text x="30" y="30" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ Kafka &#183; API Coverage</text>
+  <text x="30" y="48" class="note">Coverage by functional domain. Card color reflects the domain's overall status; captions note exceptions.</text>
+
+  <!-- legend -->
+  <circle cx="36" cy="66" r="6" fill="#3aa564"/>
+  <text x="48" y="70" class="legend">Full</text>
+  <circle cx="120" cy="66" r="6" fill="#d9a441"/>
+  <text x="132" y="70" class="legend">Partial</text>
+  <circle cx="212" cy="66" r="6" fill="#9aa7b2"/>
+  <text x="224" y="70" class="legend">Intentionally unsupported</text>
+  <circle cx="430" cy="66" r="6" fill="#d24b63"/>
+  <text x="442" y="70" class="legend">Not implemented</text>
+
+  <!-- Row 1 -->
+  <!-- Data Plane -->
+  <rect x="30" y="92" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="300" cy="110" r="6" fill="#3aa564"/>
+  <text x="44" y="114" class="ctitle">Data Plane</text>
+  <text x="44" y="136" class="note">Produce &#183; Fetch</text>
+  <text x="44" y="152" class="note">ListOffsets &#183; Metadata</text>
+  <text x="44" y="190" class="cap">Fetch: uncompressed, no fetch session</text>
+
+  <!-- Consumer Group Classic -->
+  <rect x="336" y="92" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="606" cy="110" r="6" fill="#3aa564"/>
+  <text x="350" y="114" class="ctitle">Consumer Group &#183; Classic</text>
+  <text x="350" y="136" class="note">Join / Sync / Heartbeat / Leave</text>
+  <text x="350" y="152" class="note">OffsetCommit / OffsetFetch / OffsetDelete</text>
+  <text x="350" y="168" class="note">Find / List / Describe / DeleteGroups</text>
+
+  <!-- Consumer Group KIP-848 -->
+  <rect x="642" y="92" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="912" cy="110" r="6" fill="#3aa564"/>
+  <text x="656" y="114" class="ctitle">Consumer Group &#183; KIP-848</text>
+  <text x="656" y="136" class="note">ConsumerGroupHeartbeat</text>
+  <text x="656" y="152" class="note">ConsumerGroupDescribe</text>
+  <text x="656" y="190" class="cap">No subscribed_topic_regex</text>
+
+  <!-- Row 2 -->
+  <!-- Topic Management -->
+  <rect x="30" y="214" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="300" cy="232" r="6" fill="#3aa564"/>
+  <text x="44" y="236" class="ctitle">Topic Management</text>
+  <text x="44" y="258" class="note">CreateTopics &#183; DeleteTopics</text>
+  <text x="44" y="274" class="note">CreatePartitions &#183; DeleteRecords</text>
+  <text x="44" y="312" class="cap">Auto-create on by default</text>
+
+  <!-- Configuration -->
+  <rect x="336" y="214" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="606" cy="232" r="6" fill="#3aa564"/>
+  <text x="350" y="236" class="ctitle">Configuration</text>
+  <text x="350" y="258" class="note">DescribeConfigs &#183; AlterConfigs</text>
+  <text x="350" y="274" class="note">IncrementalAlterConfigs</text>
+  <text x="350" y="312" class="cap">ListConfigResources: no-op</text>
+
+  <!-- Security & Auth -->
+  <rect x="642" y="214" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="912" cy="232" r="6" fill="#3aa564"/>
+  <text x="656" y="236" class="ctitle">Security &amp; Auth</text>
+  <text x="656" y="258" class="note">ApiVersions &#183; SaslHandshake / Authenticate</text>
+  <text x="656" y="274" class="note">User SCRAM credentials &#183; Delegation tokens</text>
+  <text x="656" y="312" class="cap">ACL / quota: stored, not enforced</text>
+
+  <!-- Row 3 -->
+  <!-- Idempotent Producer -->
+  <rect x="30" y="336" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="300" cy="354" r="6" fill="#3aa564"/>
+  <text x="44" y="358" class="ctitle">Idempotent Producer</text>
+  <text x="44" y="380" class="note">InitProducerId</text>
+  <text x="44" y="396" class="note">PID + sequence dedup, epoch fencing</text>
+  <text x="44" y="434" class="cap">transactional_id rejected</text>
+
+  <!-- Cluster & Metadata -->
+  <rect x="336" y="336" width="290" height="108" rx="9" fill="#eef7f0" stroke="#3aa564"/>
+  <circle cx="606" cy="354" r="6" fill="#3aa564"/>
+  <text x="350" y="358" class="ctitle">Cluster &amp; Metadata</text>
+  <text x="350" y="380" class="note">DescribeCluster</text>
+  <text x="350" y="396" class="note">DescribeTopicPartitions</text>
+
+  <!-- Replica / Log-dir Admin -->
+  <rect x="642" y="336" width="290" height="108" rx="9" fill="#f2f3f5" stroke="#9aa7b2"/>
+  <circle cx="912" cy="354" r="6" fill="#9aa7b2"/>
+  <text x="656" y="358" class="ctitle">Replica / Log-dir Admin</text>
+  <text x="656" y="380" class="note">Alter/DescribeLogDirs &#183; ElectLeaders</text>
+  <text x="656" y="396" class="note">PartitionReassignments &#183; UpdateFeatures</text>
+  <text x="656" y="434" class="cap">Storage self-manages replicas</text>
+
+  <!-- Row 4 -->
+  <!-- Transactions -->
+  <rect x="30" y="458" width="290" height="108" rx="9" fill="#fdeef0" stroke="#d24b63"/>
+  <circle cx="300" cy="476" r="6" fill="#d24b63"/>
+  <text x="44" y="480" class="ctitle">Transactions</text>
+  <text x="44" y="502" class="note">Add*ToTxn &#183; EndTxn &#183; TxnOffsetCommit</text>
+  <text x="44" y="518" class="note">Describe / ListTransactions</text>
+  <text x="44" y="556" class="cap">Not advertised; fail fast</text>
+
+  <!-- Share Group -->
+  <rect x="336" y="458" width="290" height="108" rx="9" fill="#fdeef0" stroke="#d24b63"/>
+  <circle cx="606" cy="476" r="6" fill="#d24b63"/>
+  <text x="350" y="480" class="ctitle">Share Group &#183; KIP-932</text>
+  <text x="350" y="502" class="note">ShareGroupHeartbeat / Describe</text>
+  <text x="350" y="518" class="note">ShareFetch / ShareAcknowledge / Offsets</text>
+  <text x="350" y="556" class="cap">Not supported</text>
+
+  <!-- Telemetry -->
+  <rect x="642" y="458" width="290" height="108" rx="9" fill="#fdf6e9" stroke="#d9a441"/>
+  <circle cx="912" cy="476" r="6" fill="#d9a441"/>
+  <text x="656" y="480" class="ctitle">Client Telemetry</text>
+  <text x="656" y="502" class="note">GetTelemetrySubscriptions</text>
+  <text x="656" y="518" class="note">PushTelemetry</text>
+  <text x="656" y="556" class="cap">Accepted as no-op</text>
+
+  <text x="30" y="594" class="note">See Protocol.md for the per-API compatibility matrix (api_key, versions, status, differences).</text>
+</svg>
