@@ -333,14 +333,25 @@ async fn get_or_create_secret_key(
 
     // Re-read rather than trusting the value just generated: if another node
     // won the race to initialize this key, its value — not ours — is now the
-    // canonical one every node must sign with.
-    let reply = get_resource_config(client_pool, addrs, GetResourceConfigRequest { resources })
+    // canonical one every node must sign with. The read is served from a node's
+    // local replica, which may briefly lag the just-committed set, so poll until
+    // it converges.
+    for _ in 0..30 {
+        let reply = get_resource_config(
+            client_pool,
+            addrs,
+            GetResourceConfigRequest {
+                resources: resources.clone(),
+            },
+        )
         .await
         .map_err(|e| e.to_string())?;
-    if reply.config.is_empty() {
-        return Err("delegation token secret key vanished immediately after being set".to_string());
+        if !reply.config.is_empty() {
+            return Ok(reply.config);
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    Ok(reply.config)
+    Err("delegation token secret key vanished immediately after being set".to_string())
 }
 
 fn compute_hmac(secret: &[u8], token_id: &str) -> Result<Vec<u8>, String> {
