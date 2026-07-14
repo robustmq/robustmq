@@ -241,7 +241,7 @@ impl MetaServiceService for GrpcPlacementService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        get_resource_config_by_req(&self.raft_manager, &self.rocksdb_engine_handler, req)
+        get_resource_config_by_req(&self.rocksdb_engine_handler, req)
             .await
             .map_err(Self::to_status)
             .map(Response::new)

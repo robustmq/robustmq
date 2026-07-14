@@ -223,11 +223,6 @@ impl RaftGroup {
         self.raft_group.get(shard_name)
     }
 
-    /// The raft node serving `key`, routed the same way as `write`.
-    pub fn node_for_key(&self, key: &str) -> Option<&Raft<TypeConfig>> {
-        self.raft_group.get(&self.route_shard(key))
-    }
-
     pub fn all_nodes(&self) -> impl Iterator<Item = (&String, &Raft<TypeConfig>)> {
         self.raft_group.iter()
     }

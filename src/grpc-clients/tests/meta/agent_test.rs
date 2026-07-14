@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    use tokio::time::{sleep, Duration};
 
     use a2a_types::{AgentCapabilities, AgentCard, AgentInterface, AgentSkill};
     use common_base::tools::now_second;
@@ -153,14 +154,30 @@ mod tests {
 
         register_agent(&client_pool, &addrs, &tenant, &card).await;
 
-        let after = list_agents(&client_pool, &addrs, &tenant).await;
+        // list is served from a node's local replica, which can briefly lag the
+        // just-committed write; poll until it converges.
+        let mut after = list_agents(&client_pool, &addrs, &tenant).await;
+        for _ in 0..50 {
+            if after.len() == 1 {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+            after = list_agents(&client_pool, &addrs, &tenant).await;
+        }
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].name, card.name);
         assert_eq!(after[0].tenant, tenant);
 
         delete_agent(&client_pool, &addrs, &tenant, &card.name).await;
 
-        let after_delete = list_agents(&client_pool, &addrs, &tenant).await;
+        let mut after_delete = list_agents(&client_pool, &addrs, &tenant).await;
+        for _ in 0..50 {
+            if after_delete.is_empty() {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+            after_delete = list_agents(&client_pool, &addrs, &tenant).await;
+        }
         assert!(after_delete.is_empty());
     }
 

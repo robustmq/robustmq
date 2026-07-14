@@ -21,6 +21,7 @@ mod tests {
     };
     use grpc_clients::pool::ClientPool;
     use std::sync::Arc;
+    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn cluster_config_test() {
@@ -40,8 +41,17 @@ mod tests {
             .await
             .unwrap();
 
-        let result = cluster_storage.get_dynamic_config(resource).await.unwrap();
-        let result: MqttProtocolConfig = serde_json::from_slice(&result).unwrap();
+        // get is served from a node's local replica, which can briefly lag the
+        // just-committed write; poll until it converges.
+        let mut raw = cluster_storage.get_dynamic_config(resource).await.unwrap();
+        for _ in 0..50 {
+            if !raw.is_empty() {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+            raw = cluster_storage.get_dynamic_config(resource).await.unwrap();
+        }
+        let result: MqttProtocolConfig = serde_json::from_slice(&raw).unwrap();
         assert_eq!(result.topic_alias_max, 999);
 
         cluster_storage
@@ -49,7 +59,14 @@ mod tests {
             .await
             .unwrap();
 
-        let result = cluster_storage.get_dynamic_config(resource).await.unwrap();
-        assert!(result.is_empty());
+        let mut raw = cluster_storage.get_dynamic_config(resource).await.unwrap();
+        for _ in 0..50 {
+            if raw.is_empty() {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+            raw = cluster_storage.get_dynamic_config(resource).await.unwrap();
+        }
+        assert!(raw.is_empty());
     }
 }

@@ -104,20 +104,6 @@ impl GrpcMqttService {
     fn to_status<E: ToString>(e: E) -> Status {
         Status::internal(e.to_string())
     }
-
-    // Reads are served from local rocksdb; on a follower that replica can lag a
-    // just-committed write, so metadata-backed list/get reads forward to the leader
-    // (the grpc client follows the redirect). Keeps reads linearizable.
-    fn meta_read_forward(&self) -> Option<Status> {
-        self.raft_manager
-            .metadata_read_forward()
-            .map(Self::to_status)
-    }
-
-    // Same, for resources written through the `data` group (single shard by default).
-    fn data_read_forward(&self) -> Option<Status> {
-        self.raft_manager.data_read_forward("").map(Self::to_status)
-    }
 }
 
 #[tonic::async_trait]
@@ -132,9 +118,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_user_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -184,9 +167,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.data_read_forward() {
-            return Err(f);
-        }
         list_session_by_req(&self.node_cache, &self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -243,9 +223,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.data_read_forward() {
-            return Err(f);
-        }
         list_topic_by_req(&self.rocksdb_engine_handler, &req)
             .await
             .map_err(Self::to_status)
@@ -313,9 +290,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_acl_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -360,9 +334,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_blacklist_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -443,9 +414,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_topic_rewrite_rule_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -458,9 +426,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_subscribe_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -504,9 +469,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_connectors_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)
@@ -624,9 +586,6 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         self.validate_request(&req)?;
 
-        if let Some(f) = self.meta_read_forward() {
-            return Err(f);
-        }
         list_auto_subscribe_rule_by_req(&self.rocksdb_engine_handler, &req)
             .map_err(Self::to_status)
             .map(Response::new)

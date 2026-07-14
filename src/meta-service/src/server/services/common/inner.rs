@@ -111,15 +111,9 @@ pub async fn set_resource_config_by_req(
 }
 
 pub async fn get_resource_config_by_req(
-    raft_manager: &Arc<MultiRaftManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     req: GetResourceConfigRequest,
 ) -> Result<GetResourceConfigReply, MetaServiceError> {
-    // Read on the leader; a follower's local replica may lag a just-committed write.
-    if let Some(forward) = raft_manager.metadata_read_forward() {
-        return Err(forward);
-    }
-
     let storage = ResourceConfigStorage::new(rocksdb_engine_handler.clone());
 
     let config = storage

@@ -22,6 +22,7 @@ mod tests {
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
     use std::sync::Arc;
+    use tokio::time::{sleep, Duration};
 
     use crate::common::get_placement_addr;
 
@@ -81,24 +82,28 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-            tenant: "default".to_string(),
-        };
-
-        match list_blacklist(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.blacklists {
-                    let tmp = SecurityBlackList::decode(&raw).unwrap();
-                    if tmp.name == blacklist.name {
-                        flag = true;
-                    }
+        // list is served from a node's local replica, which can briefly lag the
+        // just-committed delete; poll until the entry disappears.
+        let mut flag = true;
+        for _ in 0..50 {
+            let request = ListBlacklistRequest {
+                tenant: "default".to_string(),
+            };
+            match list_blacklist(&client_pool, &addrs, request).await {
+                Ok(data) => {
+                    flag = data.blacklists.iter().any(|raw| {
+                        SecurityBlackList::decode(raw).unwrap().name == blacklist.name
+                    });
                 }
-                assert!(!flag);
+                Err(e) => {
+                    panic!("{e:?}");
+                }
             }
-            Err(e) => {
-                panic!("{e:?}");
+            if !flag {
+                break;
             }
+            sleep(Duration::from_millis(100)).await;
         }
+        assert!(!flag);
     }
 }

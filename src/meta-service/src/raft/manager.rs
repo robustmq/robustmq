@@ -89,26 +89,6 @@ pub struct MultiRaftManager {
     pub stop: Arc<RwLock<bool>>,
 }
 
-/// `None` if `raft` is the leader (read locally), else a forward-to-leader error
-/// in the format the grpc client redirects on.
-fn forward_if_not_leader(raft: &Raft<TypeConfig>) -> Option<MetaServiceError> {
-    let m = raft.metrics().borrow().clone();
-    let leader_id = m.current_leader?;
-    if leader_id == m.id {
-        return None;
-    }
-    let leader = m
-        .membership_config
-        .membership()
-        .nodes()
-        .find(|(id, _)| **id == leader_id)
-        .map(|(_, node)| node.clone())?;
-    Some(MetaServiceError::CommonError(format!(
-        "has to forward request to: Some(Node {{ node_id: {}, rpc_addr: \"{}\" }})",
-        leader.node_id, leader.rpc_addr
-    )))
-}
-
 impl MultiRaftManager {
     pub async fn new(
         client_pool: Arc<ClientPool>,
@@ -322,18 +302,6 @@ impl MultiRaftManager {
         data: StorageData,
     ) -> Result<Option<ClientWriteResponse<TypeConfig>>, MetaServiceError> {
         self.data.write(key, data).await
-    }
-
-    /// `None` if this node is the leader of the `data` shard for `key` (read locally),
-    /// else a forward-to-leader error in the format the grpc client redirects on.
-    pub fn data_read_forward(&self, key: &str) -> Option<MetaServiceError> {
-        forward_if_not_leader(self.data.node_for_key(key)?)
-    }
-
-    /// Same as `data_read_forward`, but for reads backed by the `metadata` shard
-    /// (e.g. resource/dynamic config), which writes go through `write_metadata`.
-    pub fn metadata_read_forward(&self) -> Option<MetaServiceError> {
-        forward_if_not_leader(self.metadata.node_for_key("")?)
     }
 
     pub async fn start_metrics_monitor(&self, stop_send: broadcast::Sender<bool>) {
