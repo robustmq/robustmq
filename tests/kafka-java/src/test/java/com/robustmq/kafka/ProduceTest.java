@@ -275,8 +275,7 @@ class ProduceTest {
     @Test
     void produceToUnknownTopicFailsWhenAutoCreateOff() throws Exception {
         Support.setAutoCreateTopics(false);
-        // Dynamic config propagates to brokers asynchronously; retry with a fresh
-        // topic until a send fails, proving auto-create is off on the serving broker.
+        // Config propagates asynchronously; retry until a send fails.
         Throwable cause = null;
         for (int attempt = 0; attempt < 20 && cause == null; attempt++) {
             String topic = name();
