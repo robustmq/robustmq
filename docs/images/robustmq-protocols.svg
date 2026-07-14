@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="350" viewBox="0 0 900 350" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#5b6b7b"/>
+    </marker>
+    <style>
+      .ltitle { font-size: 12.5px; font-weight: 700; fill: #33475b; }
+      .pname  { font-size: 14px; font-weight: 700; fill: #1f2d3d; }
+      .btext  { font-size: 12px; fill: #1f2d3d; }
+      .tag    { font-size: 9.5px; fill: #6b7b8b; }
+      .note   { font-size: 10.5px; fill: #6b7b8b; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="350" fill="#ffffff"/>
+  <text x="30" y="30" font-size="18" font-weight="700" fill="#1f2d3d">RobustMQ &#183; One Kernel, Multiple Protocols</text>
+  <text x="30" y="50" class="note">One copy of data, multiple protocol views &#183; MQTT / Kafka / NATS / MQ9</text>
+
+  <!-- protocol chips -->
+  <rect x="30"  y="72" width="180" height="46" rx="9" fill="#ffffff" stroke="#3aa564"/>
+  <text x="120" y="94"  text-anchor="middle" class="pname">MQTT</text>
+  <text x="120" y="109" text-anchor="middle" class="tag">IoT messaging</text>
+
+  <rect x="250" y="72" width="180" height="46" rx="9" fill="#ffffff" stroke="#d9862a"/>
+  <text x="340" y="94"  text-anchor="middle" class="pname">Kafka</text>
+  <text x="340" y="109" text-anchor="middle" class="tag">streaming / logs</text>
+
+  <rect x="470" y="72" width="180" height="46" rx="9" fill="#ffffff" stroke="#4a90d9"/>
+  <text x="560" y="94"  text-anchor="middle" class="pname">NATS</text>
+  <text x="560" y="109" text-anchor="middle" class="tag">lightweight messaging</text>
+
+  <rect x="690" y="72" width="180" height="46" rx="9" fill="#ffffff" stroke="#8e6fce"/>
+  <text x="780" y="94"  text-anchor="middle" class="pname">MQ9</text>
+  <text x="780" y="109" text-anchor="middle" class="tag">AI agent comms</text>
+
+  <!-- arrows into kernel -->
+  <line x1="120" y1="120" x2="120" y2="148" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="340" y1="120" x2="340" y2="148" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="560" y1="120" x2="560" y2="148" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+  <line x1="780" y1="120" x2="780" y2="148" stroke="#5b6b7b" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- kernel -->
+  <rect x="30" y="150" width="840" height="176" rx="11" fill="#f7f9fb" stroke="#cfe0f2"/>
+  <text x="46" y="171" class="ltitle">RobustMQ Kernel</text>
+
+  <rect x="46" y="180" width="808" height="28" rx="7" fill="#f3f0fb" stroke="#ddd3f2"/>
+  <text x="450" y="199" text-anchor="middle" class="btext">Protocol layer &#183; codec + dispatch</text>
+
+  <rect x="46" y="214" width="808" height="28" rx="7" fill="#eef7f0" stroke="#cfe9d6"/>
+  <text x="450" y="233" text-anchor="middle" class="btext">Core &#183; per-protocol semantics</text>
+
+  <rect x="46" y="248" width="536" height="62" rx="7" fill="#fbf4ec" stroke="#f2e2cf"/>
+  <text x="314" y="272" text-anchor="middle" class="btext">Storage &#183; File Segment</text>
+  <text x="314" y="291" text-anchor="middle" class="tag">one copy of data &#183; protocol-neutral, decoded records</text>
+
+  <rect x="598" y="248" width="256" height="62" rx="7" fill="#fdeef0" stroke="#f7d6dc"/>
+  <text x="726" y="272" text-anchor="middle" class="btext">Metadata &#183; Raft</text>
+  <text x="726" y="291" text-anchor="middle" class="tag">controller / coordinator = leader</text>
+</svg>
