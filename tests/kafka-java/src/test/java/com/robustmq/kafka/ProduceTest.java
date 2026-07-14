@@ -275,18 +275,25 @@ class ProduceTest {
     @Test
     void produceToUnknownTopicFailsWhenAutoCreateOff() throws Exception {
         Support.setAutoCreateTopics(false);
-        String topic = name(); // never created
-        try (KafkaProducer<byte[], byte[]> producer =
-                Support.newProducer(Map.of(ProducerConfig.MAX_BLOCK_MS_CONFIG, "6000"))) {
-            // With auto-creation off the topic never resolves, so the send must
-            // fail: either the metadata wait times out, or the broker's
-            // UNKNOWN_TOPIC metadata surfaces as UnknownTopicOrPartition.
-            Exception ex = assertThrows(Exception.class,
-                    () -> producer.send(new ProducerRecord<>(topic, 0, null, "x".getBytes())).get());
-            Throwable cause = (ex instanceof ExecutionException) ? ex.getCause() : ex;
-            assertTrue(cause instanceof TimeoutException
-                            || cause instanceof UnknownTopicOrPartitionException,
-                    "expected timeout or unknown-topic failure, got " + cause);
+        // Dynamic config propagates to brokers asynchronously; retry with a fresh
+        // topic until a send fails, proving auto-create is off on the serving broker.
+        Throwable cause = null;
+        for (int attempt = 0; attempt < 20 && cause == null; attempt++) {
+            String topic = name();
+            try (KafkaProducer<byte[], byte[]> producer =
+                    Support.newProducer(Map.of(ProducerConfig.MAX_BLOCK_MS_CONFIG, "6000"))) {
+                try {
+                    producer.send(new ProducerRecord<>(topic, 0, null, "x".getBytes())).get();
+                    Thread.sleep(500);
+                } catch (Exception ex) {
+                    cause = (ex instanceof ExecutionException) ? ex.getCause() : ex;
+                }
+            }
         }
+        assertTrue(cause != null,
+                "producing to an unknown topic kept succeeding after auto-create was disabled");
+        assertTrue(cause instanceof TimeoutException
+                        || cause instanceof UnknownTopicOrPartitionException,
+                "expected timeout or unknown-topic failure, got " + cause);
     }
 }
