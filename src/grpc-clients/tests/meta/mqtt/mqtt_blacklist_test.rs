@@ -91,9 +91,10 @@ mod tests {
             };
             match list_blacklist(&client_pool, &addrs, request).await {
                 Ok(data) => {
-                    flag = data.blacklists.iter().any(|raw| {
-                        SecurityBlackList::decode(raw).unwrap().name == blacklist.name
-                    });
+                    flag = data
+                        .blacklists
+                        .iter()
+                        .any(|raw| SecurityBlackList::decode(raw).unwrap().name == blacklist.name);
                 }
                 Err(e) => {
                     panic!("{e:?}");
