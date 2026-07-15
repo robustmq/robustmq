@@ -27,6 +27,7 @@ protocol.workspace = true
 bytes.workspace = true
 tracing.workspace = true
 dashmap.workspace = true
+uuid.workspace = true
 tokio.workspace = true
 pulsar.workspace = true
 rkyv.workspace = true

@@ -14,7 +14,7 @@
 
 use broker_core::cache::NodeCacheManager;
 use common_base::utils::serialize;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MqttSession;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
@@ -26,13 +26,10 @@ use rocksdb_engine::{
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::{manager::DelayTaskManager, DelayTask, DelayTaskData};
-
 pub async fn handle_session_expire(
     node_call_manager: &Arc<NodeCallManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     broker_cache: &Arc<NodeCacheManager>,
-    delay_task_manager: &Arc<DelayTaskManager>,
     tenant: &str,
     client_id: &str,
 ) -> Result<(), CommonError> {
@@ -56,23 +53,9 @@ pub async fn handle_session_expire(
         });
         node_call_manager.send(data).await?;
 
-        if let Some(delay_interval) = session.last_will_delay_interval {
-            let delay_target_time = now_second() + delay_interval;
-            delay_task_manager
-                .create_task(DelayTask::build_persistent(
-                    client_id.to_string(),
-                    DelayTaskData::MQTTLastwillExpire(tenant.to_string(), client_id.to_string()),
-                    delay_target_time,
-                ))
-                .await?;
-        } else if session.is_contain_last_will {
-            node_call_manager
-                .send(NodeCallData::SendLastWillMessage {
-                    tenant: tenant.to_string(),
-                    client_id: client_id.to_string(),
-                })
-                .await?;
-        }
+        // The Will Message is no longer scheduled here. It gets its own delay task
+        // at disconnect time (see create_session route), firing at
+        // min(will_delay, session_expiry); this handler only tears down the session.
     }
 
     debug!(

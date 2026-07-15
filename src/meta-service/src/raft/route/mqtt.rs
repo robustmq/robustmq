@@ -155,11 +155,38 @@ impl DataRouteMqtt {
                     );
 
                     self.delay_task_manager.create_task(task).await?;
+
+                    // Publish the Will Message at min(will_delay, session_expiry) after
+                    // disconnect (MQTT v5: whichever happens first), scheduled from the
+                    // disconnect time. It used to be chained inside the session-expiry
+                    // handler, so it fired at session_expiry + will_delay instead.
+                    if session.is_contain_last_will {
+                        let will_delay = session.last_will_delay_interval.unwrap_or(0);
+                        let will_target =
+                            distinct_time + will_delay.min(session.session_expiry_interval);
+                        let will_task = DelayTask::build_ephemeral(
+                            format!("{}_lastwill", session.client_id),
+                            DelayTaskData::MQTTLastwillExpire(
+                                session.tenant.clone(),
+                                session.client_id.clone(),
+                            ),
+                            will_target,
+                        );
+                        self.delay_task_manager.create_task(will_task).await?;
+                    }
                 }
-            } else if self.delay_task_manager.contains_task(&session.client_id) {
-                self.delay_task_manager
-                    .delete_task(&session.client_id)
-                    .await?;
+            } else {
+                // Client (re)connected before expiry: cancel any pending session-expiry
+                // and will-delivery tasks left by a previous disconnect.
+                if self.delay_task_manager.contains_task(&session.client_id) {
+                    self.delay_task_manager
+                        .delete_task(&session.client_id)
+                        .await?;
+                }
+                let will_key = format!("{}_lastwill", session.client_id);
+                if self.delay_task_manager.contains_task(&will_key) {
+                    self.delay_task_manager.delete_task(&will_key).await?;
+                }
             }
         }
 

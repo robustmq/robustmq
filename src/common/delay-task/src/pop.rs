@@ -222,7 +222,6 @@ pub async fn delay_task_process(
                 node_call_manager,
                 rocksdb_engine_handler,
                 broker_cache,
-                delay_task_manager,
                 tenant,
                 client_id,
             )
