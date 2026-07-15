@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::{error::common::CommonError, tools::now_second, utils::serialize};
-use uuid::Uuid;
+use common_base::{
+    error::common::CommonError, tools::now_second, utils::serialize, uuid::unique_id,
+};
 use common_config::storage::StorageType;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,17 +51,9 @@ pub struct Topic {
 
 impl Topic {
     pub fn new(tenant: &str, topic_name: &str, storage_type: StorageType) -> Self {
-        // Deterministic topic_id derived from (tenant, topic_name): any node that
-        // constructs this topic — concurrently or later — yields the same id, hence
-        // the same shard name. Topic/shard creation is therefore idempotent and a
-        // write never targets a shard that a different id happened to create. (This
-        // was a random unique_id, which diverged under concurrent same-topic creation
-        // and broke e.g. last-will delivery with "Shard ... does not exist".)
-        let topic_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("{tenant}/{topic_name}").as_bytes())
-            .simple()
-            .to_string();
+        let unique_id = unique_id();
         Topic {
-            topic_id: topic_id.clone(),
+            topic_id: unique_id.clone(),
             tenant: tenant.to_string(),
             topic_name: topic_name.to_string(),
             storage_type,
@@ -68,7 +61,7 @@ impl Topic {
             partition: 1,
             replication: 1,
             mark_delete: false,
-            storage_name_list: Topic::create_partition_name(&topic_id, 1),
+            storage_name_list: Topic::create_partition_name(&unique_id, 1),
             config: TopicConfig::default(),
             create_time: now_second(),
         }

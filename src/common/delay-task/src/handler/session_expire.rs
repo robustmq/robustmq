@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use broker_core::cache::NodeCacheManager;
-use common_base::utils::serialize;
 use common_base::error::common::CommonError;
+use common_base::utils::serialize;
 use metadata_struct::mqtt::session::MqttSession;
 use node_call::{NodeCallData, NodeCallManager, UpdateCacheData};
 use protocol::broker::broker::{BrokerUpdateCacheActionType, BrokerUpdateCacheResourceType};
