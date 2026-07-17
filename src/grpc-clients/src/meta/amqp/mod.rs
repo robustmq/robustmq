@@ -14,8 +14,10 @@
 
 use protocol::meta::meta_service_amqp::amqp_service_client::AmqpServiceClient;
 use protocol::meta::meta_service_amqp::{
-    DeleteExchangeReply, DeleteExchangeRequest, ListExchangeReply, ListExchangeRequest,
-    SetExchangeReply, SetExchangeRequest,
+    DeleteBindingReply, DeleteBindingRequest, DeleteExchangeReply, DeleteExchangeRequest,
+    DeleteQueueReply, DeleteQueueRequest, ListBindingReply, ListBindingRequest, ListExchangeReply,
+    ListExchangeRequest, ListQueueReply, ListQueueRequest, SetBindingReply, SetBindingRequest,
+    SetExchangeReply, SetExchangeRequest, SetQueueReply, SetQueueRequest,
 };
 use tonic::transport::Channel;
 
@@ -50,5 +52,65 @@ impl_retriable_request!(
     list_exchange,
     "AmqpService",
     "ListExchange",
+    true
+);
+
+impl_retriable_request!(
+    SetQueueRequest,
+    AmqpServiceClient<Channel>,
+    SetQueueReply,
+    set_queue,
+    "AmqpService",
+    "SetQueue",
+    true
+);
+
+impl_retriable_request!(
+    DeleteQueueRequest,
+    AmqpServiceClient<Channel>,
+    DeleteQueueReply,
+    delete_queue,
+    "AmqpService",
+    "DeleteQueue",
+    true
+);
+
+impl_retriable_request!(
+    ListQueueRequest,
+    AmqpServiceClient<Channel>,
+    ListQueueReply,
+    list_queue,
+    "AmqpService",
+    "ListQueue",
+    true
+);
+
+impl_retriable_request!(
+    SetBindingRequest,
+    AmqpServiceClient<Channel>,
+    SetBindingReply,
+    set_binding,
+    "AmqpService",
+    "SetBinding",
+    true
+);
+
+impl_retriable_request!(
+    DeleteBindingRequest,
+    AmqpServiceClient<Channel>,
+    DeleteBindingReply,
+    delete_binding,
+    "AmqpService",
+    "DeleteBinding",
+    true
+);
+
+impl_retriable_request!(
+    ListBindingRequest,
+    AmqpServiceClient<Channel>,
+    ListBindingReply,
+    list_binding,
+    "AmqpService",
+    "ListBinding",
     true
 );

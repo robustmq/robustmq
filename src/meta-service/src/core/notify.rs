@@ -15,7 +15,9 @@
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
 use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
+use metadata_struct::amqp::binding::AmqpBinding;
 use metadata_struct::amqp::exchange::AmqpExchange;
+use metadata_struct::amqp::queue::AmqpQueue;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -403,6 +405,60 @@ pub async fn send_notify_by_delete_exchange(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::AmqpExchange,
         serialize::serialize(&exchange)?,
+    )
+    .await
+}
+
+// AMQP queue
+pub async fn send_notify_by_set_queue(
+    call_manager: &Arc<NodeCallManager>,
+    queue: AmqpQueue,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::AmqpQueue,
+        serialize::serialize(&queue)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_queue(
+    call_manager: &Arc<NodeCallManager>,
+    queue: AmqpQueue,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::AmqpQueue,
+        serialize::serialize(&queue)?,
+    )
+    .await
+}
+
+// AMQP binding
+pub async fn send_notify_by_set_binding(
+    call_manager: &Arc<NodeCallManager>,
+    binding: AmqpBinding,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::AmqpBinding,
+        serialize::serialize(&binding)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_binding(
+    call_manager: &Arc<NodeCallManager>,
+    binding: AmqpBinding,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::AmqpBinding,
+        serialize::serialize(&binding)?,
     )
     .await
 }

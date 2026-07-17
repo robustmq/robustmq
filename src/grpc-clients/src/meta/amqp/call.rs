@@ -14,8 +14,10 @@
 
 use common_base::error::common::CommonError;
 use protocol::meta::meta_service_amqp::{
-    DeleteExchangeReply, DeleteExchangeRequest, ListExchangeReply, ListExchangeRequest,
-    SetExchangeReply, SetExchangeRequest,
+    DeleteBindingReply, DeleteBindingRequest, DeleteExchangeReply, DeleteExchangeRequest,
+    DeleteQueueReply, DeleteQueueRequest, ListBindingReply, ListBindingRequest, ListExchangeReply,
+    ListExchangeRequest, ListQueueReply, ListQueueRequest, SetBindingReply, SetBindingRequest,
+    SetExchangeReply, SetExchangeRequest, SetQueueReply, SetQueueRequest,
 };
 
 use crate::pool::ClientPool;
@@ -43,3 +45,13 @@ generate_amqp_service_call!(
     ListExchangeRequest,
     ListExchangeReply
 );
+generate_amqp_service_call!(placement_set_queue, SetQueueRequest, SetQueueReply);
+generate_amqp_service_call!(placement_delete_queue, DeleteQueueRequest, DeleteQueueReply);
+generate_amqp_service_call!(placement_list_queue, ListQueueRequest, ListQueueReply);
+generate_amqp_service_call!(placement_set_binding, SetBindingRequest, SetBindingReply);
+generate_amqp_service_call!(
+    placement_delete_binding,
+    DeleteBindingRequest,
+    DeleteBindingReply
+);
+generate_amqp_service_call!(placement_list_binding, ListBindingRequest, ListBindingReply);

@@ -17,7 +17,8 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::amqp::exchange::AmqpExchange;
 use rocksdb_engine::keys::meta::{
-    storage_key_amqp_exchange, storage_key_amqp_exchange_tenant_prefix,
+    storage_key_amqp_exchange, storage_key_amqp_exchange_cluster_prefix,
+    storage_key_amqp_exchange_tenant_prefix,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::meta_metadata::{
@@ -51,6 +52,18 @@ impl AmqpExchangeStorage {
             engine_get_by_meta_metadata::<AmqpExchange>(&self.rocksdb_engine_handler, &key)?
                 .map(|raw| raw.data),
         )
+    }
+
+    /// All durable exchanges across every tenant — used to warm
+    /// `MetaCacheManager` on startup (non-durable exchanges are never
+    /// persisted here, so a restart naturally drops them).
+    pub fn list_all(&self) -> Result<Vec<AmqpExchange>, CommonError> {
+        let prefix_key = storage_key_amqp_exchange_cluster_prefix();
+        let data = engine_prefix_list_by_meta_metadata::<AmqpExchange>(
+            &self.rocksdb_engine_handler,
+            &prefix_key,
+        )?;
+        Ok(data.into_iter().map(|raw| raw.data).collect())
     }
 
     pub fn list_by_tenant(&self, tenant: &str) -> Result<Vec<AmqpExchange>, CommonError> {

@@ -119,6 +119,8 @@ enum BrokerUpdateCacheResourceType {
   KafkaDelegationToken = 24;
   KafkaScram = 25;
   AmqpExchange = 26;
+  AmqpQueue = 27;
+  AmqpBinding = 28;
 }
 
 enum BrokerUpdateCacheActionType {

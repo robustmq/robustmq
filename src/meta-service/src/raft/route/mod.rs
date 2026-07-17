@@ -77,7 +77,7 @@ impl DataRoute {
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_kafka = DataRouteKafka::new(rocksdb_engine_handler.clone());
-        let route_amqp = DataRouteAmqp::new(rocksdb_engine_handler.clone());
+        let route_amqp = DataRouteAmqp::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
@@ -180,6 +180,22 @@ impl DataRoute {
             StorageDataType::AmqpDeleteExchange => {
                 self.route_amqp
                     .delete_exchange(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpSetQueue => {
+                self.route_amqp.set_queue(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpDeleteQueue => {
+                self.route_amqp.delete_queue(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpSetBinding => {
+                self.route_amqp.set_binding(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpDeleteBinding => {
+                self.route_amqp.delete_binding(storage_data.value.clone())?;
                 Ok(None)
             }
             StorageDataType::TenantCreate => {

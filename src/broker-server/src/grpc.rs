@@ -171,7 +171,7 @@ fn get_place_kafka_handler(place_params: &MetaServiceServerParams) -> GrpcKafkaS
 fn get_place_amqp_handler(place_params: &MetaServiceServerParams) -> GrpcAmqpService {
     GrpcAmqpService::new(
         place_params.raft_manager.clone(),
-        place_params.rocksdb_engine_handler.clone(),
+        place_params.cache_manager.clone(),
         place_params.node_call_manager.clone(),
     )
 }

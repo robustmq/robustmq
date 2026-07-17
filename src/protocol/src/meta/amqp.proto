@@ -17,10 +17,14 @@ package meta.service.amqp;
 
 import "meta/validate.proto";
 
-// AMQP-specific meta APIs. Queues are backed by the shared Topic entity (see
-// meta/mqtt.proto's CreateTopic/DeleteTopic) — an AMQP queue is just a Topic
-// with TopicSource::AMQP. Exchanges have no storage/shard of their own (pure
-// routing metadata), so they get their own service here.
+// AMQP-specific meta APIs.
+//
+// AmqpQueue here is the queue's AMQP-level declare metadata (name, durable,
+// exclusive, auto_delete, arguments) — every queue, durable or not, also gets
+// a `metadata_struct::topic::Topic` shard (TopicSource::AMQP; see
+// meta/mqtt.proto's CreateTopic/DeleteTopic) that actually holds its messages
+// while it's alive. Exchanges have no storage/shard of their own at all (pure
+// routing metadata).
 service AmqpService {
   // AmqpExchange, JSON-encoded in `exchange`.
   rpc SetExchange(SetExchangeRequest) returns (SetExchangeReply) {}
@@ -28,6 +32,20 @@ service AmqpService {
   rpc DeleteExchange(DeleteExchangeRequest) returns (DeleteExchangeReply) {}
 
   rpc ListExchange(ListExchangeRequest) returns (ListExchangeReply) {}
+
+  // AmqpQueue, JSON-encoded in `queue`.
+  rpc SetQueue(SetQueueRequest) returns (SetQueueReply) {}
+
+  rpc DeleteQueue(DeleteQueueRequest) returns (DeleteQueueReply) {}
+
+  rpc ListQueue(ListQueueRequest) returns (ListQueueReply) {}
+
+  // AmqpBinding, JSON-encoded in `binding`.
+  rpc SetBinding(SetBindingRequest) returns (SetBindingReply) {}
+
+  rpc DeleteBinding(DeleteBindingRequest) returns (DeleteBindingReply) {}
+
+  rpc ListBinding(ListBindingRequest) returns (ListBindingReply) {}
 }
 
 message SetExchangeRequest {
@@ -49,4 +67,49 @@ message ListExchangeRequest {
 
 message ListExchangeReply {
   repeated bytes exchanges = 1;
+}
+
+message SetQueueRequest {
+  bytes queue = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetQueueReply {}
+
+message DeleteQueueRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string queue_name = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteQueueReply {}
+
+message ListQueueRequest {
+  string tenant = 1;
+}
+
+message ListQueueReply {
+  repeated bytes queues = 1;
+}
+
+message SetBindingRequest {
+  bytes binding = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetBindingReply {}
+
+message DeleteBindingRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string source = 2 [(validate.rules).string.min_len = 1];
+  string destination = 3 [(validate.rules).string.min_len = 1];
+  string destination_type = 4 [(validate.rules).string.min_len = 1];
+  string routing_key = 5;
+}
+
+message DeleteBindingReply {}
+
+message ListBindingRequest {
+  string tenant = 1;
+}
+
+message ListBindingReply {
+  repeated bytes bindings = 1;
 }

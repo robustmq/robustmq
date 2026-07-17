@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::queue::{AMQPMethod, BindOk, DeleteOk, PurgeOk, UnbindOk};
+use amq_protocol::protocol::queue::{AMQPMethod, PurgeOk};
 use amq_protocol::protocol::AMQPClass;
 use common_config::broker::broker_config;
 use common_config::storage::StorageType;
@@ -25,15 +25,11 @@ use storage_adapter::driver::StorageDriverManager;
 use storage_adapter::topic::{create_topic_full, topic_replication_num};
 use tracing::warn;
 
-// Queue.Declare needs storage access (to create the backing topic/shard), so it is
-// handled in command.rs via `declare_amqp_queue` rather than here. Everything else
-// in this file is a plain protocol ack.
+// Queue.Declare/Delete/Bind/Unbind need storage access, so they are handled
+// in command.rs. Everything else in this file is a plain protocol ack.
 pub fn process_queue(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
-        AMQPMethod::Bind(_) => process_bind(channel_id),
         AMQPMethod::Purge(_) => process_purge(channel_id),
-        AMQPMethod::Delete(_) => process_delete(channel_id),
-        AMQPMethod::Unbind(_) => process_unbind(channel_id),
         _ => None,
     }
 }
@@ -79,30 +75,9 @@ pub(crate) async fn declare_amqp_queue(
     }
 }
 
-fn process_bind(channel_id: u16) -> Option<AMQPFrame> {
-    Some(AMQPFrame::Method(
-        channel_id,
-        AMQPClass::Queue(AMQPMethod::BindOk(BindOk {})),
-    ))
-}
-
 fn process_purge(channel_id: u16) -> Option<AMQPFrame> {
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Queue(AMQPMethod::PurgeOk(PurgeOk { message_count: 0 })),
-    ))
-}
-
-fn process_delete(channel_id: u16) -> Option<AMQPFrame> {
-    Some(AMQPFrame::Method(
-        channel_id,
-        AMQPClass::Queue(AMQPMethod::DeleteOk(DeleteOk { message_count: 0 })),
-    ))
-}
-
-fn process_unbind(channel_id: u16) -> Option<AMQPFrame> {
-    Some(AMQPFrame::Method(
-        channel_id,
-        AMQPClass::Queue(AMQPMethod::UnbindOk(UnbindOk {})),
     ))
 }

@@ -483,3 +483,40 @@ pub fn storage_key_amqp_exchange(tenant: &str, exchange_name: &str) -> String {
 pub fn storage_key_amqp_exchange_tenant_prefix(tenant: &str) -> String {
     format!("{}amqp/exchange/{}/", PREFIX_META, tenant)
 }
+
+#[inline]
+pub fn storage_key_amqp_exchange_cluster_prefix() -> String {
+    format!("{}amqp/exchange/", PREFIX_META)
+}
+
+// AMQP: queues.
+#[inline]
+pub fn storage_key_amqp_queue(tenant: &str, queue_name: &str) -> String {
+    format!("{}amqp/queue/{}/{}", PREFIX_META, tenant, queue_name)
+}
+
+#[inline]
+pub fn storage_key_amqp_queue_tenant_prefix(tenant: &str) -> String {
+    format!("{}amqp/queue/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_amqp_queue_cluster_prefix() -> String {
+    format!("{}amqp/queue/", PREFIX_META)
+}
+
+// AMQP: bindings.
+#[inline]
+pub fn storage_key_amqp_binding(tenant: &str, binding_key: &str) -> String {
+    format!("{}amqp/binding/{}/{}", PREFIX_META, tenant, binding_key)
+}
+
+#[inline]
+pub fn storage_key_amqp_binding_tenant_prefix(tenant: &str) -> String {
+    format!("{}amqp/binding/{}/", PREFIX_META, tenant)
+}
+
+#[inline]
+pub fn storage_key_amqp_binding_cluster_prefix() -> String {
+    format!("{}amqp/binding/", PREFIX_META)
+}

@@ -26,7 +26,9 @@ use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::amqp::binding::{AmqpBinding, AmqpBindingDestinationType};
 use metadata_struct::amqp::exchange::{AmqpExchange, AmqpExchangeType};
+use metadata_struct::amqp::queue::AmqpQueue;
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
@@ -44,7 +46,9 @@ use tracing::{debug, error, warn};
 
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
 use crate::core::cache::AmqpCacheManager;
+use crate::storage::binding::BindingStorage;
 use crate::storage::exchange::ExchangeStorage;
+use crate::storage::queue::QueueStorage;
 
 pub fn create_command() -> ArcCommandAdapter {
     Arc::new(Box::new(AmqpHandlerCommand::new_stateless()))
@@ -261,6 +265,9 @@ impl AmqpHandlerCommand {
     ) -> Option<AMQPFrame> {
         match method {
             QueueMethod::Declare(declare) => self.process_queue_declare(channel_id, declare).await,
+            QueueMethod::Delete(delete) => self.process_queue_delete(channel_id, delete).await,
+            QueueMethod::Bind(bind) => self.process_queue_bind(channel_id, bind).await,
+            QueueMethod::Unbind(unbind) => self.process_queue_unbind(channel_id, unbind).await,
             other => queue::process_queue(channel_id, other),
         }
     }
@@ -277,8 +284,38 @@ impl AmqpHandlerCommand {
         };
 
         if let Some(sdm) = &self.storage_driver_manager {
+            // The physical message shard: needed whether or not the queue's own
+            // declare metadata is durable — something has to hold its messages
+            // while it's alive.
             if queue::declare_amqp_queue(sdm, &queue_name).await.is_none() {
                 warn!("AMQP Queue.Declare failed for queue={}", queue_name);
+            }
+
+            let arguments: HashMap<String, String> = declare
+                .arguments
+                .inner()
+                .iter()
+                .map(|(k, v)| (k.as_str().to_string(), format!("{:?}", v)))
+                .collect();
+            let amqp_queue = AmqpQueue::new(
+                DEFAULT_TENANT,
+                &queue_name,
+                declare.durable,
+                declare.exclusive,
+                declare.auto_delete,
+                arguments,
+            );
+            let storage = QueueStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            match storage.set_queue(&amqp_queue).await {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        cache.set_queue(amqp_queue);
+                    }
+                }
+                Err(e) => warn!(
+                    "AMQP Queue.Declare metadata write failed for {}: {}",
+                    queue_name, e
+                ),
             }
         }
 
@@ -289,6 +326,113 @@ impl AmqpHandlerCommand {
                 message_count: 0,
                 consumer_count: 0,
             })),
+        ))
+    }
+
+    async fn process_queue_delete(
+        &self,
+        channel_id: u16,
+        delete: &amq_protocol::protocol::queue::Delete,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::queue::DeleteOk;
+
+        let queue_name = delete.queue.to_string();
+        if let Some(sdm) = &self.storage_driver_manager {
+            let storage = QueueStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            match storage.delete_queue(DEFAULT_TENANT, &queue_name).await {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        cache.remove_queue(DEFAULT_TENANT, &queue_name);
+                    }
+                }
+                Err(e) => warn!("AMQP Queue.Delete failed for {}: {}", queue_name, e),
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Queue(QueueMethod::DeleteOk(DeleteOk { message_count: 0 })),
+        ))
+    }
+
+    async fn process_queue_bind(
+        &self,
+        channel_id: u16,
+        bind: &amq_protocol::protocol::queue::Bind,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::queue::BindOk;
+
+        if let Some(sdm) = &self.storage_driver_manager {
+            let arguments: HashMap<String, String> = bind
+                .arguments
+                .inner()
+                .iter()
+                .map(|(k, v)| (k.as_str().to_string(), format!("{:?}", v)))
+                .collect();
+            let binding = AmqpBinding::new(
+                DEFAULT_TENANT,
+                bind.exchange.as_str(),
+                bind.queue.as_str(),
+                AmqpBindingDestinationType::Queue,
+                bind.routing_key.as_str(),
+                arguments,
+            );
+            let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            match storage.set_binding(&binding).await {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        cache.set_binding(binding);
+                    }
+                }
+                Err(e) => warn!("AMQP Queue.Bind failed: {}", e),
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Queue(QueueMethod::BindOk(BindOk {})),
+        ))
+    }
+
+    async fn process_queue_unbind(
+        &self,
+        channel_id: u16,
+        unbind: &amq_protocol::protocol::queue::Unbind,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::queue::UnbindOk;
+
+        if let Some(sdm) = &self.storage_driver_manager {
+            let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            let destination_type = AmqpBindingDestinationType::Queue;
+            match storage
+                .delete_binding(
+                    DEFAULT_TENANT,
+                    unbind.exchange.as_str(),
+                    unbind.queue.as_str(),
+                    &destination_type,
+                    unbind.routing_key.as_str(),
+                )
+                .await
+            {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        let key = format!(
+                            "{}/{}/{}/{}",
+                            unbind.exchange.as_str(),
+                            destination_type.as_str(),
+                            unbind.queue.as_str(),
+                            unbind.routing_key.as_str()
+                        );
+                        cache.remove_binding(DEFAULT_TENANT, &key);
+                    }
+                }
+                Err(e) => warn!("AMQP Queue.Unbind failed: {}", e),
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Queue(QueueMethod::UnbindOk(UnbindOk {})),
         ))
     }
 

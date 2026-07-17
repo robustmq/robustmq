@@ -15,6 +15,9 @@
 use super::heartbeat::NodeHeartbeatData;
 use crate::core::error::MetaServiceError;
 use crate::server::services::mqtt::connector::ConnectorHeartbeat;
+use crate::storage::amqp::binding::AmqpBindingStorage;
+use crate::storage::amqp::exchange::AmqpExchangeStorage;
+use crate::storage::amqp::queue::AmqpQueueStorage;
 use crate::storage::common::node::NodeStorage;
 use crate::storage::common::tenant::TenantStorage;
 use crate::storage::journal::segment::SegmentStorage;
@@ -24,6 +27,9 @@ use crate::storage::mqtt::connector::MqttConnectorStorage;
 use common_base::role::is_engine_node;
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use metadata_struct::amqp::binding::AmqpBinding;
+use metadata_struct::amqp::exchange::AmqpExchange;
+use metadata_struct::amqp::queue::AmqpQueue;
 use metadata_struct::connector::MQTTConnector;
 use metadata_struct::meta::node::BrokerNode;
 use metadata_struct::mqtt::share_group::ShareGroup;
@@ -107,6 +113,21 @@ pub struct MetaCacheManager {
     //（shard_name, JournalSegment)
     pub wait_delete_segment_list: DashMap<String, EngineSegment>,
 
+    // AMQP
+    // ("{tenant}/{exchange_name}", AmqpExchange). The full in-cluster view —
+    // durable exchanges are also mirrored in rocksdb (survive a restart);
+    // non-durable ones live only here (gone once every node restarts).
+    pub exchange_list: DashMap<String, AmqpExchange>,
+
+    // ("{tenant}/{queue_name}", AmqpQueue). Same durable/non-durable split as
+    // exchange_list — this is the queue's declare metadata only; its message
+    // shard is a separate Topic (TopicSource::AMQP), always persisted.
+    pub queue_list: DashMap<String, AmqpQueue>,
+
+    // ("{tenant}/{binding_key}", AmqpBinding). Bindings are always persisted —
+    // there is no non-durable binding concept in AMQP.
+    pub binding_list: DashMap<String, AmqpBinding>,
+
     // Per-node replica/leader placement load (not persisted; rebuilt on demand).
     #[serde(skip)]
     pub node_load: NodeLoadCache,
@@ -126,6 +147,9 @@ impl MetaCacheManager {
             wait_delete_shard_list: DashMap::with_capacity(8),
             wait_delete_segment_list: DashMap::with_capacity(8),
             group_leader: DashMap::with_capacity(8),
+            exchange_list: DashMap::with_capacity(8),
+            queue_list: DashMap::with_capacity(8),
+            binding_list: DashMap::with_capacity(8),
             node_load: NodeLoadCache::default(),
         };
         cache.load_cache(rocksdb_engine_handler);
@@ -194,6 +218,88 @@ impl MetaCacheManager {
         None
     }
 
+    // AMQP
+    fn tenant_name_key(tenant: &str, name: &str) -> String {
+        format!("{}/{}", tenant, name)
+    }
+
+    pub fn set_exchange(&self, exchange: AmqpExchange) {
+        let key = Self::tenant_name_key(&exchange.tenant, &exchange.exchange_name);
+        self.exchange_list.insert(key, exchange);
+    }
+
+    pub fn remove_exchange(&self, tenant: &str, exchange_name: &str) {
+        self.exchange_list
+            .remove(&Self::tenant_name_key(tenant, exchange_name));
+    }
+
+    pub fn get_exchange(&self, tenant: &str, exchange_name: &str) -> Option<AmqpExchange> {
+        self.exchange_list
+            .get(&Self::tenant_name_key(tenant, exchange_name))
+            .map(|e| e.clone())
+    }
+
+    pub fn list_exchange_by_tenant(&self, tenant: &str) -> Vec<AmqpExchange> {
+        let prefix = format!("{}/", tenant);
+        self.exchange_list
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    // AMQP queue
+    pub fn set_queue(&self, queue: AmqpQueue) {
+        let key = Self::tenant_name_key(&queue.tenant, &queue.queue_name);
+        self.queue_list.insert(key, queue);
+    }
+
+    pub fn remove_queue(&self, tenant: &str, queue_name: &str) {
+        self.queue_list
+            .remove(&Self::tenant_name_key(tenant, queue_name));
+    }
+
+    pub fn get_queue(&self, tenant: &str, queue_name: &str) -> Option<AmqpQueue> {
+        self.queue_list
+            .get(&Self::tenant_name_key(tenant, queue_name))
+            .map(|q| q.clone())
+    }
+
+    pub fn list_queue_by_tenant(&self, tenant: &str) -> Vec<AmqpQueue> {
+        let prefix = format!("{}/", tenant);
+        self.queue_list
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    // AMQP binding
+    pub fn set_binding(&self, binding: AmqpBinding) {
+        let key = Self::tenant_name_key(&binding.tenant, &binding.key());
+        self.binding_list.insert(key, binding);
+    }
+
+    pub fn remove_binding(&self, tenant: &str, binding_key: &str) {
+        self.binding_list
+            .remove(&Self::tenant_name_key(tenant, binding_key));
+    }
+
+    pub fn get_binding(&self, tenant: &str, binding_key: &str) -> Option<AmqpBinding> {
+        self.binding_list
+            .get(&Self::tenant_name_key(tenant, binding_key))
+            .map(|b| b.clone())
+    }
+
+    pub fn list_binding_by_tenant(&self, tenant: &str) -> Vec<AmqpBinding> {
+        let prefix = format!("{}/", tenant);
+        self.binding_list
+            .iter()
+            .filter(|entry| entry.key().starts_with(&prefix))
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
     pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
         let node = NodeStorage::new(rocksdb_engine_handler);
         if let Ok(result) = node.list() {
@@ -235,6 +341,21 @@ pub fn load_cache_by_rocksdb(
     let data = connector.list()?;
     for connector in data {
         cache_manager.add_connector(connector);
+    }
+
+    let exchange_storage = AmqpExchangeStorage::new(rocksdb_engine_handler.clone());
+    for exchange in exchange_storage.list_all()? {
+        cache_manager.set_exchange(exchange);
+    }
+
+    let queue_storage = AmqpQueueStorage::new(rocksdb_engine_handler.clone());
+    for queue in queue_storage.list_all()? {
+        cache_manager.set_queue(queue);
+    }
+
+    let binding_storage = AmqpBindingStorage::new(rocksdb_engine_handler.clone());
+    for binding in binding_storage.list_all()? {
+        cache_manager.set_binding(binding);
     }
 
     Ok(())

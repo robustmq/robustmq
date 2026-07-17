@@ -18,7 +18,9 @@ use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
 use kafka_broker::core::cache::KafkaCacheManager;
 use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
+use metadata_struct::amqp::binding::AmqpBinding;
 use metadata_struct::amqp::exchange::AmqpExchange;
+use metadata_struct::amqp::queue::AmqpQueue;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -138,6 +140,30 @@ pub async fn update_cache(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     amqp_cache.remove_exchange(&exchange.tenant, &exchange.exchange_name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::AmqpQueue => {
+            let queue: AmqpQueue = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    amqp_cache.set_queue(queue);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    amqp_cache.remove_queue(&queue.tenant, &queue.queue_name);
+                }
+            }
+        }
+
+        BrokerUpdateCacheResourceType::AmqpBinding => {
+            let binding: AmqpBinding = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    amqp_cache.set_binding(binding);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    amqp_cache.remove_binding(&binding.tenant, &binding.key());
                 }
             }
         }

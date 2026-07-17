@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use amqp_broker::core::cache::AmqpCacheManager;
+use amqp_broker::storage::binding::BindingStorage;
 use amqp_broker::storage::exchange::ExchangeStorage;
+use amqp_broker::storage::queue::QueueStorage;
 use broker_core::cache::NodeCacheManager;
 use broker_core::cluster::ClusterStorage;
 use broker_core::dynamic_config::build_cluster_config;
@@ -98,6 +100,24 @@ async fn load_amqp_cache(
         .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
     for exchange in exchanges {
         amqp_cache.set_exchange(exchange);
+    }
+
+    let queue_storage = QueueStorage::new(client_pool.clone());
+    let queues = queue_storage
+        .list_queue_by_tenant(DEFAULT_TENANT)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+    for queue in queues {
+        amqp_cache.set_queue(queue);
+    }
+
+    let binding_storage = BindingStorage::new(client_pool.clone());
+    let bindings = binding_storage
+        .list_binding_by_tenant(DEFAULT_TENANT)
+        .await
+        .map_err(|e| MqttBrokerError::CommonError(e.to_string()))?;
+    for binding in bindings {
+        amqp_cache.set_binding(binding);
     }
     Ok(())
 }
