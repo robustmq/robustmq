@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::cache::AmqpCacheManager;
 use crate::server::{AmqpServer, AmqpServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
@@ -35,6 +36,7 @@ pub struct AmqpBrokerServerParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub amqp_cache: Arc<AmqpCacheManager>,
 }
 
 pub struct AmqpBrokerServer {

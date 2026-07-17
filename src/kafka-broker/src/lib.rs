@@ -17,3 +17,4 @@ pub mod core;
 pub mod handler;
 pub mod kafka;
 pub mod server;
+pub mod storage;

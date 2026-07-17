@@ -80,6 +80,7 @@ pub enum MetaServiceInterface {
     ChangeMembership,
 }
 
+pub mod amqp;
 pub mod common;
 pub mod kafka;
 pub mod mq9;

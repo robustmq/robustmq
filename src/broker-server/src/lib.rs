@@ -357,6 +357,7 @@ impl BrokerServer {
             storage_driver_manager: storage_driver_manager.clone(),
             kafka_cache,
         });
+        let amqp_cache = Arc::new(amqp_broker::core::cache::AmqpCacheManager::new());
         let amqp_params = amqp::build_amqp_params(amqp::AmqpBuildParams {
             connection_manager: base.connection_manager.clone(),
             client_pool: base.client_pool.clone(),
@@ -366,6 +367,7 @@ impl BrokerServer {
             stop_sx: main_stop_send.clone(),
             shared_request_channel: shared_request_channel.clone(),
             storage_driver_manager: storage_driver_manager.clone(),
+            amqp_cache,
         });
         let nats_params = nats::build_nats_params(nats::NatsBuildParams {
             connection_manager: base.connection_manager.clone(),
@@ -527,6 +529,7 @@ impl BrokerServer {
         let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
             self.connection_manager.clone(),
             self.amqp_params.storage_driver_manager.clone(),
+            self.amqp_params.amqp_cache.clone(),
         ));
         let nats_cmd = Some(nats_broker::handler::command::create_command(
             self.connection_manager.clone(),

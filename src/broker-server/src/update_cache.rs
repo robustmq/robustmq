@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use amqp_broker::core::cache::AmqpCacheManager;
 use broker_core::dynamic_config::{update_cluster_dynamic_config, ClusterDynamicConfig};
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::utils::serialize;
 use kafka_broker::core::cache::KafkaCacheManager;
 use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
+use metadata_struct::amqp::exchange::AmqpExchange;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -52,6 +54,7 @@ pub async fn update_cache(
     nats_params: &NatsBrokerServerParams,
     storage_params: &StorageEngineParams,
     kafka_cache: &Arc<KafkaCacheManager>,
+    amqp_cache: &Arc<AmqpCacheManager>,
     record: &UpdateCacheRecord,
 ) -> ResultCommonError {
     match record.resource_type() {
@@ -122,6 +125,19 @@ pub async fn update_cache(
                 }
                 BrokerUpdateCacheActionType::Delete => {
                     kafka_cache.remove_scram_credential(&credential.entity_key());
+                }
+            }
+        }
+
+        // AMQP
+        BrokerUpdateCacheResourceType::AmqpExchange => {
+            let exchange: AmqpExchange = serialize::deserialize(&record.data)?;
+            match record.action_type() {
+                BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
+                    amqp_cache.set_exchange(exchange);
+                }
+                BrokerUpdateCacheActionType::Delete => {
+                    amqp_cache.remove_exchange(&exchange.tenant, &exchange.exchange_name);
                 }
             }
         }

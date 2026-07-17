@@ -38,3 +38,7 @@ pub mod meta_service_mq9 {
 pub mod meta_service_kafka {
     tonic::include_proto!("meta.service.kafka");
 }
+
+pub mod meta_service_amqp {
+    tonic::include_proto!("meta.service.amqp");
+}

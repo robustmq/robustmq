@@ -1,0 +1,52 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+package meta.service.amqp;
+
+import "meta/validate.proto";
+
+// AMQP-specific meta APIs. Queues are backed by the shared Topic entity (see
+// meta/mqtt.proto's CreateTopic/DeleteTopic) — an AMQP queue is just a Topic
+// with TopicSource::AMQP. Exchanges have no storage/shard of their own (pure
+// routing metadata), so they get their own service here.
+service AmqpService {
+  // AmqpExchange, JSON-encoded in `exchange`.
+  rpc SetExchange(SetExchangeRequest) returns (SetExchangeReply) {}
+
+  rpc DeleteExchange(DeleteExchangeRequest) returns (DeleteExchangeReply) {}
+
+  rpc ListExchange(ListExchangeRequest) returns (ListExchangeReply) {}
+}
+
+message SetExchangeRequest {
+  bytes exchange = 1 [(validate.rules).bytes.min_len = 1];
+}
+
+message SetExchangeReply {}
+
+message DeleteExchangeRequest {
+  string tenant = 1 [(validate.rules).string.min_len = 1];
+  string exchange_name = 2 [(validate.rules).string.min_len = 1];
+}
+
+message DeleteExchangeReply {}
+
+message ListExchangeRequest {
+  string tenant = 1;
+}
+
+message ListExchangeReply {
+  repeated bytes exchanges = 1;
+}

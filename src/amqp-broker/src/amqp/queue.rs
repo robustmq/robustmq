@@ -45,7 +45,10 @@ pub(crate) async fn declare_amqp_queue(
     sdm: &Arc<StorageDriverManager>,
     queue_name: &str,
 ) -> Option<Topic> {
-    if let Some(topic) = sdm.broker_cache.get_topic_by_name(DEFAULT_TENANT, queue_name) {
+    if let Some(topic) = sdm
+        .broker_cache
+        .get_topic_by_name(DEFAULT_TENANT, queue_name)
+    {
         return Some(topic);
     }
 
@@ -66,7 +69,9 @@ pub(crate) async fn declare_amqp_queue(
     )
     .await
     {
-        Ok(()) => sdm.broker_cache.get_topic_by_name(DEFAULT_TENANT, queue_name),
+        Ok(()) => sdm
+            .broker_cache
+            .get_topic_by_name(DEFAULT_TENANT, queue_name),
         Err(e) => {
             warn!("AMQP queue declare failed for {}: {}", queue_name, e);
             None

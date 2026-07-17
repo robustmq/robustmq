@@ -15,22 +15,14 @@
 use amq_protocol::frame::AMQPFrame;
 use amq_protocol::protocol::exchange::AMQPMethod;
 
+// Exchange.Declare and Exchange.Delete need storage access (meta-service CRUD),
+// so they are handled in command.rs. Everything else here is a plain protocol ack.
 pub fn process_exchange(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
-        AMQPMethod::Declare(_) => process_declare(channel_id),
-        AMQPMethod::Delete(_) => process_delete(channel_id),
         AMQPMethod::Bind(_) => process_bind(channel_id),
         AMQPMethod::Unbind(_) => process_unbind(channel_id),
         _ => None,
     }
-}
-
-fn process_declare(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_delete(_channel_id: u16) -> Option<AMQPFrame> {
-    None
 }
 
 fn process_bind(_channel_id: u16) -> Option<AMQPFrame> {

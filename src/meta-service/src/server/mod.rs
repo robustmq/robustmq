@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod service_amqp;
 pub mod service_common;
 pub mod service_engine;
 pub mod service_kafka;

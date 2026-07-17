@@ -15,6 +15,7 @@
 use crate::core::error::MetaServiceError;
 use common_base::utils::serialize;
 use metadata_struct::adapter::adapter_offset::GroupOffsetShardsDelete;
+use metadata_struct::amqp::exchange::AmqpExchange;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use metadata_struct::auth::user::SecurityUser;
@@ -375,6 +376,33 @@ pub async fn send_notify_by_delete_kafka_quota(
         BrokerUpdateCacheActionType::Delete,
         BrokerUpdateCacheResourceType::KafkaQuota,
         serialize::serialize(&quota)?,
+    )
+    .await
+}
+
+// AMQP exchange
+pub async fn send_notify_by_set_exchange(
+    call_manager: &Arc<NodeCallManager>,
+    exchange: AmqpExchange,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Update,
+        BrokerUpdateCacheResourceType::AmqpExchange,
+        serialize::serialize(&exchange)?,
+    )
+    .await
+}
+
+pub async fn send_notify_by_delete_exchange(
+    call_manager: &Arc<NodeCallManager>,
+    exchange: AmqpExchange,
+) -> Result<(), MetaServiceError> {
+    send_update_cache(
+        call_manager,
+        BrokerUpdateCacheActionType::Delete,
+        BrokerUpdateCacheResourceType::AmqpExchange,
+        serialize::serialize(&exchange)?,
     )
     .await
 }

@@ -24,8 +24,8 @@ pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> 
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
         AMQPMethod::Cancel(m) => process_cancel(channel_id, m.consumer_tag.as_str()),
-        AMQPMethod::Ack(_) => None,     // no response
-        AMQPMethod::Reject(_) => None,  // no response
+        AMQPMethod::Ack(_) => None,    // no response
+        AMQPMethod::Reject(_) => None, // no response
         AMQPMethod::RecoverAsync(_) => None,
         AMQPMethod::Recover(_) => process_recover(channel_id),
         AMQPMethod::Nack(_) => None, // no response

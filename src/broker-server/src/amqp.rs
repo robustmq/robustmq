@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use amqp_broker::broker::{AmqpBrokerServer, AmqpBrokerServerParams};
+use amqp_broker::core::cache::AmqpCacheManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::{role::is_broker_node, task::TaskSupervisor};
 use grpc_clients::pool::ClientPool;
@@ -34,6 +35,7 @@ pub struct AmqpBuildParams {
     pub stop_sx: broadcast::Sender<bool>,
     pub shared_request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub amqp_cache: Arc<AmqpCacheManager>,
 }
 
 pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
@@ -46,6 +48,7 @@ pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
         stop_sx: p.stop_sx,
         request_channel: p.shared_request_channel,
         storage_driver_manager: p.storage_driver_manager,
+        amqp_cache: p.amqp_cache,
     }
 }
 

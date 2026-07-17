@@ -472,3 +472,14 @@ pub fn storage_key_kafka_scram(tenant: &str, user: &str, mechanism: i8) -> Strin
 pub fn storage_key_kafka_scram_tenant_prefix(tenant: &str) -> String {
     format!("{}kafka/scram/{}/", PREFIX_META, tenant)
 }
+
+// AMQP: exchanges.
+#[inline]
+pub fn storage_key_amqp_exchange(tenant: &str, exchange_name: &str) -> String {
+    format!("{}amqp/exchange/{}/{}", PREFIX_META, tenant, exchange_name)
+}
+
+#[inline]
+pub fn storage_key_amqp_exchange_tenant_prefix(tenant: &str) -> String {
+    format!("{}amqp/exchange/{}/", PREFIX_META, tenant)
+}

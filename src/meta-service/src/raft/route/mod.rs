@@ -14,6 +14,7 @@
 
 use crate::core::cache::MetaCacheManager;
 use crate::core::error::MetaServiceError;
+use crate::raft::route::amqp::DataRouteAmqp;
 use crate::raft::route::common::DataRouteCluster;
 use crate::raft::route::engine::DataRouteJournal;
 use crate::raft::route::kafka::DataRouteKafka;
@@ -29,6 +30,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub mod amqp;
 pub mod common;
 pub mod data;
 pub mod engine;
@@ -52,6 +54,7 @@ pub struct DataRoute {
     route_journal: DataRouteJournal,
     route_cluster: DataRouteCluster,
     route_kafka: DataRouteKafka,
+    route_amqp: DataRouteAmqp,
 }
 
 impl DataRoute {
@@ -74,6 +77,7 @@ impl DataRoute {
         let route_cluster =
             DataRouteCluster::new(rocksdb_engine_handler.clone(), cache_manager.clone());
         let route_kafka = DataRouteKafka::new(rocksdb_engine_handler.clone());
+        let route_amqp = DataRouteAmqp::new(rocksdb_engine_handler.clone());
         let route_journal = DataRouteJournal::new(rocksdb_engine_handler, cache_manager);
         DataRoute {
             route_kv,
@@ -83,6 +87,7 @@ impl DataRoute {
             route_journal,
             route_cluster,
             route_kafka,
+            route_amqp,
         }
     }
 
@@ -166,6 +171,15 @@ impl DataRoute {
             StorageDataType::KafkaDeleteDelegationToken => {
                 self.route_kafka
                     .delete_delegation_token(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpSetExchange => {
+                self.route_amqp.set_exchange(storage_data.value.clone())?;
+                Ok(None)
+            }
+            StorageDataType::AmqpDeleteExchange => {
+                self.route_amqp
+                    .delete_exchange(storage_data.value.clone())?;
                 Ok(None)
             }
             StorageDataType::TenantCreate => {

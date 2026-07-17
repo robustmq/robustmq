@@ -26,6 +26,7 @@ use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::amqp::exchange::{AmqpExchange, AmqpExchangeType};
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
@@ -42,6 +43,8 @@ use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
+use crate::core::cache::AmqpCacheManager;
+use crate::storage::exchange::ExchangeStorage;
 
 pub fn create_command() -> ArcCommandAdapter {
     Arc::new(Box::new(AmqpHandlerCommand::new_stateless()))
@@ -50,10 +53,12 @@ pub fn create_command() -> ArcCommandAdapter {
 pub fn create_command_with_state(
     connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
+    amqp_cache: Arc<AmqpCacheManager>,
 ) -> ArcCommandAdapter {
     Arc::new(Box::new(AmqpHandlerCommand::new(
         connection_manager,
         storage_driver_manager,
+        amqp_cache,
     )))
 }
 
@@ -71,6 +76,7 @@ struct PendingPublish {
 pub struct AmqpHandlerCommand {
     connection_manager: Option<Arc<ConnectionManager>>,
     storage_driver_manager: Option<Arc<StorageDriverManager>>,
+    amqp_cache: Option<Arc<AmqpCacheManager>>,
     // (connection_id, queue_name) -> per-shard offsets
     shard_offsets: Arc<DashMap<(u64, String), HashMap<String, u64>>>,
     // (connection_id, channel_id) -> in-flight publish awaiting its content frames
@@ -82,6 +88,7 @@ impl AmqpHandlerCommand {
         AmqpHandlerCommand {
             connection_manager: None,
             storage_driver_manager: None,
+            amqp_cache: None,
             shard_offsets: Arc::new(DashMap::new()),
             pending_publish: Arc::new(DashMap::new()),
         }
@@ -90,10 +97,12 @@ impl AmqpHandlerCommand {
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
+        amqp_cache: Arc<AmqpCacheManager>,
     ) -> Self {
         AmqpHandlerCommand {
             connection_manager: Some(connection_manager),
             storage_driver_manager: Some(storage_driver_manager),
+            amqp_cache: Some(amqp_cache),
             shard_offsets: Arc::new(DashMap::new()),
             pending_publish: Arc::new(DashMap::new()),
         }
@@ -164,7 +173,7 @@ impl AmqpHandlerCommand {
         let result = match class {
             AMQPClass::Connection(method) => connection::process_connection(channel_id, method),
             AMQPClass::Channel(method) => channel::process_channel(channel_id, method),
-            AMQPClass::Exchange(method) => exchange::process_exchange(channel_id, method),
+            AMQPClass::Exchange(method) => self.process_exchange(channel_id, method).await,
             AMQPClass::Queue(method) => self.process_queue(channel_id, method).await,
             AMQPClass::Basic(method) => self.process_basic(channel_id, method, connection_id).await,
             AMQPClass::Tx(method) => tx::process_tx(channel_id, method),
@@ -283,6 +292,100 @@ impl AmqpHandlerCommand {
         ))
     }
 
+    async fn process_exchange(
+        &self,
+        channel_id: u16,
+        method: &amq_protocol::protocol::exchange::AMQPMethod,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::exchange::AMQPMethod;
+        match method {
+            AMQPMethod::Declare(declare) => {
+                self.process_exchange_declare(channel_id, declare).await
+            }
+            AMQPMethod::Delete(delete) => self.process_exchange_delete(channel_id, delete).await,
+            other => exchange::process_exchange(channel_id, other),
+        }
+    }
+
+    async fn process_exchange_declare(
+        &self,
+        channel_id: u16,
+        declare: &amq_protocol::protocol::exchange::Declare,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::exchange::{AMQPMethod as ExchangeMethod, DeclareOk};
+
+        let exchange_name = declare.exchange.to_string();
+        let exchange_type = AmqpExchangeType::from_str_opt(declare.kind.as_str()).unwrap_or_else(|| {
+            warn!(
+                "AMQP Exchange.Declare: unrecognized exchange type '{}' for {}, defaulting to direct",
+                declare.kind.as_str(),
+                exchange_name
+            );
+            AmqpExchangeType::Direct
+        });
+        let arguments: HashMap<String, String> = declare
+            .arguments
+            .inner()
+            .iter()
+            .map(|(k, v)| (k.as_str().to_string(), format!("{:?}", v)))
+            .collect();
+
+        if let Some(sdm) = &self.storage_driver_manager {
+            let exchange = AmqpExchange::new(
+                DEFAULT_TENANT,
+                &exchange_name,
+                exchange_type,
+                declare.durable,
+                declare.auto_delete,
+                declare.internal,
+                arguments,
+            );
+            let storage = ExchangeStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            match storage.set_exchange(&exchange).await {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        cache.set_exchange(exchange);
+                    }
+                }
+                Err(e) => warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e),
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Exchange(ExchangeMethod::DeclareOk(DeclareOk {})),
+        ))
+    }
+
+    async fn process_exchange_delete(
+        &self,
+        channel_id: u16,
+        delete: &amq_protocol::protocol::exchange::Delete,
+    ) -> Option<AMQPFrame> {
+        use amq_protocol::protocol::exchange::{AMQPMethod as ExchangeMethod, DeleteOk};
+
+        let exchange_name = delete.exchange.to_string();
+        if let Some(sdm) = &self.storage_driver_manager {
+            let storage = ExchangeStorage::new(sdm.engine_storage_handler.client_pool.clone());
+            match storage
+                .delete_exchange(DEFAULT_TENANT, &exchange_name)
+                .await
+            {
+                Ok(()) => {
+                    if let Some(cache) = &self.amqp_cache {
+                        cache.remove_exchange(DEFAULT_TENANT, &exchange_name);
+                    }
+                }
+                Err(e) => warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e),
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Exchange(ExchangeMethod::DeleteOk(DeleteOk {})),
+        ))
+    }
+
     /// Content Header frame: carries body_size for the Basic.Publish that preceded
     /// it. A zero-length body means the message is already complete.
     async fn process_content_header(
@@ -354,7 +457,12 @@ impl AmqpHandlerCommand {
         let topic_name = pending.routing_key;
         let record = AdapterWriteRecord::new(topic_name.clone(), pending.body);
         match sdm
-            .write(DEFAULT_TENANT, &topic_name, std::slice::from_ref(&record), 1)
+            .write(
+                DEFAULT_TENANT,
+                &topic_name,
+                std::slice::from_ref(&record),
+                1,
+            )
             .await
         {
             Ok(_) => {}
@@ -363,7 +471,10 @@ impl AmqpHandlerCommand {
                 // with the default exchange): declare it on the fly, then retry.
                 if queue::declare_amqp_queue(&sdm, &topic_name).await.is_some() {
                     if let Err(e) = sdm.write(DEFAULT_TENANT, &topic_name, &[record], 1).await {
-                        error!("AMQP Basic.Publish retry write failed for {}: {}", topic_name, e);
+                        error!(
+                            "AMQP Basic.Publish retry write failed for {}: {}",
+                            topic_name, e
+                        );
                     }
                 } else {
                     error!(

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::cluster_service::GrpcBrokerService;
+use amqp_broker::core::cache::AmqpCacheManager;
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::role::is_meta_node;
@@ -20,6 +21,7 @@ use common_base::tools::now_millis;
 use common_config::broker::broker_config;
 use common_metrics::grpc::{extract_grpc_status_code, parse_grpc_path, record_grpc_request};
 use kafka_broker::core::cache::KafkaCacheManager;
+use meta_service::server::service_amqp::GrpcAmqpService;
 use meta_service::server::service_common::GrpcPlacementService;
 use meta_service::server::service_engine::GrpcEngineService;
 use meta_service::server::service_kafka::GrpcKafkaService;
@@ -30,6 +32,7 @@ use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
 use nats_broker::broker::NatsBrokerServerParams;
 use protocol::broker::broker::broker_service_server::BrokerServiceServer;
+use protocol::meta::meta_service_amqp::amqp_service_server::AmqpServiceServer;
 use protocol::meta::meta_service_common::meta_service_service_server::MetaServiceServiceServer;
 use protocol::meta::meta_service_journal::engine_service_server::EngineServiceServer;
 use protocol::meta::meta_service_kafka::kafka_service_server::KafkaServiceServer;
@@ -53,6 +56,7 @@ pub async fn start_grpc_server(
     nats_params: NatsBrokerServerParams,
     engine_params: StorageEngineParams,
     kafka_cache: Arc<KafkaCacheManager>,
+    amqp_cache: Arc<AmqpCacheManager>,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -77,6 +81,7 @@ pub async fn start_grpc_server(
                 nats_params.clone(),
                 engine_params.clone(),
                 kafka_cache,
+                amqp_cache,
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),
         );
@@ -106,6 +111,10 @@ pub async fn start_grpc_server(
             )
             .add_service(
                 KafkaServiceServer::new(get_place_kafka_handler(&place_params))
+                    .max_decoding_message_size(grpc_max_decoding_message_size),
+            )
+            .add_service(
+                AmqpServiceServer::new(get_place_amqp_handler(&place_params))
                     .max_decoding_message_size(grpc_max_decoding_message_size),
             );
     }
@@ -153,6 +162,14 @@ fn get_place_mq9_handler(place_params: &MetaServiceServerParams) -> GrpcMq9Servi
 
 fn get_place_kafka_handler(place_params: &MetaServiceServerParams) -> GrpcKafkaService {
     GrpcKafkaService::new(
+        place_params.raft_manager.clone(),
+        place_params.rocksdb_engine_handler.clone(),
+        place_params.node_call_manager.clone(),
+    )
+}
+
+fn get_place_amqp_handler(place_params: &MetaServiceServerParams) -> GrpcAmqpService {
+    GrpcAmqpService::new(
         place_params.raft_manager.clone(),
         place_params.rocksdb_engine_handler.clone(),
         place_params.node_call_manager.clone(),

@@ -14,6 +14,7 @@
 
 #![allow(clippy::result_large_err)]
 pub mod adapter;
+pub mod amqp;
 pub mod auth;
 pub mod connection;
 pub mod connector;
