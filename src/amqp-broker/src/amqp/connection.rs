@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::connection::{AMQPMethod, Start, Tune};
+use amq_protocol::protocol::connection::{AMQPMethod, Start, Tune, UpdateSecretOk};
 use amq_protocol::protocol::AMQPClass;
 use amq_protocol::types::{FieldTable, LongString};
 
@@ -46,7 +46,7 @@ pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFr
         AMQPMethod::CloseOk(_) => process_close_ok(channel_id),
         AMQPMethod::Blocked(_) => process_blocked(channel_id),
         AMQPMethod::Unblocked(_) => process_unblocked(channel_id),
-        AMQPMethod::UpdateSecretOk(_) => process_update_secret_ok(channel_id),
+        AMQPMethod::UpdateSecret(_) => process_update_secret(channel_id),
         _ => None,
     }
 }
@@ -100,6 +100,11 @@ fn process_unblocked(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 
-fn process_update_secret_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_update_secret(channel_id: u16) -> Option<AMQPFrame> {
+    // OAuth2 token refresh (RabbitMQ extension): we don't validate the new
+    // secret, just ack so a client that sends it doesn't hang.
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Connection(AMQPMethod::UpdateSecretOk(UpdateSecretOk {})),
+    ))
 }

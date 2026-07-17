@@ -18,10 +18,14 @@ use std::sync::Arc;
 use amq_protocol::frame::{AMQPContentHeader, AMQPFrame};
 use amq_protocol::protocol::basic::AMQPMethod as BasicMethod;
 use amq_protocol::protocol::basic::{AMQPProperties, ConsumeOk, Deliver, GetEmpty, GetOk};
+use amq_protocol::protocol::queue::{AMQPMethod as QueueMethod, DeclareOk as QueueDeclareOk};
 use amq_protocol::protocol::AMQPClass;
 use async_trait::async_trait;
+use common_base::error::common::CommonError;
+use common_base::uuid::unique_id;
 use dashmap::DashMap;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::connection::NetworkConnection;
 use metadata_struct::tenant::DEFAULT_TENANT;
 use network_server::command::{ArcCommandAdapter, Command};
@@ -53,12 +57,24 @@ pub fn create_command_with_state(
     )))
 }
 
+/// A Basic.Publish method frame followed by a not-yet-complete Content
+/// Header/Body sequence, keyed by (connection_id, channel_id) until the full
+/// body has arrived and the message can be written to storage.
+struct PendingPublish {
+    routing_key: String,
+    exchange: String,
+    body_size: Option<u64>,
+    body: Vec<u8>,
+}
+
 #[derive(Clone)]
 pub struct AmqpHandlerCommand {
     connection_manager: Option<Arc<ConnectionManager>>,
     storage_driver_manager: Option<Arc<StorageDriverManager>>,
     // (connection_id, queue_name) -> per-shard offsets
     shard_offsets: Arc<DashMap<(u64, String), HashMap<String, u64>>>,
+    // (connection_id, channel_id) -> in-flight publish awaiting its content frames
+    pending_publish: Arc<DashMap<(u64, u16), PendingPublish>>,
 }
 
 impl AmqpHandlerCommand {
@@ -67,6 +83,7 @@ impl AmqpHandlerCommand {
             connection_manager: None,
             storage_driver_manager: None,
             shard_offsets: Arc::new(DashMap::new()),
+            pending_publish: Arc::new(DashMap::new()),
         }
     }
 
@@ -78,6 +95,7 @@ impl AmqpHandlerCommand {
             connection_manager: Some(connection_manager),
             storage_driver_manager: Some(storage_driver_manager),
             shard_offsets: Arc::new(DashMap::new()),
+            pending_publish: Arc::new(DashMap::new()),
         }
     }
 }
@@ -122,9 +140,13 @@ impl AmqpHandlerCommand {
             AMQPFrame::ProtocolHeader(_) => connection::process_protocol_header(),
             AMQPFrame::Heartbeat(channel_id) => connection::process_heartbeat(*channel_id),
             AMQPFrame::Header(channel_id, class_id, header) => {
-                basic::process_header(*channel_id, *class_id, header)
+                self.process_content_header(connection_id, *channel_id, *class_id, header)
+                    .await
             }
-            AMQPFrame::Body(channel_id, data) => basic::process_body(*channel_id, data),
+            AMQPFrame::Body(channel_id, data) => {
+                self.process_content_body(connection_id, *channel_id, data)
+                    .await
+            }
         };
         if result.is_none() {
             debug!("AMQP frame has no response: {:?}", frame);
@@ -143,9 +165,20 @@ impl AmqpHandlerCommand {
             AMQPClass::Connection(method) => connection::process_connection(channel_id, method),
             AMQPClass::Channel(method) => channel::process_channel(channel_id, method),
             AMQPClass::Exchange(method) => exchange::process_exchange(channel_id, method),
-            AMQPClass::Queue(method) => queue::process_queue(channel_id, method),
+            AMQPClass::Queue(method) => self.process_queue(channel_id, method).await,
             AMQPClass::Basic(method) => self.process_basic(channel_id, method, connection_id).await,
             AMQPClass::Tx(method) => tx::process_tx(channel_id, method),
+            // access.request is deprecated and permissions are configured on the
+            // broker side, but real RabbitMQ still acks it unconditionally rather
+            // than leaving the client hanging, so we match that behavior.
+            AMQPClass::Access(amq_protocol::protocol::access::AMQPMethod::Request(_)) => {
+                Some(AMQPFrame::Method(
+                    channel_id,
+                    AMQPClass::Access(amq_protocol::protocol::access::AMQPMethod::RequestOk(
+                        amq_protocol::protocol::access::RequestOk {},
+                    )),
+                ))
+            }
             AMQPClass::Access(_) => None,
             AMQPClass::Confirm(method) => basic::process_confirm(channel_id, method),
         };
@@ -154,7 +187,12 @@ impl AmqpHandlerCommand {
             let is_no_reply = matches!(
                 class,
                 AMQPClass::Basic(
-                    B::Ack(_) | B::Nack(_) | B::Reject(_) | B::Publish(_) | B::RecoverAsync(_)
+                    B::Ack(_)
+                        | B::Nack(_)
+                        | B::Reject(_)
+                        | B::Publish(_)
+                        | B::RecoverAsync(_)
+                        | B::Get(_)
                 ) | AMQPClass::Connection(
                     amq_protocol::protocol::connection::AMQPMethod::TuneOk(_)
                         | amq_protocol::protocol::connection::AMQPMethod::CloseOk(_)
@@ -191,7 +229,150 @@ impl AmqpHandlerCommand {
                 )
                 .await
             }
+            AMQPMethod::Publish(publish) => {
+                self.pending_publish.insert(
+                    (connection_id, channel_id),
+                    PendingPublish {
+                        routing_key: publish.routing_key.to_string(),
+                        exchange: publish.exchange.to_string(),
+                        body_size: None,
+                        body: Vec::new(),
+                    },
+                );
+                None
+            }
             other => basic::process_basic(channel_id, other),
+        }
+    }
+
+    async fn process_queue(
+        &self,
+        channel_id: u16,
+        method: &amq_protocol::protocol::queue::AMQPMethod,
+    ) -> Option<AMQPFrame> {
+        match method {
+            QueueMethod::Declare(declare) => self.process_queue_declare(channel_id, declare).await,
+            other => queue::process_queue(channel_id, other),
+        }
+    }
+
+    async fn process_queue_declare(
+        &self,
+        channel_id: u16,
+        declare: &amq_protocol::protocol::queue::Declare,
+    ) -> Option<AMQPFrame> {
+        let queue_name = if declare.queue.as_str().is_empty() {
+            format!("amqp-{}", unique_id())
+        } else {
+            declare.queue.to_string()
+        };
+
+        if let Some(sdm) = &self.storage_driver_manager {
+            if queue::declare_amqp_queue(sdm, &queue_name).await.is_none() {
+                warn!("AMQP Queue.Declare failed for queue={}", queue_name);
+            }
+        }
+
+        Some(AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Queue(QueueMethod::DeclareOk(QueueDeclareOk {
+                queue: queue_name.into(),
+                message_count: 0,
+                consumer_count: 0,
+            })),
+        ))
+    }
+
+    /// Content Header frame: carries body_size for the Basic.Publish that preceded
+    /// it. A zero-length body means the message is already complete.
+    async fn process_content_header(
+        &self,
+        connection_id: u64,
+        channel_id: u16,
+        class_id: u16,
+        header: &AMQPContentHeader,
+    ) -> Option<AMQPFrame> {
+        if class_id != 60 {
+            // Only the Basic class (60) carries publishable message content.
+            return None;
+        }
+        let key = (connection_id, channel_id);
+        let complete = match self.pending_publish.get_mut(&key) {
+            Some(mut entry) => {
+                entry.body_size = Some(header.body_size);
+                header.body_size == 0
+            }
+            None => false,
+        };
+        if complete {
+            if let Some((_, pending)) = self.pending_publish.remove(&key) {
+                self.finalize_publish(pending).await;
+            }
+        }
+        None
+    }
+
+    /// Content Body frame: one chunk of the message payload. A message may be
+    /// split across multiple Body frames up to the negotiated frame_max.
+    async fn process_content_body(
+        &self,
+        connection_id: u64,
+        channel_id: u16,
+        data: &[u8],
+    ) -> Option<AMQPFrame> {
+        let key = (connection_id, channel_id);
+        let complete = match self.pending_publish.get_mut(&key) {
+            Some(mut entry) => {
+                entry.body.extend_from_slice(data);
+                matches!(entry.body_size, Some(size) if entry.body.len() as u64 >= size)
+            }
+            None => false,
+        };
+        if complete {
+            if let Some((_, pending)) = self.pending_publish.remove(&key) {
+                self.finalize_publish(pending).await;
+            }
+        }
+        None
+    }
+
+    /// Writes a fully-assembled AMQP message to storage. The default exchange
+    /// ("") routes directly by routing_key == queue name; named exchanges are not
+    /// yet modeled, so routing_key is always treated as the target queue name.
+    async fn finalize_publish(&self, pending: PendingPublish) {
+        let Some(sdm) = self.storage_driver_manager.clone() else {
+            return;
+        };
+        if pending.routing_key.is_empty() {
+            warn!(
+                "AMQP Basic.Publish with empty routing key ignored (exchange={})",
+                pending.exchange
+            );
+            return;
+        }
+
+        let topic_name = pending.routing_key;
+        let record = AdapterWriteRecord::new(topic_name.clone(), pending.body);
+        match sdm
+            .write(DEFAULT_TENANT, &topic_name, std::slice::from_ref(&record), 1)
+            .await
+        {
+            Ok(_) => {}
+            Err(CommonError::TopicNotFoundInBrokerCache(_, _)) => {
+                // Published to a queue that was never explicitly declared (common
+                // with the default exchange): declare it on the fly, then retry.
+                if queue::declare_amqp_queue(&sdm, &topic_name).await.is_some() {
+                    if let Err(e) = sdm.write(DEFAULT_TENANT, &topic_name, &[record], 1).await {
+                        error!("AMQP Basic.Publish retry write failed for {}: {}", topic_name, e);
+                    }
+                } else {
+                    error!(
+                        "AMQP Basic.Publish dropped: queue {} does not exist and could not be created",
+                        topic_name
+                    );
+                }
+            }
+            Err(e) => error!("AMQP Basic.Publish write failed for {}: {}", topic_name, e),
         }
     }
 
@@ -342,7 +523,18 @@ impl AmqpHandlerCommand {
                 let body = record.data.to_vec();
                 let body_size = body.len() as u64;
 
-                // Send Header and Body directly; return GetOk as the method frame
+                // AMQP requires the Method frame before its Content Header/Body, so
+                // GetOk must be written first, not returned to be sent afterward.
+                let get_ok_frame = AMQPFrame::Method(
+                    channel_id,
+                    AMQPClass::Basic(BasicMethod::GetOk(GetOk {
+                        delivery_tag: record.metadata.offset + 1,
+                        redelivered: false,
+                        exchange: "".into(),
+                        routing_key: queue.into(),
+                        message_count: 0,
+                    })),
+                );
                 let header_frame = AMQPFrame::Header(
                     channel_id,
                     60, // basic class_id
@@ -354,8 +546,7 @@ impl AmqpHandlerCommand {
                 );
                 let body_frame = AMQPFrame::Body(channel_id, body);
 
-                // Write header and body directly to the connection
-                for frame in [header_frame, body_frame] {
+                for frame in [get_ok_frame, header_frame, body_frame] {
                     let wrapper = RobustMQPacketWrapper {
                         protocol: RobustMQProtocol::AMQP,
                         extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
@@ -367,16 +558,7 @@ impl AmqpHandlerCommand {
                     }
                 }
 
-                Some(AMQPFrame::Method(
-                    channel_id,
-                    AMQPClass::Basic(BasicMethod::GetOk(GetOk {
-                        delivery_tag: record.metadata.offset + 1,
-                        redelivered: false,
-                        exchange: "".into(),
-                        routing_key: queue.into(),
-                        message_count: 0,
-                    })),
-                ))
+                None
             }
             Err(e) => {
                 error!("AMQP Basic.Get storage error for {}: {}", queue, e);
