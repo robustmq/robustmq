@@ -74,7 +74,7 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
         ConnectReturnCode::ServiceUnavailable => 3,
         ConnectReturnCode::BadUserNamePassword => 4,
         ConnectReturnCode::NotAuthorized => 5,
-        _ => unreachable!(),
+        _ => 3,
     }
 }
 
@@ -98,6 +98,64 @@ mod tests {
             connack_error.to_string(),
             MQTTProtocolError::InvalidConnectReturnCode(6).to_string()
         )
+    }
+
+    #[test]
+    fn test_connack_roundtrip_all_v4_codes() {
+        let codes = [
+            super::ConnectReturnCode::Success,
+            super::ConnectReturnCode::UnacceptableProtocolVersion,
+            super::ConnectReturnCode::IdentifierRejected,
+            super::ConnectReturnCode::ServiceUnavailable,
+            super::ConnectReturnCode::BadUserNamePassword,
+            super::ConnectReturnCode::NotAuthorized,
+        ];
+
+        for code in codes {
+            let connack = ConnAck {
+                session_present: false,
+                code,
+            };
+
+            let mut buffer = BytesMut::new();
+            write(&connack, &mut buffer)
+                .unwrap_or_else(|e| panic!("write failed for {code:?}: {e}"));
+
+            let fixedheader = parse_fixed_header(buffer.iter()).unwrap();
+            let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len()))
+                .unwrap_or_else(|e| panic!("read failed for {code:?}: {e}"));
+
+            assert_eq!(connack_return.code, code, "roundtrip mismatch for {code:?}");
+        }
+    }
+
+    #[test]
+    fn test_connack_v5_code_leak_does_not_panic() {
+        let v5_only_codes = [
+            super::ConnectReturnCode::UnspecifiedError,
+            super::ConnectReturnCode::Banned,
+            super::ConnectReturnCode::QuotaExceeded,
+            super::ConnectReturnCode::ConnectionRateExceeded,
+        ];
+
+        for code in v5_only_codes {
+            let connack = ConnAck {
+                session_present: false,
+                code,
+            };
+
+            let mut buffer = BytesMut::new();
+            write(&connack, &mut buffer)
+                .unwrap_or_else(|e| panic!("write failed for {code:?}: {e}"));
+
+            let fixedheader = parse_fixed_header(buffer.iter()).unwrap();
+            let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+            assert_eq!(
+                connack_return.code,
+                super::ConnectReturnCode::ServiceUnavailable,
+                "v5-only {code:?} should be encoded as ServiceUnavailable in v4"
+            );
+        }
     }
 
     // use byte to test read and write function

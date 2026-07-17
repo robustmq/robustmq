@@ -226,7 +226,7 @@ impl Command for MQTTHandlerCommand {
                     tcp_connection.connection_id,
                     RobustMQPacket::MQTT(build_connect_ack_fail_packet(
                         &MqttProtocol::Mqtt5,
-                        ConnectReturnCode::MalformedPacket,
+                        ConnectReturnCode::ProtocolError,
                         &None,
                         None,
                     )),

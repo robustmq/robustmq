@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::{MqttService, MqttServiceConnectContext};
-use crate::core::cache::ConnectionLiveTime;
+use crate::core::cache::{ConnectionLiveTime, MQTTCacheManager};
 use crate::core::connection::response_information;
 use crate::core::connection::{build_connection, get_client_id};
 use crate::core::content_type::payload_format_indicator_check_by_lastwill;
@@ -35,7 +35,9 @@ use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
     LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
+use rate_limit::mqtt::MQTTRateLimiterManager;
 use std::cmp::min;
+use std::sync::Arc;
 use tracing::warn;
 
 impl MqttService {
@@ -93,9 +95,14 @@ impl MqttService {
             }
         };
 
-        if let Some(pkt) = self
-            .check_connection_limit(&tenant.tenant_name, &context.connect_properties)
-            .await
+        if let Some(pkt) = check_connection_limit(
+            &self.cache_manager,
+            &self.limit_manager,
+            &self.protocol,
+            &tenant.tenant_name,
+            &context.connect_properties,
+        )
+        .await
         {
             return pkt;
         }
@@ -269,35 +276,37 @@ impl MqttService {
             connect_properties: context.connect_properties.clone(),
         })
     }
+}
 
-    async fn check_connection_limit(
-        &self,
-        tenant_name: &str,
-        connect_properties: &Option<ConnectProperties>,
-    ) -> Option<MqttPacket> {
-        if connection_total_num_limit(&self.cache_manager, tenant_name).await {
-            return Some(build_connect_ack_fail_packet(
-                &self.protocol,
-                ConnectReturnCode::ConnectionRateExceeded,
-                connect_properties,
-                Some(format!(
-                    "Connection limit exceeded for tenant [{}]",
-                    tenant_name
-                )),
-            ));
-        }
-
-        if let Err(e) = self.limit_manager.connection_rate_limit(tenant_name).await {
-            return Some(build_connect_ack_fail_packet(
-                &self.protocol,
-                ConnectReturnCode::ConnectionRateExceeded,
-                connect_properties,
-                Some(e.to_string()),
-            ));
-        }
-
-        None
+async fn check_connection_limit(
+    cache_manager: &Arc<MQTTCacheManager>,
+    limit_manager: &Arc<MQTTRateLimiterManager>,
+    protocol: &MqttProtocol,
+    tenant_name: &str,
+    connect_properties: &Option<ConnectProperties>,
+) -> Option<MqttPacket> {
+    if connection_total_num_limit(cache_manager, tenant_name).await {
+        return Some(build_connect_ack_fail_packet(
+            protocol,
+            ConnectReturnCode::QuotaExceeded,
+            connect_properties,
+            Some(format!(
+                "Connection limit exceeded for tenant [{}]",
+                tenant_name
+            )),
+        ));
     }
+
+    if let Err(e) = limit_manager.connection_rate_limit(tenant_name).await {
+        return Some(build_connect_ack_fail_packet(
+            protocol,
+            ConnectReturnCode::ConnectionRateExceeded,
+            connect_properties,
+            Some(e.to_string()),
+        ));
+    }
+
+    None
 }
 
 #[derive(Clone)]
@@ -375,9 +384,17 @@ pub fn build_connect_ack_fail_packet(
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::IdentifierRejected
-        } else if code == ConnectReturnCode::ProtocolError {
+        } else if code == ConnectReturnCode::ProtocolError
+            || code == ConnectReturnCode::UnsupportedProtocolVersion
+        {
             ConnectReturnCode::UnacceptableProtocolVersion
-        } else if code == ConnectReturnCode::Success || code == ConnectReturnCode::NotAuthorized {
+        } else if code == ConnectReturnCode::Banned {
+            ConnectReturnCode::NotAuthorized
+        } else if code == ConnectReturnCode::Success
+            || code == ConnectReturnCode::NotAuthorized
+            || code == ConnectReturnCode::IdentifierRejected
+            || code == ConnectReturnCode::BadUserNamePassword
+        {
             code
         } else {
             ConnectReturnCode::ServiceUnavailable
@@ -577,7 +594,9 @@ fn connection_max_packet_size(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::tool::test_build_mqtt_cache_manager;
     use bytes::Bytes;
+    use metadata_struct::mqtt::connection::MQTTConnection;
     use protocol::mqtt::common::{MqttProtocol, QoS};
 
     fn build_test_connect(client_id: &str) -> Connect {
@@ -804,5 +823,202 @@ mod tests {
             &None,
         );
         assert!(result.is_none());
+    }
+
+    fn fail_packet_code(protocol: &MqttProtocol, code: ConnectReturnCode) -> ConnectReturnCode {
+        match build_connect_ack_fail_packet(protocol, code, &None, None) {
+            MqttPacket::ConnAck(conn_ack, _) => conn_ack.code,
+            packet => panic!("expected ConnAck packet, got {packet:?}"),
+        }
+    }
+
+    fn fail_packet_full(
+        protocol: &MqttProtocol,
+        code: ConnectReturnCode,
+        props: &Option<ConnectProperties>,
+        reason: Option<String>,
+    ) -> (ConnectReturnCode, Option<ConnAckProperties>) {
+        match build_connect_ack_fail_packet(protocol, code, props, reason) {
+            MqttPacket::ConnAck(conn_ack, properties) => (conn_ack.code, properties),
+            packet => panic!("expected ConnAck packet, got {packet:?}"),
+        }
+    }
+
+    #[test]
+    fn test_v4_downgrade_identifier_rejected_kept() {
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::IdentifierRejected),
+            ConnectReturnCode::IdentifierRejected
+        );
+    }
+
+    #[test]
+    fn test_v4_downgrade_bad_username_password_kept() {
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::BadUserNamePassword),
+            ConnectReturnCode::BadUserNamePassword
+        );
+    }
+
+    #[test]
+    fn test_v4_downgrade_unsupported_protocol_version() {
+        assert_eq!(
+            fail_packet_code(
+                &MqttProtocol::Mqtt4,
+                ConnectReturnCode::UnsupportedProtocolVersion
+            ),
+            ConnectReturnCode::UnacceptableProtocolVersion
+        );
+    }
+
+    #[test]
+    fn test_v4_downgrade_banned_to_not_authorized() {
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::Banned),
+            ConnectReturnCode::NotAuthorized
+        );
+    }
+
+    #[test]
+    fn test_v4_downgrade_existing_mappings_kept() {
+        assert_eq!(
+            fail_packet_code(
+                &MqttProtocol::Mqtt4,
+                ConnectReturnCode::ClientIdentifierNotValid
+            ),
+            ConnectReturnCode::IdentifierRejected
+        );
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::ProtocolError),
+            ConnectReturnCode::UnacceptableProtocolVersion
+        );
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::NotAuthorized),
+            ConnectReturnCode::NotAuthorized
+        );
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt4, ConnectReturnCode::ServerBusy),
+            ConnectReturnCode::ServiceUnavailable
+        );
+        assert_eq!(
+            fail_packet_code(&MqttProtocol::Mqtt3, ConnectReturnCode::UnspecifiedError),
+            ConnectReturnCode::ServiceUnavailable
+        );
+    }
+
+    #[test]
+    fn test_v4_downgrade_always_produces_encodable_code() {
+        let all_codes = [
+            ConnectReturnCode::Success,
+            ConnectReturnCode::NotAuthorized,
+            ConnectReturnCode::UnspecifiedError,
+            ConnectReturnCode::MalformedPacket,
+            ConnectReturnCode::ProtocolError,
+            ConnectReturnCode::ImplementationSpecificError,
+            ConnectReturnCode::UnsupportedProtocolVersion,
+            ConnectReturnCode::ClientIdentifierNotValid,
+            ConnectReturnCode::BadUserNamePassword,
+            ConnectReturnCode::ServerUnavailable,
+            ConnectReturnCode::ServerBusy,
+            ConnectReturnCode::Banned,
+            ConnectReturnCode::BadAuthenticationMethod,
+            ConnectReturnCode::TopicNameInvalid,
+            ConnectReturnCode::PacketTooLarge,
+            ConnectReturnCode::QuotaExceeded,
+            ConnectReturnCode::PayloadFormatInvalid,
+            ConnectReturnCode::RetainNotSupported,
+            ConnectReturnCode::QoSNotSupported,
+            ConnectReturnCode::UseAnotherServer,
+            ConnectReturnCode::ServerMoved,
+            ConnectReturnCode::ConnectionRateExceeded,
+            ConnectReturnCode::UnacceptableProtocolVersion,
+            ConnectReturnCode::IdentifierRejected,
+            ConnectReturnCode::ServiceUnavailable,
+        ];
+        let v4_encodable = [
+            ConnectReturnCode::Success,
+            ConnectReturnCode::UnacceptableProtocolVersion,
+            ConnectReturnCode::IdentifierRejected,
+            ConnectReturnCode::ServiceUnavailable,
+            ConnectReturnCode::BadUserNamePassword,
+            ConnectReturnCode::NotAuthorized,
+        ];
+        for protocol in [MqttProtocol::Mqtt3, MqttProtocol::Mqtt4] {
+            for code in all_codes {
+                let downgraded = fail_packet_code(&protocol, code);
+                assert!(
+                    v4_encodable.contains(&downgraded),
+                    "{code:?} downgraded to {downgraded:?}, which is not encodable in MQTT v4"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_v5_code_passthrough_with_properties() {
+        for code in [
+            ConnectReturnCode::UnspecifiedError,
+            ConnectReturnCode::ProtocolError,
+            ConnectReturnCode::Banned,
+            ConnectReturnCode::QuotaExceeded,
+            ConnectReturnCode::ConnectionRateExceeded,
+        ] {
+            let (returned_code, properties) =
+                fail_packet_full(&MqttProtocol::Mqtt5, code, &None, None);
+            assert_eq!(returned_code, code);
+            assert!(properties.is_some());
+        }
+    }
+
+    #[test]
+    fn test_v5_reason_string_gated_by_request_problem_info() {
+        let reason = Some("something failed".to_string());
+        let with_problem_info = Some(build_test_properties(None, None, None, Some(1)));
+
+        for (props, expected) in [
+            (&with_problem_info, Some("something failed")),
+            (&None, None),
+        ] {
+            let (_, properties) = fail_packet_full(
+                &MqttProtocol::Mqtt5,
+                ConnectReturnCode::UnspecifiedError,
+                props,
+                reason.clone(),
+            );
+            assert_eq!(
+                properties.unwrap().reason_string.as_deref(),
+                expected,
+                "unexpected reason_string for problem_info={:?}",
+                props.as_ref().and_then(|p| p.request_problem_info)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_connection_total_num_limit_returns_quota_exceeded() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = common_config::broker::default_broker_config();
+        config.mqtt_limit.cluster.max_connections_per_node = 0;
+        cache_manager.node_cache.set_cluster_config(config);
+        cache_manager.add_connection(1, MQTTConnection::default());
+
+        let limit_manager = Arc::new(
+            MQTTRateLimiterManager::new(cache_manager.node_cache.clone(), 100, 100).unwrap(),
+        );
+
+        let packet = check_connection_limit(
+            &cache_manager,
+            &limit_manager,
+            &MqttProtocol::Mqtt5,
+            "default",
+            &None,
+        )
+        .await;
+
+        let code = match packet {
+            Some(MqttPacket::ConnAck(conn_ack, _)) => conn_ack.code,
+            other => panic!("expected Some(ConnAck), got {other:?}"),
+        };
+        assert_eq!(code, ConnectReturnCode::QuotaExceeded);
     }
 }
