@@ -58,3 +58,15 @@ jobs:
         run: cargo audit --deny unmaintained
         continue-on-error: true
 
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Run cargo deny (licenses, bans, sources)
+        # These checks are offline and don't require advisory database
+        # licenses: ensure all deps use approved licenses
+        # bans: detect duplicate crate versions
+        # sources: verify crates come from allowed registries/repos
+        run: cargo deny check licenses bans sources
+
