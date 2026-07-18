@@ -47,7 +47,7 @@ pub fn is_send_retain_msg_by_retain_handling(
 
     if *retain_handling == RetainHandling::OnNewSubscribe {
         let is_new_sub = if let Some(new_sub) = is_new_subs.get(path) {
-            new_sub.to_owned()
+            *new_sub
         } else {
             true
         };

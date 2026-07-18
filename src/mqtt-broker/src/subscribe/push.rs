@@ -102,7 +102,7 @@ pub async fn build_publish_message(
     let connect_id = cache_manager
         .get_connect_id(&subscriber.client_id)
         .ok_or_else(|| {
-            MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.to_owned())
+            MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.clone())
         })?;
 
     let qos = build_pub_qos(subscriber);

@@ -79,7 +79,7 @@ impl EngineCommand {
     }
 
     pub async fn start(&self, params: EngineCliCommandParam) {
-        match params.action.clone() {
+        match params.action {
             EngineActionType::ShardList { shard_name } => self.shard_list(params, shard_name).await,
             EngineActionType::ShardCreate { shard_name, config } => {
                 self.shard_create(params, shard_name, config).await
