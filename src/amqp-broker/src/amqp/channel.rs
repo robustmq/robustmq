@@ -12,14 +12,72 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::channel::{AMQPMethod, CloseOk, OpenOk};
+use amq_protocol::protocol::channel::{
+    AMQPMethod, Close as ChannelClose, CloseOk, Flow, FlowOk, OpenOk,
+};
 use amq_protocol::protocol::AMQPClass;
+
+use crate::core::cache::AmqpCacheManager;
+use crate::core::connection::AmqpChannel;
+
+pub(crate) struct ChannelCtx<'a> {
+    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
+}
+
+/// Handles the Channel class, keeping AmqpChannel cache state in sync with
+/// Open/Close/CloseOk while delegating the actual ack frame to the plain
+/// builder below.
+pub(crate) fn process_channel_full(
+    channel_id: u16,
+    method: &AMQPMethod,
+    connection_id: u64,
+    ctx: ChannelCtx,
+) -> Option<AMQPFrame> {
+    match method {
+        AMQPMethod::Open(_) => {
+            if let Some(cache) = ctx.amqp_cache {
+                cache.set_channel(AmqpChannel::new(connection_id, channel_id));
+            }
+        }
+        AMQPMethod::Close(_) | AMQPMethod::CloseOk(_) => {
+            if let Some(cache) = ctx.amqp_cache {
+                cache.remove_channel(connection_id, channel_id);
+            }
+        }
+        _ => {}
+    }
+    process_channel(channel_id, method)
+}
+
+/// A server-initiated Channel.Close: signals a channel-level exception (e.g.
+/// 404 NOT_FOUND, 406 PRECONDITION_FAILED) in response to a method on some
+/// other class. The client must reply CloseOk, which is handled generically
+/// above.
+pub(crate) fn channel_error_close(
+    channel_id: u16,
+    reply_code: u16,
+    reply_text: &str,
+    class_id: u16,
+    method_id: u16,
+) -> AMQPFrame {
+    AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Channel(AMQPMethod::Close(ChannelClose {
+            reply_code,
+            reply_text: reply_text.into(),
+            class_id,
+            method_id,
+        })),
+    )
+}
 
 pub fn process_channel(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Open(_) => process_open(channel_id),
-        AMQPMethod::Flow(_) => process_flow(channel_id),
+        AMQPMethod::Flow(flow) => process_flow(channel_id, flow),
         AMQPMethod::FlowOk(_) => process_flow_ok(channel_id),
         AMQPMethod::Close(_) => process_close(channel_id),
         AMQPMethod::CloseOk(_) => process_close_ok(channel_id),
@@ -34,8 +92,15 @@ fn process_open(channel_id: u16) -> Option<AMQPFrame> {
     ))
 }
 
-fn process_flow(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+// Flow is synchronous per spec: no real throttling is implemented, so we just
+// echo the requested `active` state back immediately.
+fn process_flow(channel_id: u16, flow: &Flow) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Channel(AMQPMethod::FlowOk(FlowOk {
+            active: flow.active,
+        })),
+    ))
 }
 
 fn process_flow_ok(_channel_id: u16) -> Option<AMQPFrame> {

@@ -13,8 +13,12 @@
 // limitations under the License.
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::tx::AMQPMethod;
+use amq_protocol::protocol::tx::{AMQPMethod, CommitOk, RollbackOk, SelectOk};
+use amq_protocol::protocol::AMQPClass;
 
+// Select/Commit/Rollback are all synchronous and require an Ok reply. We don't
+// buffer publishes/acks for real transactional semantics, so every message is
+// already committed immediately — Commit/Rollback are acked as no-ops.
 pub fn process_tx(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Select(_) => process_select(channel_id),
@@ -24,14 +28,23 @@ pub fn process_tx(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     }
 }
 
-fn process_select(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_select(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Tx(AMQPMethod::SelectOk(SelectOk {})),
+    ))
 }
 
-fn process_commit(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_commit(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Tx(AMQPMethod::CommitOk(CommitOk {})),
+    ))
 }
 
-fn process_rollback(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+fn process_rollback(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Tx(AMQPMethod::RollbackOk(RollbackOk {})),
+    ))
 }

@@ -12,23 +12,195 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::exchange::AMQPMethod;
+use std::sync::Arc;
 
-// Exchange.Declare and Exchange.Delete need storage access (meta-service CRUD),
-// so they are handled in command.rs. Everything else here is a plain protocol ack.
-pub fn process_exchange(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
+use amq_protocol::frame::AMQPFrame;
+use amq_protocol::protocol::exchange::{
+    AMQPMethod, Bind, BindOk, Declare, DeclareOk, Delete, DeleteOk, Unbind, UnbindOk,
+};
+use amq_protocol::protocol::AMQPClass;
+use metadata_struct::amqp::binding::{AmqpBinding, AmqpBindingDestinationType};
+use metadata_struct::amqp::exchange::{AmqpExchange, AmqpExchangeType};
+use storage_adapter::driver::StorageDriverManager;
+use tracing::warn;
+
+use crate::amqp::{route, tenant_for};
+use crate::core::cache::AmqpCacheManager;
+use crate::storage::binding::BindingStorage;
+use crate::storage::exchange::ExchangeStorage;
+
+pub(crate) struct ExchangeCtx<'a> {
+    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
+    pub storage_driver_manager: Option<&'a Arc<StorageDriverManager>>,
+}
+
+pub(crate) async fn process_exchange_full(
+    channel_id: u16,
+    method: &AMQPMethod,
+    connection_id: u64,
+    ctx: ExchangeCtx<'_>,
+) -> Option<AMQPFrame> {
     match method {
-        AMQPMethod::Bind(_) => process_bind(channel_id),
-        AMQPMethod::Unbind(_) => process_unbind(channel_id),
+        AMQPMethod::Declare(declare) => {
+            process_exchange_declare(channel_id, declare, connection_id, &ctx).await
+        }
+        AMQPMethod::Delete(delete) => {
+            process_exchange_delete(channel_id, delete, connection_id, &ctx).await
+        }
+        AMQPMethod::Bind(bind) => {
+            process_exchange_bind(channel_id, bind, connection_id, &ctx).await
+        }
+        AMQPMethod::Unbind(unbind) => {
+            process_exchange_unbind(channel_id, unbind, connection_id, &ctx).await
+        }
         _ => None,
     }
 }
 
-fn process_bind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+async fn process_exchange_declare(
+    channel_id: u16,
+    declare: &Declare,
+    connection_id: u64,
+    ctx: &ExchangeCtx<'_>,
+) -> Option<AMQPFrame> {
+    let exchange_name = declare.exchange.to_string();
+    let exchange_type =
+        AmqpExchangeType::from_str_opt(declare.kind.as_str()).unwrap_or_else(|| {
+            warn!(
+            "AMQP Exchange.Declare: unrecognized exchange type '{}' for {}, defaulting to direct",
+            declare.kind.as_str(),
+            exchange_name
+        );
+            AmqpExchangeType::Direct
+        });
+    let arguments = route::field_table_to_map(&declare.arguments);
+
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    if let Some(sdm) = ctx.storage_driver_manager {
+        let exchange = AmqpExchange::new(
+            &tenant,
+            &exchange_name,
+            exchange_type,
+            declare.durable,
+            declare.auto_delete,
+            declare.internal,
+            arguments,
+        );
+        let storage = ExchangeStorage::new(sdm.engine_storage_handler.client_pool.clone());
+        match storage.set_exchange(&exchange).await {
+            Ok(()) => {
+                if let Some(cache) = ctx.amqp_cache {
+                    cache.set_exchange(exchange);
+                }
+            }
+            Err(e) => warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e),
+        }
+    }
+
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Exchange(AMQPMethod::DeclareOk(DeclareOk {})),
+    ))
 }
 
-fn process_unbind(_channel_id: u16) -> Option<AMQPFrame> {
-    None
+async fn process_exchange_delete(
+    channel_id: u16,
+    delete: &Delete,
+    connection_id: u64,
+    ctx: &ExchangeCtx<'_>,
+) -> Option<AMQPFrame> {
+    let exchange_name = delete.exchange.to_string();
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    if let Some(sdm) = ctx.storage_driver_manager {
+        let storage = ExchangeStorage::new(sdm.engine_storage_handler.client_pool.clone());
+        match storage.delete_exchange(&tenant, &exchange_name).await {
+            Ok(()) => {
+                if let Some(cache) = ctx.amqp_cache {
+                    cache.remove_exchange(&tenant, &exchange_name);
+                }
+            }
+            Err(e) => warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e),
+        }
+    }
+
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Exchange(AMQPMethod::DeleteOk(DeleteOk {})),
+    ))
+}
+
+async fn process_exchange_bind(
+    channel_id: u16,
+    bind: &Bind,
+    connection_id: u64,
+    ctx: &ExchangeCtx<'_>,
+) -> Option<AMQPFrame> {
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    if let Some(sdm) = ctx.storage_driver_manager {
+        let arguments = route::field_table_to_map(&bind.arguments);
+        let binding = AmqpBinding::new(
+            &tenant,
+            bind.source.as_str(),
+            bind.destination.as_str(),
+            AmqpBindingDestinationType::Exchange,
+            bind.routing_key.as_str(),
+            arguments,
+        );
+        let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
+        match storage.set_binding(&binding).await {
+            Ok(()) => {
+                if let Some(cache) = ctx.amqp_cache {
+                    cache.set_binding(binding);
+                }
+            }
+            Err(e) => warn!("AMQP Exchange.Bind failed: {}", e),
+        }
+    }
+
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Exchange(AMQPMethod::BindOk(BindOk {})),
+    ))
+}
+
+async fn process_exchange_unbind(
+    channel_id: u16,
+    unbind: &Unbind,
+    connection_id: u64,
+    ctx: &ExchangeCtx<'_>,
+) -> Option<AMQPFrame> {
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    if let Some(sdm) = ctx.storage_driver_manager {
+        let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
+        let destination_type = AmqpBindingDestinationType::Exchange;
+        match storage
+            .delete_binding(
+                &tenant,
+                unbind.source.as_str(),
+                unbind.destination.as_str(),
+                &destination_type,
+                unbind.routing_key.as_str(),
+            )
+            .await
+        {
+            Ok(()) => {
+                if let Some(cache) = ctx.amqp_cache {
+                    let key = format!(
+                        "{}/{}/{}/{}",
+                        unbind.source.as_str(),
+                        destination_type.as_str(),
+                        unbind.destination.as_str(),
+                        unbind.routing_key.as_str()
+                    );
+                    cache.remove_binding(&tenant, &key);
+                }
+            }
+            Err(e) => warn!("AMQP Exchange.Unbind failed: {}", e),
+        }
+    }
+
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Exchange(AMQPMethod::UnbindOk(UnbindOk {})),
+    ))
 }

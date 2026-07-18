@@ -368,6 +368,7 @@ impl BrokerServer {
             shared_request_channel: shared_request_channel.clone(),
             storage_driver_manager: storage_driver_manager.clone(),
             amqp_cache,
+            security_manager: security_manager.clone(),
         });
         let nats_params = nats::build_nats_params(nats::NatsBuildParams {
             connection_manager: base.connection_manager.clone(),
@@ -530,6 +531,7 @@ impl BrokerServer {
             self.connection_manager.clone(),
             self.amqp_params.storage_driver_manager.clone(),
             self.amqp_params.amqp_cache.clone(),
+            self.amqp_params.security_manager.clone(),
         ));
         let nats_cmd = Some(nats_broker::handler::command::create_command(
             self.connection_manager.clone(),

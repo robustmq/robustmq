@@ -16,6 +16,7 @@ use amqp_broker::broker::{AmqpBrokerServer, AmqpBrokerServerParams};
 use amqp_broker::core::cache::AmqpCacheManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::{role::is_broker_node, task::TaskSupervisor};
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
@@ -36,6 +37,7 @@ pub struct AmqpBuildParams {
     pub shared_request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub amqp_cache: Arc<AmqpCacheManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
@@ -49,6 +51,7 @@ pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
         request_channel: p.shared_request_channel,
         storage_driver_manager: p.storage_driver_manager,
         amqp_cache: p.amqp_cache,
+        security_manager: p.security_manager,
     }
 }
 

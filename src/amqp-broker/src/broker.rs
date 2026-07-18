@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use crate::core::cache::AmqpCacheManager;
+use crate::core::keep_alive::AmqpKeepAlive;
 use crate::server::{AmqpServer, AmqpServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
 use common_config::broker::broker_config;
+use common_security::manager::SecurityManager;
 use grpc_clients::pool::ClientPool;
 use network_server::common::channel::RequestChannel;
 use network_server::common::connection_manager::ConnectionManager;
@@ -37,6 +39,7 @@ pub struct AmqpBrokerServerParams {
     pub request_channel: Arc<RequestChannel>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub amqp_cache: Arc<AmqpCacheManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 pub struct AmqpBrokerServer {
@@ -46,6 +49,11 @@ pub struct AmqpBrokerServer {
 
 impl AmqpBrokerServer {
     pub fn new(params: AmqpBrokerServerParams) -> Self {
+        let keep_alive =
+            AmqpKeepAlive::new(params.connection_manager.clone(), params.amqp_cache.clone());
+        let keep_alive_stop = params.stop_sx.clone();
+        tokio::spawn(async move { keep_alive.start(&keep_alive_stop).await });
+
         let server = AmqpServer::new(AmqpServerParams {
             connection_manager: params.connection_manager,
             client_pool: params.client_pool,

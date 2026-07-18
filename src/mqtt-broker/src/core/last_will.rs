@@ -81,8 +81,7 @@ pub async fn send_last_will_message(
     let record = AdapterWriteRecord::new(topic_name.to_string(), publish.payload.clone())
         .with_protocol_data(Some(StorageRecordProtocolData {
             mqtt: Some(mqtt_data),
-            nats: None,
-            mq9: None,
+            ..Default::default()
         }))
         .with_expire_at(message_expire);
 

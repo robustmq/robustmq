@@ -95,8 +95,7 @@ async fn process_pub0(
                 reply_to: reply_to_string,
                 header: header.clone(),
             }),
-            mqtt: None,
-            mq9: None,
+            ..Default::default()
         }));
     let _offset = message.write(&tenant, subject, vec![record]).await?;
     Ok(())

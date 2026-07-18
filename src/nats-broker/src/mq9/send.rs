@@ -155,8 +155,7 @@ pub async fn process_send(
                 header: headers.clone(),
                 reply_to: reply_to.map(|rp| rp.to_string()),
             }),
-            nats: None,
-            mqtt: None,
+            ..Default::default()
         }));
 
     if let Some(h) = &mq9_headers {

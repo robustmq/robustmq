@@ -16,12 +16,16 @@ use dashmap::DashMap;
 use metadata_struct::amqp::binding::AmqpBinding;
 use metadata_struct::amqp::exchange::AmqpExchange;
 use metadata_struct::amqp::queue::AmqpQueue;
+use metadata_struct::tenant::DEFAULT_TENANT;
+
+use crate::core::connection::{AmqpChannel, AmqpConnection};
 
 // In-memory data the AMQP broker caches on every node. Populated at startup
 // (see broker-server's load_amqp_cache) and kept current via the meta-service
 // notify broadcast (send_notify_by_set_exchange / send_notify_by_delete_exchange,
 // and the queue/binding equivalents) — nothing here ever calls meta-service
-// directly on the read path.
+// directly on the read path. Connections/channels are the exception: pure
+// per-process runtime state, never sent to meta-service at all.
 #[derive(Default)]
 pub struct AmqpCacheManager {
     // Exchanges, keyed by "{tenant}/{exchange_name}".
@@ -32,6 +36,11 @@ pub struct AmqpCacheManager {
     queues: DashMap<String, AmqpQueue>,
     // Bindings, keyed by "{tenant}/{binding.key()}".
     bindings: DashMap<String, AmqpBinding>,
+    connections: DashMap<u64, AmqpConnection>,
+    channels: DashMap<(u64, u16), AmqpChannel>,
+    // (username, password) captured at StartOk, consumed at Connection.Open once
+    // the vhost/tenant is known and the credentials can actually be checked.
+    pending_logins: DashMap<u64, (String, String)>,
 }
 
 impl AmqpCacheManager {
@@ -40,6 +49,9 @@ impl AmqpCacheManager {
             exchanges: DashMap::with_capacity(8),
             queues: DashMap::with_capacity(8),
             bindings: DashMap::with_capacity(8),
+            connections: DashMap::with_capacity(8),
+            channels: DashMap::with_capacity(8),
+            pending_logins: DashMap::with_capacity(8),
         }
     }
 
@@ -123,6 +135,61 @@ impl AmqpCacheManager {
             .filter(|entry| entry.key().starts_with(&prefix))
             .map(|entry| entry.value().clone())
             .collect()
+    }
+
+    pub fn set_connection(&self, connection: AmqpConnection) {
+        self.connections
+            .insert(connection.connection_id, connection);
+    }
+
+    pub fn get_connection(&self, connection_id: u64) -> Option<AmqpConnection> {
+        self.connections.get(&connection_id).map(|c| c.clone())
+    }
+
+    // The tenant a connection's operations should run against: its vhost once
+    // Connection.Open has happened, else DEFAULT_TENANT (stateless test mode,
+    // or a method arriving before Open — shouldn't normally happen).
+    pub fn tenant_for(&self, connection_id: u64) -> String {
+        self.connections
+            .get(&connection_id)
+            .map(|c| c.tenant.clone())
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| DEFAULT_TENANT.to_string())
+    }
+
+    pub fn remove_connection(&self, connection_id: u64) {
+        self.connections.remove(&connection_id);
+        self.channels
+            .retain(|(conn_id, _), _| *conn_id != connection_id);
+        self.pending_logins.remove(&connection_id);
+    }
+
+    pub fn set_pending_login(&self, connection_id: u64, username: String, password: String) {
+        self.pending_logins
+            .insert(connection_id, (username, password));
+    }
+
+    pub fn take_pending_login(&self, connection_id: u64) -> Option<(String, String)> {
+        self.pending_logins.remove(&connection_id).map(|(_, v)| v)
+    }
+
+    pub fn connection_ids(&self) -> Vec<u64> {
+        self.connections.iter().map(|e| *e.key()).collect()
+    }
+
+    pub fn set_channel(&self, channel: AmqpChannel) {
+        self.channels
+            .insert((channel.connection_id, channel.channel_id), channel);
+    }
+
+    pub fn remove_channel(&self, connection_id: u64, channel_id: u16) {
+        self.channels.remove(&(connection_id, channel_id));
+    }
+
+    pub fn get_channel(&self, connection_id: u64, channel_id: u16) -> Option<AmqpChannel> {
+        self.channels
+            .get(&(connection_id, channel_id))
+            .map(|c| c.clone())
     }
 }
 
@@ -239,5 +306,31 @@ mod tests {
             cache.list_bindings_by_source("t1", "other.exchange").len(),
             1
         );
+    }
+
+    #[test]
+    fn tenant_for_falls_back_to_default() {
+        let cache = AmqpCacheManager::new();
+        assert_eq!(cache.tenant_for(1), DEFAULT_TENANT);
+
+        let mut conn = AmqpConnection::new(1);
+        conn.tenant = "t1".to_string();
+        cache.set_connection(conn);
+        assert_eq!(cache.tenant_for(1), "t1");
+    }
+
+    #[test]
+    fn remove_connection_drops_its_channels() {
+        let cache = AmqpCacheManager::new();
+        cache.set_connection(AmqpConnection::new(1));
+        cache.set_channel(AmqpChannel::new(1, 1));
+        cache.set_channel(AmqpChannel::new(1, 2));
+        cache.set_channel(AmqpChannel::new(2, 1));
+
+        cache.remove_connection(1);
+        assert!(cache.get_connection(1).is_none());
+        assert!(cache.get_channel(1, 1).is_none());
+        assert!(cache.get_channel(1, 2).is_none());
+        assert!(cache.get_channel(2, 1).is_some());
     }
 }

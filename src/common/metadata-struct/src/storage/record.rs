@@ -181,6 +181,7 @@ pub struct StorageRecordProtocolData {
     pub mqtt: Option<StorageRecordProtocolDataMqtt>,
     pub nats: Option<StorageRecordProtocolDataNats>,
     pub mq9: Option<StorageRecordProtocolDataMq9>,
+    pub amqp: Option<StorageRecordProtocolDataAmqp>,
 }
 
 impl StorageRecordProtocolData {}
@@ -207,4 +208,25 @@ pub struct StorageRecordProtocolDataMq9 {
     pub priority: String,
     pub header: Option<Bytes>,
     pub reply_to: Option<String>,
+}
+
+/// AMQP's `AMQPProperties`, carried opaquely through storage so Basic.Deliver
+/// and Basic.GetOk can reconstruct the original properties on redelivery
+/// instead of always sending an empty set.
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct StorageRecordProtocolDataAmqp {
+    pub content_type: Option<String>,
+    pub content_encoding: Option<String>,
+    pub delivery_mode: Option<u8>,
+    pub priority: Option<u8>,
+    pub correlation_id: Option<String>,
+    pub reply_to: Option<String>,
+    pub expiration: Option<String>,
+    pub message_id: Option<String>,
+    pub timestamp: Option<u64>,
+    pub kind: Option<String>,
+    pub user_id: Option<String>,
+    pub app_id: Option<String>,
+    pub cluster_id: Option<String>,
+    pub headers: Vec<(String, String)>,
 }

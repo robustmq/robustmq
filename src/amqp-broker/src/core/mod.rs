@@ -13,3 +13,5 @@
 // limitations under the License.
 
 pub mod cache;
+pub mod connection;
+pub mod keep_alive;

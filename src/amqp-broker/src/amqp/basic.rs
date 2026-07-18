@@ -12,14 +12,596 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::basic::{AMQPMethod, CancelOk, QosOk, RecoverOk};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
+
+use amq_protocol::frame::{AMQPContentHeader, AMQPFrame};
+use amq_protocol::protocol::basic::{
+    AMQPMethod, AMQPProperties, CancelOk, ConsumeOk, Deliver, GetEmpty, GetOk, QosOk, RecoverOk,
+    Return,
+};
 use amq_protocol::protocol::confirm;
 use amq_protocol::protocol::AMQPClass;
+use amq_protocol::types::{AMQPValue, FieldTable};
+use common_base::error::common::CommonError;
+use dashmap::DashMap;
+use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
+use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+use metadata_struct::storage::record::{
+    StorageRecord, StorageRecordProtocolData, StorageRecordProtocolDataAmqp,
+};
+use network_server::common::connection_manager::ConnectionManager;
+use protocol::robust::{
+    AmqpWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQProtocol,
+    RobustMQWrapperExtend,
+};
+use storage_adapter::driver::StorageDriverManager;
+use tokio::time::sleep;
+use tracing::{debug, error, warn};
+
+use crate::amqp::{queue, route, tenant_for};
+use crate::core::cache::AmqpCacheManager;
+
+/// A Basic.Publish method frame followed by a not-yet-complete Content
+/// Header/Body sequence, keyed by (connection_id, channel_id) until the full
+/// body has arrived and the message can be written to storage.
+pub(crate) struct PendingPublish {
+    tenant: String,
+    routing_key: String,
+    exchange: String,
+    mandatory: bool,
+    // Kept separately from `properties.headers` (same data) because routing's
+    // headers-exchange matching wants a HashMap, not the Vec storage shape.
+    headers: HashMap<String, String>,
+    properties: StorageRecordProtocolDataAmqp,
+    body_size: Option<u64>,
+    body: Vec<u8>,
+}
+
+/// Maps the wire-level AMQPProperties from a Content Header frame onto the
+/// shape stored alongside the message, so redelivery can reconstruct them
+/// instead of always sending an empty property set.
+fn properties_to_protocol_data(properties: &AMQPProperties) -> StorageRecordProtocolDataAmqp {
+    StorageRecordProtocolDataAmqp {
+        content_type: properties.content_type().as_ref().map(|s| s.to_string()),
+        content_encoding: properties
+            .content_encoding()
+            .as_ref()
+            .map(|s| s.to_string()),
+        delivery_mode: *properties.delivery_mode(),
+        priority: *properties.priority(),
+        correlation_id: properties.correlation_id().as_ref().map(|s| s.to_string()),
+        reply_to: properties.reply_to().as_ref().map(|s| s.to_string()),
+        expiration: properties.expiration().as_ref().map(|s| s.to_string()),
+        message_id: properties.message_id().as_ref().map(|s| s.to_string()),
+        timestamp: *properties.timestamp(),
+        kind: properties.kind().as_ref().map(|s| s.to_string()),
+        user_id: properties.user_id().as_ref().map(|s| s.to_string()),
+        app_id: properties.app_id().as_ref().map(|s| s.to_string()),
+        cluster_id: properties.cluster_id().as_ref().map(|s| s.to_string()),
+        headers: properties
+            .headers()
+            .as_ref()
+            .map(|table| route::field_table_to_map(table).into_iter().collect())
+            .unwrap_or_default(),
+    }
+}
+
+/// The inverse of `properties_to_protocol_data`: rebuilds the AMQPProperties
+/// to send with a redelivered/fetched message from what was stored alongside it.
+fn properties_from_record(record: &StorageRecord) -> AMQPProperties {
+    match record
+        .protocol_data
+        .as_ref()
+        .and_then(|pd| pd.amqp.as_ref())
+    {
+        Some(amqp) => properties_from_protocol_data(amqp),
+        None => AMQPProperties::default(),
+    }
+}
+
+fn properties_from_protocol_data(amqp: &StorageRecordProtocolDataAmqp) -> AMQPProperties {
+    let mut properties = AMQPProperties::default();
+    if let Some(v) = &amqp.content_type {
+        properties = properties.with_content_type(v.as_str().into());
+    }
+    if let Some(v) = &amqp.content_encoding {
+        properties = properties.with_content_encoding(v.as_str().into());
+    }
+    if !amqp.headers.is_empty() {
+        let mut table = FieldTable::default();
+        for (k, v) in &amqp.headers {
+            table.insert(k.as_str().into(), AMQPValue::LongString(v.as_str().into()));
+        }
+        properties = properties.with_headers(table);
+    }
+    if let Some(v) = amqp.delivery_mode {
+        properties = properties.with_delivery_mode(v);
+    }
+    if let Some(v) = amqp.priority {
+        properties = properties.with_priority(v);
+    }
+    if let Some(v) = &amqp.correlation_id {
+        properties = properties.with_correlation_id(v.as_str().into());
+    }
+    if let Some(v) = &amqp.reply_to {
+        properties = properties.with_reply_to(v.as_str().into());
+    }
+    if let Some(v) = &amqp.expiration {
+        properties = properties.with_expiration(v.as_str().into());
+    }
+    if let Some(v) = &amqp.message_id {
+        properties = properties.with_message_id(v.as_str().into());
+    }
+    if let Some(v) = amqp.timestamp {
+        properties = properties.with_timestamp(v);
+    }
+    if let Some(v) = &amqp.kind {
+        properties = properties.with_type(v.as_str().into());
+    }
+    if let Some(v) = &amqp.user_id {
+        properties = properties.with_user_id(v.as_str().into());
+    }
+    if let Some(v) = &amqp.app_id {
+        properties = properties.with_app_id(v.as_str().into());
+    }
+    if let Some(v) = &amqp.cluster_id {
+        properties = properties.with_cluster_id(v.as_str().into());
+    }
+    properties
+}
+
+pub(crate) struct BasicCtx<'a> {
+    pub connection_manager: Option<&'a Arc<ConnectionManager>>,
+    pub storage_driver_manager: Option<&'a Arc<StorageDriverManager>>,
+    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
+    pub pending_publish: &'a DashMap<(u64, u16), PendingPublish>,
+    pub shard_offsets: &'a DashMap<(u64, String), HashMap<String, u64>>,
+}
+
+pub(crate) async fn process_basic_full(
+    channel_id: u16,
+    method: &AMQPMethod,
+    connection_id: u64,
+    ctx: &BasicCtx<'_>,
+) -> Option<AMQPFrame> {
+    match method {
+        AMQPMethod::Get(get) => {
+            process_get(channel_id, get.queue.as_str(), connection_id, ctx).await
+        }
+        AMQPMethod::Consume(consume) => {
+            process_consume(
+                channel_id,
+                consume.queue.as_str(),
+                consume.consumer_tag.as_str(),
+                connection_id,
+                ctx,
+            )
+            .await
+        }
+        AMQPMethod::Publish(publish) => {
+            ctx.pending_publish.insert(
+                (connection_id, channel_id),
+                PendingPublish {
+                    tenant: tenant_for(ctx.amqp_cache, connection_id),
+                    routing_key: publish.routing_key.to_string(),
+                    exchange: publish.exchange.to_string(),
+                    mandatory: publish.mandatory,
+                    headers: HashMap::new(),
+                    properties: StorageRecordProtocolDataAmqp::default(),
+                    body_size: None,
+                    body: Vec::new(),
+                },
+            );
+            None
+        }
+        other => process_basic(channel_id, other),
+    }
+}
+
+/// Content Header frame: carries body_size for the Basic.Publish that preceded
+/// it. A zero-length body means the message is already complete.
+pub(crate) async fn process_content_header_full(
+    connection_id: u64,
+    channel_id: u16,
+    class_id: u16,
+    header: &AMQPContentHeader,
+    ctx: &BasicCtx<'_>,
+) -> Option<AMQPFrame> {
+    if class_id != 60 {
+        // Only the Basic class (60) carries publishable message content.
+        return None;
+    }
+    let key = (connection_id, channel_id);
+    let complete = match ctx.pending_publish.get_mut(&key) {
+        Some(mut entry) => {
+            entry.body_size = Some(header.body_size);
+            if let Some(headers) = header.properties.headers() {
+                entry.headers = route::field_table_to_map(headers);
+            }
+            entry.properties = properties_to_protocol_data(&header.properties);
+            header.body_size == 0
+        }
+        None => false,
+    };
+    if complete {
+        if let Some((_, pending)) = ctx.pending_publish.remove(&key) {
+            finalize_publish(connection_id, channel_id, pending, ctx).await;
+        }
+    }
+    None
+}
+
+/// Content Body frame: one chunk of the message payload. A message may be
+/// split across multiple Body frames up to the negotiated frame_max.
+pub(crate) async fn process_content_body_full(
+    connection_id: u64,
+    channel_id: u16,
+    data: &[u8],
+    ctx: &BasicCtx<'_>,
+) -> Option<AMQPFrame> {
+    let key = (connection_id, channel_id);
+    let complete = match ctx.pending_publish.get_mut(&key) {
+        Some(mut entry) => {
+            entry.body.extend_from_slice(data);
+            matches!(entry.body_size, Some(size) if entry.body.len() as u64 >= size)
+        }
+        None => false,
+    };
+    if complete {
+        if let Some((_, pending)) = ctx.pending_publish.remove(&key) {
+            finalize_publish(connection_id, channel_id, pending, ctx).await;
+        }
+    }
+    None
+}
+
+/// Writes a fully-assembled AMQP message to storage. The default exchange
+/// ("") is an implicit direct binding from every queue to itself by name;
+/// named exchanges are routed via `route::resolve_queues`, which follows
+/// their type (direct/fanout/topic/headers) and bindings, including
+/// exchange-to-exchange chains. Unroutable `mandatory` publishes are
+/// returned to the publisher via Basic.Return.
+async fn finalize_publish(
+    connection_id: u64,
+    channel_id: u16,
+    pending: PendingPublish,
+    ctx: &BasicCtx<'_>,
+) {
+    let Some(sdm) = ctx.storage_driver_manager else {
+        return;
+    };
+    if pending.exchange.is_empty() && pending.routing_key.is_empty() {
+        warn!("AMQP Basic.Publish with empty routing key ignored on the default exchange");
+        return;
+    }
+
+    let queues = if pending.exchange.is_empty() {
+        vec![pending.routing_key.clone()]
+    } else if let Some(cache) = ctx.amqp_cache {
+        route::resolve_queues(
+            cache,
+            &pending.tenant,
+            &pending.exchange,
+            &pending.routing_key,
+            &pending.headers,
+        )
+    } else {
+        warn!("AMQP Basic.Publish: routing requires amqp_cache but none is configured");
+        Vec::new()
+    };
+
+    if queues.is_empty() {
+        if pending.mandatory {
+            send_basic_return(connection_id, channel_id, &pending, ctx).await;
+        } else {
+            debug!(
+                "AMQP Basic.Publish unroutable (exchange={}, routing_key={}), dropped",
+                pending.exchange, pending.routing_key
+            );
+        }
+        return;
+    }
+
+    for queue_name in &queues {
+        write_to_queue(
+            sdm,
+            &pending.tenant,
+            queue_name,
+            pending.body.clone(),
+            &pending.properties,
+        )
+        .await;
+    }
+}
+
+async fn write_to_queue(
+    sdm: &Arc<StorageDriverManager>,
+    tenant: &str,
+    queue_name: &str,
+    body: Vec<u8>,
+    properties: &StorageRecordProtocolDataAmqp,
+) {
+    let record = AdapterWriteRecord::new(queue_name.to_string(), body).with_protocol_data(Some(
+        StorageRecordProtocolData {
+            amqp: Some(properties.clone()),
+            ..Default::default()
+        },
+    ));
+    match sdm
+        .write(tenant, queue_name, std::slice::from_ref(&record), 1)
+        .await
+    {
+        Ok(_) => {}
+        Err(CommonError::TopicNotFoundInBrokerCache(_, _)) => {
+            // Published to a queue that was never explicitly declared (common
+            // with the default exchange): declare it on the fly, then retry.
+            if queue::declare_amqp_queue(sdm, tenant, queue_name)
+                .await
+                .is_some()
+            {
+                if let Err(e) = sdm.write(tenant, queue_name, &[record], 1).await {
+                    error!(
+                        "AMQP Basic.Publish retry write failed for {}: {}",
+                        queue_name, e
+                    );
+                }
+            } else {
+                error!(
+                    "AMQP Basic.Publish dropped: queue {} does not exist and could not be created",
+                    queue_name
+                );
+            }
+        }
+        Err(e) => error!("AMQP Basic.Publish write failed for {}: {}", queue_name, e),
+    }
+}
+
+/// Sends an unroutable `mandatory` publish back to its publisher, per spec:
+/// Basic.Return followed by the message's own content header and body.
+async fn send_basic_return(
+    connection_id: u64,
+    channel_id: u16,
+    pending: &PendingPublish,
+    ctx: &BasicCtx<'_>,
+) {
+    let Some(cm) = ctx.connection_manager else {
+        return;
+    };
+
+    let return_frame = AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::Return(Return {
+            reply_code: 312,
+            reply_text: "NO_ROUTE".into(),
+            exchange: pending.exchange.clone().into(),
+            routing_key: pending.routing_key.clone().into(),
+        })),
+    );
+    let header_frame = AMQPFrame::Header(
+        channel_id,
+        60,
+        Box::new(AMQPContentHeader {
+            class_id: 60,
+            body_size: pending.body.len() as u64,
+            properties: properties_from_protocol_data(&pending.properties),
+        }),
+    );
+    let body_frame = AMQPFrame::Body(channel_id, pending.body.clone());
+
+    for frame in [return_frame, header_frame, body_frame] {
+        let wrapper = RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::AMQP,
+            extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
+            packet: RobustMQPacket::AMQP(frame),
+        };
+        if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
+            error!(connection_id, "AMQP Basic.Return write failed: {}", e);
+            return;
+        }
+    }
+}
+
+async fn process_consume(
+    channel_id: u16,
+    queue: &str,
+    consumer_tag: &str,
+    connection_id: u64,
+    ctx: &BasicCtx<'_>,
+) -> Option<AMQPFrame> {
+    let (cm, sdm) = match (ctx.connection_manager, ctx.storage_driver_manager) {
+        (Some(cm), Some(sdm)) => (cm.clone(), sdm.clone()),
+        _ => {
+            warn!("AMQP Basic.Consume: storage not configured");
+            return Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::ConsumeOk(ConsumeOk {
+                    consumer_tag: consumer_tag.into(),
+                })),
+            ));
+        }
+    };
+
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let queue = queue.to_string();
+    let consumer_tag = consumer_tag.to_string();
+    let consumer_tag_resp = consumer_tag.clone();
+    let read_config = AdapterReadConfig::new();
+
+    tokio::spawn(async move {
+        // key: shard_name -> next offset to read
+        let mut shard_offsets: HashMap<String, u64> = HashMap::new();
+        let mut delivery_tag: u64 = 1;
+
+        loop {
+            match sdm
+                .read_by_offset(&tenant, &queue, &shard_offsets, &read_config)
+                .await
+            {
+                Ok(records) if records.is_empty() => {
+                    sleep(Duration::from_millis(100)).await;
+                }
+                Ok(records) => {
+                    for record in &records {
+                        shard_offsets
+                            .insert(record.metadata.shard.clone(), record.metadata.offset + 1);
+
+                        let body = record.data.to_vec();
+                        let body_size = body.len() as u64;
+
+                        // Deliver method frame
+                        let deliver_frame = AMQPFrame::Method(
+                            channel_id,
+                            AMQPClass::Basic(AMQPMethod::Deliver(Deliver {
+                                consumer_tag: consumer_tag.clone().into(),
+                                delivery_tag,
+                                redelivered: false,
+                                exchange: "".into(),
+                                routing_key: queue.clone().into(),
+                            })),
+                        );
+                        // Content header frame
+                        let header_frame = AMQPFrame::Header(
+                            channel_id,
+                            60,
+                            Box::new(AMQPContentHeader {
+                                class_id: 60,
+                                body_size,
+                                properties: properties_from_record(record),
+                            }),
+                        );
+                        // Body frame
+                        let body_frame = AMQPFrame::Body(channel_id, body);
+
+                        for frame in [deliver_frame, header_frame, body_frame] {
+                            let wrapper = RobustMQPacketWrapper {
+                                protocol: RobustMQProtocol::AMQP,
+                                extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
+                                packet: RobustMQPacket::AMQP(frame),
+                            };
+                            if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
+                                error!(connection_id, "AMQP Deliver write failed: {}", e);
+                                return;
+                            }
+                        }
+
+                        delivery_tag += 1;
+                    }
+                }
+                Err(e) => {
+                    error!("AMQP Basic.Consume storage read error on {}: {}", queue, e);
+                    sleep(Duration::from_millis(100)).await;
+                }
+            }
+        }
+    });
+
+    // Respond ConsumeOk immediately
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::ConsumeOk(ConsumeOk {
+            consumer_tag: consumer_tag_resp.into(),
+        })),
+    ))
+}
+
+async fn process_get(
+    channel_id: u16,
+    queue: &str,
+    connection_id: u64,
+    ctx: &BasicCtx<'_>,
+) -> Option<AMQPFrame> {
+    let (cm, sdm) = match (ctx.connection_manager, ctx.storage_driver_manager) {
+        (Some(cm), Some(sdm)) => (cm, sdm),
+        _ => {
+            warn!("AMQP Basic.Get: storage not configured");
+            return Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
+            ));
+        }
+    };
+
+    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let key = (connection_id, queue.to_string());
+    let mut offsets = ctx
+        .shard_offsets
+        .get(&key)
+        .map(|r| r.clone())
+        .unwrap_or_default();
+
+    let read_config = AdapterReadConfig::new();
+    match sdm
+        .read_by_offset(&tenant, queue, &offsets, &read_config)
+        .await
+    {
+        Ok(records) if records.is_empty() => {
+            // No message available
+            Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
+            ))
+        }
+        Ok(records) => {
+            let record = &records[0];
+            // Advance shard offset
+            offsets.insert(record.metadata.shard.clone(), record.metadata.offset + 1);
+            ctx.shard_offsets.insert(key, offsets);
+
+            let body = record.data.to_vec();
+            let body_size = body.len() as u64;
+
+            // AMQP requires the Method frame before its Content Header/Body, so
+            // GetOk must be written first, not returned to be sent afterward.
+            let get_ok_frame = AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::GetOk(GetOk {
+                    delivery_tag: record.metadata.offset + 1,
+                    redelivered: false,
+                    exchange: "".into(),
+                    routing_key: queue.into(),
+                    message_count: 0,
+                })),
+            );
+            let header_frame = AMQPFrame::Header(
+                channel_id,
+                60, // basic class_id
+                Box::new(AMQPContentHeader {
+                    class_id: 60,
+                    body_size,
+                    properties: properties_from_record(record),
+                }),
+            );
+            let body_frame = AMQPFrame::Body(channel_id, body);
+
+            for frame in [get_ok_frame, header_frame, body_frame] {
+                let wrapper = RobustMQPacketWrapper {
+                    protocol: RobustMQProtocol::AMQP,
+                    extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
+                    packet: RobustMQPacket::AMQP(frame),
+                };
+                if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
+                    error!(connection_id, "AMQP Basic.Get write failed: {}", e);
+                    return None;
+                }
+            }
+
+            None
+        }
+        Err(e) => {
+            error!("AMQP Basic.Get storage error for {}: {}", queue, e);
+            Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
+            ))
+        }
+    }
+}
 
 /// Handle Basic class methods from client.
-/// Get, Consume, and Publish are intercepted in command.rs before reaching here,
-/// since they need storage access; this only ever sees the rest.
+/// Get, Consume, and Publish are intercepted in `process_basic_full` before
+/// reaching here, since they need storage access; this only ever sees the rest.
 pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
