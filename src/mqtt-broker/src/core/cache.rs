@@ -28,8 +28,8 @@ use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -608,9 +608,11 @@ mod tests {
 
         // get non-existent
         assert!(!cache_manager.topic_alias_exists(connect_id, topic_alias));
-        assert!(cache_manager
-            .get_topic_alias(connect_id, topic_alias)
-            .is_none());
+        assert!(
+            cache_manager
+                .get_topic_alias(connect_id, topic_alias)
+                .is_none()
+        );
 
         // add
         let properties = Some(PublishProperties {

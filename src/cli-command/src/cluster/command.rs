@@ -16,11 +16,11 @@ use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
 use admin_server::{
     client::AdminHttpClient,
-    cluster::{config::ClusterConfigSetReq, tenant::TenantListRow, ClusterInfoResp},
+    cluster::{ClusterInfoResp, config::ClusterConfigSetReq, tenant::TenantListRow},
 };
 use chrono::{Local, TimeZone};
 use common_config::config::BrokerConfig;
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use serde::Serialize;
 
 #[derive(Clone)]

@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
+use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::output::OutputFormat;
 use admin_server::client::AdminHttpClient;
 use admin_server::mqtt::session::SessionListRow;
 use common_base::uuid::unique_id;
 use metadata_struct::mqtt::topic::Topic;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use serde::Serialize;
 
 use tokio::io::{self, AsyncBufReadExt, BufReader};
