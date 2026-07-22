@@ -36,3 +36,5 @@ tracing.workspace = true
 storage-adapter.workspace = true
 dashmap.workspace = true
 bytes.workspace = true
+serde.workspace = true
+serde_json.workspace = true

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
+
 use common_base::tools::now_second;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -66,6 +69,11 @@ pub struct AmqpChannel {
     pub channel_id: u16,
     pub state: AmqpChannelState,
     pub create_time: u64,
+    // Basic.Deliver/Basic.GetOk delivery_tag, scoped to this channel's
+    // lifetime: starts at 1, only increases, never reused. Wrapped in Arc so
+    // every clone of this AmqpChannel (AmqpCacheManager::get_channel returns
+    // clones) shares the same counter instead of each getting its own.
+    pub next_delivery_tag: Arc<AtomicU64>,
 }
 
 impl AmqpChannel {
@@ -75,6 +83,7 @@ impl AmqpChannel {
             channel_id,
             state: AmqpChannelState::Open,
             create_time: now_second(),
+            next_delivery_tag: Arc::new(AtomicU64::new(1)),
         }
     }
 }

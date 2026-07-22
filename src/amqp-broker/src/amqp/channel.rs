@@ -23,8 +23,8 @@ use amq_protocol::protocol::AMQPClass;
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpChannel;
 
-pub(crate) struct ChannelCtx<'a> {
-    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
+pub(crate) struct ChannelCtx {
+    pub amqp_cache: Arc<AmqpCacheManager>,
 }
 
 /// Handles the Channel class, keeping AmqpChannel cache state in sync with
@@ -38,14 +38,11 @@ pub(crate) fn process_channel_full(
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Open(_) => {
-            if let Some(cache) = ctx.amqp_cache {
-                cache.set_channel(AmqpChannel::new(connection_id, channel_id));
-            }
+            ctx.amqp_cache
+                .set_channel(AmqpChannel::new(connection_id, channel_id));
         }
         AMQPMethod::Close(_) | AMQPMethod::CloseOk(_) => {
-            if let Some(cache) = ctx.amqp_cache {
-                cache.remove_channel(connection_id, channel_id);
-            }
+            ctx.amqp_cache.remove_channel(connection_id, channel_id);
         }
         _ => {}
     }

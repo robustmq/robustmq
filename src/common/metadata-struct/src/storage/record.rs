@@ -229,4 +229,8 @@ pub struct StorageRecordProtocolDataAmqp {
     pub app_id: Option<String>,
     pub cluster_id: Option<String>,
     pub headers: Vec<(String, String)>,
+    // Set true when this record was written by the requeue primitive
+    // (Nack/Reject/Recover, connection cleanup, or crash recovery), so a
+    // later Get/Consume can report AMQP's `redelivered` flag correctly.
+    pub redelivered: bool,
 }

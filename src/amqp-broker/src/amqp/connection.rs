@@ -28,9 +28,9 @@ use tracing::warn;
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::{AmqpConnection, AmqpConnectionState};
 
-pub(crate) struct ConnectionCtx<'a> {
-    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
-    pub security_manager: Option<&'a Arc<SecurityManager>>,
+pub(crate) struct ConnectionCtx {
+    pub amqp_cache: Arc<AmqpCacheManager>,
+    pub security_manager: Arc<SecurityManager>,
 }
 
 /// Handles the Connection class. StartOk/Open/Close/CloseOk carry the
@@ -40,7 +40,7 @@ pub(crate) async fn process_connection_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: ConnectionCtx<'_>,
+    ctx: ConnectionCtx,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::StartOk(start_ok) => {
@@ -71,12 +71,10 @@ fn parse_sasl_plain(response: &[u8]) -> Option<(String, String)> {
 fn process_connection_start_ok(
     start_ok: &StartOk,
     connection_id: u64,
-    amqp_cache: Option<&Arc<AmqpCacheManager>>,
+    amqp_cache: Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
     if let Some((username, password)) = parse_sasl_plain(start_ok.response.as_bytes()) {
-        if let Some(cache) = amqp_cache {
-            cache.set_pending_login(connection_id, username, password);
-        }
+        amqp_cache.set_pending_login(connection_id, username, password);
     } else {
         warn!("AMQP Connection.StartOk: unsupported SASL response format");
     }
@@ -86,8 +84,8 @@ fn process_connection_start_ok(
 async fn process_connection_open(
     open: &Open,
     connection_id: u64,
-    amqp_cache: Option<&Arc<AmqpCacheManager>>,
-    security_manager: Option<&Arc<SecurityManager>>,
+    amqp_cache: Arc<AmqpCacheManager>,
+    security_manager: Arc<SecurityManager>,
 ) -> Option<AMQPFrame> {
     let tenant = if open.virtual_host.as_str().is_empty() {
         DEFAULT_TENANT.to_string()
@@ -95,12 +93,12 @@ async fn process_connection_open(
         open.virtual_host.to_string()
     };
 
-    let login = amqp_cache.and_then(|c| c.take_pending_login(connection_id));
-    let authenticated = match (&login, security_manager) {
-        (Some((username, password)), Some(security_manager)) => {
-            password_check_by_login(security_manager, &tenant, username, password)
+    let login = amqp_cache.take_pending_login(connection_id);
+    let authenticated = match &login {
+        Some((username, password)) => {
+            password_check_by_login(&security_manager, &tenant, username, password)
         }
-        _ => false,
+        None => false,
     };
 
     if !authenticated {
@@ -111,38 +109,32 @@ async fn process_connection_open(
         return Some(close_frame(530, "NOT_ALLOWED", 10, 40));
     }
 
-    if let Some(cache) = amqp_cache {
-        let mut conn = cache
-            .get_connection(connection_id)
-            .unwrap_or_else(|| AmqpConnection::new(connection_id));
-        conn.tenant = tenant;
-        if let Some((username, _)) = login {
-            conn.username = username;
-        }
-        conn.state = AmqpConnectionState::Open;
-        cache.set_connection(conn);
+    let mut conn = amqp_cache
+        .get_connection(connection_id)
+        .unwrap_or_else(|| AmqpConnection::new(connection_id));
+    conn.tenant = tenant;
+    if let Some((username, _)) = login {
+        conn.username = username;
     }
+    conn.state = AmqpConnectionState::Open;
+    amqp_cache.set_connection(conn);
 
     Some(open_ok_frame())
 }
 
 fn process_connection_close(
     connection_id: u64,
-    amqp_cache: Option<&Arc<AmqpCacheManager>>,
+    amqp_cache: Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
-    if let Some(cache) = amqp_cache {
-        cache.remove_connection(connection_id);
-    }
+    amqp_cache.remove_connection(connection_id);
     Some(close_ok_frame())
 }
 
 fn process_connection_close_ok(
     connection_id: u64,
-    amqp_cache: Option<&Arc<AmqpCacheManager>>,
+    amqp_cache: Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
-    if let Some(cache) = amqp_cache {
-        cache.remove_connection(connection_id);
-    }
+    amqp_cache.remove_connection(connection_id);
     None
 }
 

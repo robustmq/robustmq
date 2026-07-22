@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480" font-family="'SF Mono', 'Menlo', 'Consolas', monospace">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="2.5" orient="auto">
+      <path d="M0,0 L6,2.5 L0,5 Z" fill="#111111"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="860" height="480" fill="#ffffff"/>
+  <text x="0" y="26" font-size="15" font-weight="700" fill="#111111">AMQP Ack Mechanism &#8212; Component Overview</text>
+  <text x="0" y="44" font-size="11" fill="#666666">five parts, each owned by a different layer of the system</text>
+
+  <!-- client row -->
+  <rect x="0" y="66" width="860" height="40" stroke="#111111" fill="none"/>
+  <text x="10" y="91" font-size="12" fill="#111111">AMQP client &#8212; Basic.Get / Basic.Consume / Basic.Ack / Basic.Nack / Basic.Reject</text>
+
+  <line x1="120" y1="106" x2="120" y2="132" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="340" y1="106" x2="340" y2="132" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="560" y1="106" x2="560" y2="132" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="770" y1="106" x2="770" y2="132" stroke="#111111" marker-end="url(#arrow)"/>
+
+  <!-- four state components -->
+  <rect x="10" y="132" width="220" height="70" stroke="#111111" fill="none"/>
+  <text x="18" y="154" font-size="11.5" font-weight="700" fill="#111111">delivery cursor</text>
+  <text x="18" y="170" font-size="10" fill="#444444">one per queue, meta-service</text>
+  <text x="18" y="184" font-size="10" fill="#444444">conditional write, no lock</text>
+  <text x="18" y="198" font-size="10" fill="#666666">section 5</text>
+
+  <rect x="240" y="132" width="200" height="70" stroke="#111111" fill="none"/>
+  <text x="248" y="154" font-size="11.5" font-weight="700" fill="#111111">delivery_tag counter</text>
+  <text x="248" y="170" font-size="10" fill="#444444">one per channel</text>
+  <text x="248" y="184" font-size="10" fill="#444444">monotonic, in memory</text>
+  <text x="248" y="198" font-size="10" fill="#666666">section 6</text>
+
+  <rect x="450" y="132" width="220" height="70" stroke="#111111" fill="none"/>
+  <text x="458" y="154" font-size="11.5" font-weight="700" fill="#111111">unacked registry</text>
+  <text x="458" y="170" font-size="10" fill="#444444">(conn, channel, tag) &#8594; offset</text>
+  <text x="458" y="184" font-size="10" fill="#444444">process memory only</text>
+  <text x="458" y="198" font-size="10" fill="#666666">section 6</text>
+
+  <rect x="680" y="132" width="170" height="70" stroke="#111111" fill="none"/>
+  <text x="688" y="154" font-size="11.5" font-weight="700" fill="#111111">index topic</text>
+  <text x="688" y="170" font-size="10" fill="#444444">cluster-shared, durable</text>
+  <text x="688" y="184" font-size="10" fill="#444444">survives a crash</text>
+  <text x="688" y="198" font-size="10" fill="#666666">section 7</text>
+
+  <text x="0" y="228" font-size="10.5" fill="#888888">Basic.Ack reads the unacked registry, then deletes both the message and its index entry (section 8)</text>
+
+  <line x1="0" y1="248" x2="860" y2="248" stroke="#cccccc"/>
+
+  <!-- requeue primitive -->
+  <text x="0" y="278" font-size="13" font-weight="700" fill="#111111">requeue primitive &#8212; one function, five callers</text>
+
+  <g font-size="11" fill="#111111">
+    <rect x="0" y="296" width="200" height="30" stroke="#111111" fill="none"/>
+    <text x="8" y="316">Nack(requeue=true)</text>
+    <rect x="0" y="332" width="200" height="30" stroke="#111111" fill="none"/>
+    <text x="8" y="352">Reject(requeue=true)</text>
+    <rect x="0" y="368" width="200" height="30" stroke="#111111" fill="none"/>
+    <text x="8" y="388">Recover(requeue=true)</text>
+    <rect x="0" y="404" width="200" height="30" stroke="#111111" fill="none"/>
+    <text x="8" y="424">channel / connection close</text>
+    <rect x="0" y="440" width="200" height="30" stroke="#111111" fill="none"/>
+    <text x="8" y="460">recovery scanner (section 10)</text>
+  </g>
+
+  <line x1="200" y1="311" x2="330" y2="360" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="200" y1="347" x2="330" y2="365" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="200" y1="383" x2="330" y2="375" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="200" y1="419" x2="330" y2="385" stroke="#111111" marker-end="url(#arrow)"/>
+  <line x1="200" y1="455" x2="330" y2="395" stroke="#111111" marker-end="url(#arrow)"/>
+
+  <rect x="340" y="330" width="220" height="80" stroke="#111111" stroke-width="1.4" fill="none"/>
+  <text x="348" y="352" font-size="12" font-weight="700" fill="#111111">requeue_message()</text>
+  <text x="348" y="370" font-size="10" fill="#444444">delete original, rewrite to</text>
+  <text x="348" y="384" font-size="10" fill="#444444">queue tail, redelivered=true,</text>
+  <text x="348" y="398" font-size="10" fill="#444444">delete index entry &#8212; section 9</text>
+
+  <line x1="560" y1="370" x2="620" y2="370" stroke="#111111" marker-end="url(#arrow)"/>
+  <rect x="620" y="340" width="220" height="60" stroke="#111111" fill="none"/>
+  <text x="628" y="362" font-size="11" fill="#111111">queue tail (new offset)</text>
+  <text x="628" y="378" font-size="10" fill="#666666">no exchange lookup, no re-routing</text>
+</svg>

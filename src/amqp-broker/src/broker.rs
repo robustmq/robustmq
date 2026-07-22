@@ -14,6 +14,7 @@
 
 use crate::core::cache::AmqpCacheManager;
 use crate::core::keep_alive::AmqpKeepAlive;
+use crate::core::recovery::AmqpRecoveryScanner;
 use crate::server::{AmqpServer, AmqpServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
@@ -45,14 +46,18 @@ pub struct AmqpBrokerServerParams {
 pub struct AmqpBrokerServer {
     server: AmqpServer,
     stop_sx: broadcast::Sender<bool>,
+    keep_alive: AmqpKeepAlive,
+    recovery_scanner: AmqpRecoveryScanner,
 }
 
 impl AmqpBrokerServer {
     pub fn new(params: AmqpBrokerServerParams) -> Self {
         let keep_alive =
             AmqpKeepAlive::new(params.connection_manager.clone(), params.amqp_cache.clone());
-        let keep_alive_stop = params.stop_sx.clone();
-        tokio::spawn(async move { keep_alive.start(&keep_alive_stop).await });
+        let recovery_scanner = AmqpRecoveryScanner::new(
+            params.client_pool.clone(),
+            params.storage_driver_manager.clone(),
+        );
 
         let server = AmqpServer::new(AmqpServerParams {
             connection_manager: params.connection_manager,
@@ -67,10 +72,20 @@ impl AmqpBrokerServer {
         AmqpBrokerServer {
             server,
             stop_sx: params.stop_sx,
+            keep_alive,
+            recovery_scanner,
         }
     }
 
     pub async fn start(&self) -> Result<(), std::io::Error> {
+        let keep_alive = self.keep_alive.clone();
+        let keep_alive_stop = self.stop_sx.clone();
+        tokio::spawn(async move { keep_alive.start(&keep_alive_stop).await });
+
+        let recovery_scanner = self.recovery_scanner.clone();
+        let recovery_stop = self.stop_sx.clone();
+        tokio::spawn(async move { recovery_scanner.start(&recovery_stop).await });
+
         let port = broker_config().amqp_runtime.tcp_port;
         self.server.start(port).await.map_err(|e| {
             std::io::Error::other(format!(

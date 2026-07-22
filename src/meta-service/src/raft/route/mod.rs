@@ -131,9 +131,10 @@ impl DataRoute {
                 Ok(None)
             }
             StorageDataType::OffsetSet => {
-                self.route_cluster
+                let committed = self
+                    .route_cluster
                     .save_offset_data(storage_data.value.clone())?;
-                Ok(None)
+                Ok(Some(Bytes::copy_from_slice(&[committed as u8])))
             }
             StorageDataType::OffsetDelete => {
                 self.route_cluster

@@ -19,7 +19,7 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use rocksdb_engine::storage::base::{batch_encode_data, get_cf_handle};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_DATA;
 use rocksdb_engine::storage::meta_data::{
-    engine_delete_by_meta_data, engine_prefix_list_by_meta_data,
+    engine_delete_by_meta_data, engine_get_by_meta_data, engine_prefix_list_by_meta_data,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -68,6 +68,20 @@ impl OffsetStorage {
         }
         self.rocksdb_engine_handler.db.write(batch)?;
         Ok(())
+    }
+
+    /// Single-shard read, used by the conditional-write path: the caller
+    /// checks the returned offset against the value it expects before
+    /// committing a new one.
+    pub fn get(
+        &self,
+        tenant: &str,
+        group: &str,
+        shard_name: &str,
+    ) -> Result<Option<OffsetData>, CommonError> {
+        let key = key_offset(tenant, group, shard_name);
+        let data = engine_get_by_meta_data::<OffsetData>(&self.rocksdb_engine_handler, &key)?;
+        Ok(data.map(|row| row.data))
     }
 
     pub fn delete(&self, tenant: &str, group: &str, shard_name: &str) -> Result<(), CommonError> {

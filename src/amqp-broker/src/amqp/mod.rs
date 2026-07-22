@@ -12,24 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use metadata_struct::tenant::DEFAULT_TENANT;
-
-use crate::core::cache::AmqpCacheManager;
-
 pub mod basic;
 pub mod channel;
 pub mod connection;
 pub mod exchange;
+pub mod offset;
 pub mod queue;
+pub mod requeue;
 pub mod route;
 pub mod tx;
-
-/// The tenant a connection's operations should run against: its vhost (set at
-/// Connection.Open) if known, else DEFAULT_TENANT.
-pub(crate) fn tenant_for(amqp_cache: Option<&Arc<AmqpCacheManager>>, connection_id: u64) -> String {
-    amqp_cache
-        .map(|c| c.tenant_for(connection_id))
-        .unwrap_or_else(|| DEFAULT_TENANT.to_string())
-}
+pub mod unacked_index;

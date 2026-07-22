@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
-use dashmap::DashMap;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::{ArcCommandAdapter, Command};
 use network_server::common::connection_manager::ConnectionManager;
@@ -28,7 +26,7 @@ use std::net::SocketAddr;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
 
-use crate::amqp::basic::{BasicCtx, PendingPublish};
+use crate::amqp::basic::BasicCtx;
 use crate::amqp::channel::ChannelCtx;
 use crate::amqp::connection::ConnectionCtx;
 use crate::amqp::exchange::ExchangeCtx;
@@ -36,10 +34,6 @@ use crate::amqp::queue::QueueCtx;
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpConnection;
-
-pub fn create_command() -> ArcCommandAdapter {
-    Arc::new(Box::new(AmqpHandlerCommand::new_stateless()))
-}
 
 pub fn create_command_with_state(
     connection_manager: Arc<ConnectionManager>,
@@ -57,28 +51,13 @@ pub fn create_command_with_state(
 
 #[derive(Clone)]
 pub struct AmqpHandlerCommand {
-    connection_manager: Option<Arc<ConnectionManager>>,
-    storage_driver_manager: Option<Arc<StorageDriverManager>>,
-    amqp_cache: Option<Arc<AmqpCacheManager>>,
-    security_manager: Option<Arc<SecurityManager>>,
-    // (connection_id, queue_name) -> per-shard offsets
-    shard_offsets: Arc<DashMap<(u64, String), HashMap<String, u64>>>,
-    // (connection_id, channel_id) -> in-flight publish awaiting its content frames
-    pending_publish: Arc<DashMap<(u64, u16), PendingPublish>>,
+    connection_manager: Arc<ConnectionManager>,
+    storage_driver_manager: Arc<StorageDriverManager>,
+    amqp_cache: Arc<AmqpCacheManager>,
+    security_manager: Arc<SecurityManager>,
 }
 
 impl AmqpHandlerCommand {
-    pub fn new_stateless() -> Self {
-        AmqpHandlerCommand {
-            connection_manager: None,
-            storage_driver_manager: None,
-            amqp_cache: None,
-            security_manager: None,
-            shard_offsets: Arc::new(DashMap::new()),
-            pending_publish: Arc::new(DashMap::new()),
-        }
-    }
-
     pub fn new(
         connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
@@ -86,29 +65,19 @@ impl AmqpHandlerCommand {
         security_manager: Arc<SecurityManager>,
     ) -> Self {
         AmqpHandlerCommand {
-            connection_manager: Some(connection_manager),
-            storage_driver_manager: Some(storage_driver_manager),
-            amqp_cache: Some(amqp_cache),
-            security_manager: Some(security_manager),
-            shard_offsets: Arc::new(DashMap::new()),
-            pending_publish: Arc::new(DashMap::new()),
+            connection_manager,
+            storage_driver_manager,
+            amqp_cache,
+            security_manager,
         }
     }
 
-    fn basic_ctx(&self) -> BasicCtx<'_> {
+    fn basic_ctx(&self) -> BasicCtx {
         BasicCtx {
-            connection_manager: self.connection_manager.as_ref(),
-            storage_driver_manager: self.storage_driver_manager.as_ref(),
-            amqp_cache: self.amqp_cache.as_ref(),
-            pending_publish: &self.pending_publish,
-            shard_offsets: &self.shard_offsets,
+            connection_manager: self.connection_manager.clone(),
+            storage_driver_manager: self.storage_driver_manager.clone(),
+            amqp_cache: self.amqp_cache.clone(),
         }
-    }
-}
-
-impl Default for AmqpHandlerCommand {
-    fn default() -> Self {
-        Self::new_stateless()
     }
 }
 
@@ -144,9 +113,8 @@ impl AmqpHandlerCommand {
                 self.process_method(*channel_id, class, connection_id).await
             }
             AMQPFrame::ProtocolHeader(_) => {
-                if let Some(cache) = &self.amqp_cache {
-                    cache.set_connection(AmqpConnection::new(connection_id));
-                }
+                self.amqp_cache
+                    .set_connection(AmqpConnection::new(connection_id));
                 connection::process_protocol_header()
             }
             AMQPFrame::Heartbeat(channel_id) => connection::process_heartbeat(*channel_id),
@@ -185,33 +153,47 @@ impl AmqpHandlerCommand {
         use amq_protocol::protocol::AMQPClass;
         let result = match class {
             AMQPClass::Connection(method) => {
-                connection::process_connection_full(
+                use amq_protocol::protocol::connection::AMQPMethod as ConnMethod;
+                let is_close = matches!(method, ConnMethod::Close(_) | ConnMethod::CloseOk(_));
+                let frame = connection::process_connection_full(
                     channel_id,
                     method,
                     connection_id,
                     ConnectionCtx {
-                        amqp_cache: self.amqp_cache.as_ref(),
-                        security_manager: self.security_manager.as_ref(),
+                        amqp_cache: self.amqp_cache.clone(),
+                        security_manager: self.security_manager.clone(),
                     },
                 )
-                .await
+                .await;
+                if is_close {
+                    basic::requeue_connection(connection_id, &self.basic_ctx()).await;
+                }
+                frame
             }
-            AMQPClass::Channel(method) => channel::process_channel_full(
-                channel_id,
-                method,
-                connection_id,
-                ChannelCtx {
-                    amqp_cache: self.amqp_cache.as_ref(),
-                },
-            ),
+            AMQPClass::Channel(method) => {
+                use amq_protocol::protocol::channel::AMQPMethod as ChanMethod;
+                let is_close = matches!(method, ChanMethod::Close(_) | ChanMethod::CloseOk(_));
+                let frame = channel::process_channel_full(
+                    channel_id,
+                    method,
+                    connection_id,
+                    ChannelCtx {
+                        amqp_cache: self.amqp_cache.clone(),
+                    },
+                );
+                if is_close {
+                    basic::requeue_channel(connection_id, channel_id, &self.basic_ctx()).await;
+                }
+                frame
+            }
             AMQPClass::Exchange(method) => {
                 exchange::process_exchange_full(
                     channel_id,
                     method,
                     connection_id,
                     ExchangeCtx {
-                        amqp_cache: self.amqp_cache.as_ref(),
-                        storage_driver_manager: self.storage_driver_manager.as_ref(),
+                        amqp_cache: self.amqp_cache.clone(),
+                        storage_driver_manager: self.storage_driver_manager.clone(),
                     },
                 )
                 .await
@@ -222,8 +204,8 @@ impl AmqpHandlerCommand {
                     method,
                     connection_id,
                     QueueCtx {
-                        amqp_cache: self.amqp_cache.as_ref(),
-                        storage_driver_manager: self.storage_driver_manager.as_ref(),
+                        amqp_cache: self.amqp_cache.clone(),
+                        storage_driver_manager: self.storage_driver_manager.clone(),
                     },
                 )
                 .await

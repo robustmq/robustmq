@@ -86,14 +86,35 @@ impl DataRouteCluster {
     }
 
     // OffsetData
-    pub fn save_offset_data(&self, value: Bytes) -> Result<(), MetaServiceError> {
+    //
+    // Entries carrying `expected_offset` are conditional writes: committed
+    // only if the currently stored offset for that (tenant, group,
+    // shard_name) still equals `expected_offset`. This runs inside the raft
+    // apply step, so the check-then-write is linearized against every other
+    // proposal for the same key — no lock or lease needed. Entries without
+    // `expected_offset` are written unconditionally (existing MQTT/Kafka
+    // behavior, unaffected). Returns whether every conditional entry in this
+    // request committed; a rejected entry is simply skipped, not an error.
+    pub fn save_offset_data(&self, value: Bytes) -> Result<bool, MetaServiceError> {
         let req = SaveOffsetDataRequest::decode(value.as_ref())?;
         let offset_storage = OffsetStorage::new(self.rocksdb_engine_handler.clone());
+        let mut all_committed = true;
         for offset_data in req.offsets {
-            let offsets = offset_data
-                .offsets
-                .iter()
-                .map(|raw| OffsetData {
+            let mut offsets = Vec::with_capacity(offset_data.offsets.len());
+            for raw in &offset_data.offsets {
+                if let Some(expected) = raw.expected_offset {
+                    // No prior record reads as offset 0 (nothing committed
+                    // yet), so a first-ever commit can legitimately expect 0.
+                    let current = offset_storage
+                        .get(&offset_data.tenant, &offset_data.group, &raw.shard_name)?
+                        .map(|d| d.offset)
+                        .unwrap_or(0);
+                    if current != expected {
+                        all_committed = false;
+                        continue;
+                    }
+                }
+                offsets.push(OffsetData {
                     tenant: offset_data.tenant.clone(),
                     group: offset_data.group.clone(),
                     shard_name: raw.shard_name.clone(),
@@ -101,12 +122,12 @@ impl DataRouteCluster {
                     partition: raw.partition,
                     offset: raw.offset,
                     timestamp: now_second(),
-                })
-                .collect::<Vec<OffsetData>>();
+                });
+            }
 
             offset_storage.save(&offsets)?;
         }
-        Ok(())
+        Ok(all_committed)
     }
 
     // Schema
@@ -261,5 +282,86 @@ mod tests {
         let _ = node_storage.delete(node_id);
         let res = node_storage.get(node_id).unwrap();
         assert!(res.is_none());
+    }
+
+    fn save_offset_request(
+        tenant: &str,
+        group: &str,
+        shard: &str,
+        offset: u64,
+        expected_offset: Option<u64>,
+    ) -> Bytes {
+        use protocol::meta::meta_service_common::{
+            SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
+        };
+        let req = SaveOffsetDataRequest {
+            offsets: vec![SaveOffsetData {
+                tenant: tenant.to_string(),
+                group: group.to_string(),
+                offsets: vec![SaveOffsetDataRequestOffset {
+                    shard_name: shard.to_string(),
+                    offset,
+                    topic: "topic1".to_string(),
+                    partition: 0,
+                    expected_offset,
+                }],
+            }],
+        };
+        Bytes::copy_from_slice(&SaveOffsetDataRequest::encode_to_vec(&req))
+    }
+
+    fn new_route() -> (DataRouteCluster, Arc<RocksDBEngine>) {
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            &test_temp_dir(),
+            100000,
+            column_family_list(),
+        ));
+        let cluster_cache = Arc::new(MetaCacheManager::new(rocksdb_engine.clone()));
+        let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
+        (route, rocksdb_engine)
+    }
+
+    #[tokio::test]
+    async fn save_offset_data_unconditional_write_always_commits() {
+        let (route, _rocksdb_engine) = new_route();
+        let committed = route
+            .save_offset_data(save_offset_request("t1", "amqp:q1", "shard1", 5, None))
+            .unwrap();
+        assert!(committed);
+    }
+
+    #[tokio::test]
+    async fn save_offset_data_cas_accepts_matching_expected_offset() {
+        let (route, _rocksdb_engine) = new_route();
+        // First commit: nothing stored yet, so expecting 0 must succeed.
+        let committed = route
+            .save_offset_data(save_offset_request("t1", "amqp:q1", "shard1", 1, Some(0)))
+            .unwrap();
+        assert!(committed);
+
+        // Second commit: current value is 1, expecting 1 must succeed.
+        let committed = route
+            .save_offset_data(save_offset_request("t1", "amqp:q1", "shard1", 2, Some(1)))
+            .unwrap();
+        assert!(committed);
+    }
+
+    #[tokio::test]
+    async fn save_offset_data_cas_rejects_stale_expected_offset() {
+        let (route, rocksdb_engine) = new_route();
+        route
+            .save_offset_data(save_offset_request("t1", "amqp:q1", "shard1", 1, Some(0)))
+            .unwrap();
+
+        // Someone else already advanced past 0; a stale caller still
+        // expecting 0 must be rejected, and the stored value must not move.
+        let committed = route
+            .save_offset_data(save_offset_request("t1", "amqp:q1", "shard1", 99, Some(0)))
+            .unwrap();
+        assert!(!committed);
+
+        let offset_storage = crate::storage::common::offset::OffsetStorage::new(rocksdb_engine);
+        let stored = offset_storage.get("t1", "amqp:q1", "shard1").unwrap();
+        assert_eq!(stored.unwrap().offset, 1);
     }
 }

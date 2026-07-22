@@ -204,9 +204,18 @@ message SaveOffsetDataRequestOffset {
   uint64 offset = 3 [(validate.rules).uint64.gte = 0];
   string topic = 4 [(validate.rules).string.min_len = 1];
   uint32 partition = 5;
+  // Conditional write: only commit `offset` if the currently stored offset
+  // for this (tenant, group, shard_name) equals `expected_offset`. Absent
+  // means an unconditional write (existing behavior, used by MQTT/Kafka).
+  optional uint64 expected_offset = 6;
 }
 
-message SaveOffsetDataReply {}
+message SaveOffsetDataReply {
+  // False if any entry carrying `expected_offset` was rejected because the
+  // stored value had already moved on. Always true for requests where no
+  // entry sets `expected_offset`.
+  bool committed = 1;
+}
 
 message GetOffsetDataRequest {
   string group = 2 [(validate.rules).string.min_len = 1];

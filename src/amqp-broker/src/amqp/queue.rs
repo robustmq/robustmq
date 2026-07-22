@@ -32,21 +32,21 @@ use storage_adapter::topic::{create_topic_full, topic_replication_num};
 use tracing::warn;
 
 use crate::amqp::channel::channel_error_close;
-use crate::amqp::{route, tenant_for};
+use crate::amqp::route;
 use crate::core::cache::AmqpCacheManager;
 use crate::storage::binding::BindingStorage;
 use crate::storage::queue::QueueStorage;
 
-pub(crate) struct QueueCtx<'a> {
-    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
-    pub storage_driver_manager: Option<&'a Arc<StorageDriverManager>>,
+pub(crate) struct QueueCtx {
+    pub amqp_cache: Arc<AmqpCacheManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
 }
 
 pub(crate) async fn process_queue_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: QueueCtx<'_>,
+    ctx: QueueCtx,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Declare(declare) => {
@@ -70,22 +70,19 @@ async fn process_queue_declare(
     channel_id: u16,
     declare: &Declare,
     connection_id: u64,
-    ctx: &QueueCtx<'_>,
+    ctx: &QueueCtx,
 ) -> Option<AMQPFrame> {
     let queue_name = if declare.queue.as_str().is_empty() {
         format!("amqp-{}", unique_id())
     } else {
         declare.queue.to_string()
     };
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
 
     // Passive: assert existence without declaring anything. A missing
     // queue is a channel exception (404 NOT_FOUND), not a silent create.
     if declare.passive {
-        let exists = ctx
-            .amqp_cache
-            .and_then(|c| c.get_queue(&tenant, &queue_name))
-            .is_some();
+        let exists = ctx.amqp_cache.get_queue(&tenant, &queue_name).is_some();
         if !exists {
             return Some(channel_error_close(channel_id, 404, "NOT_FOUND", 50, 10));
         }
@@ -103,38 +100,37 @@ async fn process_queue_declare(
         };
     }
 
-    if let Some(sdm) = ctx.storage_driver_manager {
-        // The physical message shard: needed whether or not the queue's own
-        // declare metadata is durable — something has to hold its messages
-        // while it's alive.
-        if declare_amqp_queue(sdm, &tenant, &queue_name)
-            .await
-            .is_none()
-        {
-            warn!("AMQP Queue.Declare failed for queue={}", queue_name);
-        }
+    // The physical message shard: needed whether or not the queue's own
+    // declare metadata is durable — something has to hold its messages
+    // while it's alive.
+    if declare_amqp_queue(&ctx.storage_driver_manager, &tenant, &queue_name)
+        .await
+        .is_none()
+    {
+        warn!("AMQP Queue.Declare failed for queue={}", queue_name);
+    }
 
-        let arguments = route::field_table_to_map(&declare.arguments);
-        let amqp_queue = AmqpQueue::new(
-            &tenant,
-            &queue_name,
-            declare.durable,
-            declare.exclusive,
-            declare.auto_delete,
-            arguments,
-        );
-        let storage = QueueStorage::new(sdm.engine_storage_handler.client_pool.clone());
-        match storage.set_queue(&amqp_queue).await {
-            Ok(()) => {
-                if let Some(cache) = ctx.amqp_cache {
-                    cache.set_queue(amqp_queue);
-                }
-            }
-            Err(e) => warn!(
-                "AMQP Queue.Declare metadata write failed for {}: {}",
-                queue_name, e
-            ),
-        }
+    let arguments = route::field_table_to_map(&declare.arguments);
+    let amqp_queue = AmqpQueue::new(
+        &tenant,
+        &queue_name,
+        declare.durable,
+        declare.exclusive,
+        declare.auto_delete,
+        arguments,
+    );
+    let storage = QueueStorage::new(
+        ctx.storage_driver_manager
+            .engine_storage_handler
+            .client_pool
+            .clone(),
+    );
+    match storage.set_queue(&amqp_queue).await {
+        Ok(()) => ctx.amqp_cache.set_queue(amqp_queue),
+        Err(e) => warn!(
+            "AMQP Queue.Declare metadata write failed for {}: {}",
+            queue_name, e
+        ),
     }
 
     if declare.nowait {
@@ -154,47 +150,42 @@ async fn process_queue_delete(
     channel_id: u16,
     delete: &Delete,
     connection_id: u64,
-    ctx: &QueueCtx<'_>,
+    ctx: &QueueCtx,
 ) -> Option<AMQPFrame> {
     let queue_name = delete.queue.to_string();
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let sdm = &ctx.storage_driver_manager;
     let mut message_count: u64 = 0;
 
-    if let Some(sdm) = ctx.storage_driver_manager {
-        if let Ok(resources) = sdm.list_storage_resource(&tenant, &queue_name).await {
-            message_count = resources
-                .values()
-                .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
-                .sum();
-        }
-        if delete.if_empty && message_count > 0 {
-            return Some(channel_error_close(
-                channel_id,
-                406,
-                "PRECONDITION_FAILED",
-                50,
-                40,
-            ));
-        }
+    if let Ok(resources) = sdm.list_storage_resource(&tenant, &queue_name).await {
+        message_count = resources
+            .values()
+            .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
+            .sum();
+    }
+    if delete.if_empty && message_count > 0 {
+        return Some(channel_error_close(
+            channel_id,
+            406,
+            "PRECONDITION_FAILED",
+            50,
+            40,
+        ));
+    }
 
-        let storage = QueueStorage::new(sdm.engine_storage_handler.client_pool.clone());
-        match storage.delete_queue(&tenant, &queue_name).await {
-            Ok(()) => {
-                if let Some(cache) = ctx.amqp_cache {
-                    cache.remove_queue(&tenant, &queue_name);
-                }
-            }
-            Err(e) => warn!("AMQP Queue.Delete failed for {}: {}", queue_name, e),
-        }
-        // Metadata is gone either way at this point; also tear down the
-        // underlying message shard so a later redeclare starts fresh
-        // instead of silently resurrecting old messages.
-        if let Err(e) = sdm.delete_storage_resource(&tenant, &queue_name).await {
-            warn!(
-                "AMQP Queue.Delete: failed to remove underlying storage for {}: {}",
-                queue_name, e
-            );
-        }
+    let storage = QueueStorage::new(sdm.engine_storage_handler.client_pool.clone());
+    match storage.delete_queue(&tenant, &queue_name).await {
+        Ok(()) => ctx.amqp_cache.remove_queue(&tenant, &queue_name),
+        Err(e) => warn!("AMQP Queue.Delete failed for {}: {}", queue_name, e),
+    }
+    // Metadata is gone either way at this point; also tear down the
+    // underlying message shard so a later redeclare starts fresh
+    // instead of silently resurrecting old messages.
+    if let Err(e) = sdm.delete_storage_resource(&tenant, &queue_name).await {
+        warn!(
+            "AMQP Queue.Delete: failed to remove underlying storage for {}: {}",
+            queue_name, e
+        );
     }
 
     if delete.nowait {
@@ -212,38 +203,37 @@ async fn process_queue_bind(
     channel_id: u16,
     bind: &Bind,
     connection_id: u64,
-    ctx: &QueueCtx<'_>,
+    ctx: &QueueCtx,
 ) -> Option<AMQPFrame> {
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
     if !bind.exchange.as_str().is_empty() {
         let exchange_exists = ctx
             .amqp_cache
-            .and_then(|c| c.get_exchange(&tenant, bind.exchange.as_str()))
+            .get_exchange(&tenant, bind.exchange.as_str())
             .is_some();
         if !exchange_exists {
             return Some(channel_error_close(channel_id, 404, "NOT_FOUND", 50, 20));
         }
     }
 
-    if let Some(sdm) = ctx.storage_driver_manager {
-        let arguments = route::field_table_to_map(&bind.arguments);
-        let binding = AmqpBinding::new(
-            &tenant,
-            bind.exchange.as_str(),
-            bind.queue.as_str(),
-            AmqpBindingDestinationType::Queue,
-            bind.routing_key.as_str(),
-            arguments,
-        );
-        let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
-        match storage.set_binding(&binding).await {
-            Ok(()) => {
-                if let Some(cache) = ctx.amqp_cache {
-                    cache.set_binding(binding);
-                }
-            }
-            Err(e) => warn!("AMQP Queue.Bind failed: {}", e),
-        }
+    let arguments = route::field_table_to_map(&bind.arguments);
+    let binding = AmqpBinding::new(
+        &tenant,
+        bind.exchange.as_str(),
+        bind.queue.as_str(),
+        AmqpBindingDestinationType::Queue,
+        bind.routing_key.as_str(),
+        arguments,
+    );
+    let storage = BindingStorage::new(
+        ctx.storage_driver_manager
+            .engine_storage_handler
+            .client_pool
+            .clone(),
+    );
+    match storage.set_binding(&binding).await {
+        Ok(()) => ctx.amqp_cache.set_binding(binding),
+        Err(e) => warn!("AMQP Queue.Bind failed: {}", e),
     }
 
     if bind.nowait {
@@ -259,36 +249,37 @@ async fn process_queue_unbind(
     channel_id: u16,
     unbind: &Unbind,
     connection_id: u64,
-    ctx: &QueueCtx<'_>,
+    ctx: &QueueCtx,
 ) -> Option<AMQPFrame> {
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
-    if let Some(sdm) = ctx.storage_driver_manager {
-        let storage = BindingStorage::new(sdm.engine_storage_handler.client_pool.clone());
-        let destination_type = AmqpBindingDestinationType::Queue;
-        match storage
-            .delete_binding(
-                &tenant,
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let storage = BindingStorage::new(
+        ctx.storage_driver_manager
+            .engine_storage_handler
+            .client_pool
+            .clone(),
+    );
+    let destination_type = AmqpBindingDestinationType::Queue;
+    match storage
+        .delete_binding(
+            &tenant,
+            unbind.exchange.as_str(),
+            unbind.queue.as_str(),
+            &destination_type,
+            unbind.routing_key.as_str(),
+        )
+        .await
+    {
+        Ok(()) => {
+            let key = format!(
+                "{}/{}/{}/{}",
                 unbind.exchange.as_str(),
+                destination_type.as_str(),
                 unbind.queue.as_str(),
-                &destination_type,
-                unbind.routing_key.as_str(),
-            )
-            .await
-        {
-            Ok(()) => {
-                if let Some(cache) = ctx.amqp_cache {
-                    let key = format!(
-                        "{}/{}/{}/{}",
-                        unbind.exchange.as_str(),
-                        destination_type.as_str(),
-                        unbind.queue.as_str(),
-                        unbind.routing_key.as_str()
-                    );
-                    cache.remove_binding(&tenant, &key);
-                }
-            }
-            Err(e) => warn!("AMQP Queue.Unbind failed: {}", e),
+                unbind.routing_key.as_str()
+            );
+            ctx.amqp_cache.remove_binding(&tenant, &key);
         }
+        Err(e) => warn!("AMQP Queue.Unbind failed: {}", e),
     }
 
     Some(AMQPFrame::Method(
@@ -304,33 +295,32 @@ async fn process_queue_purge(
     channel_id: u16,
     purge: &Purge,
     connection_id: u64,
-    ctx: &QueueCtx<'_>,
+    ctx: &QueueCtx,
 ) -> Option<AMQPFrame> {
     let queue_name = purge.queue.to_string();
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let sdm = &ctx.storage_driver_manager;
     let mut message_count: u64 = 0;
 
-    if let Some(sdm) = ctx.storage_driver_manager {
-        match sdm.list_storage_resource(&tenant, &queue_name).await {
-            Ok(resources) => {
-                let targets: HashMap<u32, u64> = resources
-                    .iter()
-                    .map(|(partition, detail)| (*partition, detail.offset.end_offset))
-                    .collect();
-                message_count = resources
-                    .values()
-                    .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
-                    .sum();
-                if let Err(e) = sdm
-                    .delete_records_before(&tenant, &queue_name, &targets)
-                    .await
-                {
-                    warn!("AMQP Queue.Purge failed for {}: {}", queue_name, e);
-                    message_count = 0;
-                }
+    match sdm.list_storage_resource(&tenant, &queue_name).await {
+        Ok(resources) => {
+            let targets: HashMap<u32, u64> = resources
+                .iter()
+                .map(|(partition, detail)| (*partition, detail.offset.end_offset))
+                .collect();
+            message_count = resources
+                .values()
+                .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
+                .sum();
+            if let Err(e) = sdm
+                .delete_records_before(&tenant, &queue_name, &targets)
+                .await
+            {
+                warn!("AMQP Queue.Purge failed for {}: {}", queue_name, e);
+                message_count = 0;
             }
-            Err(e) => warn!("AMQP Queue.Purge: failed to inspect {}: {}", queue_name, e),
         }
+        Err(e) => warn!("AMQP Queue.Purge: failed to inspect {}: {}", queue_name, e),
     }
 
     if purge.nowait {

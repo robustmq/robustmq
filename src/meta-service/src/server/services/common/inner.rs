@@ -150,10 +150,11 @@ pub async fn save_offset_data_by_req(
             .push(offset.clone());
     }
 
+    let mut committed = true;
     for (partition_key, offsets) in grouped_offsets {
         let sub_req = SaveOffsetDataRequest { offsets };
         let data = StorageData::new(StorageDataType::OffsetSet, encode_to_bytes(&sub_req));
-        raft_manager
+        let response = raft_manager
             .write_offset(&partition_key, data)
             .await
             .map_err(|e| {
@@ -161,10 +162,18 @@ pub async fn save_offset_data_by_req(
                     "Failed to write offset partition '{}': {}",
                     partition_key, e
                 ))
-            })?;
+            })?
+            .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+        let committed_byte = response
+            .data
+            .value
+            .ok_or(MetaServiceError::ExecutionResultIsEmpty)?;
+        if committed_byte.first() != Some(&1) {
+            committed = false;
+        }
     }
 
-    Ok(SaveOffsetDataReply::default())
+    Ok(SaveOffsetDataReply { committed })
 }
 
 pub async fn get_offset_data_by_req(

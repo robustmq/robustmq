@@ -1,0 +1,101 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cluster_name = "amqp-single-test"
+broker_id = 101
+broker_ip = "127.0.0.1"
+roles = ["meta", "broker", "engine"]
+grpc_port = 21228
+http_port = 28080
+meta_addrs = { 101 = "127.0.0.1:21228" }
+data_path = "./data/amqp-single-test/data"
+
+[log]
+log_config = "./config/logger.toml"
+log_path = "./data/amqp-single-test/logs"
+
+[network]
+accept_thread_num = 1
+handler_thread_num = 64
+queue_size = 5000
+keep_alive_enable = false
+
+[meta_runtime]
+heartbeat_timeout_ms = 30000
+heartbeat_check_time_ms = 1000
+raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
+
+[mqtt_keep_alive]
+enable = true
+default_time = 180
+max_time = 3600
+default_timeout = 2
+
+[message_storage]
+storage_type = "EngineRocksDB"
+
+[mqtt_system_topic]
+interval_ms = 60000
+
+[mqtt_offline_message]
+enable = true
+expire_ms = 3600000
+max_messages_num = 100000
+
+[storage_offset]
+enable_cache = true
+
+[storage_runtime]
+tcp_port = 21779
+max_segment_size = 1073741824
+data_path = ["./data/amqp-single-test/engine"]
+io_thread_num = 4
+
+[runtime]
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
+server_worker_threads = 4
+meta_worker_threads = 4
+broker_worker_threads = 4
+
+[mqtt_runtime]
+default_user = "admin"
+default_password = "robustmq"
+durable_sessions_enable = false
+secret_free_login = false
+is_self_protection_status = false
+
+[grpc_client]
+channels_per_address = 4
+
+[mqtt_server]
+tcp_port = 21883
+tls_port = 21885
+websocket_port = 28083
+websockets_port = 28085
+quic_port = 29083
+
+[nats_runtime]
+tcp_port = 24222
+tls_port = 24223
+ws_port  = 24080
+wss_port = 24443
+
+[kafka_runtime]
+tcp_port = 29092
+
+[amqp_runtime]
+tcp_port = 25672

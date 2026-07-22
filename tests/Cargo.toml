@@ -59,6 +59,7 @@ a2a-types.workspace = true
 reqwest.workspace = true
 meta-service.workspace = true
 async-trait.workspace = true
+lapin.workspace = true
 
 [target.'cfg(not(windows))'.dev-dependencies]
 rdkafka = { workspace = true }

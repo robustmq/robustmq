@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -25,7 +26,7 @@ use amq_protocol::protocol::confirm;
 use amq_protocol::protocol::AMQPClass;
 use amq_protocol::types::{AMQPValue, FieldTable};
 use common_base::error::common::CommonError;
-use dashmap::DashMap;
+use common_config::broker::broker_config;
 use metadata_struct::adapter::adapter_read_config::AdapterReadConfig;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
 use metadata_struct::storage::record::{
@@ -40,8 +41,16 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
-use crate::amqp::{queue, route, tenant_for};
+use crate::amqp::{offset, queue, requeue, route, unacked_index};
 use crate::core::cache::AmqpCacheManager;
+
+#[derive(Clone)]
+pub(crate) struct UnackedEntry {
+    tenant: String,
+    queue: String,
+    offset: u64,
+    index_offset: u64,
+}
 
 /// A Basic.Publish method frame followed by a not-yet-complete Content
 /// Header/Body sequence, keyed by (connection_id, channel_id) until the full
@@ -85,6 +94,7 @@ fn properties_to_protocol_data(properties: &AMQPProperties) -> StorageRecordProt
             .as_ref()
             .map(|table| route::field_table_to_map(table).into_iter().collect())
             .unwrap_or_default(),
+        redelivered: false,
     }
 }
 
@@ -152,23 +162,77 @@ fn properties_from_protocol_data(amqp: &StorageRecordProtocolDataAmqp) -> AMQPPr
     properties
 }
 
-pub(crate) struct BasicCtx<'a> {
-    pub connection_manager: Option<&'a Arc<ConnectionManager>>,
-    pub storage_driver_manager: Option<&'a Arc<StorageDriverManager>>,
-    pub amqp_cache: Option<&'a Arc<AmqpCacheManager>>,
-    pub pending_publish: &'a DashMap<(u64, u16), PendingPublish>,
-    pub shard_offsets: &'a DashMap<(u64, String), HashMap<String, u64>>,
+pub(crate) struct BasicCtx {
+    pub connection_manager: Arc<ConnectionManager>,
+    pub storage_driver_manager: Arc<StorageDriverManager>,
+    pub amqp_cache: Arc<AmqpCacheManager>,
 }
 
 pub(crate) async fn process_basic_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Get(get) => {
-            process_get(channel_id, get.queue.as_str(), connection_id, ctx).await
+            process_get(
+                channel_id,
+                get.queue.as_str(),
+                get.no_ack,
+                connection_id,
+                ctx,
+            )
+            .await
+        }
+        AMQPMethod::Ack(ack) => {
+            process_settle(
+                Some(ack.delivery_tag),
+                ack.multiple,
+                false,
+                connection_id,
+                channel_id,
+                ctx,
+            )
+            .await;
+            None
+        }
+        AMQPMethod::Nack(nack) => {
+            process_settle(
+                Some(nack.delivery_tag),
+                nack.multiple,
+                nack.requeue,
+                connection_id,
+                channel_id,
+                ctx,
+            )
+            .await;
+            None
+        }
+        AMQPMethod::Reject(reject) => {
+            process_settle(
+                Some(reject.delivery_tag),
+                false,
+                reject.requeue,
+                connection_id,
+                channel_id,
+                ctx,
+            )
+            .await;
+            None
+        }
+        AMQPMethod::RecoverAsync(recover) => {
+            process_settle(None, false, true, connection_id, channel_id, ctx).await;
+            let _ = recover.requeue;
+            None
+        }
+        AMQPMethod::Recover(recover) => {
+            process_settle(None, false, true, connection_id, channel_id, ctx).await;
+            let _ = recover.requeue;
+            Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Basic(AMQPMethod::RecoverOk(RecoverOk {})),
+            ))
         }
         AMQPMethod::Consume(consume) => {
             process_consume(
@@ -181,10 +245,10 @@ pub(crate) async fn process_basic_full(
             .await
         }
         AMQPMethod::Publish(publish) => {
-            ctx.pending_publish.insert(
+            ctx.amqp_cache.pending_publish().insert(
                 (connection_id, channel_id),
                 PendingPublish {
-                    tenant: tenant_for(ctx.amqp_cache, connection_id),
+                    tenant: ctx.amqp_cache.tenant_for(connection_id),
                     routing_key: publish.routing_key.to_string(),
                     exchange: publish.exchange.to_string(),
                     mandatory: publish.mandatory,
@@ -207,14 +271,14 @@ pub(crate) async fn process_content_header_full(
     channel_id: u16,
     class_id: u16,
     header: &AMQPContentHeader,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) -> Option<AMQPFrame> {
     if class_id != 60 {
         // Only the Basic class (60) carries publishable message content.
         return None;
     }
     let key = (connection_id, channel_id);
-    let complete = match ctx.pending_publish.get_mut(&key) {
+    let complete = match ctx.amqp_cache.pending_publish().get_mut(&key) {
         Some(mut entry) => {
             entry.body_size = Some(header.body_size);
             if let Some(headers) = header.properties.headers() {
@@ -226,7 +290,7 @@ pub(crate) async fn process_content_header_full(
         None => false,
     };
     if complete {
-        if let Some((_, pending)) = ctx.pending_publish.remove(&key) {
+        if let Some((_, pending)) = ctx.amqp_cache.pending_publish().remove(&key) {
             finalize_publish(connection_id, channel_id, pending, ctx).await;
         }
     }
@@ -239,10 +303,10 @@ pub(crate) async fn process_content_body_full(
     connection_id: u64,
     channel_id: u16,
     data: &[u8],
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) -> Option<AMQPFrame> {
     let key = (connection_id, channel_id);
-    let complete = match ctx.pending_publish.get_mut(&key) {
+    let complete = match ctx.amqp_cache.pending_publish().get_mut(&key) {
         Some(mut entry) => {
             entry.body.extend_from_slice(data);
             matches!(entry.body_size, Some(size) if entry.body.len() as u64 >= size)
@@ -250,7 +314,7 @@ pub(crate) async fn process_content_body_full(
         None => false,
     };
     if complete {
-        if let Some((_, pending)) = ctx.pending_publish.remove(&key) {
+        if let Some((_, pending)) = ctx.amqp_cache.pending_publish().remove(&key) {
             finalize_publish(connection_id, channel_id, pending, ctx).await;
         }
     }
@@ -267,11 +331,8 @@ async fn finalize_publish(
     connection_id: u64,
     channel_id: u16,
     pending: PendingPublish,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) {
-    let Some(sdm) = ctx.storage_driver_manager else {
-        return;
-    };
     if pending.exchange.is_empty() && pending.routing_key.is_empty() {
         warn!("AMQP Basic.Publish with empty routing key ignored on the default exchange");
         return;
@@ -279,17 +340,14 @@ async fn finalize_publish(
 
     let queues = if pending.exchange.is_empty() {
         vec![pending.routing_key.clone()]
-    } else if let Some(cache) = ctx.amqp_cache {
+    } else {
         route::resolve_queues(
-            cache,
+            &ctx.amqp_cache,
             &pending.tenant,
             &pending.exchange,
             &pending.routing_key,
             &pending.headers,
         )
-    } else {
-        warn!("AMQP Basic.Publish: routing requires amqp_cache but none is configured");
-        Vec::new()
     };
 
     if queues.is_empty() {
@@ -306,7 +364,7 @@ async fn finalize_publish(
 
     for queue_name in &queues {
         write_to_queue(
-            sdm,
+            &ctx.storage_driver_manager,
             &pending.tenant,
             queue_name,
             pending.body.clone(),
@@ -364,12 +422,8 @@ async fn send_basic_return(
     connection_id: u64,
     channel_id: u16,
     pending: &PendingPublish,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) {
-    let Some(cm) = ctx.connection_manager else {
-        return;
-    };
-
     let return_frame = AMQPFrame::Method(
         channel_id,
         AMQPClass::Basic(AMQPMethod::Return(Return {
@@ -396,7 +450,11 @@ async fn send_basic_return(
             extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
             packet: RobustMQPacket::AMQP(frame),
         };
-        if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
+        if let Err(e) = ctx
+            .connection_manager
+            .write_tcp_frame(connection_id, wrapper)
+            .await
+        {
             error!(connection_id, "AMQP Basic.Return write failed: {}", e);
             return;
         }
@@ -408,22 +466,12 @@ async fn process_consume(
     queue: &str,
     consumer_tag: &str,
     connection_id: u64,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) -> Option<AMQPFrame> {
-    let (cm, sdm) = match (ctx.connection_manager, ctx.storage_driver_manager) {
-        (Some(cm), Some(sdm)) => (cm.clone(), sdm.clone()),
-        _ => {
-            warn!("AMQP Basic.Consume: storage not configured");
-            return Some(AMQPFrame::Method(
-                channel_id,
-                AMQPClass::Basic(AMQPMethod::ConsumeOk(ConsumeOk {
-                    consumer_tag: consumer_tag.into(),
-                })),
-            ));
-        }
-    };
+    let cm = ctx.connection_manager.clone();
+    let sdm = ctx.storage_driver_manager.clone();
 
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
     let queue = queue.to_string();
     let consumer_tag = consumer_tag.to_string();
     let consumer_tag_resp = consumer_tag.clone();
@@ -506,111 +554,306 @@ async fn process_consume(
     ))
 }
 
+const MAX_CLAIM_ATTEMPTS: u32 = 5;
+
+fn get_empty(channel_id: u16) -> Option<AMQPFrame> {
+    Some(AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
+    ))
+}
+
 async fn process_get(
     channel_id: u16,
     queue: &str,
+    no_ack: bool,
     connection_id: u64,
-    ctx: &BasicCtx<'_>,
+    ctx: &BasicCtx,
 ) -> Option<AMQPFrame> {
-    let (cm, sdm) = match (ctx.connection_manager, ctx.storage_driver_manager) {
-        (Some(cm), Some(sdm)) => (cm, sdm),
-        _ => {
-            warn!("AMQP Basic.Get: storage not configured");
-            return Some(AMQPFrame::Method(
-                channel_id,
-                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
-            ));
+    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+
+    let Some(topic) = queue::declare_amqp_queue(&ctx.storage_driver_manager, &tenant, queue).await
+    else {
+        error!("AMQP Basic.Get: queue {} is not available", queue);
+        return get_empty(channel_id);
+    };
+    let Some(shard_name) = topic.storage_name_list.get(&0).cloned() else {
+        error!("AMQP Basic.Get: queue {} has no shard", queue);
+        return get_empty(channel_id);
+    };
+
+    let claimed = claim_next_message(
+        &ctx.storage_driver_manager,
+        &ctx.storage_driver_manager
+            .engine_storage_handler
+            .client_pool,
+        &tenant,
+        queue,
+        &shard_name,
+        no_ack,
+        connection_id,
+        channel_id,
+    )
+    .await;
+
+    let (record, msg_offset, index_offset) = match claimed {
+        Ok(Some(claimed)) => claimed,
+        Ok(None) => return get_empty(channel_id),
+        Err(e) => {
+            error!("AMQP Basic.Get failed for {}: {}", queue, e);
+            return get_empty(channel_id);
         }
     };
 
-    let tenant = tenant_for(ctx.amqp_cache, connection_id);
-    let key = (connection_id, queue.to_string());
-    let mut offsets = ctx
-        .shard_offsets
-        .get(&key)
-        .map(|r| r.clone())
-        .unwrap_or_default();
+    let delivery_tag = ctx
+        .amqp_cache
+        .get_channel(connection_id, channel_id)
+        .map(|channel| channel.next_delivery_tag.fetch_add(1, Ordering::SeqCst))
+        .unwrap_or(1);
 
+    if !no_ack {
+        if let Some(index_offset) = index_offset {
+            ctx.amqp_cache.unacked().insert(
+                (connection_id, channel_id, delivery_tag),
+                UnackedEntry {
+                    tenant: tenant.clone(),
+                    queue: queue.to_string(),
+                    offset: msg_offset,
+                    index_offset,
+                },
+            );
+        }
+    }
+
+    let redelivered = record
+        .protocol_data
+        .as_ref()
+        .and_then(|pd| pd.amqp.as_ref())
+        .map(|a| a.redelivered)
+        .unwrap_or(false);
+    let body = record.data.to_vec();
+    let body_size = body.len() as u64;
+
+    let get_ok_frame = AMQPFrame::Method(
+        channel_id,
+        AMQPClass::Basic(AMQPMethod::GetOk(GetOk {
+            delivery_tag,
+            redelivered,
+            exchange: "".into(),
+            routing_key: queue.into(),
+            message_count: 0,
+        })),
+    );
+    let header_frame = AMQPFrame::Header(
+        channel_id,
+        60, // basic class_id
+        Box::new(AMQPContentHeader {
+            class_id: 60,
+            body_size,
+            properties: properties_from_record(&record),
+        }),
+    );
+    let body_frame = AMQPFrame::Body(channel_id, body);
+
+    for frame in [get_ok_frame, header_frame, body_frame] {
+        let wrapper = RobustMQPacketWrapper {
+            protocol: RobustMQProtocol::AMQP,
+            extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
+            packet: RobustMQPacket::AMQP(frame),
+        };
+        if let Err(e) = ctx
+            .connection_manager
+            .write_tcp_frame(connection_id, wrapper)
+            .await
+        {
+            error!(connection_id, "AMQP Basic.Get write failed: {}", e);
+            return None;
+        }
+    }
+
+    None
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn claim_next_message(
+    sdm: &Arc<StorageDriverManager>,
+    client_pool: &Arc<grpc_clients::pool::ClientPool>,
+    tenant: &str,
+    queue: &str,
+    shard_name: &str,
+    no_ack: bool,
+    connection_id: u64,
+    channel_id: u16,
+) -> Result<Option<(StorageRecord, u64, Option<u64>)>, CommonError> {
     let read_config = AdapterReadConfig::new();
-    match sdm
-        .read_by_offset(&tenant, queue, &offsets, &read_config)
-        .await
-    {
-        Ok(records) if records.is_empty() => {
-            // No message available
-            Some(AMQPFrame::Method(
-                channel_id,
-                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
-            ))
-        }
-        Ok(records) => {
-            let record = &records[0];
-            // Advance shard offset
-            offsets.insert(record.metadata.shard.clone(), record.metadata.offset + 1);
-            ctx.shard_offsets.insert(key, offsets);
 
-            let body = record.data.to_vec();
-            let body_size = body.len() as u64;
+    for _ in 0..MAX_CLAIM_ATTEMPTS {
+        let current = offset::read_committed_offset(client_pool, tenant, queue, shard_name).await?;
 
-            // AMQP requires the Method frame before its Content Header/Body, so
-            // GetOk must be written first, not returned to be sent afterward.
-            let get_ok_frame = AMQPFrame::Method(
-                channel_id,
-                AMQPClass::Basic(AMQPMethod::GetOk(GetOk {
-                    delivery_tag: record.metadata.offset + 1,
-                    redelivered: false,
-                    exchange: "".into(),
-                    routing_key: queue.into(),
-                    message_count: 0,
-                })),
-            );
-            let header_frame = AMQPFrame::Header(
-                channel_id,
-                60, // basic class_id
-                Box::new(AMQPContentHeader {
-                    class_id: 60,
-                    body_size,
-                    properties: properties_from_record(record),
-                }),
-            );
-            let body_frame = AMQPFrame::Body(channel_id, body);
+        let mut offsets = HashMap::new();
+        offsets.insert(shard_name.to_string(), current);
+        let records = sdm
+            .read_by_offset(tenant, queue, &offsets, &read_config)
+            .await?;
+        let Some(record) = records.into_iter().next() else {
+            return Ok(None);
+        };
 
-            for frame in [get_ok_frame, header_frame, body_frame] {
-                let wrapper = RobustMQPacketWrapper {
-                    protocol: RobustMQProtocol::AMQP,
-                    extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
-                    packet: RobustMQPacket::AMQP(frame),
-                };
-                if let Err(e) = cm.write_tcp_frame(connection_id, wrapper).await {
-                    error!(connection_id, "AMQP Basic.Get write failed: {}", e);
-                    return None;
-                }
-            }
+        let msg_offset = record.metadata.offset;
+        let new_offset = msg_offset + 1;
 
+        let index_offset = if no_ack {
             None
+        } else {
+            Some(
+                unacked_index::write_entry(
+                    sdm,
+                    tenant,
+                    queue,
+                    msg_offset,
+                    connection_id,
+                    channel_id,
+                    broker_config().broker_id,
+                )
+                .await?,
+            )
+        };
+
+        if offset::commit_offset_cas(client_pool, tenant, queue, shard_name, current, new_offset)
+            .await?
+        {
+            return Ok(Some((record, msg_offset, index_offset)));
         }
-        Err(e) => {
-            error!("AMQP Basic.Get storage error for {}: {}", queue, e);
-            Some(AMQPFrame::Method(
-                channel_id,
-                AMQPClass::Basic(AMQPMethod::GetEmpty(GetEmpty {})),
-            ))
+
+        if let Some(index_offset) = index_offset {
+            if let Err(e) = unacked_index::delete_entry(sdm, index_offset).await {
+                warn!(
+                    "AMQP Basic.Get: failed to clean up a stale index entry: {}",
+                    e
+                );
+            }
+        }
+    }
+
+    Err(CommonError::CommonError(format!(
+        "AMQP Basic.Get: gave up claiming from {} after {} conflicting attempts",
+        queue, MAX_CLAIM_ATTEMPTS
+    )))
+}
+
+async fn process_settle(
+    delivery_tag: Option<u64>,
+    multiple: bool,
+    requeue: bool,
+    connection_id: u64,
+    channel_id: u16,
+    ctx: &BasicCtx,
+) {
+    let mut settled: Vec<(u64, UnackedEntry)> = Vec::new();
+    for entry in ctx.amqp_cache.unacked().iter() {
+        let &(conn, chan, tag) = entry.key();
+        if conn != connection_id || chan != channel_id {
+            continue;
+        }
+        let matches = match delivery_tag {
+            Some(dt) => tag == dt || (multiple && tag <= dt),
+            None => true,
+        };
+        if matches {
+            settled.push((tag, entry.value().clone()));
+        }
+    }
+    for (tag, _) in &settled {
+        ctx.amqp_cache
+            .unacked()
+            .remove(&(connection_id, channel_id, *tag));
+    }
+
+    if requeue {
+        for (_, entry) in &settled {
+            if let Err(e) = requeue::requeue_message(
+                &ctx.storage_driver_manager,
+                &entry.tenant,
+                &entry.queue,
+                entry.offset,
+                entry.index_offset,
+            )
+            .await
+            {
+                error!(
+                    "AMQP: failed to requeue message from {}: {}",
+                    entry.queue, e
+                );
+            }
+        }
+        return;
+    }
+
+    let mut by_queue: HashMap<(String, String), Vec<u64>> = HashMap::new();
+    for (_, entry) in &settled {
+        by_queue
+            .entry((entry.tenant.clone(), entry.queue.clone()))
+            .or_default()
+            .push(entry.offset);
+    }
+    for ((tenant, queue), offsets) in by_queue {
+        if let Err(e) = ctx
+            .storage_driver_manager
+            .delete_by_offsets(&tenant, &queue, &offsets)
+            .await
+        {
+            error!(
+                "AMQP: failed to delete settled messages from {}: {}",
+                queue, e
+            );
+        }
+    }
+    for (_, entry) in &settled {
+        if let Err(e) =
+            unacked_index::delete_entry(&ctx.storage_driver_manager, entry.index_offset).await
+        {
+            warn!("AMQP: failed to delete index entry: {}", e);
         }
     }
 }
 
-/// Handle Basic class methods from client.
-/// Get, Consume, and Publish are intercepted in `process_basic_full` before
-/// reaching here, since they need storage access; this only ever sees the rest.
+pub(crate) async fn requeue_channel(connection_id: u64, channel_id: u16, ctx: &BasicCtx) {
+    process_settle(None, false, true, connection_id, channel_id, ctx).await;
+}
+
+pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
+    let mut settled: Vec<((u64, u16, u64), UnackedEntry)> = Vec::new();
+    for entry in ctx.amqp_cache.unacked().iter() {
+        let key = *entry.key();
+        if key.0 == connection_id {
+            settled.push((key, entry.value().clone()));
+        }
+    }
+    for (key, _) in &settled {
+        ctx.amqp_cache.unacked().remove(key);
+    }
+    for (_, entry) in &settled {
+        if let Err(e) = requeue::requeue_message(
+            &ctx.storage_driver_manager,
+            &entry.tenant,
+            &entry.queue,
+            entry.offset,
+            entry.index_offset,
+        )
+        .await
+        {
+            error!(
+                "AMQP: failed to requeue message from {} on connection close: {}",
+                entry.queue, e
+            );
+        }
+    }
+}
+
 pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
         AMQPMethod::Cancel(m) => process_cancel(channel_id, m.consumer_tag.as_str()),
-        AMQPMethod::Ack(_) => None,    // no response
-        AMQPMethod::Reject(_) => None, // no response
-        AMQPMethod::RecoverAsync(_) => None,
-        AMQPMethod::Recover(_) => process_recover(channel_id),
-        AMQPMethod::Nack(_) => None, // no response
         _ => None,
     }
 }
@@ -635,13 +878,6 @@ fn process_cancel(channel_id: u16, consumer_tag: &str) -> Option<AMQPFrame> {
         AMQPClass::Basic(AMQPMethod::CancelOk(CancelOk {
             consumer_tag: consumer_tag.into(),
         })),
-    ))
-}
-
-fn process_recover(channel_id: u16) -> Option<AMQPFrame> {
-    Some(AMQPFrame::Method(
-        channel_id,
-        AMQPClass::Basic(AMQPMethod::RecoverOk(RecoverOk {})),
     ))
 }
 

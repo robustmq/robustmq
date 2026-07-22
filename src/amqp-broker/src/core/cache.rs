@@ -18,29 +18,19 @@ use metadata_struct::amqp::exchange::AmqpExchange;
 use metadata_struct::amqp::queue::AmqpQueue;
 use metadata_struct::tenant::DEFAULT_TENANT;
 
+use crate::amqp::basic::{PendingPublish, UnackedEntry};
 use crate::core::connection::{AmqpChannel, AmqpConnection};
 
-// In-memory data the AMQP broker caches on every node. Populated at startup
-// (see broker-server's load_amqp_cache) and kept current via the meta-service
-// notify broadcast (send_notify_by_set_exchange / send_notify_by_delete_exchange,
-// and the queue/binding equivalents) — nothing here ever calls meta-service
-// directly on the read path. Connections/channels are the exception: pure
-// per-process runtime state, never sent to meta-service at all.
 #[derive(Default)]
 pub struct AmqpCacheManager {
-    // Exchanges, keyed by "{tenant}/{exchange_name}".
     exchanges: DashMap<String, AmqpExchange>,
-    // Queue declare metadata, keyed by "{tenant}/{queue_name}". The queue's
-    // message shard (a Topic, TopicSource::AMQP) is tracked separately by
-    // the shared broker_cache, not here.
     queues: DashMap<String, AmqpQueue>,
-    // Bindings, keyed by "{tenant}/{binding.key()}".
     bindings: DashMap<String, AmqpBinding>,
     connections: DashMap<u64, AmqpConnection>,
     channels: DashMap<(u64, u16), AmqpChannel>,
-    // (username, password) captured at StartOk, consumed at Connection.Open once
-    // the vhost/tenant is known and the credentials can actually be checked.
     pending_logins: DashMap<u64, (String, String)>,
+    pending_publish: DashMap<(u64, u16), PendingPublish>,
+    unacked: DashMap<(u64, u16, u64), UnackedEntry>,
 }
 
 impl AmqpCacheManager {
@@ -52,7 +42,17 @@ impl AmqpCacheManager {
             connections: DashMap::with_capacity(8),
             channels: DashMap::with_capacity(8),
             pending_logins: DashMap::with_capacity(8),
+            pending_publish: DashMap::with_capacity(8),
+            unacked: DashMap::with_capacity(8),
         }
+    }
+
+    pub(crate) fn pending_publish(&self) -> &DashMap<(u64, u16), PendingPublish> {
+        &self.pending_publish
+    }
+
+    pub(crate) fn unacked(&self) -> &DashMap<(u64, u16, u64), UnackedEntry> {
+        &self.unacked
     }
 
     fn tenant_name_key(tenant: &str, name: &str) -> String {
@@ -146,9 +146,6 @@ impl AmqpCacheManager {
         self.connections.get(&connection_id).map(|c| c.clone())
     }
 
-    // The tenant a connection's operations should run against: its vhost once
-    // Connection.Open has happened, else DEFAULT_TENANT (stateless test mode,
-    // or a method arriving before Open — shouldn't normally happen).
     pub fn tenant_for(&self, connection_id: u64) -> String {
         self.connections
             .get(&connection_id)

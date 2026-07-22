@@ -64,6 +64,7 @@ async fn sync_offsets(manager: &OffsetManager) {
                 offset: entry.offset,
                 topic: entry.topic_name.clone(),
                 partition: entry.partition,
+                expected_offset: None,
             })
             .collect();
 
