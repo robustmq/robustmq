@@ -41,8 +41,10 @@ use storage_adapter::driver::StorageDriverManager;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
-use crate::amqp::{offset, queue, requeue, route, unacked_index};
+use crate::amqp::{offset, queue, route};
 use crate::core::cache::{AmqpCacheManager, PendingPublish, UnackedEntry};
+use crate::core::recovery::requeue_message;
+use crate::core::unacked_index;
 
 /// Maps the wire-level AMQPProperties from a Content Header frame onto the
 /// shape stored alongside the message, so redelivery can reconstruct them
@@ -747,7 +749,7 @@ async fn process_settle(
 
     if requeue {
         for (_, entry) in &settled {
-            if let Err(e) = requeue::requeue_message(
+            if let Err(e) = requeue_message(
                 &ctx.storage_driver_manager,
                 &entry.tenant,
                 &entry.queue,
@@ -809,7 +811,7 @@ pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
         ctx.amqp_cache.unacked().remove(key);
     }
     for (_, entry) in &settled {
-        if let Err(e) = requeue::requeue_message(
+        if let Err(e) = requeue_message(
             &ctx.storage_driver_manager,
             &entry.tenant,
             &entry.queue,

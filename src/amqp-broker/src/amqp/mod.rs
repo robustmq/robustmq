@@ -18,7 +18,5 @@ pub mod connection;
 pub mod exchange;
 pub mod offset;
 pub mod queue;
-pub mod requeue;
 pub mod route;
 pub mod tx;
-pub mod unacked_index;
