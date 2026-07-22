@@ -21,6 +21,41 @@ codecheck: ## Run all code quality checks (format, check, clippy, license, docs)
 	npm run docs:build
 	@echo "✅ All checks passed!"
 
+.PHONY: audit
+audit: ## Scan dependencies for known vulnerabilities
+	@echo "Scanning dependencies for vulnerabilities..."
+	cargo audit
+	@echo "✅ Audit passed!"
+
+.PHONY: udeps
+udeps: ## Check for unused dependencies (requires nightly)
+	@echo "Checking for unused dependencies..."
+	cargo +nightly udeps --workspace
+	@echo "✅ Unused dependency check passed!"
+
+.PHONY: tree
+tree: ## Display the dependency tree
+	cargo tree
+
+.PHONY: ci-check
+ci-check: ## Run comprehensive CI pre-check pipeline (fmt + check + clippy + test + audit)
+	@echo "========================================="
+	@echo "  RobustMQ CI Pre-Check Pipeline"
+	@echo "========================================="
+	@echo ""
+	@echo "[1/4] Format check..."
+	cargo fmt --all -- --check
+	@echo "[2/4] Compilation check..."
+	cargo check --workspace
+	@echo "[3/4] Clippy lint..."
+	cargo clippy --workspace --all-targets --tests -- -D warnings
+	@echo "[4/4] Security audit..."
+	cargo audit
+	@echo ""
+	@echo "========================================="
+	@echo "  ✅ CI pre-check passed!"
+	@echo "========================================="
+
 .PHONY: doc
 doc: ## Generate documentation
 	cargo doc --workspace --no-deps --open
