@@ -42,31 +42,7 @@ use tokio::time::sleep;
 use tracing::{debug, error, warn};
 
 use crate::amqp::{offset, queue, requeue, route, unacked_index};
-use crate::core::cache::AmqpCacheManager;
-
-#[derive(Clone)]
-pub(crate) struct UnackedEntry {
-    tenant: String,
-    queue: String,
-    offset: u64,
-    index_offset: u64,
-}
-
-/// A Basic.Publish method frame followed by a not-yet-complete Content
-/// Header/Body sequence, keyed by (connection_id, channel_id) until the full
-/// body has arrived and the message can be written to storage.
-pub(crate) struct PendingPublish {
-    tenant: String,
-    routing_key: String,
-    exchange: String,
-    mandatory: bool,
-    // Kept separately from `properties.headers` (same data) because routing's
-    // headers-exchange matching wants a HashMap, not the Vec storage shape.
-    headers: HashMap<String, String>,
-    properties: StorageRecordProtocolDataAmqp,
-    body_size: Option<u64>,
-    body: Vec<u8>,
-}
+use crate::core::cache::{AmqpCacheManager, PendingPublish, UnackedEntry};
 
 /// Maps the wire-level AMQPProperties from a Content Header frame onto the
 /// shape stored alongside the message, so redelivery can reconstruct them

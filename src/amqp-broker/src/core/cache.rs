@@ -12,14 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use dashmap::DashMap;
 use metadata_struct::amqp::binding::AmqpBinding;
 use metadata_struct::amqp::exchange::AmqpExchange;
 use metadata_struct::amqp::queue::AmqpQueue;
+use metadata_struct::storage::record::StorageRecordProtocolDataAmqp;
 use metadata_struct::tenant::DEFAULT_TENANT;
 
-use crate::amqp::basic::{PendingPublish, UnackedEntry};
 use crate::core::connection::{AmqpChannel, AmqpConnection};
+
+#[derive(Clone)]
+pub(crate) struct UnackedEntry {
+    pub(crate) tenant: String,
+    pub(crate) queue: String,
+    pub(crate) offset: u64,
+    pub(crate) index_offset: u64,
+}
+
+pub(crate) struct PendingPublish {
+    pub(crate) tenant: String,
+    pub(crate) routing_key: String,
+    pub(crate) exchange: String,
+    pub(crate) mandatory: bool,
+    pub(crate) headers: HashMap<String, String>,
+    pub(crate) properties: StorageRecordProtocolDataAmqp,
+    pub(crate) body_size: Option<u64>,
+    pub(crate) body: Vec<u8>,
+}
 
 #[derive(Default)]
 pub struct AmqpCacheManager {
@@ -212,50 +233,6 @@ mod tests {
         AmqpQueue::new(tenant, name, true, false, false, HashMap::new())
     }
 
-    #[test]
-    fn set_get_remove_exchange() {
-        let cache = AmqpCacheManager::new();
-        cache.set_exchange(exchange("t1", "order.exchange"));
-        assert!(cache.get_exchange("t1", "order.exchange").is_some());
-        assert!(cache.get_exchange("t2", "order.exchange").is_none());
-
-        cache.remove_exchange("t1", "order.exchange");
-        assert!(cache.get_exchange("t1", "order.exchange").is_none());
-    }
-
-    #[test]
-    fn list_exchanges_by_tenant_is_isolated() {
-        let cache = AmqpCacheManager::new();
-        cache.set_exchange(exchange("t1", "a"));
-        cache.set_exchange(exchange("t1", "b"));
-        cache.set_exchange(exchange("t2", "a"));
-
-        assert_eq!(cache.list_exchanges_by_tenant("t1").len(), 2);
-        assert_eq!(cache.list_exchanges_by_tenant("t2").len(), 1);
-    }
-
-    #[test]
-    fn set_get_remove_queue() {
-        let cache = AmqpCacheManager::new();
-        cache.set_queue(queue("t1", "order.queue"));
-        assert!(cache.get_queue("t1", "order.queue").is_some());
-        assert!(cache.get_queue("t2", "order.queue").is_none());
-
-        cache.remove_queue("t1", "order.queue");
-        assert!(cache.get_queue("t1", "order.queue").is_none());
-    }
-
-    #[test]
-    fn list_queues_by_tenant_is_isolated() {
-        let cache = AmqpCacheManager::new();
-        cache.set_queue(queue("t1", "a"));
-        cache.set_queue(queue("t1", "b"));
-        cache.set_queue(queue("t2", "a"));
-
-        assert_eq!(cache.list_queues_by_tenant("t1").len(), 2);
-        assert_eq!(cache.list_queues_by_tenant("t2").len(), 1);
-    }
-
     fn binding(tenant: &str, source: &str, destination: &str, routing_key: &str) -> AmqpBinding {
         AmqpBinding::new(
             tenant,
@@ -268,25 +245,42 @@ mod tests {
     }
 
     #[test]
-    fn set_remove_binding() {
+    fn exchange_crud_and_tenant_isolation() {
         let cache = AmqpCacheManager::new();
-        let b = binding("t1", "order.exchange", "order.queue", "order.created");
-        cache.set_binding(b.clone());
-        assert_eq!(cache.list_bindings_by_tenant("t1").len(), 1);
+        cache.set_exchange(exchange("t1", "a"));
+        cache.set_exchange(exchange("t1", "b"));
+        cache.set_exchange(exchange("t2", "a"));
 
-        cache.remove_binding("t1", &b.key());
-        assert_eq!(cache.list_bindings_by_tenant("t1").len(), 0);
+        assert!(cache.get_exchange("t1", "a").is_some());
+        assert!(cache.get_exchange("t2", "b").is_none());
+        assert_eq!(cache.list_exchanges_by_tenant("t1").len(), 2);
+        assert_eq!(cache.list_exchanges_by_tenant("t2").len(), 1);
+
+        cache.remove_exchange("t1", "a");
+        assert!(cache.get_exchange("t1", "a").is_none());
     }
 
     #[test]
-    fn list_bindings_by_source_is_isolated() {
+    fn queue_crud_and_tenant_isolation() {
         let cache = AmqpCacheManager::new();
-        cache.set_binding(binding(
-            "t1",
-            "order.exchange",
-            "order.queue",
-            "order.created",
-        ));
+        cache.set_queue(queue("t1", "a"));
+        cache.set_queue(queue("t1", "b"));
+        cache.set_queue(queue("t2", "a"));
+
+        assert!(cache.get_queue("t1", "a").is_some());
+        assert!(cache.get_queue("t2", "b").is_none());
+        assert_eq!(cache.list_queues_by_tenant("t1").len(), 2);
+        assert_eq!(cache.list_queues_by_tenant("t2").len(), 1);
+
+        cache.remove_queue("t1", "a");
+        assert!(cache.get_queue("t1", "a").is_none());
+    }
+
+    #[test]
+    fn binding_crud_and_source_isolation() {
+        let cache = AmqpCacheManager::new();
+        let b = binding("t1", "order.exchange", "order.queue", "order.created");
+        cache.set_binding(b.clone());
         cache.set_binding(binding(
             "t1",
             "order.exchange",
@@ -295,6 +289,7 @@ mod tests {
         ));
         cache.set_binding(binding("t1", "other.exchange", "other.queue", "x"));
 
+        assert_eq!(cache.list_bindings_by_tenant("t1").len(), 3);
         assert_eq!(
             cache.list_bindings_by_source("t1", "order.exchange").len(),
             2
@@ -303,10 +298,13 @@ mod tests {
             cache.list_bindings_by_source("t1", "other.exchange").len(),
             1
         );
+
+        cache.remove_binding("t1", &b.key());
+        assert_eq!(cache.list_bindings_by_tenant("t1").len(), 2);
     }
 
     #[test]
-    fn tenant_for_falls_back_to_default() {
+    fn connection_and_channel_lifecycle() {
         let cache = AmqpCacheManager::new();
         assert_eq!(cache.tenant_for(1), DEFAULT_TENANT);
 
@@ -314,12 +312,7 @@ mod tests {
         conn.tenant = "t1".to_string();
         cache.set_connection(conn);
         assert_eq!(cache.tenant_for(1), "t1");
-    }
 
-    #[test]
-    fn remove_connection_drops_its_channels() {
-        let cache = AmqpCacheManager::new();
-        cache.set_connection(AmqpConnection::new(1));
         cache.set_channel(AmqpChannel::new(1, 1));
         cache.set_channel(AmqpChannel::new(1, 2));
         cache.set_channel(AmqpChannel::new(2, 1));

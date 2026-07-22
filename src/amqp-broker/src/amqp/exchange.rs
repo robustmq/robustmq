@@ -29,29 +29,53 @@ use crate::core::cache::AmqpCacheManager;
 use crate::storage::binding::BindingStorage;
 use crate::storage::exchange::ExchangeStorage;
 
-pub(crate) struct ExchangeCtx {
-    pub amqp_cache: Arc<AmqpCacheManager>,
-    pub storage_driver_manager: Arc<StorageDriverManager>,
-}
-
 pub(crate) async fn process_exchange_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: ExchangeCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Declare(declare) => {
-            process_exchange_declare(channel_id, declare, connection_id, &ctx).await
+            process_exchange_declare(
+                channel_id,
+                declare,
+                connection_id,
+                amqp_cache,
+                storage_driver_manager,
+            )
+            .await
         }
         AMQPMethod::Delete(delete) => {
-            process_exchange_delete(channel_id, delete, connection_id, &ctx).await
+            process_exchange_delete(
+                channel_id,
+                delete,
+                connection_id,
+                amqp_cache,
+                storage_driver_manager,
+            )
+            .await
         }
         AMQPMethod::Bind(bind) => {
-            process_exchange_bind(channel_id, bind, connection_id, &ctx).await
+            process_exchange_bind(
+                channel_id,
+                bind,
+                connection_id,
+                amqp_cache,
+                storage_driver_manager,
+            )
+            .await
         }
         AMQPMethod::Unbind(unbind) => {
-            process_exchange_unbind(channel_id, unbind, connection_id, &ctx).await
+            process_exchange_unbind(
+                channel_id,
+                unbind,
+                connection_id,
+                amqp_cache,
+                storage_driver_manager,
+            )
+            .await
         }
         _ => None,
     }
@@ -61,7 +85,8 @@ async fn process_exchange_declare(
     channel_id: u16,
     declare: &Declare,
     connection_id: u64,
-    ctx: &ExchangeCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
     let exchange_name = declare.exchange.to_string();
     let exchange_type =
@@ -75,7 +100,7 @@ async fn process_exchange_declare(
         });
     let arguments = route::field_table_to_map(&declare.arguments);
 
-    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let tenant = amqp_cache.tenant_for(connection_id);
     let exchange = AmqpExchange::new(
         &tenant,
         &exchange_name,
@@ -86,13 +111,13 @@ async fn process_exchange_declare(
         arguments,
     );
     let storage = ExchangeStorage::new(
-        ctx.storage_driver_manager
+        storage_driver_manager
             .engine_storage_handler
             .client_pool
             .clone(),
     );
     match storage.set_exchange(&exchange).await {
-        Ok(()) => ctx.amqp_cache.set_exchange(exchange),
+        Ok(()) => amqp_cache.set_exchange(exchange),
         Err(e) => warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e),
     }
 
@@ -106,18 +131,19 @@ async fn process_exchange_delete(
     channel_id: u16,
     delete: &Delete,
     connection_id: u64,
-    ctx: &ExchangeCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
     let exchange_name = delete.exchange.to_string();
-    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let tenant = amqp_cache.tenant_for(connection_id);
     let storage = ExchangeStorage::new(
-        ctx.storage_driver_manager
+        storage_driver_manager
             .engine_storage_handler
             .client_pool
             .clone(),
     );
     match storage.delete_exchange(&tenant, &exchange_name).await {
-        Ok(()) => ctx.amqp_cache.remove_exchange(&tenant, &exchange_name),
+        Ok(()) => amqp_cache.remove_exchange(&tenant, &exchange_name),
         Err(e) => warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e),
     }
 
@@ -131,9 +157,10 @@ async fn process_exchange_bind(
     channel_id: u16,
     bind: &Bind,
     connection_id: u64,
-    ctx: &ExchangeCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
-    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let tenant = amqp_cache.tenant_for(connection_id);
     let arguments = route::field_table_to_map(&bind.arguments);
     let binding = AmqpBinding::new(
         &tenant,
@@ -144,13 +171,13 @@ async fn process_exchange_bind(
         arguments,
     );
     let storage = BindingStorage::new(
-        ctx.storage_driver_manager
+        storage_driver_manager
             .engine_storage_handler
             .client_pool
             .clone(),
     );
     match storage.set_binding(&binding).await {
-        Ok(()) => ctx.amqp_cache.set_binding(binding),
+        Ok(()) => amqp_cache.set_binding(binding),
         Err(e) => warn!("AMQP Exchange.Bind failed: {}", e),
     }
 
@@ -164,11 +191,12 @@ async fn process_exchange_unbind(
     channel_id: u16,
     unbind: &Unbind,
     connection_id: u64,
-    ctx: &ExchangeCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
-    let tenant = ctx.amqp_cache.tenant_for(connection_id);
+    let tenant = amqp_cache.tenant_for(connection_id);
     let storage = BindingStorage::new(
-        ctx.storage_driver_manager
+        storage_driver_manager
             .engine_storage_handler
             .client_pool
             .clone(),
@@ -192,7 +220,7 @@ async fn process_exchange_unbind(
                 unbind.destination.as_str(),
                 unbind.routing_key.as_str()
             );
-            ctx.amqp_cache.remove_binding(&tenant, &key);
+            amqp_cache.remove_binding(&tenant, &key);
         }
         Err(e) => warn!("AMQP Exchange.Unbind failed: {}", e),
     }

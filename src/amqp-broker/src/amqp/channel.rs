@@ -23,10 +23,6 @@ use amq_protocol::protocol::AMQPClass;
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpChannel;
 
-pub(crate) struct ChannelCtx {
-    pub amqp_cache: Arc<AmqpCacheManager>,
-}
-
 /// Handles the Channel class, keeping AmqpChannel cache state in sync with
 /// Open/Close/CloseOk while delegating the actual ack frame to the plain
 /// builder below.
@@ -34,15 +30,14 @@ pub(crate) fn process_channel_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: ChannelCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Open(_) => {
-            ctx.amqp_cache
-                .set_channel(AmqpChannel::new(connection_id, channel_id));
+            amqp_cache.set_channel(AmqpChannel::new(connection_id, channel_id));
         }
         AMQPMethod::Close(_) | AMQPMethod::CloseOk(_) => {
-            ctx.amqp_cache.remove_channel(connection_id, channel_id);
+            amqp_cache.remove_channel(connection_id, channel_id);
         }
         _ => {}
     }

@@ -27,10 +27,6 @@ use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
 
 use crate::amqp::basic::BasicCtx;
-use crate::amqp::channel::ChannelCtx;
-use crate::amqp::connection::ConnectionCtx;
-use crate::amqp::exchange::ExchangeCtx;
-use crate::amqp::queue::QueueCtx;
 use crate::amqp::{basic, channel, connection, exchange, queue, tx};
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpConnection;
@@ -159,10 +155,8 @@ impl AmqpHandlerCommand {
                     channel_id,
                     method,
                     connection_id,
-                    ConnectionCtx {
-                        amqp_cache: self.amqp_cache.clone(),
-                        security_manager: self.security_manager.clone(),
-                    },
+                    &self.amqp_cache,
+                    &self.security_manager,
                 )
                 .await;
                 if is_close {
@@ -177,9 +171,7 @@ impl AmqpHandlerCommand {
                     channel_id,
                     method,
                     connection_id,
-                    ChannelCtx {
-                        amqp_cache: self.amqp_cache.clone(),
-                    },
+                    &self.amqp_cache,
                 );
                 if is_close {
                     basic::requeue_channel(connection_id, channel_id, &self.basic_ctx()).await;
@@ -191,10 +183,8 @@ impl AmqpHandlerCommand {
                     channel_id,
                     method,
                     connection_id,
-                    ExchangeCtx {
-                        amqp_cache: self.amqp_cache.clone(),
-                        storage_driver_manager: self.storage_driver_manager.clone(),
-                    },
+                    &self.amqp_cache,
+                    &self.storage_driver_manager,
                 )
                 .await
             }
@@ -203,10 +193,8 @@ impl AmqpHandlerCommand {
                     channel_id,
                     method,
                     connection_id,
-                    QueueCtx {
-                        amqp_cache: self.amqp_cache.clone(),
-                        storage_driver_manager: self.storage_driver_manager.clone(),
-                    },
+                    &self.amqp_cache,
+                    &self.storage_driver_manager,
                 )
                 .await
             }

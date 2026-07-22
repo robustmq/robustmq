@@ -28,11 +28,6 @@ use tracing::warn;
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::{AmqpConnection, AmqpConnectionState};
 
-pub(crate) struct ConnectionCtx {
-    pub amqp_cache: Arc<AmqpCacheManager>,
-    pub security_manager: Arc<SecurityManager>,
-}
-
 /// Handles the Connection class. StartOk/Open/Close/CloseOk carry the
 /// login+tenant handshake and connection lifecycle; everything else is a
 /// plain protocol ack handled by `process_connection` below.
@@ -40,17 +35,18 @@ pub(crate) async fn process_connection_full(
     channel_id: u16,
     method: &AMQPMethod,
     connection_id: u64,
-    ctx: ConnectionCtx,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    security_manager: &Arc<SecurityManager>,
 ) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::StartOk(start_ok) => {
-            process_connection_start_ok(start_ok, connection_id, ctx.amqp_cache)
+            process_connection_start_ok(start_ok, connection_id, amqp_cache)
         }
         AMQPMethod::Open(open) => {
-            process_connection_open(open, connection_id, ctx.amqp_cache, ctx.security_manager).await
+            process_connection_open(open, connection_id, amqp_cache, security_manager).await
         }
-        AMQPMethod::Close(_) => process_connection_close(connection_id, ctx.amqp_cache),
-        AMQPMethod::CloseOk(_) => process_connection_close_ok(connection_id, ctx.amqp_cache),
+        AMQPMethod::Close(_) => process_connection_close(connection_id, amqp_cache),
+        AMQPMethod::CloseOk(_) => process_connection_close_ok(connection_id, amqp_cache),
         _ => process_connection(channel_id, method),
     }
 }
@@ -71,7 +67,7 @@ fn parse_sasl_plain(response: &[u8]) -> Option<(String, String)> {
 fn process_connection_start_ok(
     start_ok: &StartOk,
     connection_id: u64,
-    amqp_cache: Arc<AmqpCacheManager>,
+    amqp_cache: &Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
     if let Some((username, password)) = parse_sasl_plain(start_ok.response.as_bytes()) {
         amqp_cache.set_pending_login(connection_id, username, password);
@@ -84,8 +80,8 @@ fn process_connection_start_ok(
 async fn process_connection_open(
     open: &Open,
     connection_id: u64,
-    amqp_cache: Arc<AmqpCacheManager>,
-    security_manager: Arc<SecurityManager>,
+    amqp_cache: &Arc<AmqpCacheManager>,
+    security_manager: &Arc<SecurityManager>,
 ) -> Option<AMQPFrame> {
     let tenant = if open.virtual_host.as_str().is_empty() {
         DEFAULT_TENANT.to_string()
@@ -96,7 +92,7 @@ async fn process_connection_open(
     let login = amqp_cache.take_pending_login(connection_id);
     let authenticated = match &login {
         Some((username, password)) => {
-            password_check_by_login(&security_manager, &tenant, username, password)
+            password_check_by_login(security_manager, &tenant, username, password)
         }
         None => false,
     };
@@ -124,7 +120,7 @@ async fn process_connection_open(
 
 fn process_connection_close(
     connection_id: u64,
-    amqp_cache: Arc<AmqpCacheManager>,
+    amqp_cache: &Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
     amqp_cache.remove_connection(connection_id);
     Some(close_ok_frame())
@@ -132,7 +128,7 @@ fn process_connection_close(
 
 fn process_connection_close_ok(
     connection_id: u64,
-    amqp_cache: Arc<AmqpCacheManager>,
+    amqp_cache: &Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
     amqp_cache.remove_connection(connection_id);
     None
