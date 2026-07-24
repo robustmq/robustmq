@@ -31,7 +31,7 @@ use storage_adapter::driver::StorageDriverManager;
 use tracing::{debug, warn};
 
 use crate::amqp::basic::BasicCtx;
-use crate::amqp::{basic, channel, connection, exchange, queue, tx};
+use crate::amqp::{basic, channel, connection, exchange, publish, queue, tx};
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpConnection;
 
@@ -90,12 +90,18 @@ impl Command for AmqpHandlerCommand {
         packet: &RobustMQPacket,
     ) -> Option<ResponsePackage> {
         match packet {
-            RobustMQPacket::AMQP(frame) => {
+            RobustMQPacket::AMQP(frames) => {
                 let connection_id = tcp_connection.connection_id;
-                let resp_frame = self.process_frame(frame, connection_id).await;
-                resp_frame.map(|f| ResponsePackage {
+                // Every acceptor wraps exactly one incoming wire frame per
+                // RequestPackage; only outgoing replies carry more than one.
+                let Some(frame) = frames.first() else {
+                    warn!("AmqpHandlerCommand received an empty AMQP packet");
+                    return None;
+                };
+                let resp_frames = self.process_frame(frame, connection_id).await;
+                resp_frames.map(|frames| ResponsePackage {
                     connection_id,
-                    packet: RobustMQPacket::AMQP(f),
+                    packet: RobustMQPacket::AMQP(frames),
                 })
             }
             _ => {
@@ -107,7 +113,7 @@ impl Command for AmqpHandlerCommand {
 }
 
 impl AmqpHandlerCommand {
-    async fn process_frame(&self, frame: &AMQPFrame, connection_id: u64) -> Option<AMQPFrame> {
+    async fn process_frame(&self, frame: &AMQPFrame, connection_id: u64) -> Option<Vec<AMQPFrame>> {
         let result = match frame {
             AMQPFrame::Method(channel_id, class) => {
                 self.process_method(*channel_id, class, connection_id).await
@@ -115,11 +121,13 @@ impl AmqpHandlerCommand {
             AMQPFrame::ProtocolHeader(_) => {
                 self.amqp_cache
                     .set_connection(AmqpConnection::new(connection_id));
-                connection::process_protocol_header()
+                connection::process_protocol_header().map(|f| vec![f])
             }
-            AMQPFrame::Heartbeat(channel_id) => connection::process_heartbeat(*channel_id),
+            AMQPFrame::Heartbeat(channel_id) => {
+                connection::process_heartbeat(*channel_id).map(|f| vec![f])
+            }
             AMQPFrame::Header(channel_id, class_id, header) => {
-                basic::process_content_header_full(
+                publish::process_content_header_full(
                     connection_id,
                     *channel_id,
                     *class_id,
@@ -129,7 +137,7 @@ impl AmqpHandlerCommand {
                 .await
             }
             AMQPFrame::Body(channel_id, data) => {
-                basic::process_content_body_full(
+                publish::process_content_body_full(
                     connection_id,
                     *channel_id,
                     data,
@@ -149,7 +157,7 @@ impl AmqpHandlerCommand {
         channel_id: u16,
         class: &AMQPClass,
         connection_id: u64,
-    ) -> Option<AMQPFrame> {
+    ) -> Option<Vec<AMQPFrame>> {
         let result = match class {
             AMQPClass::Connection(method) => {
                 let is_close = matches!(method, ConnMethod::Close(_) | ConnMethod::CloseOk(_));
@@ -164,7 +172,7 @@ impl AmqpHandlerCommand {
                 if is_close {
                     basic::requeue_connection(connection_id, &self.basic_ctx()).await;
                 }
-                frame
+                frame.map(|f| vec![f])
             }
             AMQPClass::Channel(method) => {
                 let is_close = matches!(method, ChanMethod::Close(_) | ChanMethod::CloseOk(_));
@@ -177,46 +185,46 @@ impl AmqpHandlerCommand {
                 if is_close {
                     basic::requeue_channel(connection_id, channel_id, &self.basic_ctx()).await;
                 }
-                frame
+                frame.map(|f| vec![f])
             }
-            AMQPClass::Exchange(method) => {
-                exchange::process_exchange_full(
-                    channel_id,
-                    method,
-                    connection_id,
-                    &self.amqp_cache,
-                    &self.storage_driver_manager,
-                )
-                .await
-            }
-            AMQPClass::Queue(method) => {
-                queue::process_queue_full(
-                    channel_id,
-                    method,
-                    connection_id,
-                    &self.amqp_cache,
-                    &self.storage_driver_manager,
-                )
-                .await
-            }
+            AMQPClass::Exchange(method) => exchange::process_exchange_full(
+                channel_id,
+                method,
+                connection_id,
+                &self.amqp_cache,
+                &self.storage_driver_manager,
+            )
+            .await
+            .map(|f| vec![f]),
+            AMQPClass::Queue(method) => queue::process_queue_full(
+                channel_id,
+                method,
+                connection_id,
+                &self.amqp_cache,
+                &self.storage_driver_manager,
+            )
+            .await
+            .map(|f| vec![f]),
             AMQPClass::Basic(method) => {
                 basic::process_basic_full(channel_id, method, connection_id, &self.basic_ctx())
                     .await
             }
-            AMQPClass::Tx(method) => tx::process_tx(channel_id, method),
+            AMQPClass::Tx(method) => tx::process_tx(channel_id, method).map(|f| vec![f]),
             // access.request is deprecated and permissions are configured on the
             // broker side, but real RabbitMQ still acks it unconditionally rather
             // than leaving the client hanging, so we match that behavior.
             AMQPClass::Access(amq_protocol::protocol::access::AMQPMethod::Request(_)) => {
-                Some(AMQPFrame::Method(
+                Some(vec![AMQPFrame::Method(
                     channel_id,
                     AMQPClass::Access(amq_protocol::protocol::access::AMQPMethod::RequestOk(
                         amq_protocol::protocol::access::RequestOk {},
                     )),
-                ))
+                )])
             }
             AMQPClass::Access(_) => None,
-            AMQPClass::Confirm(method) => basic::process_confirm(channel_id, method),
+            AMQPClass::Confirm(method) => {
+                basic::process_confirm(channel_id, method).map(|f| vec![f])
+            }
         };
         if result.is_none() {
             let is_no_reply = matches!(

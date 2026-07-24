@@ -52,18 +52,37 @@ impl ConnectionManager {
             debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let codec = match packet_wrapper.packet {
-            RobustMQPacket::MQTT(pack) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                protocol_version: packet_wrapper.protocol.to_u8(),
-                packet: pack,
-            }),
-            RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
-            RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
-            RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
-            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
-        };
-
-        self.write_tcp_frame0(connection_id, codec).await
+        // AMQP's logical replies can be more than one wire frame (e.g.
+        // GetOk + content header + body); write each in order instead of
+        // collapsing them into a single codec item.
+        match packet_wrapper.packet {
+            RobustMQPacket::AMQP(frames) => {
+                for frame in frames {
+                    self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::AMQP(frame))
+                        .await?;
+                }
+                Ok(())
+            }
+            RobustMQPacket::MQTT(pack) => {
+                let codec = RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                    protocol_version: packet_wrapper.protocol.to_u8(),
+                    packet: pack,
+                });
+                self.write_tcp_frame0(connection_id, codec).await
+            }
+            RobustMQPacket::KAFKA(pack) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
+                    .await
+            }
+            RobustMQPacket::StorageEngine(pack) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await
+            }
+            RobustMQPacket::NATS(pkt) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::NATS(pkt))
+                    .await
+            }
+        }
     }
 
     pub async fn write_quic_frame(
@@ -75,18 +94,34 @@ impl ConnectionManager {
             debug!("QUIC response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let codec = match packet_wrapper.packet {
-            RobustMQPacket::MQTT(pack) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                protocol_version: packet_wrapper.protocol.to_u8(),
-                packet: pack,
-            }),
-            RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
-            RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
-            RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
-            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
-        };
-
-        self.write_quic_frame0(connection_id, codec).await
+        match packet_wrapper.packet {
+            RobustMQPacket::AMQP(frames) => {
+                for frame in frames {
+                    self.write_quic_frame0(connection_id, RobustMQCodecWrapper::AMQP(frame))
+                        .await?;
+                }
+                Ok(())
+            }
+            RobustMQPacket::MQTT(pack) => {
+                let codec = RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                    protocol_version: packet_wrapper.protocol.to_u8(),
+                    packet: pack,
+                });
+                self.write_quic_frame0(connection_id, codec).await
+            }
+            RobustMQPacket::KAFKA(pack) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
+                    .await
+            }
+            RobustMQPacket::StorageEngine(pack) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await
+            }
+            RobustMQPacket::NATS(pkt) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::NATS(pkt))
+                    .await
+            }
+        }
     }
 
     async fn write_websocket_frame0(&self, connection_id: u64, resp: Message) -> ResultCommonError {

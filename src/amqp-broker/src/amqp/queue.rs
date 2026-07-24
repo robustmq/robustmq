@@ -142,6 +142,13 @@ async fn process_queue_declare(
         .is_none()
     {
         warn!("AMQP Queue.Declare failed for queue={}", queue_name);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            10,
+        ));
     }
 
     let arguments = route::field_table_to_map(&declare.arguments);
