@@ -23,6 +23,7 @@ use amq_protocol::protocol::basic::{
     Return,
 };
 use amq_protocol::protocol::confirm;
+use amq_protocol::protocol::confirm::SelectOk as ConfirmSelectOk;
 use amq_protocol::protocol::AMQPClass;
 use amq_protocol::types::{AMQPValue, FieldTable};
 use common_base::error::common::CommonError;
@@ -860,9 +861,8 @@ fn process_cancel(channel_id: u16, consumer_tag: &str) -> Option<AMQPFrame> {
 }
 
 fn process_confirm_select(channel_id: u16) -> Option<AMQPFrame> {
-    use amq_protocol::protocol::confirm::{AMQPMethod as ConfirmMethod, SelectOk};
     Some(AMQPFrame::Method(
         channel_id,
-        AMQPClass::Confirm(ConfirmMethod::SelectOk(SelectOk {})),
+        AMQPClass::Confirm(confirm::AMQPMethod::SelectOk(ConfirmSelectOk {})),
     ))
 }

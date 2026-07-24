@@ -15,6 +15,10 @@
 use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
+use amq_protocol::protocol::basic::AMQPMethod as B;
+use amq_protocol::protocol::channel::AMQPMethod as ChanMethod;
+use amq_protocol::protocol::connection::AMQPMethod as ConnMethod;
+use amq_protocol::protocol::AMQPClass;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
 use metadata_struct::connection::NetworkConnection;
@@ -143,13 +147,11 @@ impl AmqpHandlerCommand {
     async fn process_method(
         &self,
         channel_id: u16,
-        class: &amq_protocol::protocol::AMQPClass,
+        class: &AMQPClass,
         connection_id: u64,
     ) -> Option<AMQPFrame> {
-        use amq_protocol::protocol::AMQPClass;
         let result = match class {
             AMQPClass::Connection(method) => {
-                use amq_protocol::protocol::connection::AMQPMethod as ConnMethod;
                 let is_close = matches!(method, ConnMethod::Close(_) | ConnMethod::CloseOk(_));
                 let frame = connection::process_connection_full(
                     channel_id,
@@ -165,7 +167,6 @@ impl AmqpHandlerCommand {
                 frame
             }
             AMQPClass::Channel(method) => {
-                use amq_protocol::protocol::channel::AMQPMethod as ChanMethod;
                 let is_close = matches!(method, ChanMethod::Close(_) | ChanMethod::CloseOk(_));
                 let frame = channel::process_channel_full(
                     channel_id,
@@ -218,7 +219,6 @@ impl AmqpHandlerCommand {
             AMQPClass::Confirm(method) => basic::process_confirm(channel_id, method),
         };
         if result.is_none() {
-            use amq_protocol::protocol::basic::AMQPMethod as B;
             let is_no_reply = matches!(
                 class,
                 AMQPClass::Basic(
@@ -228,10 +228,8 @@ impl AmqpHandlerCommand {
                         | B::Publish(_)
                         | B::RecoverAsync(_)
                         | B::Get(_)
-                ) | AMQPClass::Connection(
-                    amq_protocol::protocol::connection::AMQPMethod::TuneOk(_)
-                        | amq_protocol::protocol::connection::AMQPMethod::CloseOk(_)
-                ) | AMQPClass::Channel(amq_protocol::protocol::channel::AMQPMethod::CloseOk(_))
+                ) | AMQPClass::Connection(ConnMethod::TuneOk(_) | ConnMethod::CloseOk(_))
+                    | AMQPClass::Channel(ChanMethod::CloseOk(_))
             );
             if !is_no_reply {
                 warn!(
