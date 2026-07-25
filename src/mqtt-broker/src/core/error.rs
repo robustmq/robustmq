@@ -207,6 +207,9 @@ pub enum MqttBrokerError {
     #[error("Tenant [{0}] does not exist.")]
     TenantNotFound(String),
 
+    #[error("Schema validation failed for topic {0}: {1}")]
+    SchemaValidationFailed(String, String),
+
     #[error("ACL authentication failed. Access denied for topic: {0}")]
     NotAclAuth(String),
 
