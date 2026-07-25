@@ -77,6 +77,10 @@ impl MqttService {
                     MqttBrokerError::NotAclAuth(_) | MqttBrokerError::NotBlacklistAuth => {
                         (PubRecReason::NotAuthorized, PubAckReason::NotAuthorized)
                     }
+                    MqttBrokerError::SchemaValidationFailed(_, _) => (
+                        PubRecReason::PayloadFormatInvalid,
+                        PubAckReason::PayloadFormatInvalid,
+                    ),
                     _ => (
                         PubRecReason::UnspecifiedError,
                         PubAckReason::UnspecifiedError,
@@ -193,10 +197,10 @@ impl MqttService {
                 self.schema_manager
                     .validate(&connection.tenant, &topic_name, &publish.payload)?;
             if !valid {
-                return Err(MqttBrokerError::CommonError(format!(
-                    "Payload does not match schema for topic {}",
-                    topic_name
-                )));
+                return Err(MqttBrokerError::SchemaValidationFailed(
+                    topic_name,
+                    "Payload does not match schema".to_string(),
+                ));
             }
         }
 
@@ -561,8 +565,8 @@ async fn publish_validator(
     ) as usize;
     if publish.payload.len() > max_packet_size {
         return Some((
-            PubRecReason::PayloadFormatInvalid,
-            PubAckReason::PayloadFormatInvalid,
+            PubRecReason::QuotaExceeded,
+            PubAckReason::QuotaExceeded,
             MqttBrokerError::PacketLengthError(max_packet_size, publish.payload.len()).to_string(),
         ));
     }
@@ -711,8 +715,8 @@ mod tests {
         let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
         assert!(result.is_some());
         let (reason_rec, reason_ack, _) = result.unwrap();
-        assert_eq!(reason_rec, PubRecReason::PayloadFormatInvalid);
-        assert_eq!(reason_ack, PubAckReason::PayloadFormatInvalid);
+        assert_eq!(reason_rec, PubRecReason::QuotaExceeded);
+        assert_eq!(reason_ack, PubAckReason::QuotaExceeded);
     }
 
     #[tokio::test]
