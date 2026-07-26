@@ -14,6 +14,7 @@
 
 use super::connection_manager::ConnectionManager;
 use crate::common::tool::is_ignore_print;
+use amq_protocol::frame::AMQPFrame;
 use axum::extract::ws::Message;
 use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::network::broker_not_available;
@@ -52,18 +53,33 @@ impl ConnectionManager {
             debug!("Tcp response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let codec = match packet_wrapper.packet {
-            RobustMQPacket::MQTT(pack) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                protocol_version: packet_wrapper.protocol.to_u8(),
-                packet: pack,
-            }),
-            RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
-            RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
-            RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
-            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
-        };
-
-        self.write_tcp_frame0(connection_id, codec).await
+        // AMQP replies can be several wire frames (e.g. GetOk + header +
+        // body); write them under one lock acquisition so a concurrent
+        // writer to the same connection can't interleave frames in between.
+        match packet_wrapper.packet {
+            RobustMQPacket::AMQP(frames) => {
+                self.write_tcp_frames_atomic(connection_id, frames).await
+            }
+            RobustMQPacket::MQTT(pack) => {
+                let codec = RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                    protocol_version: packet_wrapper.protocol.to_u8(),
+                    packet: pack,
+                });
+                self.write_tcp_frame0(connection_id, codec).await
+            }
+            RobustMQPacket::KAFKA(pack) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
+                    .await
+            }
+            RobustMQPacket::StorageEngine(pack) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await
+            }
+            RobustMQPacket::NATS(pkt) => {
+                self.write_tcp_frame0(connection_id, RobustMQCodecWrapper::NATS(pkt))
+                    .await
+            }
+        }
     }
 
     pub async fn write_quic_frame(
@@ -75,18 +91,30 @@ impl ConnectionManager {
             debug!("QUIC response packet:{packet_wrapper:?},connection_id:{connection_id}");
         }
 
-        let codec = match packet_wrapper.packet {
-            RobustMQPacket::MQTT(pack) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-                protocol_version: packet_wrapper.protocol.to_u8(),
-                packet: pack,
-            }),
-            RobustMQPacket::KAFKA(pack) => RobustMQCodecWrapper::KAFKA(pack),
-            RobustMQPacket::AMQP(frame) => RobustMQCodecWrapper::AMQP(frame),
-            RobustMQPacket::StorageEngine(pack) => RobustMQCodecWrapper::StorageEngine(pack),
-            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
-        };
-
-        self.write_quic_frame0(connection_id, codec).await
+        match packet_wrapper.packet {
+            RobustMQPacket::AMQP(frames) => {
+                self.write_quic_frames_atomic(connection_id, frames).await
+            }
+            RobustMQPacket::MQTT(pack) => {
+                let codec = RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                    protocol_version: packet_wrapper.protocol.to_u8(),
+                    packet: pack,
+                });
+                self.write_quic_frame0(connection_id, codec).await
+            }
+            RobustMQPacket::KAFKA(pack) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::KAFKA(pack))
+                    .await
+            }
+            RobustMQPacket::StorageEngine(pack) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::StorageEngine(pack))
+                    .await
+            }
+            RobustMQPacket::NATS(pkt) => {
+                self.write_quic_frame0(connection_id, RobustMQCodecWrapper::NATS(pkt))
+                    .await
+            }
+        }
     }
 
     async fn write_websocket_frame0(&self, connection_id: u64, resp: Message) -> ResultCommonError {
@@ -123,6 +151,189 @@ impl ConnectionManager {
                 ))
             }
         }
+    }
+
+    async fn write_tcp_frames_atomic(
+        &self,
+        connection_id: u64,
+        frames: Vec<AMQPFrame>,
+    ) -> ResultCommonError {
+        if let Some(connection) = self.get_connect(connection_id) {
+            if connection.connection_type == NetworkConnectionType::Tls {
+                return self.write_tls_frames_atomic(connection_id, frames).await;
+            }
+        }
+
+        let writer = self
+            .tcp_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone())
+            .ok_or_else(|| {
+                debug!(
+                    "Write to tcp skipped: connection {} not found, amqp frame batch",
+                    connection_id
+                );
+                CommonError::NotObtainAvailableConnection("tcp".to_string(), connection_id)
+            })?;
+
+        let mut stream = writer.lock().await;
+        for frame in frames {
+            let write_start = now_millis();
+            let result = tokio::time::timeout(
+                Duration::from_secs(WRITE_TIMEOUT_SECS),
+                stream.send(RobustMQCodecWrapper::AMQP(frame)),
+            )
+            .await;
+            metrics_write_client_ms(
+                &NetworkConnectionType::Tcp,
+                now_millis().saturating_sub(write_start) as f64,
+            );
+            match result {
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => {
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "tcp".to_string(),
+                        e.to_string(),
+                    ));
+                }
+                Err(_) => {
+                    metrics_write_timeout_count(&NetworkConnectionType::Tcp);
+                    warn!(
+                        connection_id = connection_id,
+                        timeout_secs = WRITE_TIMEOUT_SECS,
+                        "TCP write timeout: socket send blocked beyond {}s, closing connection",
+                        WRITE_TIMEOUT_SECS
+                    );
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "tcp".to_string(),
+                        format!("write timeout after {WRITE_TIMEOUT_SECS}s"),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn write_tls_frames_atomic(
+        &self,
+        connection_id: u64,
+        frames: Vec<AMQPFrame>,
+    ) -> ResultCommonError {
+        let writer = self
+            .tcp_tls_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone())
+            .ok_or_else(|| {
+                debug!(
+                    "Write to tls skipped: connection {} not found, amqp frame batch",
+                    connection_id
+                );
+                CommonError::NotObtainAvailableConnection("tls".to_string(), connection_id)
+            })?;
+
+        let mut stream = writer.lock().await;
+        for frame in frames {
+            let write_start = now_millis();
+            let result = tokio::time::timeout(
+                Duration::from_secs(WRITE_TIMEOUT_SECS),
+                stream.send(RobustMQCodecWrapper::AMQP(frame)),
+            )
+            .await;
+            metrics_write_client_ms(
+                &NetworkConnectionType::Tls,
+                now_millis().saturating_sub(write_start) as f64,
+            );
+            match result {
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => {
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "tls".to_string(),
+                        e.to_string(),
+                    ));
+                }
+                Err(_) => {
+                    metrics_write_timeout_count(&NetworkConnectionType::Tls);
+                    warn!(
+                        connection_id = connection_id,
+                        timeout_secs = WRITE_TIMEOUT_SECS,
+                        "TLS write timeout: socket send blocked beyond {}s, closing connection",
+                        WRITE_TIMEOUT_SECS
+                    );
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "tls".to_string(),
+                        format!("write timeout after {WRITE_TIMEOUT_SECS}s"),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn write_quic_frames_atomic(
+        &self,
+        connection_id: u64,
+        frames: Vec<AMQPFrame>,
+    ) -> ResultCommonError {
+        let writer = self
+            .quic_write_list
+            .get(&connection_id)
+            .map(|entry| entry.value().clone())
+            .ok_or_else(|| {
+                debug!(
+                    "Write to quic skipped: connection {} not found, amqp frame batch",
+                    connection_id
+                );
+                CommonError::NotObtainAvailableConnection("quic".to_string(), connection_id)
+            })?;
+
+        let mut stream = writer.lock().await;
+        for frame in frames {
+            let write_start = now_millis();
+            let result = tokio::time::timeout(
+                Duration::from_secs(WRITE_TIMEOUT_SECS),
+                stream.send(RobustMQCodecWrapper::AMQP(frame)),
+            )
+            .await;
+            metrics_write_client_ms(
+                &NetworkConnectionType::QUIC,
+                now_millis().saturating_sub(write_start) as f64,
+            );
+            match result {
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => {
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "quic".to_string(),
+                        e.to_string(),
+                    ));
+                }
+                Err(_) => {
+                    metrics_write_timeout_count(&NetworkConnectionType::QUIC);
+                    warn!(
+                        connection_id = connection_id,
+                        timeout_secs = WRITE_TIMEOUT_SECS,
+                        "QUIC write timeout: socket send blocked beyond {}s, closing connection",
+                        WRITE_TIMEOUT_SECS
+                    );
+                    drop(stream);
+                    self.close_connect(connection_id).await;
+                    return Err(CommonError::FailedToWriteClient(
+                        "quic".to_string(),
+                        format!("write timeout after {WRITE_TIMEOUT_SECS}s"),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn write_tcp_frame0(

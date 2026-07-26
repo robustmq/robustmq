@@ -15,8 +15,9 @@
 pub mod basic;
 pub mod channel;
 pub mod connection;
+pub mod consume;
 pub mod exchange;
-pub mod offset;
+pub mod publish;
 pub mod queue;
 pub mod route;
 pub mod tx;

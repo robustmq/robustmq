@@ -181,7 +181,7 @@ async fn handle_socket(
                                     let robust_packet = match packet {
                                         RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),
-                                        RobustMQCodecWrapper::AMQP(pkg) => RobustMQPacket::AMQP(pkg),
+                                        RobustMQCodecWrapper::AMQP(pkg) => RobustMQPacket::AMQP(vec![pkg]),
                                         RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
                                         RobustMQCodecWrapper::NATS(pkt) => RobustMQPacket::NATS(pkt),
                                     };

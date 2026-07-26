@@ -21,6 +21,7 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 protocol.workspace = true
+amq-protocol.workspace = true
 common-base.workspace = true
 tracing.workspace = true
 dashmap.workspace = true

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use std::sync::Arc;
 
 use common_base::tools::now_second;
@@ -74,6 +74,16 @@ pub struct AmqpChannel {
     // every clone of this AmqpChannel (AmqpCacheManager::get_channel returns
     // clones) shares the same counter instead of each getting its own.
     pub next_delivery_tag: Arc<AtomicU64>,
+    // Confirm.Select state: once set, every Basic.Publish on this channel is
+    // assigned the next value from `next_publish_seqno` and acked/nacked by
+    // that number once its write to storage resolves.
+    pub confirm_mode: Arc<AtomicBool>,
+    pub next_publish_seqno: Arc<AtomicU64>,
+    // Basic.Qos prefetch_count; 0 means unlimited (spec default).
+    pub prefetch_count: Arc<AtomicU32>,
+    // Channel.Flow: false pauses Basic.Deliver push to this channel until a
+    // Flow{active: true} re-enables it. Basic.Get is unaffected (pull, not push).
+    pub flow_active: Arc<AtomicBool>,
 }
 
 impl AmqpChannel {
@@ -84,6 +94,36 @@ impl AmqpChannel {
             state: AmqpChannelState::Open,
             create_time: now_second(),
             next_delivery_tag: Arc::new(AtomicU64::new(1)),
+            confirm_mode: Arc::new(AtomicBool::new(false)),
+            next_publish_seqno: Arc::new(AtomicU64::new(1)),
+            prefetch_count: Arc::new(AtomicU32::new(0)),
+            flow_active: Arc::new(AtomicBool::new(true)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn new_channel_starts_open_unconfirmed_unlimited_and_flowing() {
+        let channel = AmqpChannel::new(1, 2);
+        assert_eq!(channel.state, AmqpChannelState::Open);
+        assert!(!channel.confirm_mode.load(Ordering::SeqCst));
+        assert_eq!(channel.next_publish_seqno.load(Ordering::SeqCst), 1);
+        assert_eq!(channel.prefetch_count.load(Ordering::SeqCst), 0);
+        assert!(channel.flow_active.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn confirm_mode_and_flow_state_are_shared_across_clones() {
+        let channel = AmqpChannel::new(1, 2);
+        let clone = channel.clone();
+        clone.confirm_mode.store(true, Ordering::SeqCst);
+        clone.flow_active.store(false, Ordering::SeqCst);
+        assert!(channel.confirm_mode.load(Ordering::SeqCst));
+        assert!(!channel.flow_active.load(Ordering::SeqCst));
     }
 }

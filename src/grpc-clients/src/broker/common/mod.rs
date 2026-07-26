@@ -14,11 +14,11 @@
 
 use crate::macros::impl_retriable_request;
 use protocol::broker::broker::{
-    broker_service_client::BrokerServiceClient, GetQosDataByClientIdReply,
-    GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
-    GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply, QueryReplicaLeoRequest,
-    SendLastWillMessageReply, SendLastWillMessageRequest, SendNatsShareGroupMessageReply,
-    SendNatsShareGroupMessageRequest, UpdateCacheReply, UpdateCacheRequest,
+    broker_service_client::BrokerServiceClient, FetchAmqpQueueMessageReply,
+    FetchAmqpQueueMessageRequest, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
+    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply,
+    QueryReplicaLeoRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    SendShareGroupMessageReply, SendShareGroupMessageRequest, UpdateCacheReply, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -61,12 +61,12 @@ impl_retriable_request!(
 );
 
 impl_retriable_request!(
-    SendNatsShareGroupMessageRequest,
+    SendShareGroupMessageRequest,
     BrokerServiceClient<Channel>,
-    SendNatsShareGroupMessageReply,
-    send_nats_share_group_message,
+    SendShareGroupMessageReply,
+    send_share_group_message,
     "BrokerService",
-    "SendNatsShareGroupMessage"
+    "SendShareGroupMessage"
 );
 
 impl_retriable_request!(
@@ -76,4 +76,13 @@ impl_retriable_request!(
     query_replica_leo,
     "BrokerService",
     "QueryReplicaLeo"
+);
+
+impl_retriable_request!(
+    FetchAmqpQueueMessageRequest,
+    BrokerServiceClient<Channel>,
+    FetchAmqpQueueMessageReply,
+    fetch_amqp_queue_message,
+    "BrokerService",
+    "FetchAmqpQueueMessage"
 );

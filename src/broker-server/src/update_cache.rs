@@ -29,7 +29,7 @@ use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
 use metadata_struct::kafka::quota::KafkaClientQuota;
 use metadata_struct::kafka::scram::KafkaScramCredential;
 use metadata_struct::meta::node::BrokerNode;
-use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
+use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember, ShareGroupParams};
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::resource_config::ResourceConfig;
 use metadata_struct::schema::{SchemaData, SchemaResourceBind};
@@ -398,48 +398,52 @@ pub async fn update_cluster_cache_metadata(
             BrokerUpdateCacheActionType::Create | BrokerUpdateCacheActionType::Update => {
                 let member: ShareGroupMember = serialize::deserialize(&record.data)?;
                 nats_params.broker_cache.add_share_group_member(&member);
-                // member is also a subscription
-                nats_params
-                    .subscribe_manager
-                    .send_parse_event(ParseSubscribeData {
-                        action: ParseAction::Add,
-                        source: SubscribeSource::NatsCore,
-                        subscribe: Some(NatsSubscribe {
-                            tenant: member.tenant,
-                            connect_id: member.connect_id,
-                            sid: member.sid,
-                            broker_id: member.broker_id,
-                            subject: member.sub_path,
-                            queue_group: Some(member.group_name),
-                            create_time: member.create_time,
-                        }),
-                        topic: None,
-                    })
-                    .await;
+                // Only NATS needs this as a live subscription; AMQP re-reads
+                // share_group_members fresh on every dispatch tick.
+                if matches!(member.params, ShareGroupParams::NATS(_)) {
+                    nats_params
+                        .subscribe_manager
+                        .send_parse_event(ParseSubscribeData {
+                            action: ParseAction::Add,
+                            source: SubscribeSource::NatsCore,
+                            subscribe: Some(NatsSubscribe {
+                                tenant: member.tenant,
+                                connect_id: member.connect_id,
+                                sid: member.sid,
+                                broker_id: member.broker_id,
+                                subject: member.sub_path,
+                                queue_group: Some(member.group_name),
+                                create_time: member.create_time,
+                            }),
+                            topic: None,
+                        })
+                        .await;
+                }
             }
 
             BrokerUpdateCacheActionType::Delete => {
                 let member: ShareGroupMember = serialize::deserialize(&record.data)?;
                 nats_params.broker_cache.remove_share_group_member(&member);
 
-                // member is also a subscription
-                nats_params
-                    .subscribe_manager
-                    .send_parse_event(ParseSubscribeData {
-                        action: ParseAction::Remove,
-                        source: SubscribeSource::NatsCore,
-                        subscribe: Some(NatsSubscribe {
-                            tenant: member.tenant,
-                            connect_id: member.connect_id,
-                            broker_id: member.broker_id,
-                            queue_group: Some(member.group_name),
-                            sid: member.sid,
-                            subject: member.sub_path,
-                            create_time: member.create_time,
-                        }),
-                        topic: None,
-                    })
-                    .await;
+                if matches!(member.params, ShareGroupParams::NATS(_)) {
+                    nats_params
+                        .subscribe_manager
+                        .send_parse_event(ParseSubscribeData {
+                            action: ParseAction::Remove,
+                            source: SubscribeSource::NatsCore,
+                            subscribe: Some(NatsSubscribe {
+                                tenant: member.tenant,
+                                connect_id: member.connect_id,
+                                broker_id: member.broker_id,
+                                queue_group: Some(member.group_name),
+                                sid: member.sid,
+                                subject: member.sub_path,
+                                create_time: member.create_time,
+                            }),
+                            topic: None,
+                        })
+                        .await;
+                }
             }
         },
 

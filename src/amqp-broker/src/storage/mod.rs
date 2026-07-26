@@ -14,4 +14,5 @@
 
 pub mod binding;
 pub mod exchange;
+pub mod offset;
 pub mod queue;

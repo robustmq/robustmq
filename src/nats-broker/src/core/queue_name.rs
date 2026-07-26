@@ -16,12 +16,14 @@ use crate::core::error::NatsBrokerError;
 use broker_core::cache::NodeCacheManager;
 use broker_core::share_group::ShareGroupStorage;
 use common_base::error::common::CommonError;
-use grpc_clients::broker::common::call::broker_send_nats_share_group_message;
+use grpc_clients::broker::common::call::broker_send_share_group_message;
 use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::share_group::ShareGroupMember;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::storage::record::StorageRecord;
-use protocol::broker::broker::SendNatsShareGroupMessageRequest;
+use protocol::broker::broker::{
+    send_share_group_message_request::Detail, NatsShareGroupDetail, SendShareGroupMessageRequest,
+};
 use std::sync::Arc;
 
 pub async fn add_member_by_group(
@@ -52,13 +54,15 @@ pub async fn send_share_group_message_to_other_broker(
     drop(node);
 
     let record_bytes = record.encode()?;
-    let request = SendNatsShareGroupMessageRequest {
+    let request = SendShareGroupMessageRequest {
         connect_id: subscriber.connect_id,
-        sid: subscriber.sid.clone(),
         record: record_bytes,
+        detail: Some(Detail::Nats(NatsShareGroupDetail {
+            sid: subscriber.sid.clone(),
+        })),
     };
 
-    broker_send_nats_share_group_message(client_pool, &[addr], request).await?;
+    broker_send_share_group_message(client_pool, &[addr], request).await?;
     Ok(())
 }
 

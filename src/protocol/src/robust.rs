@@ -179,7 +179,10 @@ impl RobustMQPacketWrapper {
 pub enum RobustMQPacket {
     MQTT(MqttPacket),
     KAFKA(KafkaPacketWrapper),
-    AMQP(AMQPFrame),
+    // A logical AMQP event can be more than one wire frame (e.g. Basic.GetOk
+    // is followed by its content header and body), so this carries the full
+    // sequence to be written back-to-back, in order.
+    AMQP(Vec<AMQPFrame>),
     StorageEngine(StorageEnginePacket),
     NATS(NatsPacket),
 }
@@ -199,9 +202,9 @@ impl RobustMQPacket {
         }
     }
 
-    pub fn get_amqp_packet(&self) -> Option<AMQPFrame> {
+    pub fn get_amqp_packet(&self) -> Option<Vec<AMQPFrame>> {
         match self.clone() {
-            RobustMQPacket::AMQP(frame) => Some(frame),
+            RobustMQPacket::AMQP(frames) => Some(frames),
             _ => None,
         }
     }
