@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Ig All Test
+# AMQP protocol integration tests, incl. the RabbitMQ Java-client suite
+# (tests/rabbitmq-java), split out so this suite can be diagnosed
+# independently of the other protocols (its own 3-node cluster, its own
+# pass/fail).
+name: Ig Test AMQP
 
 on:
   push:
@@ -28,7 +32,6 @@ on:
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/pull_request_template.md"
 
-# Cancel previous runs if a new commit is pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -42,8 +45,8 @@ env:
   CARGO_BUILD_JOBS: 8
 
 jobs:
-  integration-tests:
-    name: Integration Tests
+  integration-tests-amqp:
+    name: Integration Tests / AMQP
     runs-on: ubuntu-22.04
     timeout-minutes: 180
 
@@ -52,31 +55,18 @@ jobs:
         with:
           submodules: true
 
-      # Free up disk space on GitHub Actions runners
       - name: Free disk space
         run: |
-          echo "==========================================="
-          echo "Disk space before cleanup:"
-          df -h
-          echo "==========================================="
-          
-          # Remove unnecessary files to free up space
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo docker image prune --all --force
           sudo apt-get clean
-          
-          echo "==========================================="
-          echo "Disk space after cleanup:"
-          df -h
-          echo "==========================================="
 
       - uses: dtolnay/rust-toolchain@1.97.0
 
-      # The Kafka Java-client integration tests (tests/kafka-java) compile with
-      # maven.compiler.release=17, so the runner needs a JDK >= 17.
+      # The RabbitMQ Java-client integration tests (tests/rabbitmq-java) need a JDK.
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -93,25 +83,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "integration-tests"
+          shared-key: "integration-tests-amqp"
           cache-on-failure: true
-          # Only the main branch saves the cache; PR/feature branches read it.
-          # This keeps the cache stable (main builds it incrementally) and avoids
-          # a timed-out PR job writing a corrupt/incomplete cache.
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Check disk space
+      - name: Run AMQP integration tests with broker
         run: |
-          echo "=========================================="
-          echo "Disk Space Status"
-          echo "=========================================="
-          df -h
-          echo "=========================================="
-
-      - name: Run integration tests with broker
-        run: |
-          echo "## 🧪 Integration Test Results" >> $GITHUB_STEP_SUMMARY
-          if make ig-test-ci; then
+          echo "## 🧪 AMQP Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          if make ig-test-amqp-ci; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY

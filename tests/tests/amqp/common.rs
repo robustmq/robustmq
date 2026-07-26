@@ -17,7 +17,10 @@ use lapin::types::FieldTable;
 use lapin::{Channel, Connection, ConnectionProperties};
 
 pub fn amqp_broker_addr() -> String {
-    std::env::var("AMQP_BROKER_ADDR").unwrap_or_else(|_| "127.0.0.1:25672".to_string())
+    // Matches scripts/cluster.sh's node 1, same as tests/rabbitmq-java's
+    // Support.java default port -- so this suite works against the 3-node
+    // cluster ig-test.sh actually starts, not just a manually-run single node.
+    std::env::var("AMQP_BROKER_ADDR").unwrap_or_else(|_| "127.0.0.1:5672".to_string())
 }
 
 fn amqp_user() -> String {
