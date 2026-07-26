@@ -36,12 +36,16 @@ impl ShareGroupStorage {
         ShareGroupStorage { client_pool }
     }
 
+    /// Returns the authoritative `ShareGroup` row — whether this call created
+    /// it or it already existed (e.g. a racing creator won) — so callers
+    /// never need a separate read-back to learn what was just written; see
+    /// amqp-broker's `resolve_queue_leader` for why that read-back is a race.
     pub async fn create(
         &self,
         tenant: &str,
         group_name: &str,
         source: ShareGroupParams,
-    ) -> Result<(), CommonError> {
+    ) -> Result<ShareGroup, CommonError> {
         let config = broker_config();
         let params = source.encode()?;
         let request = CreateShareGroupRequest {
@@ -49,9 +53,13 @@ impl ShareGroupStorage {
             group: group_name.to_owned(),
             params,
         };
-        placement_create_share_group(&self.client_pool, &config.get_meta_service_addr(), request)
-            .await?;
-        Ok(())
+        let reply = placement_create_share_group(
+            &self.client_pool,
+            &config.get_meta_service_addr(),
+            request,
+        )
+        .await?;
+        ShareGroup::decode(&reply.group)
     }
 
     pub async fn delete(&self, tenant: &str, group_name: &str) -> Result<(), CommonError> {

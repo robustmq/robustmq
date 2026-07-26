@@ -132,30 +132,25 @@ pub async fn resolve_queue_leader(
         return Ok(group.leader_broker);
     }
 
-    storage
+    // `create` returns the authoritative row directly (whether it created a
+    // new group or found one a racing creator already wrote) — no read-back
+    // needed. A prior version re-read via `storage.get()` right after
+    // `create()`, which raced the raft commit-vs-apply gap: `create`'s
+    // success only means the entry is committed (majority-durable), not that
+    // any given node's local state machine (whichever one answers the
+    // read-only `get`, not necessarily the writer) has applied it yet. On a
+    // cold cluster that gap outlasted even a 1.5s retry budget often enough
+    // to show up in CI. Returning the row from `create` itself sidesteps the
+    // gap instead of racing it.
+    let group = storage
         .create(
             tenant,
             queue,
             ShareGroupParams::AMQP(ShareGroupParamsAmqp::default()),
         )
         .await?;
-
-    // create and read-back may land on different meta nodes; a follower
-    // that hasn't applied the raft entry yet needs a moment to catch up.
-    const CREATE_READBACK_RETRIES: u32 = 10;
-    const CREATE_READBACK_DELAY_MS: u64 = 30;
-    for attempt in 0..CREATE_READBACK_RETRIES {
-        if let Some(group) = storage.get(tenant, queue).await? {
-            broker_cache.add_share_group(group.clone());
-            return Ok(group.leader_broker);
-        }
-        if attempt + 1 < CREATE_READBACK_RETRIES {
-            tokio::time::sleep(std::time::Duration::from_millis(CREATE_READBACK_DELAY_MS)).await;
-        }
-    }
-    Err(CommonError::CommonError(format!(
-        "AMQP queue group {tenant}/{queue} still not visible {CREATE_READBACK_RETRIES} reads after being created"
-    )))
+    broker_cache.add_share_group(group.clone());
+    Ok(group.leader_broker)
 }
 
 pub fn is_self(broker_id: u64) -> bool {
