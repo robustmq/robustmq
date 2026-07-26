@@ -83,7 +83,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "integration-tests-amqp"
+          shared-key: "integration-tests"
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
