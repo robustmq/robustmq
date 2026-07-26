@@ -40,6 +40,7 @@ pub async fn add_consume_member(
     channel_id: u16,
     consumer_tag: &str,
     no_ack: bool,
+    exclusive: bool,
 ) -> Result<(), CommonError> {
     let storage = ShareGroupStorage::new(client_pool.clone());
     let member = ShareGroupMember {
@@ -52,6 +53,7 @@ pub async fn add_consume_member(
             channel_id,
             consumer_tag: consumer_tag.to_string(),
             no_ack,
+            exclusive,
         }),
         connect_id,
         create_time: now_second(),

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
@@ -213,6 +214,7 @@ pub(crate) async fn process_basic_full(
                 consume.queue.as_str(),
                 consume.consumer_tag.as_str(),
                 consume.no_ack,
+                consume.exclusive,
                 connection_id,
                 ctx,
             )
@@ -222,6 +224,11 @@ pub(crate) async fn process_basic_full(
             process_cancel(channel_id, cancel.consumer_tag.as_str(), connection_id, ctx).await
         }
         AMQPMethod::Publish(publish) => {
+            let confirm_seqno = ctx
+                .amqp_cache
+                .get_channel(connection_id, channel_id)
+                .filter(|channel| channel.confirm_mode.load(Ordering::SeqCst))
+                .map(|channel| channel.next_publish_seqno.fetch_add(1, Ordering::SeqCst));
             ctx.amqp_cache.pending_publish().insert(
                 (connection_id, channel_id),
                 PendingPublish {
@@ -233,11 +240,12 @@ pub(crate) async fn process_basic_full(
                     properties: StorageRecordProtocolDataAmqp::default(),
                     body_size: None,
                     body: Vec::new(),
+                    confirm_seqno,
                 },
             );
             None
         }
-        other => process_basic(channel_id, other).map(|f| vec![f]),
+        other => process_basic(channel_id, other, connection_id, ctx).map(|f| vec![f]),
     }
 }
 
@@ -352,28 +360,58 @@ pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
     }
 }
 
-pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
+pub(crate) fn process_basic(
+    channel_id: u16,
+    method: &AMQPMethod,
+    connection_id: u64,
+    ctx: &BasicCtx,
+) -> Option<AMQPFrame> {
     match method {
-        AMQPMethod::Qos(_) => process_qos(channel_id),
+        AMQPMethod::Qos(qos) => process_qos(channel_id, qos.prefetch_count, connection_id, ctx),
         _ => None,
     }
 }
 
-pub fn process_confirm(channel_id: u16, method: &confirm::AMQPMethod) -> Option<AMQPFrame> {
+pub(crate) fn process_confirm(
+    channel_id: u16,
+    method: &confirm::AMQPMethod,
+    connection_id: u64,
+    ctx: &BasicCtx,
+) -> Option<AMQPFrame> {
     match method {
-        confirm::AMQPMethod::Select(_) => process_confirm_select(channel_id),
+        confirm::AMQPMethod::Select(_) => process_confirm_select(channel_id, connection_id, ctx),
         _ => None,
     }
 }
 
-fn process_qos(channel_id: u16) -> Option<AMQPFrame> {
+/// prefetch_count applies per-channel here regardless of the `global` flag
+/// (0-9-1 semantics of per-consumer vs. per-channel don't map cleanly onto our
+/// shared-group push model); 0 means unlimited, matching the spec default.
+fn process_qos(
+    channel_id: u16,
+    prefetch_count: u16,
+    connection_id: u64,
+    ctx: &BasicCtx,
+) -> Option<AMQPFrame> {
+    if let Some(channel) = ctx.amqp_cache.get_channel(connection_id, channel_id) {
+        channel
+            .prefetch_count
+            .store(prefetch_count as u32, Ordering::SeqCst);
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Basic(AMQPMethod::QosOk(QosOk {})),
     ))
 }
 
-fn process_confirm_select(channel_id: u16) -> Option<AMQPFrame> {
+fn process_confirm_select(
+    channel_id: u16,
+    connection_id: u64,
+    ctx: &BasicCtx,
+) -> Option<AMQPFrame> {
+    if let Some(channel) = ctx.amqp_cache.get_channel(connection_id, channel_id) {
+        channel.confirm_mode.store(true, Ordering::SeqCst);
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Confirm(confirm::AMQPMethod::SelectOk(ConfirmSelectOk {})),

@@ -122,6 +122,77 @@ class PublishTest {
     }
 
     @Test
+    void fanoutExchangeDeliversToEveryBoundQueue() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String exchange = Support.uniqueName("it-fanout");
+            channel.exchangeDeclare(exchange, "fanout", true);
+            String queueA = Support.declareQueue(channel, "it-fanout-a");
+            String queueB = Support.declareQueue(channel, "it-fanout-b");
+            channel.queueBind(queueA, exchange, "");
+            channel.queueBind(queueB, exchange, "");
+
+            channel.basicPublish(exchange, "ignored-routing-key", null, "broadcast".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse a = Support.pollGet(channel, queueA, true);
+            GetResponse b = Support.pollGet(channel, queueB, true);
+            assertNotNull(a);
+            assertNotNull(b);
+            assertEquals("broadcast", new String(a.getBody(), StandardCharsets.UTF_8));
+            assertEquals("broadcast", new String(b.getBody(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void topicExchangeMatchesWildcardPattern() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String exchange = Support.uniqueName("it-topic");
+            channel.exchangeDeclare(exchange, "topic", true);
+            String queue = Support.declareQueue(channel, "it-topic-queue");
+            channel.queueBind(queue, exchange, "orders.*.created");
+
+            channel.basicPublish(exchange, "orders.us.created", null, "match".getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish(exchange, "orders.us.cancelled", null, "no-match".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse resp = Support.pollGet(channel, queue, true);
+            assertNotNull(resp);
+            assertEquals("match", new String(resp.getBody(), StandardCharsets.UTF_8));
+            Support.assertEventuallyEmpty(channel, queue);
+        }
+    }
+
+    @Test
+    void headersExchangeMatchesOnDeclaredHeaders() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String exchange = Support.uniqueName("it-headers");
+            channel.exchangeDeclare(exchange, "headers", true);
+            String queue = Support.declareQueue(channel, "it-headers-queue");
+
+            Map<String, Object> bindArgs = new HashMap<>();
+            bindArgs.put("x-match", "all");
+            bindArgs.put("format", "pdf");
+            channel.queueBind(queue, exchange, "", bindArgs);
+
+            Map<String, Object> matching = new HashMap<>();
+            matching.put("format", "pdf");
+            channel.basicPublish(exchange, "", new AMQP.BasicProperties.Builder().headers(matching).build(),
+                    "match".getBytes(StandardCharsets.UTF_8));
+
+            Map<String, Object> nonMatching = new HashMap<>();
+            nonMatching.put("format", "csv");
+            channel.basicPublish(exchange, "", new AMQP.BasicProperties.Builder().headers(nonMatching).build(),
+                    "no-match".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse resp = Support.pollGet(channel, queue, true);
+            assertNotNull(resp);
+            assertEquals("match", new String(resp.getBody(), StandardCharsets.UTF_8));
+            Support.assertEventuallyEmpty(channel, queue);
+        }
+    }
+
+    @Test
     void contentTypeAndHeadersRoundTrip() throws Exception {
         try (Connection connection = Support.newConnection()) {
             Channel channel = connection.createChannel();

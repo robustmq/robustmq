@@ -39,6 +39,13 @@ pub(crate) fn process_channel_full(
         AMQPMethod::Close(_) | AMQPMethod::CloseOk(_) => {
             amqp_cache.remove_channel(connection_id, channel_id);
         }
+        AMQPMethod::Flow(flow) => {
+            if let Some(channel) = amqp_cache.get_channel(connection_id, channel_id) {
+                channel
+                    .flow_active
+                    .store(flow.active, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
         _ => {}
     }
     process_channel(channel_id, method)
@@ -84,8 +91,9 @@ fn process_open(channel_id: u16) -> Option<AMQPFrame> {
     ))
 }
 
-// Flow is synchronous per spec: no real throttling is implemented, so we just
-// echo the requested `active` state back immediately.
+// Flow is synchronous per spec: the state itself is stored by
+// process_channel_full (it needs amqp_cache/connection_id, unavailable here);
+// this just builds the ack once that's done.
 fn process_flow(channel_id: u16, flow: &Flow) -> Option<AMQPFrame> {
     Some(AMQPFrame::Method(
         channel_id,

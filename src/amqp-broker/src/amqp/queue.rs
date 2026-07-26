@@ -126,9 +126,10 @@ async fn process_queue_declare(
             Some(AMQPFrame::Method(
                 channel_id,
                 AMQPClass::Queue(AMQPMethod::DeclareOk(QueueDeclareOk {
-                    queue: queue_name.into(),
-                    message_count: 0,
-                    consumer_count: 0,
+                    queue: queue_name.clone().into(),
+                    message_count: queue_message_count(storage_driver_manager, &tenant, &queue_name)
+                        .await as u32,
+                    consumer_count: consumer_count(storage_driver_manager, &tenant, &queue_name),
                 })),
             ))
         };
@@ -187,11 +188,54 @@ async fn process_queue_declare(
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Queue(AMQPMethod::DeclareOk(QueueDeclareOk {
-            queue: queue_name.into(),
-            message_count: 0,
-            consumer_count: 0,
+            queue: queue_name.clone().into(),
+            message_count: queue_message_count(storage_driver_manager, &tenant, &queue_name).await
+                as u32,
+            consumer_count: consumer_count(storage_driver_manager, &tenant, &queue_name),
         })),
     ))
+}
+
+/// Sum of unconsumed messages across all of a queue's storage shards.
+///
+/// Uses `high_watermark` (the next offset to be written, exclusive) rather
+/// than `end_offset` (the last written offset, inclusive — see
+/// `storage-engine`'s `list_shard`): `end_offset - start_offset` silently
+/// undercounts by exactly one record, e.g. reporting 0 for a shard holding
+/// exactly one message.
+async fn queue_message_count(
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    tenant: &str,
+    queue_name: &str,
+) -> u64 {
+    storage_driver_manager
+        .list_storage_resource(tenant, queue_name)
+        .await
+        .map(|resources| {
+            resources
+                .values()
+                .map(|d| {
+                    d.offset
+                        .high_watermark
+                        .saturating_sub(d.offset.start_offset)
+                })
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+/// Cluster-wide count of this queue's shared-group members (i.e. active
+/// Basic.Consume registrations), read from the locally replicated node cache
+/// rather than a fresh meta-service round trip.
+fn consumer_count(
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    tenant: &str,
+    queue_name: &str,
+) -> u32 {
+    storage_driver_manager
+        .broker_cache
+        .get_share_group_members(tenant, queue_name)
+        .len() as u32
 }
 
 async fn process_queue_delete(
@@ -203,18 +247,18 @@ async fn process_queue_delete(
 ) -> Option<AMQPFrame> {
     let queue_name = delete.queue.to_string();
     let tenant = amqp_cache.tenant_for(connection_id);
-    let mut message_count: u64 = 0;
+    let message_count = queue_message_count(storage_driver_manager, &tenant, &queue_name).await;
 
-    if let Ok(resources) = storage_driver_manager
-        .list_storage_resource(&tenant, &queue_name)
-        .await
-    {
-        message_count = resources
-            .values()
-            .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
-            .sum();
-    }
     if delete.if_empty && message_count > 0 {
+        return Some(channel_error_close(
+            channel_id,
+            406,
+            "PRECONDITION_FAILED",
+            50,
+            40,
+        ));
+    }
+    if delete.if_unused && consumer_count(storage_driver_manager, &tenant, &queue_name) > 0 {
         return Some(channel_error_close(
             channel_id,
             406,
@@ -396,13 +440,21 @@ async fn process_queue_purge(
             ));
         }
     };
+    // delete_records_before deletes offset < target (exclusive), so the
+    // target must be high_watermark (next-offset-to-write), not end_offset
+    // (the last written offset, inclusive) — using end_offset would leave
+    // the newest message in each shard behind.
     let targets: HashMap<u32, u64> = resources
         .iter()
-        .map(|(partition, detail)| (*partition, detail.offset.end_offset))
+        .map(|(partition, detail)| (*partition, detail.offset.high_watermark))
         .collect();
     let message_count: u64 = resources
         .values()
-        .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
+        .map(|d| {
+            d.offset
+                .high_watermark
+                .saturating_sub(d.offset.start_offset)
+        })
         .sum();
     if let Err(e) = storage_driver_manager
         .delete_records_before(&tenant, &queue_name, &targets)

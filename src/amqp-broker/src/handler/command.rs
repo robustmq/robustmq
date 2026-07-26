@@ -230,7 +230,8 @@ impl AmqpHandlerCommand {
             }
             AMQPClass::Access(_) => None,
             AMQPClass::Confirm(method) => {
-                basic::process_confirm(channel_id, method).map(|f| vec![f])
+                basic::process_confirm(channel_id, method, connection_id, &self.basic_ctx())
+                    .map(|f| vec![f])
             }
         };
         if result.is_none() {

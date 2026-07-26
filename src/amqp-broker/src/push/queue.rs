@@ -125,6 +125,15 @@ impl AmqpQueuePush {
 
         let mut pushed = 0;
         loop {
+            if !members.iter().any(|m| match &m.params {
+                ShareGroupParams::AMQP(detail) => self.member_ready(m, detail),
+                _ => false,
+            }) {
+                // No member currently has room (Qos prefetch exhausted) or is
+                // flow-paused; stop claiming so the message stays unclaimed
+                // instead of being consumed with nowhere to go.
+                break;
+            }
             let claimed = offset_storage
                 .claim_next_record(
                     &self.params.push_manager,
@@ -155,6 +164,44 @@ impl AmqpQueuePush {
         Ok(pushed)
     }
 
+    /// Whether `member` can currently accept a push: gated on Channel.Flow
+    /// and (for ack-required consumers) Basic.Qos prefetch_count.
+    ///
+    /// Qos/Flow state lives on the consumer's own connection, which may be a
+    /// different node than the one driving this queue's push loop (the
+    /// leader). We can only see that state for members local to this node;
+    /// remote members are never gated here (best-effort, not enforced
+    /// cluster-wide).
+    fn member_ready(
+        &self,
+        member: &ShareGroupMember,
+        detail: &metadata_struct::mqtt::share_group::ShareGroupParamsAmqp,
+    ) -> bool {
+        if member.broker_id != broker_config().broker_id {
+            return true;
+        }
+        let Some(channel) = self
+            .params
+            .amqp_cache
+            .get_channel(member.connect_id, detail.channel_id)
+        else {
+            return false;
+        };
+        if !channel.flow_active.load(Ordering::SeqCst) {
+            return false;
+        }
+        if detail.no_ack {
+            return true;
+        }
+        let limit = channel.prefetch_count.load(Ordering::SeqCst);
+        limit == 0
+            || self
+                .params
+                .amqp_cache
+                .unacked_count(member.connect_id, detail.channel_id)
+                < limit as usize
+    }
+
     /// Tries each member round-robin from `start_idx` until one accepts.
     async fn deliver(
         &self,
@@ -170,6 +217,9 @@ impl AmqpQueuePush {
             let ShareGroupParams::AMQP(detail) = &member.params else {
                 continue;
             };
+            if !self.member_ready(member, detail) {
+                continue;
+            }
 
             let index_offset = if detail.no_ack {
                 None

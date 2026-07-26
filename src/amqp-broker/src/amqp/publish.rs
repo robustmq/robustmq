@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use amq_protocol::frame::{AMQPContentHeader, AMQPFrame};
-use amq_protocol::protocol::basic::{AMQPMethod, Return};
+use amq_protocol::protocol::basic::{AMQPMethod, Ack, Nack, Return};
 use amq_protocol::protocol::AMQPClass;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
@@ -114,18 +114,23 @@ pub(crate) async fn finalize_publish(
     };
 
     if queues.is_empty() {
+        // Unroutable: still "handled" from the publisher's point of view, so
+        // a Confirm-mode publisher gets acked even though there's no queue.
+        let mut frames = confirm_frames(channel_id, pending.confirm_seqno, true);
         if pending.mandatory {
-            return Some(build_basic_return_frames(channel_id, &pending));
+            frames.extend(build_basic_return_frames(channel_id, &pending));
+        } else {
+            debug!(
+                "AMQP Basic.Publish unroutable (exchange={}, routing_key={}), dropped",
+                pending.exchange, pending.routing_key
+            );
         }
-        debug!(
-            "AMQP Basic.Publish unroutable (exchange={}, routing_key={}), dropped",
-            pending.exchange, pending.routing_key
-        );
-        return None;
+        return (!frames.is_empty()).then_some(frames);
     }
 
+    let mut all_ok = true;
     for queue_name in &queues {
-        write_to_queue(
+        let ok = write_to_queue(
             &ctx.storage_driver_manager,
             &pending.tenant,
             queue_name,
@@ -133,8 +138,37 @@ pub(crate) async fn finalize_publish(
             &pending.properties,
         )
         .await;
+        all_ok &= ok;
     }
-    None
+    let frames = confirm_frames(channel_id, pending.confirm_seqno, all_ok);
+    (!frames.is_empty()).then_some(frames)
+}
+
+/// Builds the Confirm-mode Basic.Ack/Basic.Nack for one publish, or nothing
+/// if the channel isn't in Confirm.Select mode.
+fn confirm_frames(channel_id: u16, confirm_seqno: Option<u64>, ok: bool) -> Vec<AMQPFrame> {
+    let Some(delivery_tag) = confirm_seqno else {
+        return Vec::new();
+    };
+    let frame = if ok {
+        AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Basic(AMQPMethod::Ack(Ack {
+                delivery_tag,
+                multiple: false,
+            })),
+        )
+    } else {
+        AMQPFrame::Method(
+            channel_id,
+            AMQPClass::Basic(AMQPMethod::Nack(Nack {
+                delivery_tag,
+                multiple: false,
+                requeue: false,
+            })),
+        )
+    };
+    vec![frame]
 }
 
 async fn write_to_queue(
@@ -143,7 +177,7 @@ async fn write_to_queue(
     queue_name: &str,
     body: Vec<u8>,
     properties: &StorageRecordProtocolDataAmqp,
-) {
+) -> bool {
     let record = AdapterWriteRecord::new(queue_name.to_string(), body).with_protocol_data(Some(
         StorageRecordProtocolData {
             amqp: Some(properties.clone()),
@@ -154,7 +188,7 @@ async fn write_to_queue(
         .write(tenant, queue_name, std::slice::from_ref(&record), 1)
         .await
     {
-        Ok(_) => {}
+        Ok(_) => true,
         Err(CommonError::TopicNotFoundInBrokerCache(_, _)) => {
             // Published to a queue that was never explicitly declared (common
             // with the default exchange): declare it on the fly, then retry.
@@ -162,20 +196,28 @@ async fn write_to_queue(
                 .await
                 .is_some()
             {
-                if let Err(e) = sdm.write(tenant, queue_name, &[record], 1).await {
-                    error!(
-                        "AMQP Basic.Publish retry write failed for {}: {}",
-                        queue_name, e
-                    );
+                match sdm.write(tenant, queue_name, &[record], 1).await {
+                    Ok(_) => true,
+                    Err(e) => {
+                        error!(
+                            "AMQP Basic.Publish retry write failed for {}: {}",
+                            queue_name, e
+                        );
+                        false
+                    }
                 }
             } else {
                 error!(
                     "AMQP Basic.Publish dropped: queue {} does not exist and could not be created",
                     queue_name
                 );
+                false
             }
         }
-        Err(e) => error!("AMQP Basic.Publish write failed for {}: {}", queue_name, e),
+        Err(e) => {
+            error!("AMQP Basic.Publish write failed for {}: {}", queue_name, e);
+            false
+        }
     }
 }
 

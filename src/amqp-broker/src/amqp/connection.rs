@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
 use amq_protocol::protocol::connection::{
-    AMQPMethod, Close, CloseOk, Open, OpenOk, Start, StartOk, Tune, UpdateSecretOk,
+    AMQPMethod, Close, CloseOk, Open, OpenOk, Start, StartOk, Tune, TuneOk, UpdateSecretOk,
 };
 use amq_protocol::protocol::AMQPClass;
 use amq_protocol::types::{FieldTable, LongString};
@@ -47,6 +47,9 @@ pub(crate) async fn process_connection_full(
         }
         AMQPMethod::Close(_) => process_connection_close(connection_id, amqp_cache),
         AMQPMethod::CloseOk(_) => process_connection_close_ok(connection_id, amqp_cache),
+        AMQPMethod::TuneOk(tune_ok) => {
+            process_connection_tune_ok(tune_ok, connection_id, amqp_cache)
+        }
         _ => process_connection(channel_id, method),
     }
 }
@@ -137,6 +140,38 @@ fn process_connection_close_ok(
     None
 }
 
+/// Per spec, TuneOk carries what the client will actually use: it may lower
+/// (never raise) the server's Tune proposal, and 0 means "no limit" for
+/// channel_max/frame_max. Stored on the connection so it reflects what was
+/// actually negotiated instead of the server's original proposal.
+fn process_connection_tune_ok(
+    tune_ok: &TuneOk,
+    connection_id: u64,
+    amqp_cache: &Arc<AmqpCacheManager>,
+) -> Option<AMQPFrame> {
+    let proposed = tune_frame_values();
+    let mut conn = amqp_cache
+        .get_connection(connection_id)
+        .unwrap_or_else(|| AmqpConnection::new(connection_id));
+    conn.channel_max = if tune_ok.channel_max == 0 {
+        proposed.0
+    } else {
+        tune_ok.channel_max.min(proposed.0)
+    };
+    conn.frame_max = if tune_ok.frame_max == 0 {
+        proposed.1
+    } else {
+        tune_ok.frame_max.min(proposed.1)
+    };
+    conn.heartbeat = if tune_ok.heartbeat == 0 {
+        proposed.2
+    } else {
+        tune_ok.heartbeat.min(proposed.2)
+    };
+    amqp_cache.set_connection(conn);
+    None
+}
+
 pub fn process_protocol_header() -> Option<AMQPFrame> {
     Some(AMQPFrame::Method(
         0,
@@ -160,7 +195,6 @@ pub fn process_heartbeat(channel_id: u16) -> Option<AMQPFrame> {
 pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::SecureOk(_) => process_secure_ok(channel_id),
-        AMQPMethod::TuneOk(_) => process_tune_ok(channel_id),
         AMQPMethod::Blocked(_) => process_blocked(channel_id),
         AMQPMethod::Unblocked(_) => process_unblocked(channel_id),
         AMQPMethod::UpdateSecret(_) => process_update_secret(channel_id),
@@ -168,13 +202,19 @@ pub fn process_connection(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFr
     }
 }
 
+/// (channel_max, frame_max, heartbeat) the server proposes in Tune.
+pub(crate) fn tune_frame_values() -> (u16, u32, u16) {
+    (2047, 131072, 60)
+}
+
 pub(crate) fn tune_frame() -> AMQPFrame {
+    let (channel_max, frame_max, heartbeat) = tune_frame_values();
     AMQPFrame::Method(
         0,
         AMQPClass::Connection(AMQPMethod::Tune(Tune {
-            channel_max: 2047,
-            frame_max: 131072,
-            heartbeat: 60,
+            channel_max,
+            frame_max,
+            heartbeat,
         })),
     )
 }
@@ -205,10 +245,6 @@ pub(crate) fn close_frame(
 }
 
 fn process_secure_ok(_channel_id: u16) -> Option<AMQPFrame> {
-    None
-}
-
-fn process_tune_ok(_channel_id: u16) -> Option<AMQPFrame> {
     None
 }
 

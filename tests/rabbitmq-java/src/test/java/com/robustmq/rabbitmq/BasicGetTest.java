@@ -87,6 +87,57 @@ class BasicGetTest {
     }
 
     @Test
+    void basicRejectWithRequeueRedeliversMessage() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-reject");
+            channel.basicPublish("", queue, null, "retry-me".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse first = Support.pollGet(channel, queue, false);
+            assertNotNull(first);
+            channel.basicReject(first.getEnvelope().getDeliveryTag(), true);
+
+            GetResponse redelivered = Support.pollGet(channel, queue, true);
+            assertNotNull(redelivered);
+            assertEquals("retry-me", new String(redelivered.getBody(), StandardCharsets.UTF_8));
+            assertTrue(redelivered.getEnvelope().isRedeliver());
+        }
+    }
+
+    @Test
+    void basicRejectWithoutRequeueDropsMessage() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-reject-drop");
+            channel.basicPublish("", queue, null, "gone".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse first = Support.pollGet(channel, queue, false);
+            assertNotNull(first);
+            channel.basicReject(first.getEnvelope().getDeliveryTag(), false);
+
+            assertNull(channel.basicGet(queue, true));
+        }
+    }
+
+    @Test
+    void basicRecoverRequeuesUnackedMessages() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-recover");
+            channel.basicPublish("", queue, null, "unacked".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse first = Support.pollGet(channel, queue, false);
+            assertNotNull(first);
+            channel.basicRecover(true);
+
+            GetResponse redelivered = Support.pollGet(channel, queue, true);
+            assertNotNull(redelivered);
+            assertEquals("unacked", new String(redelivered.getBody(), StandardCharsets.UTF_8));
+            assertTrue(redelivered.getEnvelope().isRedeliver());
+        }
+    }
+
+    @Test
     void noAckTrueConsumesImmediately() throws Exception {
         try (Connection connection = Support.newConnection()) {
             Channel channel = connection.createChannel();

@@ -40,6 +40,9 @@ pub(crate) struct PendingPublish {
     pub(crate) properties: StorageRecordProtocolDataAmqp,
     pub(crate) body_size: Option<u64>,
     pub(crate) body: Vec<u8>,
+    // Set when Confirm.Select is active on this channel: the delivery_tag to
+    // ack/nack once this publish's writes to storage resolve.
+    pub(crate) confirm_seqno: Option<u64>,
 }
 
 /// Local record of what a `Basic.Consume` targets, so Cancel/channel-close/
@@ -83,6 +86,15 @@ impl AmqpCacheManager {
 
     pub(crate) fn unacked(&self) -> &DashMap<(u64, u16, u64), UnackedEntry> {
         &self.unacked
+    }
+
+    /// Count of not-yet-acked deliveries outstanding on one channel, used to
+    /// enforce Basic.Qos prefetch_count against push delivery.
+    pub(crate) fn unacked_count(&self, connection_id: u64, channel_id: u16) -> usize {
+        self.unacked
+            .iter()
+            .filter(|e| e.key().0 == connection_id && e.key().1 == channel_id)
+            .count()
     }
 
     pub(crate) fn register_consumer(
@@ -373,6 +385,26 @@ mod tests {
 
         cache.remove_binding("t1", &b.key());
         assert_eq!(cache.list_bindings_by_tenant("t1").len(), 2);
+    }
+
+    #[test]
+    fn unacked_count_is_scoped_to_one_channel() {
+        let cache = AmqpCacheManager::new();
+        let entry = |offset: u64| UnackedEntry {
+            tenant: "t1".to_string(),
+            queue: "q".to_string(),
+            offset,
+            index_offset: offset,
+        };
+        cache.unacked().insert((1, 1, 1), entry(1));
+        cache.unacked().insert((1, 1, 2), entry(2));
+        cache.unacked().insert((1, 2, 1), entry(1));
+        cache.unacked().insert((2, 1, 1), entry(1));
+
+        assert_eq!(cache.unacked_count(1, 1), 2);
+        assert_eq!(cache.unacked_count(1, 2), 1);
+        assert_eq!(cache.unacked_count(2, 1), 1);
+        assert_eq!(cache.unacked_count(9, 9), 0);
     }
 
     #[test]

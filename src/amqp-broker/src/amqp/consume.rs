@@ -39,6 +39,7 @@ pub(crate) async fn process_consume(
     queue: &str,
     consumer_tag: &str,
     no_ack: bool,
+    exclusive: bool,
     connection_id: u64,
     ctx: &BasicCtx,
 ) -> Option<Vec<AMQPFrame>> {
@@ -67,6 +68,28 @@ pub(crate) async fn process_consume(
         )]);
     }
 
+    // Exclusive: this consumer wants sole ownership of the queue, and no
+    // other consumer may already be attached (nor may an existing exclusive
+    // consumer be joined by anyone else). Read from the locally replicated
+    // share-group member cache, same source used to compute Queue.Declare's
+    // consumer_count.
+    let existing = ctx
+        .storage_driver_manager
+        .broker_cache
+        .get_share_group_members(&tenant, queue);
+    let existing_exclusive = existing.iter().any(|m| {
+        matches!(&m.params, metadata_struct::mqtt::share_group::ShareGroupParams::AMQP(d) if d.exclusive)
+    });
+    if existing_exclusive || (exclusive && !existing.is_empty()) {
+        return Some(vec![channel_error_close(
+            channel_id,
+            403,
+            "ACCESS_REFUSED",
+            60,
+            20,
+        )]);
+    }
+
     if let Err(e) = add_consume_member(
         &ctx.client_pool,
         &tenant,
@@ -76,6 +99,7 @@ pub(crate) async fn process_consume(
         channel_id,
         &consumer_tag,
         no_ack,
+        exclusive,
     )
     .await
     {

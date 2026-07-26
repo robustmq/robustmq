@@ -90,6 +90,25 @@ async fn process_exchange_declare(
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
     let exchange_name = declare.exchange.to_string();
+    let tenant = amqp_cache.tenant_for(connection_id);
+
+    // Passive: assert existence without declaring anything, mirroring
+    // Queue.Declare's passive handling. A missing exchange is a channel
+    // exception (404 NOT_FOUND), not a silent create.
+    if declare.passive {
+        if amqp_cache.get_exchange(&tenant, &exchange_name).is_none() {
+            return Some(channel_error_close(channel_id, 404, "NOT_FOUND", 40, 10));
+        }
+        return if declare.nowait {
+            None
+        } else {
+            Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Exchange(AMQPMethod::DeclareOk(DeclareOk {})),
+            ))
+        };
+    }
+
     let exchange_type =
         AmqpExchangeType::from_str_opt(declare.kind.as_str()).unwrap_or_else(|| {
             warn!(
@@ -101,7 +120,6 @@ async fn process_exchange_declare(
         });
     let arguments = route::field_table_to_map(&declare.arguments);
 
-    let tenant = amqp_cache.tenant_for(connection_id);
     let exchange = AmqpExchange::new(
         &tenant,
         &exchange_name,
@@ -129,6 +147,9 @@ async fn process_exchange_declare(
     }
     amqp_cache.set_exchange(exchange);
 
+    if declare.nowait {
+        return None;
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Exchange(AMQPMethod::DeclareOk(DeclareOk {})),
@@ -144,6 +165,21 @@ async fn process_exchange_delete(
 ) -> Option<AMQPFrame> {
     let exchange_name = delete.exchange.to_string();
     let tenant = amqp_cache.tenant_for(connection_id);
+
+    if delete.if_unused
+        && !amqp_cache
+            .list_bindings_by_source(&tenant, &exchange_name)
+            .is_empty()
+    {
+        return Some(channel_error_close(
+            channel_id,
+            406,
+            "PRECONDITION_FAILED",
+            40,
+            20,
+        ));
+    }
+
     let storage = ExchangeStorage::new(
         storage_driver_manager
             .engine_storage_handler
@@ -162,6 +198,9 @@ async fn process_exchange_delete(
     }
     amqp_cache.remove_exchange(&tenant, &exchange_name);
 
+    if delete.nowait {
+        return None;
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Exchange(AMQPMethod::DeleteOk(DeleteOk {})),

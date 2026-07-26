@@ -73,6 +73,7 @@ pub struct ShareGroupParamsAmqp {
     pub channel_id: u16,
     pub consumer_tag: String,
     pub no_ack: bool,
+    pub exclusive: bool,
 }
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
