@@ -31,7 +31,7 @@ impl BrokerServer {
         let nats_params = self.nats_params.clone();
         let engine_params = self.engine_params.clone();
         let kafka_cache = self.kafka_params.kafka_cache.clone();
-        let amqp_cache = self.amqp_params.amqp_cache.clone();
+        let amqp_params = self.amqp_params.clone();
         let grpc_port = self.config.grpc_port;
         self.server_runtime.spawn(Box::pin(async move {
             if let Err(e) = start_grpc_server(
@@ -40,7 +40,7 @@ impl BrokerServer {
                 nats_params,
                 engine_params,
                 kafka_cache,
-                amqp_cache,
+                amqp_params,
                 grpc_port,
             )
             .await

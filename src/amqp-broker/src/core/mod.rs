@@ -14,6 +14,7 @@
 
 pub mod cache;
 pub mod connection;
+pub mod consume_group;
 pub mod frame;
 pub mod keep_alive;
 pub mod recovery;

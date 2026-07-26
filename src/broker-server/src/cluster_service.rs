@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::update_cache::update_cache;
-use amqp_broker::core::cache::AmqpCacheManager;
+use amqp_broker::broker::AmqpBrokerServerParams;
+use amqp_broker::push::queue::deliver_to_local_connection;
+use amqp_broker::storage::offset::OffsetStorage;
 use kafka_broker::core::cache::KafkaCacheManager;
 use metadata_struct::storage::record::StorageRecord;
 use mqtt_broker::{
@@ -23,11 +25,12 @@ use mqtt_broker::{
 use nats_broker::broker::NatsBrokerServerParams;
 use nats_broker::push::nats_fanout::send_packet;
 use protocol::broker::broker::{
-    broker_service_server::BrokerService, GetQosDataByClientIdReply, GetQosDataByClientIdRequest,
-    GetShardSegmentDeleteStatusReply, GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply,
-    QueryReplicaLeoRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
-    SendNatsShareGroupMessageReply, SendNatsShareGroupMessageRequest, ShardSegmentDeleteStatus,
-    UpdateCacheReply, UpdateCacheRequest,
+    broker_service_server::BrokerService, send_share_group_message_request::Detail,
+    FetchAmqpQueueMessageReply, FetchAmqpQueueMessageRequest, GetQosDataByClientIdReply,
+    GetQosDataByClientIdRequest, GetShardSegmentDeleteStatusReply,
+    GetShardSegmentDeleteStatusRequest, QueryReplicaLeoReply, QueryReplicaLeoRequest,
+    SendLastWillMessageReply, SendLastWillMessageRequest, SendShareGroupMessageReply,
+    SendShareGroupMessageRequest, ShardSegmentDeleteStatus, UpdateCacheReply, UpdateCacheRequest,
 };
 use std::sync::Arc;
 use storage_engine::core::delete::{segment_already_delete, shard_already_delete};
@@ -42,7 +45,7 @@ pub struct GrpcBrokerService {
     nats_params: NatsBrokerServerParams,
     storage_params: StorageEngineParams,
     kafka_cache: Arc<KafkaCacheManager>,
-    amqp_cache: Arc<AmqpCacheManager>,
+    amqp_params: AmqpBrokerServerParams,
 }
 
 impl GrpcBrokerService {
@@ -51,14 +54,14 @@ impl GrpcBrokerService {
         nats_params: NatsBrokerServerParams,
         storage_params: StorageEngineParams,
         kafka_cache: Arc<KafkaCacheManager>,
-        amqp_cache: Arc<AmqpCacheManager>,
+        amqp_params: AmqpBrokerServerParams,
     ) -> Self {
         GrpcBrokerService {
             mqtt_params,
             nats_params,
             storage_params,
             kafka_cache,
-            amqp_cache,
+            amqp_params,
         }
     }
 }
@@ -76,7 +79,7 @@ impl BrokerService for GrpcBrokerService {
                 &self.nats_params,
                 &self.storage_params,
                 &self.kafka_cache,
-                &self.amqp_cache,
+                &self.amqp_params.amqp_cache,
                 record,
             )
             .await
@@ -147,33 +150,110 @@ impl BrokerService for GrpcBrokerService {
         Ok(Response::new(GetShardSegmentDeleteStatusReply { results }))
     }
 
-    async fn send_nats_share_group_message(
+    async fn send_share_group_message(
         &self,
-        request: Request<SendNatsShareGroupMessageRequest>,
-    ) -> Result<Response<SendNatsShareGroupMessageReply>, Status> {
+        request: Request<SendShareGroupMessageRequest>,
+    ) -> Result<Response<SendShareGroupMessageReply>, Status> {
         let req = request.into_inner();
-        if let Some(subscribe) = self
-            .nats_params
-            .subscribe_manager
-            .get_subscribe(req.connect_id, &req.sid)
-        {
-            let record =
-                StorageRecord::decode(&req.record).map_err(|e| Status::internal(e.to_string()))?;
-            send_packet(
-                &self.nats_params.connection_manager,
-                subscribe.connect_id,
-                &subscribe.subject,
-                &subscribe.sid,
-                &record,
+        let record =
+            StorageRecord::decode(&req.record).map_err(|e| Status::internal(e.to_string()))?;
+
+        match req.detail {
+            Some(Detail::Nats(nats)) => {
+                let Some(subscribe) = self
+                    .nats_params
+                    .subscribe_manager
+                    .get_subscribe(req.connect_id, &nats.sid)
+                else {
+                    return Err(Status::not_found(format!(
+                        "subscriber not found: connect_id={}, sid={}",
+                        req.connect_id, nats.sid
+                    )));
+                };
+                send_packet(
+                    &self.nats_params.connection_manager,
+                    subscribe.connect_id,
+                    &subscribe.subject,
+                    &subscribe.sid,
+                    &record,
+                )
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+                Ok(Response::new(SendShareGroupMessageReply {}))
+            }
+            Some(Detail::Amqp(amqp)) => {
+                let delivered = deliver_to_local_connection(
+                    &self.amqp_params.connection_manager,
+                    &self.amqp_params.amqp_cache,
+                    req.connect_id,
+                    amqp.channel_id as u16,
+                    &amqp.consumer_tag,
+                    &amqp.tenant,
+                    &amqp.queue,
+                    &record,
+                    amqp.offset,
+                    amqp.index_offset,
+                )
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+                if !delivered {
+                    return Err(Status::not_found(format!(
+                        "AMQP consumer not found locally: connect_id={}, channel_id={}",
+                        req.connect_id, amqp.channel_id
+                    )));
+                }
+                Ok(Response::new(SendShareGroupMessageReply {}))
+            }
+            None => Err(Status::invalid_argument(
+                "missing share group message detail",
+            )),
+        }
+    }
+
+    async fn fetch_amqp_queue_message(
+        &self,
+        request: Request<FetchAmqpQueueMessageRequest>,
+    ) -> Result<Response<FetchAmqpQueueMessageReply>, Status> {
+        let req = request.into_inner();
+        let offset_storage = OffsetStorage::new(
+            self.amqp_params
+                .storage_driver_manager
+                .engine_storage_handler
+                .client_pool
+                .clone(),
+        );
+        let claimed = offset_storage
+            .claim_and_track(
+                &self.amqp_params.push_manager,
+                &self.amqp_params.storage_driver_manager,
+                &req.tenant,
+                &req.queue,
+                &req.shard_name,
+                req.no_ack,
+                req.connect_id,
+                req.channel_id as u16,
+                req.requester_broker_id,
             )
             .await
             .map_err(|e| Status::internal(e.to_string()))?;
-            return Ok(Response::new(SendNatsShareGroupMessageReply {}));
-        }
-        Err(Status::not_found(format!(
-            "subscriber not found: connect_id={}, sid={}",
-            req.connect_id, req.sid
-        )))
+
+        let Some((record, offset, index_offset)) = claimed else {
+            return Ok(Response::new(FetchAmqpQueueMessageReply {
+                has_message: false,
+                record: Vec::new(),
+                offset: 0,
+                index_offset: None,
+            }));
+        };
+
+        Ok(Response::new(FetchAmqpQueueMessageReply {
+            has_message: true,
+            record: record
+                .encode()
+                .map_err(|e| Status::internal(e.to_string()))?,
+            offset,
+            index_offset,
+        }))
     }
 
     async fn query_replica_leo(

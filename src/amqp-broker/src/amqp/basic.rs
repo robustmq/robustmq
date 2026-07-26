@@ -16,21 +16,25 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use amq_protocol::frame::AMQPFrame;
-use amq_protocol::protocol::basic::{AMQPMethod, AMQPProperties, CancelOk, QosOk, RecoverOk};
+use amq_protocol::protocol::basic::{AMQPMethod, AMQPProperties, QosOk, RecoverOk};
 use amq_protocol::protocol::confirm;
 use amq_protocol::protocol::confirm::SelectOk as ConfirmSelectOk;
 use amq_protocol::protocol::AMQPClass;
 use amq_protocol::types::{AMQPValue, FieldTable};
+use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::record::{StorageRecord, StorageRecordProtocolDataAmqp};
-use network_server::common::connection_manager::ConnectionManager;
 use storage_adapter::driver::StorageDriverManager;
 use tracing::{error, warn};
 
-use crate::amqp::consume::{process_consume, process_get};
+use crate::amqp::consume::{
+    cancel_channel_consumers, cancel_connection_consumers, process_cancel, process_consume,
+    process_get,
+};
 use crate::amqp::route;
 use crate::core::cache::{AmqpCacheManager, PendingPublish, UnackedEntry};
 use crate::core::recovery::requeue_message;
 use crate::core::unacked_index;
+use crate::push::AmqpPushManager;
 
 /// Maps the wire-level AMQPProperties from a Content Header frame onto the
 /// shape stored alongside the message, so redelivery can reconstruct them
@@ -131,9 +135,10 @@ pub(crate) fn properties_from_protocol_data(
 }
 
 pub(crate) struct BasicCtx {
-    pub connection_manager: Arc<ConnectionManager>,
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub amqp_cache: Arc<AmqpCacheManager>,
+    pub client_pool: Arc<ClientPool>,
+    pub push_manager: Arc<AmqpPushManager>,
 }
 
 pub(crate) async fn process_basic_full(
@@ -202,15 +207,20 @@ pub(crate) async fn process_basic_full(
                 AMQPClass::Basic(AMQPMethod::RecoverOk(RecoverOk {})),
             )])
         }
-        AMQPMethod::Consume(consume) => process_consume(
-            channel_id,
-            consume.queue.as_str(),
-            consume.consumer_tag.as_str(),
-            connection_id,
-            ctx,
-        )
-        .await
-        .map(|f| vec![f]),
+        AMQPMethod::Consume(consume) => {
+            process_consume(
+                channel_id,
+                consume.queue.as_str(),
+                consume.consumer_tag.as_str(),
+                consume.no_ack,
+                connection_id,
+                ctx,
+            )
+            .await
+        }
+        AMQPMethod::Cancel(cancel) => {
+            process_cancel(channel_id, cancel.consumer_tag.as_str(), connection_id, ctx).await
+        }
         AMQPMethod::Publish(publish) => {
             ctx.amqp_cache.pending_publish().insert(
                 (connection_id, channel_id),
@@ -309,9 +319,11 @@ async fn process_settle(
 
 pub(crate) async fn requeue_channel(connection_id: u64, channel_id: u16, ctx: &BasicCtx) {
     process_settle(None, false, true, connection_id, channel_id, ctx).await;
+    cancel_channel_consumers(connection_id, channel_id, ctx).await;
 }
 
 pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
+    cancel_connection_consumers(connection_id, ctx).await;
     let mut settled: Vec<((u64, u16, u64), UnackedEntry)> = Vec::new();
     for entry in ctx.amqp_cache.unacked().iter() {
         let key = *entry.key();
@@ -343,7 +355,6 @@ pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
 pub fn process_basic(channel_id: u16, method: &AMQPMethod) -> Option<AMQPFrame> {
     match method {
         AMQPMethod::Qos(_) => process_qos(channel_id),
-        AMQPMethod::Cancel(m) => process_cancel(channel_id, m.consumer_tag.as_str()),
         _ => None,
     }
 }
@@ -359,15 +370,6 @@ fn process_qos(channel_id: u16) -> Option<AMQPFrame> {
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Basic(AMQPMethod::QosOk(QosOk {})),
-    ))
-}
-
-fn process_cancel(channel_id: u16, consumer_tag: &str) -> Option<AMQPFrame> {
-    Some(AMQPFrame::Method(
-        channel_id,
-        AMQPClass::Basic(AMQPMethod::CancelOk(CancelOk {
-            consumer_tag: consumer_tag.into(),
-        })),
     ))
 }
 

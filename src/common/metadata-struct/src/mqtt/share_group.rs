@@ -42,6 +42,7 @@ pub enum ShareGroupParams {
     MQTT(ShareGroupParamsMqtt),
     NATS(ShareGroupParamsNats),
     MQ9(ShareGroupParamsNats),
+    AMQP(ShareGroupParamsAmqp),
 }
 
 impl Default for ShareGroupParams {
@@ -65,6 +66,14 @@ pub struct ShareGroupParamsNats {}
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroupParamsMqtt {}
+
+/// One AMQP `Basic.Consume` registered against its queue's shared group.
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
+pub struct ShareGroupParamsAmqp {
+    pub channel_id: u16,
+    pub consumer_tag: String,
+    pub no_ack: bool,
+}
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct ShareGroup {

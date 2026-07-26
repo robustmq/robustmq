@@ -240,3 +240,7 @@ if ! command -v mvn >/dev/null 2>&1; then
     exit 1
 fi
 (cd tests/kafka-java && mvn -q test)
+
+# RabbitMQ Java-client integration tests hit the same running broker.
+echo "Running RabbitMQ Java-client integration tests..."
+(cd tests/rabbitmq-java && mvn -q test)

@@ -95,6 +95,12 @@ kafka-test: ## Run Kafka Java-client integration tests (assumes broker is alread
 	cd tests/kafka-java && mvn test \
 		$(if $(KAFKA_CLIENTS_VERSION),-Dkafka.clients.version=$(KAFKA_CLIENTS_VERSION),)
 
+.PHONY: rabbitmq-test
+rabbitmq-test: ## Run RabbitMQ Java-client integration tests (assumes broker is already running)
+	@echo "Running RabbitMQ integration tests (broker must be running)..."
+	cd tests/rabbitmq-java && mvn test \
+		$(if $(RABBITMQ_CLIENT_VERSION),-Drabbitmq.client.version=$(RABBITMQ_CLIENT_VERSION),)
+
 ##@ Clean
 .PHONY: clean
 clean: ## Clean all build artifacts

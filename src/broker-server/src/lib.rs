@@ -528,10 +528,11 @@ impl BrokerServer {
             self.kafka_params.kafka_cache.clone(),
         ));
         let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
-            self.connection_manager.clone(),
             self.amqp_params.storage_driver_manager.clone(),
             self.amqp_params.amqp_cache.clone(),
             self.amqp_params.security_manager.clone(),
+            self.amqp_params.client_pool.clone(),
+            self.amqp_params.push_manager.clone(),
         ));
         let nats_cmd = Some(nats_broker::handler::command::create_command(
             self.connection_manager.clone(),

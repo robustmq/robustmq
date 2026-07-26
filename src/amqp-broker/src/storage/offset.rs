@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
@@ -25,9 +26,9 @@ use protocol::meta::meta_service_common::{
     GetOffsetDataRequest, SaveOffsetData, SaveOffsetDataRequest, SaveOffsetDataRequestOffset,
 };
 use storage_adapter::driver::StorageDriverManager;
-use tracing::warn;
 
 use crate::core::unacked_index;
+use crate::push::manager::{AmqpPushManager, UNSEEDED};
 
 pub struct OffsetStorage {
     client_pool: Arc<ClientPool>,
@@ -63,14 +64,15 @@ impl OffsetStorage {
             .unwrap_or(0))
     }
 
-    pub async fn commit_offset_cas(
+    /// No CAS: leader election already guarantees a single writer, so this
+    /// only needs to be durable enough for the next leader to resume from.
+    async fn persist_offset(
         &self,
         tenant: &str,
         queue_name: &str,
         shard_name: &str,
-        expected: u64,
         new_offset: u64,
-    ) -> Result<bool, CommonError> {
+    ) -> Result<(), CommonError> {
         let config = broker_config();
         let request = SaveOffsetDataRequest {
             offsets: vec![SaveOffsetData {
@@ -81,34 +83,34 @@ impl OffsetStorage {
                     offset: new_offset,
                     topic: queue_name.to_string(),
                     partition: 0,
-                    expected_offset: Some(expected),
+                    expected_offset: None,
                 }],
             }],
         };
-        let reply =
-            save_offset_data(&self.client_pool, &config.get_meta_service_addr(), request).await?;
-        Ok(reply.committed)
+        save_offset_data(&self.client_pool, &config.get_meta_service_addr(), request).await?;
+        Ok(())
     }
 
-    /// Claims the next message off the shared cursor for a single `Basic.Get`.
-    /// One attempt only: if the conditional commit loses a race to another
-    /// node, this returns `Ok(None)` rather than retrying internally, since
-    /// the client will simply see it as an empty queue and can call `Get`
-    /// again, at which point it reads the offset the winner just committed.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn read_next_message(
+    /// Claims the next message for a queue this node leads, via an in-memory
+    /// cursor (seeded from the last committed offset on first use). Shared
+    /// by `Basic.Get` and `Basic.Consume`'s push loop; unacked-table
+    /// bookkeeping is left to the caller.
+    pub async fn claim_next_record(
         &self,
+        push_manager: &AmqpPushManager,
         sdm: &Arc<StorageDriverManager>,
         tenant: &str,
         queue: &str,
         shard_name: &str,
-        no_ack: bool,
-        connection_id: u64,
-        channel_id: u16,
-    ) -> Result<Option<(StorageRecord, u64, Option<u64>)>, CommonError> {
-        let current = self
-            .read_committed_offset(tenant, queue, shard_name)
-            .await?;
+    ) -> Result<Option<(StorageRecord, u64)>, CommonError> {
+        let cursor = push_manager.cursor(tenant, queue, shard_name);
+        let mut current = cursor.load(Ordering::SeqCst);
+        if current == UNSEEDED {
+            current = self
+                .read_committed_offset(tenant, queue, shard_name)
+                .await?;
+            cursor.store(current, Ordering::SeqCst);
+        }
 
         let read_config = AdapterReadConfig::new();
         let mut offsets = HashMap::new();
@@ -122,6 +124,36 @@ impl OffsetStorage {
 
         let msg_offset = record.metadata.offset;
         let new_offset = msg_offset + 1;
+        cursor.store(new_offset, Ordering::SeqCst);
+        self.persist_offset(tenant, queue, shard_name, new_offset)
+            .await?;
+
+        Ok(Some((record, msg_offset)))
+    }
+
+    /// `claim_next_record` plus, for `no_ack == false`, an unacked-index
+    /// write in the same step. Used by `Basic.Get`; Consume's push loop
+    /// calls `claim_next_record` directly since it may retry against a
+    /// different member.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn claim_and_track(
+        &self,
+        push_manager: &AmqpPushManager,
+        sdm: &Arc<StorageDriverManager>,
+        tenant: &str,
+        queue: &str,
+        shard_name: &str,
+        no_ack: bool,
+        connection_id: u64,
+        channel_id: u16,
+        broker_id: u64,
+    ) -> Result<Option<(StorageRecord, u64, Option<u64>)>, CommonError> {
+        let Some((record, msg_offset)) = self
+            .claim_next_record(push_manager, sdm, tenant, queue, shard_name)
+            .await?
+        else {
+            return Ok(None);
+        };
 
         let index_offset = if no_ack {
             None
@@ -134,27 +166,12 @@ impl OffsetStorage {
                     msg_offset,
                     connection_id,
                     channel_id,
-                    broker_config().broker_id,
+                    broker_id,
                 )
                 .await?,
             )
         };
 
-        if self
-            .commit_offset_cas(tenant, queue, shard_name, current, new_offset)
-            .await?
-        {
-            return Ok(Some((record, msg_offset, index_offset)));
-        }
-
-        if let Some(index_offset) = index_offset {
-            if let Err(e) = unacked_index::delete_entry(sdm, index_offset).await {
-                warn!(
-                    "AMQP Basic.Get: failed to clean up a stale index entry: {}",
-                    e
-                );
-            }
-        }
-        Ok(None)
+        Ok(Some((record, msg_offset, index_offset)))
     }
 }

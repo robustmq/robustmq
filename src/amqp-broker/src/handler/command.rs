@@ -21,9 +21,9 @@ use amq_protocol::protocol::connection::AMQPMethod as ConnMethod;
 use amq_protocol::protocol::AMQPClass;
 use async_trait::async_trait;
 use common_security::manager::SecurityManager;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::connection::NetworkConnection;
 use network_server::command::{ArcCommandAdapter, Command};
-use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use protocol::robust::RobustMQPacket;
 use std::net::SocketAddr;
@@ -34,49 +34,56 @@ use crate::amqp::basic::BasicCtx;
 use crate::amqp::{basic, channel, connection, exchange, publish, queue, tx};
 use crate::core::cache::AmqpCacheManager;
 use crate::core::connection::AmqpConnection;
+use crate::push::AmqpPushManager;
 
 pub fn create_command_with_state(
-    connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     amqp_cache: Arc<AmqpCacheManager>,
     security_manager: Arc<SecurityManager>,
+    client_pool: Arc<ClientPool>,
+    push_manager: Arc<AmqpPushManager>,
 ) -> ArcCommandAdapter {
     Arc::new(Box::new(AmqpHandlerCommand::new(
-        connection_manager,
         storage_driver_manager,
         amqp_cache,
         security_manager,
+        client_pool,
+        push_manager,
     )))
 }
 
 #[derive(Clone)]
 pub struct AmqpHandlerCommand {
-    connection_manager: Arc<ConnectionManager>,
     storage_driver_manager: Arc<StorageDriverManager>,
     amqp_cache: Arc<AmqpCacheManager>,
     security_manager: Arc<SecurityManager>,
+    client_pool: Arc<ClientPool>,
+    push_manager: Arc<AmqpPushManager>,
 }
 
 impl AmqpHandlerCommand {
     pub fn new(
-        connection_manager: Arc<ConnectionManager>,
         storage_driver_manager: Arc<StorageDriverManager>,
         amqp_cache: Arc<AmqpCacheManager>,
         security_manager: Arc<SecurityManager>,
+        client_pool: Arc<ClientPool>,
+        push_manager: Arc<AmqpPushManager>,
     ) -> Self {
         AmqpHandlerCommand {
-            connection_manager,
             storage_driver_manager,
             amqp_cache,
             security_manager,
+            client_pool,
+            push_manager,
         }
     }
 
     fn basic_ctx(&self) -> BasicCtx {
         BasicCtx {
-            connection_manager: self.connection_manager.clone(),
             storage_driver_manager: self.storage_driver_manager.clone(),
             amqp_cache: self.amqp_cache.clone(),
+            client_pool: self.client_pool.clone(),
+            push_manager: self.push_manager.clone(),
         }
     }
 }

@@ -42,6 +42,13 @@ pub(crate) struct PendingPublish {
     pub(crate) body: Vec<u8>,
 }
 
+/// Local record of what a `Basic.Consume` targets, so Cancel/channel-close/
+/// connection-close know what to deregister without a meta-service round trip.
+#[derive(Clone)]
+pub(crate) struct ConsumerRegistration {
+    pub(crate) queue: String,
+}
+
 #[derive(Default)]
 pub struct AmqpCacheManager {
     exchanges: DashMap<String, AmqpExchange>,
@@ -52,6 +59,7 @@ pub struct AmqpCacheManager {
     pending_logins: DashMap<u64, (String, String)>,
     pending_publish: DashMap<(u64, u16), PendingPublish>,
     unacked: DashMap<(u64, u16, u64), UnackedEntry>,
+    consumers: DashMap<(u64, u16, String), ConsumerRegistration>,
 }
 
 impl AmqpCacheManager {
@@ -65,6 +73,7 @@ impl AmqpCacheManager {
             pending_logins: DashMap::with_capacity(8),
             pending_publish: DashMap::with_capacity(8),
             unacked: DashMap::with_capacity(8),
+            consumers: DashMap::with_capacity(8),
         }
     }
 
@@ -74,6 +83,69 @@ impl AmqpCacheManager {
 
     pub(crate) fn unacked(&self) -> &DashMap<(u64, u16, u64), UnackedEntry> {
         &self.unacked
+    }
+
+    pub(crate) fn register_consumer(
+        &self,
+        connection_id: u64,
+        channel_id: u16,
+        consumer_tag: &str,
+        queue: &str,
+    ) {
+        self.consumers.insert(
+            (connection_id, channel_id, consumer_tag.to_string()),
+            ConsumerRegistration {
+                queue: queue.to_string(),
+            },
+        );
+    }
+
+    pub(crate) fn remove_consumer(
+        &self,
+        connection_id: u64,
+        channel_id: u16,
+        consumer_tag: &str,
+    ) -> Option<ConsumerRegistration> {
+        self.consumers
+            .remove(&(connection_id, channel_id, consumer_tag.to_string()))
+            .map(|(_, v)| v)
+    }
+
+    pub(crate) fn remove_consumers_by_channel(
+        &self,
+        connection_id: u64,
+        channel_id: u16,
+    ) -> Vec<(String, ConsumerRegistration)> {
+        let keys: Vec<_> = self
+            .consumers
+            .iter()
+            .filter(|e| e.key().0 == connection_id && e.key().1 == channel_id)
+            .map(|e| e.key().clone())
+            .collect();
+        keys.into_iter()
+            .filter_map(|k| {
+                let tag = k.2.clone();
+                self.consumers.remove(&k).map(|(_, v)| (tag, v))
+            })
+            .collect()
+    }
+
+    pub(crate) fn remove_consumers_by_connection(
+        &self,
+        connection_id: u64,
+    ) -> Vec<(u16, String, ConsumerRegistration)> {
+        let keys: Vec<_> = self
+            .consumers
+            .iter()
+            .filter(|e| e.key().0 == connection_id)
+            .map(|e| e.key().clone())
+            .collect();
+        keys.into_iter()
+            .filter_map(|k| {
+                let (channel_id, tag) = (k.1, k.2.clone());
+                self.consumers.remove(&k).map(|(_, v)| (channel_id, tag, v))
+            })
+            .collect()
     }
 
     fn tenant_name_key(tenant: &str, name: &str) -> String {

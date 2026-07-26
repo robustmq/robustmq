@@ -24,6 +24,7 @@ use metadata_struct::amqp::exchange::{AmqpExchange, AmqpExchangeType};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
+use crate::amqp::channel::channel_error_close;
 use crate::amqp::route;
 use crate::core::cache::AmqpCacheManager;
 use crate::storage::binding::BindingStorage;
@@ -116,10 +117,17 @@ async fn process_exchange_declare(
             .client_pool
             .clone(),
     );
-    match storage.set_exchange(&exchange).await {
-        Ok(()) => amqp_cache.set_exchange(exchange),
-        Err(e) => warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e),
+    if let Err(e) = storage.set_exchange(&exchange).await {
+        warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            10,
+        ));
     }
+    amqp_cache.set_exchange(exchange);
 
     Some(AMQPFrame::Method(
         channel_id,
@@ -142,10 +150,17 @@ async fn process_exchange_delete(
             .client_pool
             .clone(),
     );
-    match storage.delete_exchange(&tenant, &exchange_name).await {
-        Ok(()) => amqp_cache.remove_exchange(&tenant, &exchange_name),
-        Err(e) => warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e),
+    if let Err(e) = storage.delete_exchange(&tenant, &exchange_name).await {
+        warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            20,
+        ));
     }
+    amqp_cache.remove_exchange(&tenant, &exchange_name);
 
     Some(AMQPFrame::Method(
         channel_id,
@@ -176,10 +191,17 @@ async fn process_exchange_bind(
             .client_pool
             .clone(),
     );
-    match storage.set_binding(&binding).await {
-        Ok(()) => amqp_cache.set_binding(binding),
-        Err(e) => warn!("AMQP Exchange.Bind failed: {}", e),
+    if let Err(e) = storage.set_binding(&binding).await {
+        warn!("AMQP Exchange.Bind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            30,
+        ));
     }
+    amqp_cache.set_binding(binding);
 
     Some(AMQPFrame::Method(
         channel_id,
@@ -202,7 +224,7 @@ async fn process_exchange_unbind(
             .clone(),
     );
     let destination_type = AmqpBindingDestinationType::Exchange;
-    match storage
+    if let Err(e) = storage
         .delete_binding(
             &tenant,
             unbind.source.as_str(),
@@ -212,18 +234,23 @@ async fn process_exchange_unbind(
         )
         .await
     {
-        Ok(()) => {
-            let key = format!(
-                "{}/{}/{}/{}",
-                unbind.source.as_str(),
-                destination_type.as_str(),
-                unbind.destination.as_str(),
-                unbind.routing_key.as_str()
-            );
-            amqp_cache.remove_binding(&tenant, &key);
-        }
-        Err(e) => warn!("AMQP Exchange.Unbind failed: {}", e),
+        warn!("AMQP Exchange.Unbind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            40,
+        ));
     }
+    let key = format!(
+        "{}/{}/{}/{}",
+        unbind.source.as_str(),
+        destination_type.as_str(),
+        unbind.destination.as_str(),
+        unbind.routing_key.as_str()
+    );
+    amqp_cache.remove_binding(&tenant, &key);
 
     Some(AMQPFrame::Method(
         channel_id,

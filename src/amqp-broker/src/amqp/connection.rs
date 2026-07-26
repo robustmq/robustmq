@@ -69,11 +69,14 @@ fn process_connection_start_ok(
     connection_id: u64,
     amqp_cache: &Arc<AmqpCacheManager>,
 ) -> Option<AMQPFrame> {
-    if let Some((username, password)) = parse_sasl_plain(start_ok.response.as_bytes()) {
-        amqp_cache.set_pending_login(connection_id, username, password);
-    } else {
-        warn!("AMQP Connection.StartOk: unsupported SASL response format");
-    }
+    let Some((username, password)) = parse_sasl_plain(start_ok.response.as_bytes()) else {
+        warn!(
+            connection_id,
+            "AMQP Connection.StartOk: unsupported SASL response format"
+        );
+        return Some(close_frame(530, "NOT_ALLOWED", 10, 11));
+    };
+    amqp_cache.set_pending_login(connection_id, username, password);
     Some(tune_frame())
 }
 

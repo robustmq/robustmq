@@ -166,13 +166,20 @@ async fn process_queue_declare(
             .client_pool
             .clone(),
     );
-    match storage.set_queue(&amqp_queue).await {
-        Ok(()) => amqp_cache.set_queue(amqp_queue),
-        Err(e) => warn!(
+    if let Err(e) = storage.set_queue(&amqp_queue).await {
+        warn!(
             "AMQP Queue.Declare metadata write failed for {}: {}",
             queue_name, e
-        ),
+        );
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            10,
+        ));
     }
+    amqp_cache.set_queue(amqp_queue);
 
     if declare.nowait {
         return None;
@@ -223,11 +230,18 @@ async fn process_queue_delete(
             .client_pool
             .clone(),
     );
-    match storage.delete_queue(&tenant, &queue_name).await {
-        Ok(()) => amqp_cache.remove_queue(&tenant, &queue_name),
-        Err(e) => warn!("AMQP Queue.Delete failed for {}: {}", queue_name, e),
+    if let Err(e) = storage.delete_queue(&tenant, &queue_name).await {
+        warn!("AMQP Queue.Delete failed for {}: {}", queue_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            40,
+        ));
     }
-    // Metadata is gone either way at this point; also tear down the
+    amqp_cache.remove_queue(&tenant, &queue_name);
+    // Metadata is gone at this point; also tear down the
     // underlying message shard so a later redeclare starts fresh
     // instead of silently resurrecting old messages.
     if let Err(e) = storage_driver_manager
@@ -283,10 +297,17 @@ async fn process_queue_bind(
             .client_pool
             .clone(),
     );
-    match storage.set_binding(&binding).await {
-        Ok(()) => amqp_cache.set_binding(binding),
-        Err(e) => warn!("AMQP Queue.Bind failed: {}", e),
+    if let Err(e) = storage.set_binding(&binding).await {
+        warn!("AMQP Queue.Bind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            20,
+        ));
     }
+    amqp_cache.set_binding(binding);
 
     if bind.nowait {
         return None;
@@ -312,7 +333,7 @@ async fn process_queue_unbind(
             .clone(),
     );
     let destination_type = AmqpBindingDestinationType::Queue;
-    match storage
+    if let Err(e) = storage
         .delete_binding(
             &tenant,
             unbind.exchange.as_str(),
@@ -322,18 +343,23 @@ async fn process_queue_unbind(
         )
         .await
     {
-        Ok(()) => {
-            let key = format!(
-                "{}/{}/{}/{}",
-                unbind.exchange.as_str(),
-                destination_type.as_str(),
-                unbind.queue.as_str(),
-                unbind.routing_key.as_str()
-            );
-            amqp_cache.remove_binding(&tenant, &key);
-        }
-        Err(e) => warn!("AMQP Queue.Unbind failed: {}", e),
+        warn!("AMQP Queue.Unbind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            50,
+        ));
     }
+    let key = format!(
+        "{}/{}/{}/{}",
+        unbind.exchange.as_str(),
+        destination_type.as_str(),
+        unbind.queue.as_str(),
+        unbind.routing_key.as_str()
+    );
+    amqp_cache.remove_binding(&tenant, &key);
 
     Some(AMQPFrame::Method(
         channel_id,
@@ -353,30 +379,43 @@ async fn process_queue_purge(
 ) -> Option<AMQPFrame> {
     let queue_name = purge.queue.to_string();
     let tenant = amqp_cache.tenant_for(connection_id);
-    let mut message_count: u64 = 0;
 
-    match storage_driver_manager
+    let resources = match storage_driver_manager
         .list_storage_resource(&tenant, &queue_name)
         .await
     {
-        Ok(resources) => {
-            let targets: HashMap<u32, u64> = resources
-                .iter()
-                .map(|(partition, detail)| (*partition, detail.offset.end_offset))
-                .collect();
-            message_count = resources
-                .values()
-                .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
-                .sum();
-            if let Err(e) = storage_driver_manager
-                .delete_records_before(&tenant, &queue_name, &targets)
-                .await
-            {
-                warn!("AMQP Queue.Purge failed for {}: {}", queue_name, e);
-                message_count = 0;
-            }
+        Ok(resources) => resources,
+        Err(e) => {
+            warn!("AMQP Queue.Purge: failed to inspect {}: {}", queue_name, e);
+            return Some(channel_error_close(
+                channel_id,
+                541,
+                "INTERNAL_ERROR",
+                50,
+                30,
+            ));
         }
-        Err(e) => warn!("AMQP Queue.Purge: failed to inspect {}: {}", queue_name, e),
+    };
+    let targets: HashMap<u32, u64> = resources
+        .iter()
+        .map(|(partition, detail)| (*partition, detail.offset.end_offset))
+        .collect();
+    let message_count: u64 = resources
+        .values()
+        .map(|d| d.offset.end_offset.saturating_sub(d.offset.start_offset))
+        .sum();
+    if let Err(e) = storage_driver_manager
+        .delete_records_before(&tenant, &queue_name, &targets)
+        .await
+    {
+        warn!("AMQP Queue.Purge failed for {}: {}", queue_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            50,
+            30,
+        ));
     }
 
     if purge.nowait {

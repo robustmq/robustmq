@@ -22,8 +22,9 @@ service BrokerService {
   rpc SendLastWillMessage(SendLastWillMessageRequest) returns (SendLastWillMessageReply) {}
   rpc GetQosDataByClientId(GetQosDataByClientIdRequest) returns (GetQosDataByClientIdReply) {}
   rpc GetShardSegmentDeleteStatus(GetShardSegmentDeleteStatusRequest) returns (GetShardSegmentDeleteStatusReply) {}
-  rpc SendNatsShareGroupMessage(SendNatsShareGroupMessageRequest) returns (SendNatsShareGroupMessageReply) {}
+  rpc SendShareGroupMessage(SendShareGroupMessageRequest) returns (SendShareGroupMessageReply) {}
   rpc QueryReplicaLeo(QueryReplicaLeoRequest) returns (QueryReplicaLeoReply) {}
+  rpc FetchAmqpQueueMessage(FetchAmqpQueueMessageRequest) returns (FetchAmqpQueueMessageReply) {}
 }
 
 message UpdateCacheRequest {
@@ -83,13 +84,49 @@ message GetShardSegmentDeleteStatusReply {
   repeated ShardSegmentDeleteStatus results = 1;
 }
 
-message SendNatsShareGroupMessageRequest {
+// Delivers one already-fetched message to a local connection on behalf of
+// the shared group's leader (NATS queue group or AMQP queue).
+message SendShareGroupMessageRequest {
   uint64 connect_id = 1;
-  string sid = 2;
-  bytes record = 3;
+  bytes record = 2;
+  oneof detail {
+    NatsShareGroupDetail nats = 3;
+    AmqpShareGroupDetail amqp = 4;
+  }
 }
 
-message SendNatsShareGroupMessageReply {}
+message NatsShareGroupDetail {
+  string sid = 1;
+}
+
+message AmqpShareGroupDetail {
+  uint32 channel_id = 1;
+  string consumer_tag = 2;
+  string tenant = 3;
+  string queue = 4;
+  uint64 offset = 5;
+  optional uint64 index_offset = 6; // set unless the consumer is no_ack
+}
+
+message SendShareGroupMessageReply {}
+
+// A non-leader node forwards a Basic.Get pull to the queue's leader.
+message FetchAmqpQueueMessageRequest {
+  string tenant = 1;
+  string queue = 2;
+  string shard_name = 3;
+  uint64 connect_id = 4;
+  uint32 channel_id = 5;
+  bool no_ack = 6;
+  uint64 requester_broker_id = 7; // stamped onto the unacked-index entry
+}
+
+message FetchAmqpQueueMessageReply {
+  bool has_message = 1;
+  bytes record = 2;
+  uint64 offset = 3;
+  optional uint64 index_offset = 4;
+}
 
 enum BrokerUpdateCacheResourceType {
   Session = 0;
