@@ -414,6 +414,7 @@ pub async fn update_cluster_cache_metadata(
                                 subject: member.sub_path,
                                 queue_group: Some(member.group_name),
                                 create_time: member.create_time,
+                                known_topic_offsets: Default::default(),
                             }),
                             topic: None,
                         })
@@ -439,6 +440,7 @@ pub async fn update_cluster_cache_metadata(
                                 sid: member.sid,
                                 subject: member.sub_path,
                                 create_time: member.create_time,
+                                known_topic_offsets: Default::default(),
                             }),
                             topic: None,
                         })

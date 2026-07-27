@@ -21,7 +21,9 @@ use common_base::uuid::unique_id;
 use metadata_struct::nats::subscribe::NatsSubscribe;
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use metadata_struct::topic::{Topic, TopicSource};
+use std::collections::HashMap;
 use std::sync::Arc;
+use storage_adapter::driver::StorageDriverManager;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info};
@@ -91,7 +93,7 @@ pub(crate) async fn parse_by_new_subscribe(
 
             for topic in topics {
                 if nats_subject_match(&sub.subject, &topic.topic_name) {
-                    register_subscriber(subscribe_manager, sub, &topic.topic_name, source).await?;
+                    register_subscriber(subscribe_manager, sub, &topic.topic_name, source);
                 }
             }
         }
@@ -121,19 +123,90 @@ pub(crate) async fn parse_by_new_topic(
                 &sub,
                 &topic.topic_name,
                 &SubscribeSource::NatsCore,
-            )
-            .await?;
+            );
         }
     }
     Ok(())
 }
 
-async fn register_subscriber(
+/// Snapshots each shard's current end_offset for `topic_name` right now.
+/// Returns an empty map if the topic doesn't exist yet — correct, since
+/// nothing has been published yet, so "latest" is the start of an empty log.
+async fn snapshot_topic_offsets(
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    tenant: &str,
+    topic_name: &str,
+) -> HashMap<String, u64> {
+    storage_driver_manager
+        .list_storage_resource(tenant, topic_name)
+        .await
+        .map(|resources| {
+            resources
+                .into_values()
+                .map(|detail| (detail.shard_name, detail.offset.end_offset))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Snapshots offsets for every topic that *already exists* and matches
+/// `subject_pattern`, at the moment a SUB is being processed (see
+/// `process_sub` in nats/subscribe.rs) — this is the only point where "now"
+/// reliably means "subscribe time", since everything downstream (raft
+/// broadcast of the subscribe intent, matching it against topics, and the
+/// fanout push loop noticing the resulting subscriber) is asynchronous and
+/// can be arbitrarily delayed. A topic that doesn't exist yet simply won't
+/// be in the returned map; `register_subscriber` treats that as "start from
+/// the beginning once it's created", which is correct since nothing could
+/// have been published to a topic that didn't exist yet.
+pub(crate) async fn snapshot_known_topic_offsets(
+    cache_manager: &Arc<NatsCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    tenant: &str,
+    subject_pattern: &str,
+) -> HashMap<String, HashMap<String, u64>> {
+    let topics: Vec<_> = cache_manager
+        .node_cache
+        .list_topics_by_tenant(tenant)
+        .into_iter()
+        .filter(|t| t.source == TopicSource::NATS)
+        .filter(|t| nats_subject_match(subject_pattern, &t.topic_name))
+        .collect();
+
+    let mut result = HashMap::with_capacity(topics.len());
+    for topic in topics {
+        let offsets =
+            snapshot_topic_offsets(storage_driver_manager, tenant, &topic.topic_name).await;
+        result.insert(topic.topic_name, offsets);
+    }
+    result
+}
+
+fn register_subscriber(
     subscribe_manager: &Arc<NatsSubscribeManager>,
     sub: &NatsSubscribe,
     topic_name: &str,
     source: &SubscribeSource,
-) -> Result<(), NatsBrokerError> {
+) {
+    let is_fanout = sub.queue_group.as_deref().unwrap_or("").is_empty();
+    let initial_offsets = if !is_fanout {
+        HashMap::new()
+    } else if let Some(offsets) = sub.known_topic_offsets.get(topic_name) {
+        // This topic already existed at subscribe time — use the snapshot
+        // taken then, not whatever the tail is now that registration is
+        // actually happening.
+        offsets.clone()
+    } else {
+        // Wasn't known at subscribe time. Either it's a topic created after
+        // subscribing (correct to start from empty/beginning), or this
+        // subscribe intent arrived from a remote broker via replication
+        // (queue_group aside, cross-node NatsCore fanout isn't currently
+        // replicated this way, so this path is the "new topic" case in
+        // practice). Falling back to a live snapshot would reintroduce the
+        // original race, so we deliberately don't.
+        HashMap::new()
+    };
+
     let subscriber = NatsSubscriber {
         uniq_id: unique_id(),
         tenant: sub.tenant.clone(),
@@ -144,18 +217,18 @@ async fn register_subscriber(
         broker_id: sub.broker_id,
         queue_group: sub.queue_group.clone(),
         create_time: now_second(),
+        initial_offsets,
     };
 
     match source {
         SubscribeSource::NatsCore => {
-            if sub.queue_group.as_deref().unwrap_or("").is_empty() {
+            if is_fanout {
                 subscribe_manager.add_nats_core_fanout_subscriber(subscriber);
             } else {
                 subscribe_manager.add_nats_core_queue_subscriber(&subscriber);
             }
         }
     }
-    Ok(())
 }
 
 pub fn nats_subject_match(pattern: &str, topic: &str) -> bool {
