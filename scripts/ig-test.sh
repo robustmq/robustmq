@@ -15,10 +15,23 @@
 
 set -e
 
-# Parse arguments
+SUITE=""
 START_BROKER=false
-if [ "$1" == "--start-broker" ]; then
-    START_BROKER=true
+for arg in "$@"; do
+    case "$arg" in
+        --start-broker) START_BROKER=true ;;
+        core|mqtt|nats|mq9|kafka|amqp) SUITE="$arg" ;;
+        *)
+            echo "Unknown argument: $arg"
+            echo "Usage: $0 <core|mqtt|nats|mq9|kafka|amqp> [--start-broker]"
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$SUITE" ]; then
+    echo "Usage: $0 <core|mqtt|nats|mq9|kafka|amqp> [--start-broker]"
+    exit 1
 fi
 
 # Cleanup function
@@ -219,28 +232,91 @@ else
     echo "Skipping broker startup (assuming broker is already running)..."
 fi
 
-# Run tests
-echo "Running integration tests..."
 # Integration tests all hit a single shared broker, so they are broker-bound, not
 # CPU-parallel. nextest's default profile uses 14 test threads; on a 4-core CI runner
 # that oversubscribes the CPU ~3.5x and starves the broker, causing request timeouts
 # (e.g. POST /mcp blocking 10s -> mcp_test failures). Scale concurrency to the available
 # cores so tests and the broker are not fighting over the CPU.
 TEST_THREADS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
-cargo nextest run --fail-fast \
-  --test-threads="${TEST_THREADS}" \
-  --package grpc-clients \
-  --package robustmq-test
 
-# Kafka Java-client integration tests hit the same running broker.
-echo "Running Kafka Java-client integration tests..."
-if ! command -v mvn >/dev/null 2>&1; then
-    echo "ERROR: mvn (Maven) not found; it is required for the Kafka Java integration tests."
-    exit 1
-fi
-(cd tests/kafka-java && mvn -q test)
+# tests/tests/mod.rs compiles amqp/engine/kafka/mq9/mqtt/nats as submodules of one
+# "mod" nextest binary; --test mod -E 'test(/^<mod>::/)' isolates just that
+# protocol's tests within it without touching the others.
+run_mod_submodule() {
+    local module="$1"
+    echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
+    cargo nextest run --fail-fast \
+      --test-threads="${TEST_THREADS}" \
+      --package robustmq-test \
+      --test mod \
+      -E "test(/^${module}::/)"
+}
 
-# RabbitMQ Java-client integration tests hit the same running broker.
-echo "Running RabbitMQ Java-client integration tests..."
-(cd tests/rabbitmq-java && mvn -q test)
+require_mvn() {
+    if ! command -v mvn >/dev/null 2>&1; then
+        echo "ERROR: mvn (Maven) not found; it is required for the $1 Java integration tests."
+        exit 1
+    fi
+}
+
+case "$SUITE" in
+    core)
+        echo "Running core (protocol-agnostic) integration tests..."
+        echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
+        # -E applies across the WHOLE selection, not just one --test binary, so
+        # each binary this suite owns must be spelled out (or, for "mod",
+        # explicitly restricted to its engine:: submodule) rather than
+        # filtering on test name alone -- that would also silently drop the
+        # config_test/group_gc/etc. binaries, which don't have "engine::"
+        # names of their own.
+        cargo nextest run --fail-fast \
+          --test-threads="${TEST_THREADS}" \
+          --package grpc-clients \
+          --package robustmq-test \
+          -E 'package(grpc-clients)
+              or binary_id(robustmq-test::config_test)
+              or binary_id(robustmq-test::group_gc)
+              or binary_id(robustmq-test::mcp_test)
+              or binary_id(robustmq-test::node_call)
+              or binary_id(robustmq-test::offset_test)
+              or binary_id(robustmq-test::topic_test)
+              or (binary_id(robustmq-test::mod) and test(/^engine::/))'
+        ;;
+    mqtt)
+        echo "Running MQTT integration tests..."
+        echo "Using --test-threads=${TEST_THREADS} (detected CPU cores)"
+        # MQTT tests live in two places: submodule mqtt:: inside the "mod"
+        # binary, and a couple of inline unit tests in the package's own lib
+        # target -- both need --lib alongside --test mod to be picked up.
+        cargo nextest run --fail-fast \
+          --test-threads="${TEST_THREADS}" \
+          --package robustmq-test \
+          --lib \
+          --test mod \
+          -E 'test(/^mqtt::/)'
+        ;;
+    nats)
+        echo "Running NATS integration tests..."
+        run_mod_submodule nats
+        ;;
+    mq9)
+        echo "Running MQ9 integration tests..."
+        run_mod_submodule mq9
+        ;;
+    kafka)
+        echo "Running Kafka integration tests..."
+        run_mod_submodule kafka
+
+        echo "Running Kafka Java-client integration tests..."
+        require_mvn Kafka
+        (cd tests/kafka-java && mvn -q test)
+        ;;
+    amqp)
+        echo "Running AMQP integration tests..."
+        run_mod_submodule amqp
+
+        echo "Running RabbitMQ Java-client integration tests..."
+        require_mvn RabbitMQ
+        (cd tests/rabbitmq-java && mvn -q test)
+        ;;
+esac

@@ -24,6 +24,7 @@ use crate::{
     storage::mqtt::acl::AclStorage,
 };
 use common_base::utils::serialize::encode_to_bytes;
+use grpc_clients::utils::NOT_RAFT_LEADER_MARKER;
 use metadata_struct::auth::acl::SecurityAcl;
 use metadata_struct::auth::blacklist::SecurityBlackList;
 use node_call::NodeCallManager;
@@ -36,10 +37,25 @@ use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
 
 // ACL Operations
+//
+// `list_acl_by_req` only reads this node's own local raft-applied state, with
+// no linearizability guarantee: a follower that hasn't yet applied a
+// just-committed delete would still report the deleted ACL as present. Since
+// `create_acl_by_req`/`delete_acl_by_req` always apply on the raft leader
+// (openraft rejects the write on any other node), only the leader is
+// guaranteed to be caught up on the write it *just* processed — so refuse
+// here when we're not it, and let the client (`grpc-clients::utils`) sweep to
+// another node until it lands on the leader.
 pub fn list_acl_by_req(
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    raft_manager: &Arc<MultiRaftManager>,
     req: &ListAclRequest,
 ) -> Result<ListAclReply, MetaServiceError> {
+    if !raft_manager.is_metadata_leader() {
+        return Err(MetaServiceError::CommonError(format!(
+            "{NOT_RAFT_LEADER_MARKER} for ListAcl"
+        )));
+    }
     let acl_storage = AclStorage::new(rocksdb_engine_handler.clone());
     let acls = if req.tenant.is_empty() {
         acl_storage.list_all()?

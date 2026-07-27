@@ -25,7 +25,9 @@ use crate::core::error::NatsProtocolError;
 use crate::core::queue_name::{add_member_by_group, delete_member_by_group};
 use crate::core::subject::is_inbox_subject;
 use crate::handler::command::NatsProcessContext;
-use crate::push::parse::{ParseAction, ParseSubscribeData, SubscribeSource};
+use crate::push::parse::{
+    snapshot_known_topic_offsets, ParseAction, ParseSubscribeData, SubscribeSource,
+};
 use crate::storage::subscribe::NatsSubscribeStorage;
 
 pub fn subject_message_tag(tenant: &str, subject: &str) -> String {
@@ -51,6 +53,27 @@ pub async fn process_sub(
     }
 
     let tenant = DEFAULT_TENANT.to_string();
+
+    // Snapshot offsets for every already-existing topic this subject/pattern
+    // matches, right now, while "now" still reliably means "subscribe time".
+    // Everything after this point — replicating this subscribe intent via
+    // raft, matching it against topics, the fanout push loop noticing the
+    // resulting subscriber — is asynchronous and can be arbitrarily delayed,
+    // so resolving "latest" any later than this would risk skipping messages
+    // published in the gap. Queue-group subscribers don't need this (their
+    // push path already starts from Earliest, not Latest).
+    let known_topic_offsets = if queue_group.is_none() {
+        snapshot_known_topic_offsets(
+            &ctx.cache_manager,
+            &ctx.storage_driver_manager,
+            &tenant,
+            subject,
+        )
+        .await
+    } else {
+        Default::default()
+    };
+
     let subscribe = NatsSubscribe {
         broker_id: broker_config().broker_id,
         tenant: tenant.clone(),
@@ -59,7 +82,26 @@ pub async fn process_sub(
         subject: subject.to_string(),
         queue_group: queue_group.map(|s| s.to_string()),
         create_time: now_second(),
+        known_topic_offsets,
     };
+
+    // Make this subscribe visible in this node's own subscribe_list right
+    // now, synchronously, *before* the raft write below — not after it, and
+    // not by waiting for that write to round-trip back through the
+    // UpdateCache broadcast (dynamic_cache.rs's `update_nats_cache_metadata`,
+    // which normally does this). That broadcast is what makes the subscribe
+    // visible to *other* nodes and is still needed for that, but relying on
+    // it alone here (or even doing this after the raft write) leaves a
+    // window where a publish to a brand-new subject on this same connection
+    // — NATS has no SUB ack, so a client can fire SUB then PUB back-to-back
+    // without waiting on the server at all — creates the topic and fires its
+    // one-shot `parse_by_new_topic` match before subscribe_list has this
+    // entry. That match finds nothing and nothing ever retries it: the
+    // message is dropped for good, not just delayed. Doing this first, before
+    // any `.await` point, closes that race for the common case (subscribe
+    // and publish on the same node). `update_nats_cache_metadata` doing the
+    // same insert again once the broadcast arrives is a harmless no-op.
+    ctx.subscribe_manager.add_subscribe(subscribe.clone());
 
     // save subscribe
     let storage = NatsSubscribeStorage::new(ctx.client_pool.clone());

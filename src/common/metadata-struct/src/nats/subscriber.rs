@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+
 use common_base::{error::common::CommonError, utils::serialize};
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +31,13 @@ pub struct NatsSubscriber {
     /// Non-empty for queue-group subscriptions.
     pub queue_group: Option<String>,
     pub create_time: u64,
+    /// Per-shard offsets snapshotted at the moment this subscriber became
+    /// routable (i.e. "latest" as of subscribe time), not whenever a push
+    /// loop first happens to poll it. Empty if the topic didn't exist yet at
+    /// that point (nothing published yet, so latest == start of an empty log).
+    /// Only meaningful for fanout (non-queue-group) subscribers — see
+    /// `FanoutPushManager::get_or_create_consumer`.
+    pub initial_offsets: HashMap<String, u64>,
 }
 
 impl NatsSubscriber {

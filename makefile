@@ -79,15 +79,55 @@ test: ## Run unit tests with cleanup
 		--exclude=grpc-clients \
 		--filter-expr '!(test(meta) & package(storage-adapter))'
 
-.PHONY: ig-test
-ig-test: ## Run integration tests (assumes broker is already running)
-	@echo "Running integration tests (broker must be running)..."
-	/bin/bash ./scripts/ig-test.sh
+## Integration tests are split by protocol so each can be diagnosed
+## independently in CI (its own 3-node cluster, its own pass/fail): core
+## (protocol-agnostic: engine/meta/grpc-clients/mcp/etc.), mqtt, nats, mq9,
+## kafka, amqp. Each has a plain (assumes a broker is already running) and a
+## -ci (starts/stops its own 3-node cluster) variant.
+.PHONY: ig-test-core ig-test-core-ci
+ig-test-core: ## Run core (protocol-agnostic) integration tests (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh core
+ig-test-core-ci: ## Run core integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh core --start-broker
 
-.PHONY: ig-test-ci
-ig-test-ci: ## Run integration tests with broker startup (for CI)
-	@echo "Running integration tests with broker startup..."
-	/bin/bash ./scripts/ig-test.sh --start-broker
+.PHONY: ig-test-mqtt ig-test-mqtt-ci
+ig-test-mqtt: ## Run MQTT integration tests (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh mqtt
+ig-test-mqtt-ci: ## Run MQTT integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh mqtt --start-broker
+
+.PHONY: ig-test-nats ig-test-nats-ci
+ig-test-nats: ## Run NATS integration tests (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh nats
+ig-test-nats-ci: ## Run NATS integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh nats --start-broker
+
+.PHONY: ig-test-mq9 ig-test-mq9-ci
+ig-test-mq9: ## Run MQ9 integration tests (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh mq9
+ig-test-mq9-ci: ## Run MQ9 integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh mq9 --start-broker
+
+.PHONY: ig-test-kafka ig-test-kafka-ci
+ig-test-kafka: ## Run Kafka integration tests, incl. Java client (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh kafka
+ig-test-kafka-ci: ## Run Kafka integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh kafka --start-broker
+
+.PHONY: ig-test-amqp ig-test-amqp-ci
+ig-test-amqp: ## Run AMQP integration tests, incl. RabbitMQ Java client (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh amqp
+ig-test-amqp-ci: ## Run AMQP integration tests with broker startup (for CI)
+	/bin/bash ./scripts/ig-test.sh amqp --start-broker
+
+.PHONY: ig-test-all
+ig-test-all: ## Run every integration test suite sequentially (assumes broker is already running)
+	/bin/bash ./scripts/ig-test.sh core
+	/bin/bash ./scripts/ig-test.sh mqtt
+	/bin/bash ./scripts/ig-test.sh nats
+	/bin/bash ./scripts/ig-test.sh mq9
+	/bin/bash ./scripts/ig-test.sh kafka
+	/bin/bash ./scripts/ig-test.sh amqp
 
 .PHONY: kafka-test
 kafka-test: ## Run Kafka Java-client integration tests (assumes broker is already running)

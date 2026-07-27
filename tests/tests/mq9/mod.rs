@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// `common` also backs `crate::mq9`'s tests: MQ9 rides over the NATS
-// transport, so its connection helpers live here rather than duplicated.
-pub mod common;
-pub mod nats_core;
-pub mod nats_queue;
+pub mod agent_core;
+pub mod agent_discover;
+pub mod mq9_core;
+pub mod mq9_delay;
+pub mod mq9_fetch;
+pub mod mq9_mail;
+pub mod mq9_msg_id;
+pub mod mq9_msg_tags;
+pub mod mq9_msg_ttl;
+pub mod mq9_priority;
