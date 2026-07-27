@@ -36,6 +36,8 @@ use metadata_struct::schema::{SchemaData, SchemaResourceBind};
 use metadata_struct::tenant::Tenant;
 use metadata_struct::topic::Topic;
 use mqtt_broker::core::topic::{create_topic_by_mqtt, delete_topic_by_mqtt};
+use tracing::warn;
+
 use mqtt_broker::{
     broker::MqttBrokerServerParams, core::dynamic_cache::update_mqtt_cache_metadata,
 };
@@ -222,8 +224,36 @@ pub async fn update_cluster_cache_metadata(
 
         BrokerUpdateCacheResourceType::ClusterResourceConfig => {
             let config: ResourceConfig = serialize::deserialize(&record.data)?;
-            if let Ok(config_type) = ClusterDynamicConfig::from_str(&config.resource) {
-                update_cluster_dynamic_config(&mqtt_params.node_cache, config_type, config.config)?;
+            // `config.resource` is built by joining the resource path segments
+            // with '/' (see `ClusterStorage::dynamic_config_resources`, which
+            // always prefixes with "cluster", e.g. "cluster/KafkaDynamic"),
+            // but `ClusterDynamicConfig::from_str` only recognizes bare
+            // variant names ("KafkaDynamic"). Matching on the full joined
+            // string always failed here, silently (the `if let Ok` swallowed
+            // it) — meaning every node *other* than the one that handled the
+            // original admin-API write never applied cluster dynamic-config
+            // changes at all, no matter how long it waited. Use the last path
+            // segment, which is the actual resource-type name regardless of
+            // how many segments precede it.
+            let resource_type = config
+                .resource
+                .rsplit('/')
+                .next()
+                .unwrap_or(&config.resource);
+            match ClusterDynamicConfig::from_str(resource_type) {
+                Ok(config_type) => {
+                    update_cluster_dynamic_config(
+                        &mqtt_params.node_cache,
+                        config_type,
+                        config.config,
+                    )?;
+                }
+                Err(e) => {
+                    warn!(
+                        "Unrecognized ClusterResourceConfig resource '{}': {}",
+                        config.resource, e
+                    );
+                }
             }
         }
 
