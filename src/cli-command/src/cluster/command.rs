@@ -63,7 +63,7 @@ impl ClusterCommand {
         ClusterCommand {}
     }
     pub async fn start(&self, params: ClusterCliCommandParam) {
-        match params.action.clone() {
+        match params.action {
             ClusterActionType::Status => {
                 self.status(params).await;
             }
