@@ -37,8 +37,10 @@ const items = [
         items: [
             { text: "Quick Install", link: "/en/QuickGuide/Quick-Install" },
             { text: "Experience MQTT", link: "/en/QuickGuide/Experience-MQTT" },
+            { text: "Experience Kafka", link: "/en/QuickGuide/Experience-Kafka" },
             { text: "Experience NATS Core", link: "/en/QuickGuide/Experience-NATS" },
             { text: "Experience mq9", link: "/en/QuickGuide/Experience-MQ9" },
+            { text: "Experience AMQP", link: "/en/QuickGuide/Experience-AMQP" },
             { text: "Public Server", link: "/en/QuickGuide/PublicMqttServer" },
         ],
     },
@@ -239,7 +241,54 @@ const items = [
     collapsed: true,
     items: [
       { text: "Overview", link: "/en/RobustMQ-AMQP/Overview" },
+      { text: "Core Concepts", link: "/en/RobustMQ-AMQP/AMQPCoreConcepts" },
+      { text: "System Architecture", link: "/en/RobustMQ-AMQP/SystemArchitecture" },
       { text: "Protocol Support", link: "/en/RobustMQ-AMQP/Protocol" },
+      { text: "Quick Start", link: "/en/RobustMQ-AMQP/QuickStart" },
+      {
+        text: "Messaging",
+        collapsed: true,
+        items: [
+          { text: "Publishing", link: "/en/RobustMQ-AMQP/Publishing" },
+          { text: "Consuming", link: "/en/RobustMQ-AMQP/Consuming" },
+          { text: "Shared Queue Group", link: "/en/RobustMQ-AMQP/SharedQueueGroup" },
+          { text: "Acknowledgement", link: "/en/RobustMQ-AMQP/Acknowledgement" },
+          { text: "Publisher Confirms", link: "/en/RobustMQ-AMQP/PublisherConfirms" },
+        ],
+      },
+      {
+        text: "Storage",
+        collapsed: true,
+        items: [
+          { text: "Storage Model", link: "/en/RobustMQ-AMQP/Storage" },
+          { text: "Queue Purge & Delete", link: "/en/RobustMQ-AMQP/QueuePurgeAndDelete" },
+        ],
+      },
+      {
+        text: "Security",
+        collapsed: true,
+        items: [
+          { text: "Overview", link: "/en/RobustMQ-AMQP/Security/Overview" },
+          { text: "Authentication (SASL)", link: "/en/RobustMQ-AMQP/Security/Authentication-SASL" },
+        ],
+      },
+      {
+        text: "Configuration",
+        collapsed: true,
+        items: [
+          { text: "Broker Config", link: "/en/RobustMQ-AMQP/Configuration/BrokerConfig" },
+          { text: "Exchange & Queue Config", link: "/en/RobustMQ-AMQP/Configuration/ExchangeAndQueueConfig" },
+        ],
+      },
+      {
+        text: "Client SDK",
+        collapsed: true,
+        items: [
+          { text: "Java Client", link: "/en/RobustMQ-AMQP/SDK/java-client" },
+        ],
+      },
+      { text: "Compatibility & Limitations", link: "/en/RobustMQ-AMQP/Compatibility-and-Limitations" },
+      { text: "Roadmap", link: "/en/RobustMQ-AMQP/Roadmap" },
     ],
   },
   {
