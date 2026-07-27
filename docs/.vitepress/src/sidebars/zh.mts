@@ -23,7 +23,8 @@ const items = [
                 text: "版本计划",
                 collapsed: true,
                 items: [
-                    { text: "2026 年 RoadMap", link: "/zh/OverView/RoadMap-2026" },
+                    { text: "2026 年 RoadMap（更新版）", link: "/zh/OverView/RoadMap-2026-Update" },
+                    { text: "2026 年 RoadMap（原版）", link: "/zh/OverView/RoadMap-2026" },
                     { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
