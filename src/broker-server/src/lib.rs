@@ -196,12 +196,12 @@ impl BrokerServer {
         // tokio::spawn inside openraft) land on meta_runtime, not server_runtime.
         let meta_runtime = create_runtime(
             "meta-runtime",
-            resolve_meta_worker_threads(config.runtime.meta_worker_threads),
+            resolve_meta_worker_threads(config.meta_runtime.meta_worker_threads),
         );
         // broker_runtime is created here for broker-specific tasks.
         let broker_runtime = create_runtime(
             "broker-runtime",
-            resolve_broker_worker_threads(config.runtime.broker_worker_threads),
+            resolve_broker_worker_threads(config.mqtt_runtime.broker_worker_threads),
         );
         let engine_runtime = create_runtime(
             "engine-runtime",

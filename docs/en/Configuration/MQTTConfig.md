@@ -10,6 +10,17 @@ All MQTT-related configuration is grouped under the TOML `[mqtt_runtime]` table 
 export ROBUST_MQ_SERVER_MQTT_RUNTIME_SERVER_TCP_PORT=1883
 ```
 
+The `[mqtt_runtime]` table also carries one field directly (not part of any sub-table):
+
+```toml
+[mqtt_runtime]
+broker_worker_threads = 0  # 0 = auto: CPU core count
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `broker_worker_threads` | `usize` | `0` (auto) | Worker threads for the broker-runtime (MQTT connection handling, message delivery hot path); `0` = auto, uses CPU core count |
+
 ---
 
 ## 1. MQTT Server Configuration
@@ -267,6 +278,9 @@ system_topic_interval_ms = 60000
 ## Full Example
 
 ```toml
+[mqtt_runtime]
+broker_worker_threads = 0
+
 [mqtt_runtime.server]
 tcp_port = 1883
 tls_port = 1885

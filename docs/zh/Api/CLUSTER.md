@@ -67,32 +67,23 @@ GET /api/cluster/config/get?broker_id=2
     "meta_addrs": {
       "1": "127.0.0.1:1228"
     },
-    "prometheus": {
-      "enable": true,
-      "port": 9090
-    },
     "log": {
       "log_path": "./logs",
       "log_config": "./config/broker-tracing.toml"
     },
     "runtime": {
-      "runtime_worker_threads": 1,
       "server_worker_threads": 0,
-      "meta_worker_threads": 0,
-      "broker_worker_threads": 0,
       "channels_per_address": 10,
-      "tls_cert": "./config/certs/cert.pem",
-      "tls_key": "./config/certs/key.pem"
+      "pprof_enable": false,
+      "default_topic_partition_num": 3,
+      "default_topic_replica_num": 2
     },
-    "network": {
+    "broker_network": {
       "accept_thread_num": 8,
       "handler_thread_num": 32,
-      "queue_size": 1000
-    },
-    "pprof": {
-      "enable": false,
-      "port": 6060,
-      "frequency": 100
+      "queue_size": 1000,
+      "tls_cert": "./config/certs/cert.pem",
+      "tls_key": "./config/certs/key.pem"
     },
     "rocksdb": {
       "data_path": "./data",
@@ -109,7 +100,8 @@ GET /api/cluster/config/get?broker_id=2
       "heartbeat_check_time_ms": 1000,
       "raft_write_timeout_sec": 30,
       "offset_raft_group_num": 1,
-      "data_raft_group_num": 1
+      "data_raft_group_num": 1,
+      "meta_worker_threads": 0
     },
     "storage_runtime": {
       "tcp_port": 1778,
@@ -119,6 +111,7 @@ GET /api/cluster/config/get?broker_id=2
       "offset_enable_cache": true
     },
     "mqtt_runtime": {
+      "broker_worker_threads": 0,
       "server": {
         "tcp_port": 1883,
         "tls_port": 1885,
@@ -550,12 +543,7 @@ Content-Type: application/json
 | `http_port` | u32 | HTTP API 服务端口 |
 | `meta_addrs` | object | Meta 节点地址映射（节点ID → 地址） |
 
-#### prometheus
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `enable` | bool | 是否启用 Prometheus 指标 |
-| `port` | u16 | Prometheus 指标暴露端口 |
+> 说明：`[prometheus]` 和 `[pprof]` 并不是独立的配置 section —— Prometheus 指标始终通过与 `http_port` 共用的 `GET /metrics` 暴露，pprof 采集由 `runtime.pprof_enable` 控制（见下），两者都没有独立端口。详见 [Broker 配置说明](../Configuration/BROKER.md#10-监控与性能分析)。
 
 #### log
 
@@ -568,29 +556,21 @@ Content-Type: application/json
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `runtime_worker_threads` | usize | 兼容旧版全局线程倍数，各运行时字段为 0 时作为回退值 |
 | `server_worker_threads` | usize | Server 运行时线程数（0 = 自动，等于 CPU 核心数） |
-| `meta_worker_threads` | usize | Meta 运行时线程数（0 = 自动） |
-| `broker_worker_threads` | usize | Broker 运行时线程数（0 = 自动，热路径运行时） |
 | `channels_per_address` | usize | 每个地址的 gRPC 连接通道数 |
-| `tls_cert` | string | TLS 证书文件路径 |
-| `tls_key` | string | TLS 私钥文件路径 |
+| `pprof_enable` | bool | 是否启用内置 pprof 性能分析采集 |
+| `default_topic_partition_num` | u32 | 新建 Topic 的默认分区数 |
+| `default_topic_replica_num` | u32 | 新建 Topic 的默认副本数 |
 
-#### network
+#### broker_network
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `accept_thread_num` | usize | 连接接受线程数 |
 | `handler_thread_num` | usize | 消息处理线程数 |
 | `queue_size` | usize | 内部队列大小 |
-
-#### pprof
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `enable` | bool | 是否启用 pprof 性能分析 |
-| `port` | u16 | pprof HTTP 端口 |
-| `frequency` | i32 | 采样频率 |
+| `tls_cert` | string | TLS 证书文件路径（所有协议共用） |
+| `tls_key` | string | TLS 私钥文件路径（所有协议共用） |
 
 #### meta_runtime
 
@@ -601,6 +581,7 @@ Content-Type: application/json
 | `raft_write_timeout_sec` | u64 | Raft 写入超时（秒） |
 | `offset_raft_group_num` | u32 | Offset Raft 分片组数量（默认 1） |
 | `data_raft_group_num` | u32 | 数据 Raft 分片组数量（默认 1） |
+| `meta_worker_threads` | usize | Meta 运行时线程数（0 = 自动） |
 
 #### rocksdb
 
@@ -622,6 +603,12 @@ Content-Type: application/json
 #### mqtt_runtime
 
 所有 MQTT 相关配置汇总在这一个字段下（对应 Rust 侧的 `MqttRuntime` struct，类似 `kafka_runtime`），各子字段对应下面的小节。注意：这只是 `BrokerConfig` 内部的字段嵌套路径；第 2 节"设置集群配置"里 `config_type` 的取值（`MqttSlowSubscribeConfig`、`MqttFlappingDetect`、`MqttProtocol` 等）是独立的动态配置标识，不受这层嵌套影响，字符串本身不变。
+
+`mqtt_runtime` 表本身还直接挂着一个顶层字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `broker_worker_threads` | usize | Broker 运行时线程数（0 = 自动），即 MQTT 热路径运行时 |
 
 ##### mqtt_runtime.server
 
@@ -684,7 +671,6 @@ Content-Type: application/json
 | `max_session_expiry_interval` | u32 | 最大会话过期间隔（秒） |
 | `default_session_expiry_interval` | u32 | 默认会话过期间隔（秒） |
 | `topic_alias_max` | u16 | Topic Alias 最大值 |
-| `max_qos_flight_message` | u8 | QoS 飞行窗口最大消息数 |
 | `max_packet_size` | u32 | 最大报文大小（字节） |
 | `receive_max` | u16 | Receive Maximum |
 | `max_message_expiry_interval` | u64 | 最大消息过期间隔（秒） |

@@ -74,39 +74,28 @@ http_port = 58080
 
 ### [runtime]
 
-Tokio 运行时、gRPC 客户端连接池、TLS 与 pprof 采集配置。RobustMQ 内部划分了三个独立的 Tokio 运行时，分别承担不同职责，可以独立调优。
+gRPC 客户端连接池、pprof 采集与全局默认值配置。各 Tokio 运行时的工作线程数配置项已下放到各自归属的表下（`server_worker_threads` 留在这里，`meta_worker_threads` 见 [Meta 运行时配置](#3-meta-运行时配置)，`broker_worker_threads`（MQTT 热路径专用）见 [MQTT 配置](MQTTConfig.md)）。
 
 ```toml
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
 channels_per_address = 4
-# 各运行时工作线程数，0 = 自动（推荐）
-# server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
-# runtime_worker_threads = 1  # 兼容旧版，新版请用各运行时独立配置
+# server_worker_threads = 0  # 0 = 自动（推荐）
 # pprof_enable = false
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS 证书文件路径 |
-| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS 私钥文件路径 |
 | `channels_per_address` | `usize` | `4` | 每个 gRPC 服务地址维护的 HTTP/2 Channel（TCP 连接）数量 |
 | `server_worker_threads` | `usize` | `0`（自动） | server-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
-| `meta_worker_threads` | `usize` | `0`（自动） | meta-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
-| `broker_worker_threads` | `usize` | `0`（自动） | broker-runtime 工作线程数，自动值 = `CPU核数` |
-| `runtime_worker_threads` | `usize` | `1` | 兼容旧版全局线程倍数，各运行时字段为 0 时作为回退值，新版建议保持默认 |
 | `pprof_enable` | `bool` | `false` | 是否启用内置 pprof 性能分析采集；采集到的火焰图通过 Admin HTTP API（复用 `http_port`）暴露，没有独立端口 |
 
 **三个运行时说明：**
 
-| 运行时 | 职责 | 默认线程数 |
-|--------|------|-----------|
-| `server-runtime` | gRPC 服务、HTTP Admin API、Prometheus 指标暴露 | `max(4, CPU/2)` |
-| `meta-runtime` | Raft 状态机、RocksDB 写入 | `max(4, CPU/2)` |
-| `broker-runtime` | MQTT 连接处理、消息投递热路径 | `CPU核数` |
+| 运行时 | 职责 | 线程数配置项 | 默认线程数 |
+|--------|------|-------------|-----------|
+| `server-runtime` | gRPC 服务、HTTP Admin API、Prometheus 指标暴露 | `runtime.server_worker_threads` | `max(4, CPU/2)` |
+| `meta-runtime` | Raft 状态机、RocksDB 写入 | `meta_runtime.meta_worker_threads` | `max(4, CPU/2)` |
+| `broker-runtime` | MQTT 连接处理、消息投递热路径 | `mqtt_runtime.broker_worker_threads` | `CPU核数` |
 
 > **调优建议：** 保持默认值 `0` 即可。通过 Grafana 的 `tokio_runtime_busy_ratio` 指标判断是否需要调整：某个运行时繁忙比持续 > 80% 时，可适当增加其线程数。
 
@@ -136,6 +125,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0  # 0 = 自动，meta-runtime 工作线程数
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -146,6 +136,7 @@ group_offset_expire_sec = 604800
 | `offset_raft_group_num` | `u32` | `1` | Offset Raft 分组数量 |
 | `data_raft_group_num` | `u32` | `1` | 数据 Raft 分组数量 |
 | `group_offset_expire_sec` | `u64` | `604800` | 消费组 Offset 过期时间（秒），默认 7 天 |
+| `meta_worker_threads` | `usize` | `0`（自动） | meta-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
 
 ---
 
@@ -220,13 +211,15 @@ delay_task_handler_concurrency = 100
 
 ### [broker_network]
 
-Broker 内部通用网络线程配置。
+Broker 内部通用网络线程配置，以及所有协议共用的 TLS 证书/私钥路径。
 
 ```toml
 [broker_network]
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -234,6 +227,8 @@ queue_size = 1000
 | `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
 | `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
 | `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS 证书文件路径（所有协议共用） |
+| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS 私钥文件路径（所有协议共用） |
 
 ---
 
@@ -369,12 +364,8 @@ http_port = 58080
 
 # ========== 运行时 ==========
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
 channels_per_address = 4
 # server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
 # pprof_enable = false
 
 # ========== Meta ==========
@@ -385,6 +376,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -409,6 +401,8 @@ delay_task_handler_concurrency = 100
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 # ========== LLM 客户端（可选） ==========
 [llm_client]

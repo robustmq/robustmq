@@ -24,11 +24,12 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 log_config = "./config/logger.toml"
 log_path = "./data/logs"
 
-[network]
+[broker_network]
 accept_thread_num = 1
 handler_thread_num = 64
 queue_size = 5000
-keep_alive_enable = false
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 [meta_runtime]
 heartbeat_timeout_ms = 30000
@@ -36,6 +37,10 @@ heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
+meta_worker_threads = 16
+
+[mqtt_runtime]
+broker_worker_threads = 16
 
 [mqtt_runtime.keep_alive]
 enable = true
@@ -59,15 +64,11 @@ io_thread_num = 4
 # Number of HTTP/2 channels (TCP connections) per gRPC server address.
 # Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
 channels_per_address = 4
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
 # Worker threads for each Tokio runtime.  0 = auto (recommended).
 # server: gRPC + HTTP admin  → auto = num_cpus
 # meta:   Raft state machines → auto = num_cpus
 # broker: MQTT hot path       → auto = num_cpus
 server_worker_threads = 16
-meta_worker_threads = 16
-broker_worker_threads = 16
 
 [mqtt_runtime.auth]
 default_user = "admin"

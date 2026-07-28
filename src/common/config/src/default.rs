@@ -19,13 +19,8 @@ use crate::config::{
 };
 use common_base::enum_type::delay_type::DelayType;
 use common_base::role::{ROLE_BROKER, ROLE_META};
-use common_base::runtime::get_default_runtime_worker_threads;
 use common_base::tools::get_local_ip;
 use toml::Table;
-
-pub fn default_runtime_worker_threads() -> usize {
-    get_default_runtime_worker_threads()
-}
 
 pub fn default_roles() -> Vec<String> {
     vec![ROLE_BROKER.to_string(), ROLE_META.to_string()]
@@ -62,13 +57,8 @@ pub fn default_meta_addrs() -> Table {
 
 pub fn default_runtime() -> Runtime {
     Runtime {
-        runtime_worker_threads: get_default_runtime_worker_threads(),
         server_worker_threads: 0,
-        meta_worker_threads: 0,
-        broker_worker_threads: 0,
         channels_per_address: 4,
-        tls_cert: "./config/certs/cert.pem".to_string(),
-        tls_key: "./config/certs/key.pem".to_string(),
         pprof_enable: false,
         default_topic_partition_num: 3,
         default_topic_replica_num: 2,
@@ -80,6 +70,8 @@ pub fn default_network() -> Network {
         accept_thread_num: 1,
         handler_thread_num: 64,
         queue_size: 5000,
+        tls_cert: "./config/certs/cert.pem".to_string(),
+        tls_key: "./config/certs/key.pem".to_string(),
     }
 }
 
@@ -93,6 +85,7 @@ pub fn default_meta_runtime() -> MetaRuntime {
         group_offset_expire_sec: 7 * 24 * 3600,
         segment_leader_rebalance_interval_ms: 60_000,
         segment_leader_rebalance_max_moves: 50,
+        meta_worker_threads: 0,
     }
 }
 

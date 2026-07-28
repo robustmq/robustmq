@@ -74,39 +74,28 @@ http_port = 58080
 
 ### [runtime]
 
-Tokio runtime, gRPC client connection pool, TLS, and pprof collection configuration. RobustMQ uses three independent Tokio runtimes internally, each serving a distinct role that can be tuned separately.
+gRPC client connection pool, pprof collection, and global default configuration. Each Tokio runtime's own worker-thread setting now lives under its own table (`server_worker_threads` stays here; `meta_worker_threads` is under [Meta Runtime Configuration](#3-meta-runtime-configuration); `broker_worker_threads`, the MQTT hot-path runtime, is under [MQTT Configuration](MQTTConfig.md)).
 
 ```toml
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
 channels_per_address = 4
-# Worker threads per runtime, 0 = auto (recommended)
-# server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
-# runtime_worker_threads = 1  # Legacy compat field, prefer per-runtime fields
+# server_worker_threads = 0  # 0 = auto (recommended)
 # pprof_enable = false
 ```
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
-| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS certificate file path |
-| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS private key file path |
 | `channels_per_address` | `usize` | `4` | Number of HTTP/2 Channels (TCP connections) maintained per gRPC server address |
 | `server_worker_threads` | `usize` | `0` (auto) | server-runtime worker threads, auto = `max(4, CPU / 2)` |
-| `meta_worker_threads` | `usize` | `0` (auto) | meta-runtime worker threads, auto = `max(4, CPU / 2)` |
-| `broker_worker_threads` | `usize` | `0` (auto) | broker-runtime worker threads, auto = `CPU cores` |
-| `runtime_worker_threads` | `usize` | `1` | Legacy global thread multiplier, used as fallback when per-runtime fields are 0 |
 | `pprof_enable` | `bool` | `false` | Enable built-in pprof profiling collection; the resulting flamegraph is exposed via the Admin HTTP API (shares `http_port`), there is no separate port |
 
 **Runtime Roles:**
 
-| Runtime | Responsibilities | Default Threads |
-|---------|-----------------|-----------------|
-| `server-runtime` | gRPC service, HTTP Admin API, Prometheus metrics | `max(4, CPU/2)` |
-| `meta-runtime` | Raft state machines, RocksDB writes | `max(4, CPU/2)` |
-| `broker-runtime` | MQTT connection handling, message delivery hot path | `CPU cores` |
+| Runtime | Responsibilities | Thread Count Field | Default Threads |
+|---------|-----------------|---------------------|-----------------|
+| `server-runtime` | gRPC service, HTTP Admin API, Prometheus metrics | `runtime.server_worker_threads` | `max(4, CPU/2)` |
+| `meta-runtime` | Raft state machines, RocksDB writes | `meta_runtime.meta_worker_threads` | `max(4, CPU/2)` |
+| `broker-runtime` | MQTT connection handling, message delivery hot path | `mqtt_runtime.broker_worker_threads` | `CPU cores` |
 
 > **Tuning tip:** Keep the default `0`. Use the `tokio_runtime_busy_ratio` metric in Grafana to guide adjustments: if a runtime's busy ratio consistently exceeds 80%, consider increasing its thread count.
 
@@ -136,6 +125,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0  # 0 = auto, meta-runtime worker threads
 ```
 
 | Configuration | Type | Default | Description |
@@ -146,6 +136,7 @@ group_offset_expire_sec = 604800
 | `offset_raft_group_num` | `u32` | `1` | Number of Offset Raft groups |
 | `data_raft_group_num` | `u32` | `1` | Number of Data Raft groups |
 | `group_offset_expire_sec` | `u64` | `604800` | Consumer group offset expiry time (seconds), default 7 days |
+| `meta_worker_threads` | `usize` | `0` (auto) | meta-runtime worker threads, auto = `max(4, CPU / 2)` |
 
 ---
 
@@ -220,13 +211,15 @@ delay_task_handler_concurrency = 100
 
 ### [broker_network]
 
-Broker internal general network thread configuration.
+Broker internal general network thread configuration, plus the TLS certificate/key path shared by all protocols.
 
 ```toml
 [broker_network]
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 ```
 
 | Configuration | Type | Default | Description |
@@ -234,6 +227,8 @@ queue_size = 1000
 | `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
 | `handler_thread_num` | `usize` | `16` | Request handler thread count |
 | `queue_size` | `usize` | `1000` | Internal processing queue size |
+| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS certificate file path (shared by all protocols) |
+| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS private key file path (shared by all protocols) |
 
 ---
 
@@ -355,12 +350,8 @@ http_port = 58080
 
 # ========== Runtime ==========
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
 channels_per_address = 4
 # server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
 # pprof_enable = false
 
 # ========== Meta ==========
@@ -371,6 +362,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -395,6 +387,8 @@ delay_task_handler_concurrency = 100
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 # ========== LLM Client (optional) ==========
 [llm_client]

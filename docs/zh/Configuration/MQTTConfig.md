@@ -10,6 +10,17 @@
 export ROBUST_MQ_SERVER_MQTT_RUNTIME_SERVER_TCP_PORT=1883
 ```
 
+`[mqtt_runtime]` 表本身还直接挂着一个顶层字段（不属于任何子表）：
+
+```toml
+[mqtt_runtime]
+broker_worker_threads = 0  # 0 = 自动：CPU 核数
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `broker_worker_threads` | `usize` | `0`（自动） | broker-runtime（MQTT 连接处理、消息投递热路径）工作线程数，`0` = 自动取 CPU 核数 |
+
 ---
 
 ## 1. MQTT 服务器配置
@@ -267,6 +278,9 @@ system_topic_interval_ms = 60000
 ## 完整示例
 
 ```toml
+[mqtt_runtime]
+broker_worker_threads = 0
+
 [mqtt_runtime.server]
 tcp_port = 1883
 tls_port = 1885
