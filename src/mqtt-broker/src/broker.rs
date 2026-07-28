@@ -97,7 +97,7 @@ pub struct MqttBrokerServer {
 impl MqttBrokerServer {
     pub async fn new(params: MqttBrokerServerParams, stop: broadcast::Sender<bool>) -> Self {
         let request_channel = params.request_channel.clone();
-        let limit_config = params.node_cache.get_cluster_config().mqtt_limit;
+        let limit_config = params.node_cache.get_cluster_config().mqtt_runtime.limit;
         let limit_manager = Arc::new(
             match MQTTRateLimiterManager::new(
                 params.node_cache.clone(),
@@ -262,7 +262,7 @@ impl MqttBrokerServer {
         );
         let raw_stop_send = self.stop.clone();
         let config = broker_config();
-        if config.mqtt_system_monitor.enable {
+        if config.mqtt_runtime.system_monitor.enable {
             self.task_supervisor
                 .spawn(TaskKind::MQTTSystemAlarm.to_string(), async move {
                     if let Err(e) = system_alarm.start(raw_stop_send).await {

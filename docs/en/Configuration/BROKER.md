@@ -1,6 +1,6 @@
 # Broker Configuration Reference
 
-> This document describes all configuration items for the RobustMQ Broker service. For logging configuration, see [Logging.md](Logging.md).
+> This document describes RobustMQ's global/base configuration items. For logging configuration, see [Logging.md](Logging.md). Each protocol's own configuration now lives in its own page: [MQTT Configuration](MQTTConfig.md), [Kafka Configuration](KafkaConfig.md), [AMQP Configuration](AMQPConfig.md), [NATS Configuration](NATSConfig.md).
 
 ## Overview
 
@@ -28,8 +28,8 @@ Examples:
 
 ```bash
 export ROBUST_MQ_SERVER_CLUSTER_NAME="my-cluster"
-export ROBUST_MQ_SERVER_MQTT_SERVER_TCP_PORT=1883
-export ROBUST_MQ_SERVER_PROMETHEUS_PORT=9091
+export ROBUST_MQ_SERVER_MQTT_RUNTIME_SERVER_TCP_PORT=1883
+export ROBUST_MQ_SERVER_RUNTIME_CHANNELS_PER_ADDRESS=8
 ```
 
 ---
@@ -74,12 +74,13 @@ http_port = 58080
 
 ### [runtime]
 
-Tokio runtime and TLS configuration. RobustMQ uses three independent Tokio runtimes internally, each serving a distinct role that can be tuned separately.
+Tokio runtime, gRPC client connection pool, TLS, and pprof collection configuration. RobustMQ uses three independent Tokio runtimes internally, each serving a distinct role that can be tuned separately.
 
 ```toml
 [runtime]
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+channels_per_address = 4
 # Worker threads per runtime, 0 = auto (recommended)
 # server_worker_threads = 0
 # meta_worker_threads = 0
@@ -92,11 +93,12 @@ tls_key = "./config/certs/key.pem"
 |---------------|------|---------|-------------|
 | `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS certificate file path |
 | `tls_key` | `string` | `"./config/certs/key.pem"` | TLS private key file path |
+| `channels_per_address` | `usize` | `4` | Number of HTTP/2 Channels (TCP connections) maintained per gRPC server address |
 | `server_worker_threads` | `usize` | `0` (auto) | server-runtime worker threads, auto = `max(4, CPU / 2)` |
 | `meta_worker_threads` | `usize` | `0` (auto) | meta-runtime worker threads, auto = `max(4, CPU / 2)` |
 | `broker_worker_threads` | `usize` | `0` (auto) | broker-runtime worker threads, auto = `CPU cores` |
 | `runtime_worker_threads` | `usize` | `1` | Legacy global thread multiplier, used as fallback when per-runtime fields are 0 |
-| `pprof_enable` | `bool` | `false` | Enable built-in pprof profiling collection (no separate port required) |
+| `pprof_enable` | `bool` | `false` | Enable built-in pprof profiling collection; the resulting flamegraph is exposed via the Admin HTTP API (shares `http_port`), there is no separate port |
 
 **Runtime Roles:**
 
@@ -108,9 +110,19 @@ tls_key = "./config/certs/key.pem"
 
 > **Tuning tip:** Keep the default `0`. Use the `tokio_runtime_busy_ratio` metric in Grafana to guide adjustments: if a runtime's busy ratio consistently exceeds 80%, consider increasing its thread count.
 
+**gRPC client connection pool tuning:** Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RPC requests). The default value of `4` supports approximately 800 concurrent gRPC requests, covering the vast majority of production scenarios.
+
+| Scenario | Recommended Value |
+|----------|-------------------|
+| Default / general production | `4` |
+| High concurrency (tens of thousands of MQTT connections) | `8` ~ `16` |
+| Extreme concurrency / stress testing | `32` |
+
+> **Note:** Setting this value too high causes a surge in open TCP file descriptors (each Channel occupies one fd). In environments with a low `ulimit -n`, this may trigger `Too many open files`.
+
 ---
 
-## 4. Meta Runtime Configuration
+## 3. Meta Runtime Configuration
 
 ### [meta_runtime]
 
@@ -137,7 +149,7 @@ group_offset_expire_sec = 604800
 
 ---
 
-## 5. RocksDB Configuration
+## 4. RocksDB Configuration
 
 ### [rocksdb]
 
@@ -156,7 +168,7 @@ max_open_files = 10000
 
 ---
 
-## 6. Storage Engine Runtime Configuration
+## 5. Storage Engine Runtime Configuration
 
 ### [storage_runtime]
 
@@ -169,11 +181,7 @@ max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
 expire_scan_task_num = 10
-
-[storage_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
+offset_enable_cache = true
 ```
 
 | Configuration | Type | Default | Description |
@@ -183,399 +191,13 @@ queue_size = 1000
 | `io_thread_num` | `u32` | `8` | IO processing thread count |
 | `data_path` | `array` | `[]` | Data storage path list |
 | `expire_scan_task_num` | `usize` | `10` | Concurrent expired data scan tasks |
+| `offset_enable_cache` | `bool` | `true` | Whether to enable consumer offset caching |
 
-**[storage_runtime.network] network thread configuration:**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
-| `handler_thread_num` | `usize` | `16` | Request handler thread count |
-| `queue_size` | `usize` | `1000` | Internal processing queue size |
+> The storage engine's network threads reuse the shared [`[broker_network]`](#7-broker-network-configuration) configuration — there is no separate `[storage_runtime.network]`.
 
 ---
 
-## 6a. Kafka Runtime Configuration
-
-### [kafka_runtime]
-
-Kafka protocol service configuration.
-
-```toml
-[kafka_runtime]
-tcp_port = 9095
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `tcp_port` | `u32` | `9095` | Kafka protocol TCP listener port |
-
----
-
-## 6b. AMQP Runtime Configuration
-
-### [amqp_runtime]
-
-AMQP protocol service configuration.
-
-```toml
-[amqp_runtime]
-tcp_port = 5672
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `tcp_port` | `u32` | `5672` | AMQP protocol TCP listener port |
-
----
-
-## 7. Message Storage Configuration
-
-### [message_storage]
-
-Message persistence storage backend configuration.
-
-```toml
-[message_storage]
-storage_type = "EngineMemory"
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `storage_type` | `string` | `"EngineMemory"` | Storage type |
-
-**Available storage types:**
-
-| Value | Description |
-|-------|-------------|
-| `EngineMemory` | In-memory storage (data lost on restart, suitable for testing) |
-| `EngineSegment` | Segment-based storage engine |
-| `EngineRocksDB` | RocksDB-based local storage |
-| `Mysql` | MySQL database storage |
-| `MinIO` | MinIO object storage |
-| `S3` | AWS S3 object storage |
-
-Depending on the selected `storage_type`, configure the corresponding sub-items:
-
-**memory_config (optional for EngineMemory):**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `max_records_per_shard` | `usize` | `1000` | Maximum records per shard |
-| `max_shard_size_limit` | `usize` | `10000000` | Maximum total size per shard |
-
-**mysql_config (for Mysql):**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `mysql_addr` | `string` | `""` | MySQL database address |
-
-**minio_config (for MinIO):**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `data_dir` | `string` | `""` | MinIO data directory |
-| `bucket` | `string` | `""` | MinIO bucket name |
-
-**s3_config (for S3):**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `endpoint` | `string` | `""` | S3 endpoint address |
-| `bucket` | `string` | `""` | S3 bucket name |
-| `region` | `string` | `""` | S3 region |
-| `access_key` | `string` | `""` | Access key |
-| `secret_key` | `string` | `""` | Secret key |
-| `enable_virtual_host_style` | `bool` | `false` | Whether to use virtual host style access |
-
----
-
-## 8. Offset Storage Configuration
-
-### [storage_offset]
-
-Message consumption offset cache configuration.
-
-```toml
-[storage_offset]
-enable_cache = true
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable_cache` | `bool` | `true` | Whether to enable offset caching |
-
----
-
-## 9. MQTT Server Configuration
-
-### [mqtt_server]
-
-MQTT protocol listener port configuration.
-
-```toml
-[mqtt_server]
-tcp_port = 1883
-tls_port = 1885
-websocket_port = 8083
-websockets_port = 8085
-quic_port = 9083
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `tcp_port` | `u32` | `1883` | MQTT over TCP port |
-| `tls_port` | `u32` | `1885` | MQTT over TLS port |
-| `websocket_port` | `u32` | `8083` | MQTT over WebSocket port |
-| `websockets_port` | `u32` | `8085` | MQTT over WebSocket Secure port |
-| `quic_port` | `u32` | `9083` | MQTT over QUIC port |
-
----
-
-## 10. MQTT Runtime Configuration
-
-### [mqtt_runtime]
-
-MQTT runtime basic parameters.
-
-```toml
-[mqtt_runtime]
-default_user = "admin"
-default_password = "robustmq"
-durable_sessions_enable = false
-secret_free_login = false
-is_self_protection_status = false
-
-[mqtt_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `default_user` | `string` | `"admin"` | System default username |
-| `default_password` | `string` | `"robustmq"` | System default password |
-| `durable_sessions_enable` | `bool` | `false` | Whether to enable durable sessions (`false` for transient sessions, better performance) |
-| `secret_free_login` | `bool` | `false` | Whether to allow password-free login |
-| `is_self_protection_status` | `bool` | `false` | Whether to enable self-protection mode (reject new connections under overload) |
-
-**[mqtt_runtime.network] network thread configuration:**
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `accept_thread_num` | `usize` | `2` | Threads for accepting new connections |
-| `handler_thread_num` | `usize` | `16` | Request handler thread count |
-| `queue_size` | `usize` | `1000` | Internal processing queue size |
-
----
-
-## 11. MQTT Keep Alive Configuration
-
-### [mqtt_keep_alive]
-
-MQTT heartbeat keep-alive configuration.
-
-```toml
-[mqtt_keep_alive]
-enable = true
-default_time = 180
-max_time = 3600
-default_timeout = 2
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `true` | Whether to enable Keep Alive heartbeat detection |
-| `default_time` | `u16` | `180` | Default heartbeat interval (seconds) |
-| `max_time` | `u16` | `3600` | Maximum heartbeat interval (seconds) |
-| `default_timeout` | `u16` | `2` | Disconnect after this many consecutive timeouts |
-
----
-
-## 12. MQTT Protocol Configuration
-
-### [mqtt_protocol]
-
-MQTT protocol parameter configuration.
-
-```toml
-[mqtt_protocol]
-max_session_expiry_interval = 1800
-default_session_expiry_interval = 30
-topic_alias_max = 65535
-max_packet_size = 10485760
-receive_max = 65535
-max_message_expiry_interval = 3600
-client_pkid_persistent = false
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `max_session_expiry_interval` | `u32` | `1800` | Maximum session expiry time (seconds) |
-| `default_session_expiry_interval` | `u32` | `30` | Default session expiry time (seconds) |
-| `topic_alias_max` | `u16` | `65535` | Maximum number of topic aliases |
-| `max_packet_size` | `u32` | `10485760` (10 MB) | Maximum MQTT packet size (bytes) |
-| `receive_max` | `u16` | `65535` | Maximum unacknowledged PUBLISH packets |
-| `max_message_expiry_interval` | `u64` | `3600` | Maximum message expiry time (seconds) |
-| `client_pkid_persistent` | `bool` | `false` | Whether to persist client Packet IDs |
-
----
-
-## 13. Rate Limiting Configuration
-
-### [limit]
-
-Cluster and tenant level resource rate limiting configuration.
-
-```toml
-[limit.cluster]
-max_connections_per_node = 10000000
-max_connection_rate = 100000
-max_topics = 5000000
-max_sessions = 50000000
-max_publish_rate = 10000
-
-[limit.tenant]
-max_connections_per_node = 1000000
-max_connection_rate = 10000
-max_topics = 500000
-max_sessions = 5000000
-max_publish_rate = 10000
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `max_connections_per_node` | `u64` | Maximum connections per node |
-| `max_connection_rate` | `u32` | Maximum new connection rate per second |
-| `max_topics` | `u64` | Maximum number of topics |
-| `max_sessions` | `u64` | Maximum number of sessions |
-| `max_publish_rate` | `u32` | Maximum publish message rate per second |
-
----
-
-## 15. MQTT Offline Message Configuration
-
-### [mqtt_offline_message]
-
-Message storage configuration for offline clients.
-
-```toml
-[mqtt_offline_message]
-enable = true
-expire_ms = 0
-max_messages_num = 0
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `true` | Whether to enable offline messages |
-| `expire_ms` | `u32` | `0` | Offline message expiry time (ms), `0` means no expiry |
-| `max_messages_num` | `u32` | `0` | Maximum offline messages per client, `0` means unlimited |
-
----
-
-## 16. MQTT Flapping Detection Configuration
-
-### [mqtt_flapping_detect]
-
-Detect clients that connect/disconnect frequently (flapping) and auto-ban them.
-
-```toml
-[mqtt_flapping_detect]
-enable = false
-window_time = 1
-max_client_connections = 15
-ban_time = 5
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `false` | Whether to enable flapping detection |
-| `window_time` | `u32` | `1` | Detection time window (seconds) |
-| `max_client_connections` | `u64` | `15` | Maximum connection attempts within the time window |
-| `ban_time` | `u32` | `5` | Ban duration after triggering flapping (seconds) |
-
----
-
-## 17. MQTT Slow Subscribe Detection Configuration
-
-### [mqtt_slow_subscribe]
-
-Slow subscription monitoring for detecting message delivery delays.
-
-```toml
-[mqtt_slow_subscribe]
-enable = false
-record_time = 1000
-delay_type = "Whole"
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `false` | Whether to enable slow subscribe detection |
-| `record_time` | `u64` | `1000` | Slow subscribe threshold (milliseconds) |
-| `delay_type` | `string` | `"Whole"` | Delay calculation type: `Whole` (end-to-end), `Partial` (partial) |
-
----
-
-## 18. MQTT Schema Validation Configuration
-
-### [mqtt_schema]
-
-Message Schema validation configuration.
-
-```toml
-[mqtt_schema]
-enable = true
-strategy = "ALL"
-failed_operation = "Discard"
-echo_log = true
-log_level = "info"
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `true` | Whether to enable Schema validation |
-| `strategy` | `string` | `"ALL"` | Validation strategy |
-| `failed_operation` | `string` | `"Discard"` | Operation when validation fails |
-| `echo_log` | `bool` | `true` | Whether to output Schema validation logs |
-| `log_level` | `string` | `"info"` | Schema validation log level |
-
-**Validation strategies (strategy):**
-- `ALL`: Message must pass all bound Schema validations
-- `Any`: Message only needs to pass any one Schema validation
-
-**Failed operations (failed_operation):**
-- `Discard`: Discard messages that fail validation
-- `DisconnectAndDiscard`: Disconnect and discard messages
-- `Ignore`: Ignore validation failures and continue processing
-
----
-
-## 19. MQTT System Monitor Configuration
-
-### [mqtt_system_monitor]
-
-System resource monitoring configuration.
-
-```toml
-[mqtt_system_monitor]
-enable = false
-os_cpu_high_watermark = 70.0
-os_memory_high_watermark = 80.0
-system_topic_interval_ms = 60000
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `false` | Whether to enable system resource monitoring |
-| `os_cpu_high_watermark` | `f32` | `70.0` | CPU usage high watermark (%) |
-| `os_memory_high_watermark` | `f32` | `80.0` | Memory usage high watermark (%) |
-| `system_topic_interval_ms` | `u64` | `60000` | System topic metrics publish interval (milliseconds) |
-
----
-
-## 19b. Delay Task Configuration
+## 6. Delay Task Configuration
 
 ### [delay_task]
 
@@ -594,48 +216,7 @@ delay_task_handler_concurrency = 100
 
 ---
 
-## 19c. NATS Runtime Configuration
-
-### [nats_runtime]
-
-NATS/mq9 protocol service configuration.
-
-```toml
-[nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port = 4080
-wss_port = 4443
-max_payload = 1048576
-auth_required = false
-ping_interval = 60
-ping_max = 3
-ping_send_chunk = 10000
-core_shard_num = 10
-push_thread_num = 1
-push_queue_thread_num = 10
-mq9_mailbox_default_ttl = 86400
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `tcp_port` | `u32` | `4222` | NATS TCP listener port |
-| `tls_port` | `u32` | `4223` | NATS TLS listener port |
-| `ws_port` | `u32` | `4080` | NATS WebSocket listener port |
-| `wss_port` | `u32` | `4443` | NATS WebSocket Secure listener port |
-| `max_payload` | `u64` | `1048576` (1 MB) | Maximum payload size per message (bytes) |
-| `auth_required` | `bool` | `false` | Whether to require client authentication |
-| `ping_interval` | `u64` | `60` | Server-initiated PING interval (seconds) |
-| `ping_max` | `u64` | `3` | Maximum unanswered PINGs before connection is closed |
-| `ping_send_chunk` | `usize` | `10000` | Connections processed per batch when sending PINGs |
-| `core_shard_num` | `usize` | `10` | Number of internal core shards |
-| `push_thread_num` | `usize` | `1` | Direct-push thread count (one per bucket) |
-| `push_queue_thread_num` | `usize` | `10` | Queue-push thread count (one per queue-group bucket) |
-| `mq9_mailbox_default_ttl` | `u64` | `86400` | Default TTL for mq9 mailboxes when client does not specify one (seconds) |
-
----
-
-## 19d. Broker Network Configuration
+## 7. Broker Network Configuration
 
 ### [broker_network]
 
@@ -656,41 +237,7 @@ queue_size = 1000
 
 ---
 
-## 20. gRPC Client Configuration
-
-### [grpc_client]
-
-Controls the connection pool behavior of the Broker's internal gRPC client. RobustMQ uses HTTP/2 for inter-node communication. Each Channel is an independent TCP connection that supports multiplexing.
-
-```toml
-[grpc_client]
-channels_per_address = 4
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `channels_per_address` | `usize` | `4` | Number of HTTP/2 Channels maintained per gRPC server address |
-
-**Tuning Guide:**
-
-Each HTTP/2 Channel supports approximately 200 concurrent Streams (concurrent RPC requests). The default value of `4` supports approximately 800 concurrent gRPC requests, covering the vast majority of production scenarios.
-
-| Scenario | Recommended Value |
-|----------|-------------------|
-| Default / general production | `4` |
-| High concurrency (tens of thousands of MQTT connections) | `8` ~ `16` |
-| Extreme concurrency / stress testing | `32` |
-
-> **Note:** Setting this value too high causes a surge in open TCP file descriptors (each Channel occupies one fd). In environments with a low `ulimit -n`, this may trigger `Too many open files`.
-
-**Environment variable:**
-```bash
-export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
-```
-
----
-
-## 21. LLM Client Configuration
+## 8. LLM Client Configuration
 
 ### [llm_client]
 
@@ -750,7 +297,7 @@ export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
 
 ---
 
-## 22. Admin HTTP API Authentication
+## 9. Admin HTTP API Authentication
 
 ### [admin]
 
@@ -780,43 +327,18 @@ token_ttl_hours = 8
 
 ---
 
-## 23. Monitoring Configuration
+## 10. Monitoring & Profiling
 
-### [prometheus]
+RobustMQ has no separate `[prometheus]` or `[pprof]` configuration section — both reuse the Admin HTTP API's `http_port` and have no dedicated configurable port:
 
-Prometheus metrics exposure configuration.
-
-```toml
-[prometheus]
-enable = true
-port = 9090
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `true` | Whether to enable Prometheus metrics collection |
-| `port` | `u32` | `9090` | Prometheus metrics exposure port |
-
-### [pprof]
-
-PProf performance profiling configuration.
-
-```toml
-[pprof]
-enable = false
-port = 6060
-frequency = 100
-```
-
-| Configuration | Type | Default | Description |
-|---------------|------|---------|-------------|
-| `enable` | `bool` | `false` | Whether to enable PProf profiling |
-| `port` | `u16` | `6060` | PProf service port |
-| `frequency` | `i32` | `100` | Sampling frequency |
+- **Prometheus metrics**: always exposed via `GET /metrics` on the Admin HTTP API (see `http_port` in [Basic Configuration](#1-basic-configuration)); there is no enable/disable switch or separate port.
+- **pprof profiling**: controlled by `runtime.pprof_enable` (see [2. Runtime Configuration](#2-runtime-configuration)); the resulting flamegraph is likewise exposed via the Admin HTTP API — there is no separate `port`/`frequency` configuration.
 
 ---
 
 ## Complete Configuration Example
+
+This example covers every base configuration item. See each protocol's own page for its full example: [MQTT](MQTTConfig.md#full-example), [Kafka](KafkaConfig.md), [AMQP](AMQPConfig.md), [NATS](NATSConfig.md).
 
 ```toml
 # ========== Basic Configuration ==========
@@ -835,9 +357,11 @@ http_port = 58080
 [runtime]
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
+channels_per_address = 4
 # server_worker_threads = 0
 # meta_worker_threads = 0
 # broker_worker_threads = 0
+# pprof_enable = false
 
 # ========== Meta ==========
 [meta_runtime]
@@ -859,130 +383,18 @@ tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
 expire_scan_task_num = 10
-
-[storage_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
-
-# ========== Kafka Runtime ==========
-[kafka_runtime]
-tcp_port = 9095
-
-# ========== AMQP Runtime ==========
-[amqp_runtime]
-tcp_port = 5672
-
-# ========== NATS Runtime ==========
-[nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port = 4080
-wss_port = 4443
-max_payload = 1048576
-auth_required = false
-ping_interval = 60
-ping_max = 3
-mq9_mailbox_default_ttl = 86400
+offset_enable_cache = true
 
 # ========== Delay Task ==========
 [delay_task]
 delay_task_queue_num = 100
 delay_task_handler_concurrency = 100
 
-# ========== Message Storage ==========
-[message_storage]
-storage_type = "EngineMemory"
-
-# ========== Offset Cache ==========
-[storage_offset]
-enable_cache = true
-
-# ========== MQTT Server ==========
-[mqtt_server]
-tcp_port = 1883
-tls_port = 1885
-websocket_port = 8083
-websockets_port = 8085
-quic_port = 9083
-
-# ========== MQTT Runtime ==========
-[mqtt_runtime]
-default_user = "admin"
-default_password = "your_secure_password"
-durable_sessions_enable = false
-secret_free_login = false
-is_self_protection_status = false
-
-[mqtt_runtime.network]
+# ========== Broker Network ==========
+[broker_network]
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
-
-# ========== MQTT Keep Alive ==========
-[mqtt_keep_alive]
-enable = true
-default_time = 180
-max_time = 3600
-default_timeout = 2
-
-# ========== MQTT Protocol ==========
-[mqtt_protocol]
-max_session_expiry_interval = 1800
-default_session_expiry_interval = 30
-topic_alias_max = 65535
-max_packet_size = 10485760
-receive_max = 65535
-max_message_expiry_interval = 3600
-client_pkid_persistent = false
-
-# ========== MQTT Offline Messages ==========
-[mqtt_offline_message]
-enable = true
-expire_ms = 0
-max_messages_num = 0
-
-# ========== MQTT Flapping Detection ==========
-[mqtt_flapping_detect]
-enable = false
-window_time = 1
-max_client_connections = 15
-ban_time = 5
-
-# ========== MQTT Slow Subscribe ==========
-[mqtt_slow_subscribe]
-enable = false
-record_time = 1000
-delay_type = "Whole"
-
-# ========== MQTT Schema ==========
-[mqtt_schema]
-enable = true
-strategy = "ALL"
-failed_operation = "Discard"
-echo_log = true
-log_level = "info"
-
-# ========== MQTT System Monitor ==========
-[mqtt_system_monitor]
-enable = false
-os_cpu_high_watermark = 70.0
-os_memory_high_watermark = 80.0
-system_topic_interval_ms = 60000
-
-# ========== Monitoring ==========
-[prometheus]
-enable = true
-port = 9090
-
-[pprof]
-enable = false
-port = 6060
-frequency = 100
-
-# ========== gRPC Client ==========
-[grpc_client]
-channels_per_address = 4
 
 # ========== LLM Client (optional) ==========
 [llm_client]

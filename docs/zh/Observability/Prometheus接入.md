@@ -1,28 +1,17 @@
 # Prometheus 接入
 
-RobustMQ 内置 Prometheus 指标导出功能，只需简单配置即可接入 Prometheus 监控系统。
-
-## 配置 RobustMQ
-
-在 RobustMQ 配置文件中启用 Prometheus 指标导出：
-
-```toml
-# config/server.toml
-[prometheus]
-enable = true
-port = 9091
-```
-
-重启 RobustMQ 服务使配置生效。
+RobustMQ 内置 Prometheus 指标导出功能，指标始终通过 Admin HTTP API 的 `GET /metrics` 暴露，复用 `http_port`（默认为 `58080`），没有独立的开关或端口，无需额外配置。
 
 ## 验证指标导出
 
+将下面的 `58080` 替换为你 `config/server.toml` 中配置的 `http_port`：
+
 ```bash
 # 检查指标端点
-curl `http://localhost:9091/metrics`
+curl http://localhost:58080/metrics
 
 # 验证指标数据
-curl `http://localhost:9091/metrics` | grep mqtt_
+curl http://localhost:58080/metrics | grep mqtt_
 ```
 
 ## 配置 Prometheus
@@ -34,23 +23,23 @@ curl `http://localhost:9091/metrics` | grep mqtt_
 scrape_configs:
   - job_name: 'robustmq'
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: ['localhost:58080']
     scrape_interval: 15s
     metrics_path: /metrics
 ```
 
 ## 集群配置
 
-对于多节点部署：
+对于多节点部署（各节点 `http_port` 需替换为实际值）：
 
 ```yaml
 scrape_configs:
   - job_name: 'robustmq-cluster'
     static_configs:
       - targets:
-        - 'robustmq-node1:9091'
-        - 'robustmq-node2:9091'
-        - 'robustmq-node3:9091'
+        - 'robustmq-node1:58080'
+        - 'robustmq-node2:58080'
+        - 'robustmq-node3:58080'
 ```
 
 ## 可用指标
@@ -82,17 +71,17 @@ rate(mqtt_auth_failed[5m])
 
 ### 指标无法访问
 ```bash
-# 检查端口监听
-netstat -tlnp | grep 9091
+# 检查端口监听（http_port 默认为 58080）
+netstat -tlnp | grep 58080
 
-# 检查配置
-grep -A 3 "\[prometheus\]" config/server.toml
+# 检查配置中实际使用的 http_port
+grep "http_port" config/server.toml
 ```
 
 ### Prometheus 无法抓取
 ```bash
 # 检查网络连通性
-telnet robustmq-host 9091
+telnet robustmq-host 58080
 
 # 查看 Prometheus 目标状态
 curl http://prometheus:9090/api/v1/targets

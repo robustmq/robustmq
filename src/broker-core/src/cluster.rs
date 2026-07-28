@@ -93,11 +93,17 @@ impl ClusterStorage {
         let extend = NodeExtend {
             mqtt: MqttNodeExtend {
                 grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
-                mqtt_addr: format!("{}:{}", local_ip, config.mqtt_server.tcp_port),
-                mqtts_addr: format!("{}:{}", local_ip, config.mqtt_server.tls_port),
-                websocket_addr: format!("{}:{}", local_ip, config.mqtt_server.websocket_port),
-                websockets_addr: format!("{}:{}", local_ip, config.mqtt_server.websockets_port),
-                quic_addr: format!("{}:{}", local_ip, config.mqtt_server.quic_port),
+                mqtt_addr: format!("{}:{}", local_ip, config.mqtt_runtime.server.tcp_port),
+                mqtts_addr: format!("{}:{}", local_ip, config.mqtt_runtime.server.tls_port),
+                websocket_addr: format!(
+                    "{}:{}",
+                    local_ip, config.mqtt_runtime.server.websocket_port
+                ),
+                websockets_addr: format!(
+                    "{}:{}",
+                    local_ip, config.mqtt_runtime.server.websockets_port
+                ),
+                quic_addr: format!("{}:{}", local_ip, config.mqtt_runtime.server.quic_port),
             },
             nats: NatsNodeExtend {
                 tcp_addr: format!("{}:{}", local_ip, config.nats_runtime.tcp_port),

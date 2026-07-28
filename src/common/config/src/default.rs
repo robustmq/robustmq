@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use crate::config::{
-    DelayMessageConfig, DelayTask, MetaRuntime, MqttFlappingDetect, MqttKeepAlive,
-    MqttOfflineMessage, MqttProtocolConfig, MqttRuntime, MqttSchema, MqttServer,
-    MqttSlowSubscribeConfig, MqttSystemMonitor, Network, Runtime, SchemaFailedOperation,
-    SchemaStrategy, StorageRuntime,
+    DelayMessageConfig, DelayTask, MetaRuntime, MqttAuthConfig, MqttFlappingDetect, MqttKeepAlive,
+    MqttOfflineMessage, MqttProtocolConfig, MqttSchema, MqttServer, MqttSlowSubscribeConfig,
+    MqttSystemMonitor, Network, Runtime, SchemaFailedOperation, SchemaStrategy, StorageRuntime,
 };
-use crate::storage::{StorageAdapterConfig, StorageType};
 use common_base::enum_type::delay_type::DelayType;
 use common_base::role::{ROLE_BROKER, ROLE_META};
 use common_base::runtime::get_default_runtime_worker_threads;
@@ -117,13 +115,6 @@ pub fn default_mqtt_keep_alive() -> MqttKeepAlive {
     }
 }
 
-pub fn default_message_storage() -> StorageAdapterConfig {
-    StorageAdapterConfig {
-        storage_type: StorageType::EngineMemory,
-        ..Default::default()
-    }
-}
-
 pub fn default_mqtt_runtime_user() -> String {
     "admin".to_string()
 }
@@ -132,14 +123,13 @@ pub fn default_mqtt_runtime_password() -> String {
     "robustmq".to_string()
 }
 
-pub fn default_mqtt_runtime() -> MqttRuntime {
-    MqttRuntime {
+pub fn default_mqtt_runtime() -> MqttAuthConfig {
+    MqttAuthConfig {
         default_user: "admin".to_string(),
         default_password: "robustmq".to_string(),
         durable_sessions_enable: false, // Default: transient sessions (better performance)
         secret_free_login: false,
         is_self_protection_status: false,
-        network: default_network(),
     }
 }
 
@@ -214,7 +204,6 @@ pub fn default_engine_runtime() -> StorageRuntime {
         replica_lag_time_max_ms: 10000,
         metadata_reconcile_interval_ms: 30000,
         isr_maintain_interval_ms: 1000,
-        network: default_network(),
     }
 }
 

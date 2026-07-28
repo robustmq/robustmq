@@ -82,7 +82,8 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
         .cache_manager
         .node_cache
         .get_cluster_config()
-        .mqtt_offline_message
+        .mqtt_runtime
+        .offline_message
         .enable;
 
     let not_exist_subscribe = !is_exist_subscribe(

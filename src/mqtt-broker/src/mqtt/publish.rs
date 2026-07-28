@@ -560,7 +560,7 @@ async fn publish_validator(
     let cluster = cache_manager.node_cache.get_cluster_config();
 
     let max_packet_size = min(
-        cluster.mqtt_protocol.max_packet_size,
+        cluster.mqtt_runtime.protocol.max_packet_size,
         connection.max_packet_size,
     ) as usize;
     if publish.payload.len() > max_packet_size {

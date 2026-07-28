@@ -38,50 +38,42 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 
-[mqtt_keep_alive]
+[mqtt_runtime.keep_alive]
 enable = true
 default_time = 180
 max_time = 3600
 default_timeout = 2
 
-[message_storage]
-storage_type = "EngineRocksDB"
-
-[mqtt_system_topic]
-interval_ms = 60000
-
-[mqtt_offline_message]
+[mqtt_runtime.offline_message]
 enable = true
 expire_ms = 3600000
 max_messages_num = 100000
 
-[storage_offset]
-enable_cache = true
-
 [storage_runtime]
+offset_enable_cache = true
 tcp_port = 21779
 max_segment_size = 1073741824
 data_path = ["./data/amqp-single-test/engine"]
 io_thread_num = 4
 
 [runtime]
+# Number of HTTP/2 channels (TCP connections) per gRPC server address.
+# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
+channels_per_address = 4
 tls_cert = "./config/certs/cert.pem"
 tls_key = "./config/certs/key.pem"
 server_worker_threads = 4
 meta_worker_threads = 4
 broker_worker_threads = 4
 
-[mqtt_runtime]
+[mqtt_runtime.auth]
 default_user = "admin"
 default_password = "robustmq"
 durable_sessions_enable = false
 secret_free_login = false
 is_self_protection_status = false
 
-[grpc_client]
-channels_per_address = 4
-
-[mqtt_server]
+[mqtt_runtime.server]
 tcp_port = 21883
 tls_port = 21885
 websocket_port = 28083

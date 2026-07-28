@@ -1,28 +1,17 @@
 # Prometheus Integration
 
-RobustMQ provides built-in Prometheus metrics export functionality. Simply enable it with basic configuration to integrate with Prometheus monitoring system.
-
-## Configure RobustMQ
-
-Enable Prometheus metrics export in RobustMQ configuration file:
-
-```toml
-# config/server.toml
-[prometheus]
-enable = true
-port = 9091
-```
-
-Restart RobustMQ service to apply the configuration.
+RobustMQ has built-in Prometheus metrics export. Metrics are always exposed via the Admin HTTP API's `GET /metrics`, sharing `http_port` (default `58080`) — there's no separate enable switch or port to configure.
 
 ## Verify Metrics Export
 
+Replace `58080` below with the `http_port` configured in your `config/server.toml`:
+
 ```bash
 # Check metrics endpoint
-curl `http://localhost:9091/metrics`
+curl http://localhost:58080/metrics
 
 # Verify metrics data
-curl `http://localhost:9091/metrics` | grep mqtt_
+curl http://localhost:58080/metrics | grep mqtt_
 ```
 
 ## Configure Prometheus
@@ -34,23 +23,23 @@ Add RobustMQ as a scrape target in Prometheus configuration:
 scrape_configs:
   - job_name: 'robustmq'
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: ['localhost:58080']
     scrape_interval: 15s
     metrics_path: /metrics
 ```
 
 ## Cluster Configuration
 
-For multi-node deployment:
+For multi-node deployment (replace with each node's actual `http_port`):
 
 ```yaml
 scrape_configs:
   - job_name: 'robustmq-cluster'
     static_configs:
       - targets:
-        - 'robustmq-node1:9091'
-        - 'robustmq-node2:9091'
-        - 'robustmq-node3:9091'
+        - 'robustmq-node1:58080'
+        - 'robustmq-node2:58080'
+        - 'robustmq-node3:58080'
 ```
 
 ## Available Metrics
@@ -82,17 +71,17 @@ rate(mqtt_auth_failed[5m])
 
 ### Metrics Endpoint Inaccessible
 ```bash
-# Check port listening
-netstat -tlnp | grep 9091
+# Check port listening (http_port defaults to 58080)
+netstat -tlnp | grep 58080
 
-# Check configuration
-grep -A 3 "\[prometheus\]" config/server.toml
+# Check the configured http_port
+grep "http_port" config/server.toml
 ```
 
 ### Prometheus Cannot Scrape
 ```bash
 # Check network connectivity
-telnet robustmq-host 9091
+telnet robustmq-host 58080
 
 # View Prometheus targets status
 curl http://prometheus:9090/api/v1/targets

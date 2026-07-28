@@ -118,78 +118,80 @@ GET /api/cluster/config/get?broker_id=2
       "data_path": [],
       "offset_enable_cache": true
     },
-    "mqtt_server": {
-      "tcp_port": 1883,
-      "tls_port": 1885,
-      "websocket_port": 8083,
-      "websockets_port": 8085,
-      "quic_port": 9083
-    },
-    "mqtt_keep_alive": {
-      "enable": true,
-      "default_time": 180,
-      "max_time": 3600,
-      "default_timeout": 2
-    },
     "mqtt_runtime": {
-      "default_user": "admin",
-      "default_password": "robustmq",
-      "durable_sessions_enable": false,
-      "secret_free_login": false,
-      "is_self_protection_status": false
-    },
-    "mqtt_offline_message": {
-      "enable": true,
-      "expire_ms": 0,
-      "max_messages_num": 0
-    },
-    "mqtt_slow_subscribe": {
-      "enable": false,
-      "record_time": 1000,
-      "delay_type": "Whole"
-    },
-    "mqtt_flapping_detect": {
-      "enable": false,
-      "window_time": 1,
-      "max_client_connections": 15,
-      "ban_time": 5
-    },
-    "mqtt_protocol": {
-      "max_session_expiry_interval": 1800,
-      "default_session_expiry_interval": 30,
-      "topic_alias_max": 65535,
-      "max_packet_size": 10485760,
-      "receive_max": 65535,
-      "max_message_expiry_interval": 3600,
-      "client_pkid_persistent": false
-    },
-    "mqtt_schema": {
-      "enable": true,
-      "strategy": "ALL",
-      "failed_operation": "Discard",
-      "echo_log": true,
-      "log_level": "info"
-    },
-    "mqtt_system_monitor": {
-      "enable": false,
-      "os_cpu_high_watermark": 70.0,
-      "os_memory_high_watermark": 80.0,
-      "system_topic_interval_ms": 60000
-    },
-    "mqtt_limit": {
-      "cluster": {
-        "max_connections_per_node": 10000000,
-        "max_connection_rate": 100000,
-        "max_topics": 5000000,
-        "max_sessions": 50000000,
-        "max_publish_rate": 10000
+      "server": {
+        "tcp_port": 1883,
+        "tls_port": 1885,
+        "websocket_port": 8083,
+        "websockets_port": 8085,
+        "quic_port": 9083
       },
-      "tenant": {
-        "max_connections_per_node": 1000000,
-        "max_connection_rate": 10000,
-        "max_topics": 500000,
-        "max_sessions": 5000000,
-        "max_publish_rate": 10000
+      "keep_alive": {
+        "enable": true,
+        "default_time": 180,
+        "max_time": 3600,
+        "default_timeout": 2
+      },
+      "auth": {
+        "default_user": "admin",
+        "default_password": "robustmq",
+        "durable_sessions_enable": false,
+        "secret_free_login": false,
+        "is_self_protection_status": false
+      },
+      "offline_message": {
+        "enable": true,
+        "expire_ms": 0,
+        "max_messages_num": 0
+      },
+      "slow_subscribe": {
+        "enable": false,
+        "record_time": 1000,
+        "delay_type": "Whole"
+      },
+      "flapping_detect": {
+        "enable": false,
+        "window_time": 1,
+        "max_client_connections": 15,
+        "ban_time": 5
+      },
+      "protocol": {
+        "max_session_expiry_interval": 1800,
+        "default_session_expiry_interval": 30,
+        "topic_alias_max": 65535,
+        "max_packet_size": 10485760,
+        "receive_max": 65535,
+        "max_message_expiry_interval": 3600,
+        "client_pkid_persistent": false
+      },
+      "schema": {
+        "enable": true,
+        "strategy": "ALL",
+        "failed_operation": "Discard",
+        "echo_log": true,
+        "log_level": "info"
+      },
+      "system_monitor": {
+        "enable": false,
+        "os_cpu_high_watermark": 70.0,
+        "os_memory_high_watermark": 80.0,
+        "system_topic_interval_ms": 60000
+      },
+      "limit": {
+        "cluster": {
+          "max_connections_per_node": 10000000,
+          "max_connection_rate": 100000,
+          "max_topics": 5000000,
+          "max_sessions": 50000000,
+          "max_publish_rate": 10000
+        },
+        "tenant": {
+          "max_connections_per_node": 1000000,
+          "max_connection_rate": 10000,
+          "max_topics": 500000,
+          "max_sessions": 5000000,
+          "max_publish_rate": 10000
+        }
       }
     },
     "admin": {

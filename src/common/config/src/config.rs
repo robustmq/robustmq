@@ -136,6 +136,9 @@ pub struct BrokerConfig {
     #[serde(default = "default_http_port")]
     pub http_port: u32,
 
+    #[serde(default = "default_network")]
+    pub broker_network: Network,
+
     #[serde(default = "default_meta_addrs")]
     pub meta_addrs: Table,
 
@@ -154,6 +157,9 @@ pub struct BrokerConfig {
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
 
+    #[serde(default)]
+    pub admin: AdminConfig,
+
     #[serde(default = "default_delay_task")]
     pub delay_task: DelayTask,
 
@@ -169,41 +175,12 @@ pub struct BrokerConfig {
     pub storage_runtime: StorageRuntime,
 
     // MQTT
-    #[serde(default = "default_mqtt_server")]
-    pub mqtt_server: MqttServer,
-
-    #[serde(default = "default_mqtt_keep_alive")]
-    pub mqtt_keep_alive: MqttKeepAlive,
-
-    #[serde(default = "default_mqtt_runtime")]
-    pub mqtt_runtime: MqttRuntime,
-
-    #[serde(default = "default_mqtt_offline_message")]
-    pub mqtt_offline_message: MqttOfflineMessage,
-
-    #[serde(default = "default_mqtt_slow_subscribe")]
-    pub mqtt_slow_subscribe: MqttSlowSubscribeConfig,
-
-    #[serde(default = "default_mqtt_flapping_detect")]
-    pub mqtt_flapping_detect: MqttFlappingDetect,
-
-    #[serde(default = "default_mqtt_protocol")]
-    pub mqtt_protocol: MqttProtocolConfig,
-
-    #[serde(default = "default_mqtt_schema")]
-    pub mqtt_schema: MqttSchema,
-
-    #[serde(default = "default_mqtt_system_monitor")]
-    pub mqtt_system_monitor: MqttSystemMonitor,
-
     #[serde(default)]
-    pub mqtt_limit: MQTTLimit,
+    pub mqtt_runtime: MqttRuntime,
 
     // Kafka
     #[serde(default)]
     pub kafka_runtime: KafkaRuntime,
-    #[serde(default)]
-    pub kafka_dynamic: KafkaDynamic,
 
     // AMQP
     #[serde(default)]
@@ -212,14 +189,6 @@ pub struct BrokerConfig {
     // NATS
     #[serde(default)]
     pub nats_runtime: NatsRuntime,
-
-    // Shared broker network config (handler pool + request channel)
-    #[serde(default = "default_network")]
-    pub broker_network: Network,
-
-    // Admin HTTP API authentication
-    #[serde(default)]
-    pub admin: AdminConfig,
 }
 
 impl Default for BrokerConfig {
@@ -248,20 +217,10 @@ impl Default for BrokerConfig {
             storage_runtime: default_engine_runtime(),
 
             // MQTT Broker
-            mqtt_runtime: default_mqtt_runtime(),
-            mqtt_server: default_mqtt_server(),
-            mqtt_keep_alive: default_mqtt_keep_alive(),
-            mqtt_offline_message: default_mqtt_offline_message(),
-            mqtt_slow_subscribe: default_mqtt_slow_subscribe(),
-            mqtt_flapping_detect: default_mqtt_flapping_detect(),
-            mqtt_protocol: default_mqtt_protocol(),
-            mqtt_schema: default_mqtt_schema(),
-            mqtt_system_monitor: default_mqtt_system_monitor(),
-            mqtt_limit: MQTTLimit::default(),
+            mqtt_runtime: MqttRuntime::default(),
 
             // Kafka
             kafka_runtime: KafkaRuntime::default(),
-            kafka_dynamic: KafkaDynamic::default(),
 
             // AMQP
             amqp_runtime: AmqpRuntime::default(),
@@ -285,11 +244,11 @@ impl BrokerConfig {
     }
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
-        self.mqtt_slow_subscribe.enable
+        self.mqtt_runtime.slow_subscribe.enable
     }
 
     pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
-        self.mqtt_slow_subscribe.delay_type
+        self.mqtt_runtime.slow_subscribe.delay_type
     }
 }
 
@@ -519,7 +478,7 @@ impl Default for MqttKeepAlive {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MqttRuntime {
+pub struct MqttAuthConfig {
     #[serde(default = "default_mqtt_runtime_user")]
     pub default_user: String,
 
@@ -534,12 +493,9 @@ pub struct MqttRuntime {
 
     #[serde(default)]
     pub is_self_protection_status: bool,
-
-    #[serde(default = "default_network")]
-    pub network: Network,
 }
 
-impl Default for MqttRuntime {
+impl Default for MqttAuthConfig {
     fn default() -> Self {
         default_mqtt_runtime()
     }
@@ -768,14 +724,51 @@ pub struct StorageRuntime {
     pub metadata_reconcile_interval_ms: u64,
     #[serde(default = "default_storage_isr_maintain_interval_ms")]
     pub isr_maintain_interval_ms: u64,
-    #[serde(default = "default_network")]
-    pub network: Network,
 }
 
 impl Default for StorageRuntime {
     fn default() -> Self {
         default_engine_runtime()
     }
+}
+
+/// All MQTT-related configuration, grouped under one field on `BrokerConfig`
+/// (mirrors `KafkaRuntime` bundling Kafka's configuration). Each nested
+/// struct keeps its own type name and default function -- only the
+/// top-level `BrokerConfig` field layout changed, so the dynamic-config
+/// storage keys/HTTP `config_type` strings in `ClusterDynamicConfig`
+/// (broker-core/src/dynamic_config.rs) are unaffected by this grouping.
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct MqttRuntime {
+    #[serde(default)]
+    pub server: MqttServer,
+
+    #[serde(default)]
+    pub keep_alive: MqttKeepAlive,
+
+    #[serde(default)]
+    pub auth: MqttAuthConfig,
+
+    #[serde(default)]
+    pub offline_message: MqttOfflineMessage,
+
+    #[serde(default)]
+    pub slow_subscribe: MqttSlowSubscribeConfig,
+
+    #[serde(default)]
+    pub flapping_detect: MqttFlappingDetect,
+
+    #[serde(default)]
+    pub protocol: MqttProtocolConfig,
+
+    #[serde(default)]
+    pub schema: MqttSchema,
+
+    #[serde(default)]
+    pub system_monitor: MqttSystemMonitor,
+
+    #[serde(default)]
+    pub limit: MQTTLimit,
 }
 
 fn default_kafka_tcp_port() -> u32 {
@@ -811,6 +804,10 @@ pub struct KafkaRuntime {
     pub max_describe_topic_partitions: u32,
     #[serde(default)]
     pub sasl: KafkaSasl,
+    /// Match Kafka's broker default (`auto.create.topics.enable=true`); operators
+    /// can turn it off via the cluster dynamic config.
+    #[serde(default = "default_auto_create_topics_enable")]
+    pub auto_create_topics_enable: bool,
 }
 
 impl Default for KafkaRuntime {
@@ -821,6 +818,7 @@ impl Default for KafkaRuntime {
             max_message_bytes: default_kafka_max_message_bytes(),
             max_describe_topic_partitions: default_kafka_max_describe_topic_partitions(),
             sasl: KafkaSasl::default(),
+            auto_create_topics_enable: default_auto_create_topics_enable(),
         }
     }
 }
@@ -853,20 +851,6 @@ fn default_auto_create_topics_enable() -> bool {
     // Match Kafka's broker default (`auto.create.topics.enable=true`); operators
     // can turn it off via the cluster dynamic config.
     true
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct KafkaDynamic {
-    #[serde(default = "default_auto_create_topics_enable")]
-    pub auto_create_topics_enable: bool,
-}
-
-impl Default for KafkaDynamic {
-    fn default() -> Self {
-        KafkaDynamic {
-            auto_create_topics_enable: default_auto_create_topics_enable(),
-        }
-    }
 }
 
 fn default_kafka_max_describe_topic_partitions() -> u32 {

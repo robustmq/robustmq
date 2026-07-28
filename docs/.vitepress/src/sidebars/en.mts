@@ -381,7 +381,11 @@ const items = [
         text: "Configuration",
         collapsed: true,
         items: [
-          { text: "Broker Configuration", link: "/en/Configuration/BROKER" },
+          { text: "Broker Base Configuration", link: "/en/Configuration/BROKER" },
+          { text: "MQTT Configuration", link: "/en/Configuration/MQTTConfig" },
+          { text: "Kafka Configuration", link: "/en/Configuration/KafkaConfig" },
+          { text: "AMQP Configuration", link: "/en/Configuration/AMQPConfig" },
+          { text: "NATS Configuration", link: "/en/Configuration/NATSConfig" },
           { text: "Logging Configuration", link: "/en/Configuration/Logging" },
           { text: "Performance Tuning Guide", link: "/en/Configuration/Tuning" },
         ],

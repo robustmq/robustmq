@@ -118,78 +118,80 @@ GET /api/cluster/config/get?broker_id=2
       "data_path": [],
       "offset_enable_cache": true
     },
-    "mqtt_server": {
-      "tcp_port": 1883,
-      "tls_port": 1885,
-      "websocket_port": 8083,
-      "websockets_port": 8085,
-      "quic_port": 9083
-    },
-    "mqtt_keep_alive": {
-      "enable": true,
-      "default_time": 180,
-      "max_time": 3600,
-      "default_timeout": 2
-    },
     "mqtt_runtime": {
-      "default_user": "admin",
-      "default_password": "robustmq",
-      "durable_sessions_enable": false,
-      "secret_free_login": false,
-      "is_self_protection_status": false
-    },
-    "mqtt_offline_message": {
-      "enable": true,
-      "expire_ms": 0,
-      "max_messages_num": 0
-    },
-    "mqtt_slow_subscribe": {
-      "enable": false,
-      "record_time": 1000,
-      "delay_type": "Whole"
-    },
-    "mqtt_flapping_detect": {
-      "enable": false,
-      "window_time": 1,
-      "max_client_connections": 15,
-      "ban_time": 5
-    },
-    "mqtt_protocol": {
-      "max_session_expiry_interval": 1800,
-      "default_session_expiry_interval": 30,
-      "topic_alias_max": 65535,
-      "max_packet_size": 10485760,
-      "receive_max": 65535,
-      "max_message_expiry_interval": 3600,
-      "client_pkid_persistent": false
-    },
-    "mqtt_schema": {
-      "enable": true,
-      "strategy": "ALL",
-      "failed_operation": "Discard",
-      "echo_log": true,
-      "log_level": "info"
-    },
-    "mqtt_system_monitor": {
-      "enable": false,
-      "os_cpu_high_watermark": 70.0,
-      "os_memory_high_watermark": 80.0,
-      "system_topic_interval_ms": 60000
-    },
-    "mqtt_limit": {
-      "cluster": {
-        "max_connections_per_node": 10000000,
-        "max_connection_rate": 100000,
-        "max_topics": 5000000,
-        "max_sessions": 50000000,
-        "max_publish_rate": 10000
+      "server": {
+        "tcp_port": 1883,
+        "tls_port": 1885,
+        "websocket_port": 8083,
+        "websockets_port": 8085,
+        "quic_port": 9083
       },
-      "tenant": {
-        "max_connections_per_node": 1000000,
-        "max_connection_rate": 10000,
-        "max_topics": 500000,
-        "max_sessions": 5000000,
-        "max_publish_rate": 10000
+      "keep_alive": {
+        "enable": true,
+        "default_time": 180,
+        "max_time": 3600,
+        "default_timeout": 2
+      },
+      "auth": {
+        "default_user": "admin",
+        "default_password": "robustmq",
+        "durable_sessions_enable": false,
+        "secret_free_login": false,
+        "is_self_protection_status": false
+      },
+      "offline_message": {
+        "enable": true,
+        "expire_ms": 0,
+        "max_messages_num": 0
+      },
+      "slow_subscribe": {
+        "enable": false,
+        "record_time": 1000,
+        "delay_type": "Whole"
+      },
+      "flapping_detect": {
+        "enable": false,
+        "window_time": 1,
+        "max_client_connections": 15,
+        "ban_time": 5
+      },
+      "protocol": {
+        "max_session_expiry_interval": 1800,
+        "default_session_expiry_interval": 30,
+        "topic_alias_max": 65535,
+        "max_packet_size": 10485760,
+        "receive_max": 65535,
+        "max_message_expiry_interval": 3600,
+        "client_pkid_persistent": false
+      },
+      "schema": {
+        "enable": true,
+        "strategy": "ALL",
+        "failed_operation": "Discard",
+        "echo_log": true,
+        "log_level": "info"
+      },
+      "system_monitor": {
+        "enable": false,
+        "os_cpu_high_watermark": 70.0,
+        "os_memory_high_watermark": 80.0,
+        "system_topic_interval_ms": 60000
+      },
+      "limit": {
+        "cluster": {
+          "max_connections_per_node": 10000000,
+          "max_connection_rate": 100000,
+          "max_topics": 5000000,
+          "max_sessions": 50000000,
+          "max_publish_rate": 10000
+        },
+        "tenant": {
+          "max_connections_per_node": 1000000,
+          "max_connection_rate": 10000,
+          "max_topics": 500000,
+          "max_sessions": 5000000,
+          "max_publish_rate": 10000
+        }
       }
     },
     "admin": {
@@ -617,7 +619,11 @@ Content-Type: application/json
 | `data_path` | string[] | 数据存储路径列表 |
 | `offset_enable_cache` | bool | 是否启用 Offset 缓存 |
 
-#### mqtt_server
+#### mqtt_runtime
+
+所有 MQTT 相关配置汇总在这一个字段下（对应 Rust 侧的 `MqttRuntime` struct，类似 `kafka_runtime`），各子字段对应下面的小节。注意：这只是 `BrokerConfig` 内部的字段嵌套路径；第 2 节"设置集群配置"里 `config_type` 的取值（`MqttSlowSubscribeConfig`、`MqttFlappingDetect`、`MqttProtocol` 等）是独立的动态配置标识，不受这层嵌套影响，字符串本身不变。
+
+##### mqtt_runtime.server
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -627,7 +633,7 @@ Content-Type: application/json
 | `websockets_port` | u32 | MQTT WebSocket Secure 端口 |
 | `quic_port` | u32 | MQTT QUIC 端口 |
 
-#### mqtt_keep_alive
+##### mqtt_runtime.keep_alive
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -636,7 +642,7 @@ Content-Type: application/json
 | `max_time` | u16 | 最大 Keep Alive 时间（秒） |
 | `default_timeout` | u16 | 超时倍数 |
 
-#### mqtt_runtime
+##### mqtt_runtime.auth
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -646,7 +652,7 @@ Content-Type: application/json
 | `secret_free_login` | bool | 是否允许免密登录 |
 | `is_self_protection_status` | bool | 是否处于自我保护状态 |
 
-#### mqtt_offline_message
+##### mqtt_runtime.offline_message
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -654,7 +660,7 @@ Content-Type: application/json
 | `expire_ms` | u32 | 过期时间（毫秒），0 表示不过期 |
 | `max_messages_num` | u32 | 最大离线消息数量，0 表示不限制 |
 
-#### mqtt_slow_subscribe
+##### mqtt_runtime.slow_subscribe
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -662,7 +668,7 @@ Content-Type: application/json
 | `record_time` | u64 | 记录阈值时间（毫秒） |
 | `delay_type` | string | 延迟类型：`Whole`、`Internal`、`Response` |
 
-#### mqtt_flapping_detect
+##### mqtt_runtime.flapping_detect
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -671,7 +677,7 @@ Content-Type: application/json
 | `max_client_connections` | u64 | 窗口内最大连接次数 |
 | `ban_time` | u32 | 封禁时间（分钟） |
 
-#### mqtt_protocol
+##### mqtt_runtime.protocol
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -684,7 +690,7 @@ Content-Type: application/json
 | `max_message_expiry_interval` | u64 | 最大消息过期间隔（秒） |
 | `client_pkid_persistent` | bool | 客户端 Packet ID 是否持久化 |
 
-#### mqtt_schema
+##### mqtt_runtime.schema
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -694,7 +700,7 @@ Content-Type: application/json
 | `echo_log` | bool | 是否输出校验日志 |
 | `log_level` | string | 日志级别 |
 
-#### mqtt_system_monitor
+##### mqtt_runtime.system_monitor
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -711,7 +717,7 @@ Content-Type: application/json
 | `max_network_connection_rate` | u32 | 集群每秒最大新建连接速率 |
 | `max_admin_http_uri_rate` | u32 | Admin HTTP 接口每秒最大请求速率 |
 
-#### mqtt_limit
+##### mqtt_runtime.limit
 
 `cluster` 和 `tenant` 均为 `LimitQuota` 结构：
 
