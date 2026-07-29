@@ -181,7 +181,7 @@ queue_size = 5000         # 请求队列深度
 节点间通过 gRPC 通信，每个 Channel 是一条 HTTP/2 TCP 连接：
 
 ```toml
-[grpc_client]
+[runtime]
 channels_per_address = 4
 ```
 
@@ -233,7 +233,7 @@ max_open_files = 10000
 ### 2.6 消息队列与 QoS 飞行窗口
 
 ```toml
-[mqtt_protocol]
+[mqtt_runtime.protocol]
 max_qos_flight_message = 2    # 单连接 QoS 1/2 飞行窗口
 receive_max = 65535           # 客户端申报的接收窗口
 ```

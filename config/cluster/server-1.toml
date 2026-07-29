@@ -25,11 +25,12 @@ data_path = "./data/broker-1/data"
 log_config = "./config/cluster/logger-1.toml"
 log_path = "./data/broker-1/logs"
 
-[network]
+[broker_network]
 accept_thread_num = 1
 handler_thread_num = 64
 queue_size = 5000
-keep_alive_enable = false
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 [meta_runtime]
 heartbeat_timeout_ms = 30000
@@ -37,51 +38,43 @@ heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
+meta_worker_threads = 16
 
-[mqtt_keep_alive]
+[mqtt_runtime]
+broker_worker_threads = 16
+
+[mqtt_runtime.keep_alive]
 enable = true
 default_time = 180
 max_time = 3600
 default_timeout = 2
 
-[message_storage]
-storage_type = "EngineRocksDB"
-
-[mqtt_system_topic]
-interval_ms = 60000
-
-[mqtt_offline_message]
+[mqtt_runtime.offline_message]
 enable = true
 expire_ms = 3600000
 max_messages_num = 100000
 
-[storage_offset]
-enable_cache = true
-
 [storage_runtime]
+offset_enable_cache = true
 tcp_port = 1779
 max_segment_size = 1073741824
 data_path = ["./data/broker-1/engine"]
 io_thread_num = 4
 
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
+# Number of HTTP/2 channels (TCP connections) per gRPC server address.
+# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
+channels_per_address = 4
 server_worker_threads = 16
-meta_worker_threads = 16
-broker_worker_threads = 16
 
-[mqtt_runtime]
+[mqtt_runtime.auth]
 default_user = "admin"
 default_password = "robustmq"
 durable_sessions_enable = false
 secret_free_login = false
 is_self_protection_status = false
 
-[grpc_client]
-channels_per_address = 4
-
-[mqtt_server]
+[mqtt_runtime.server]
 tcp_port = 1883
 tls_port = 1885
 websocket_port = 8083

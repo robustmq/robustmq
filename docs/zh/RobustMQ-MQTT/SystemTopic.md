@@ -4,7 +4,7 @@
 
 RobustMQ MQTT Broker 通过 `$SYS/` 系统主题发布运行状态、统计数据和事件。客户端可像订阅普通 MQTT 主题一样订阅这些系统主题。
 
-系统主题由 Broker 定期发布（默认每 **60 秒**，可通过 `mqtt_system_topic.interval_ms` 调整），部分主题为事件触发即时发布（如客户端连接/断开）。
+系统主题由 Broker 定期发布（默认每 **60 秒**，可通过 `mqtt_runtime.system_monitor.system_topic_interval_ms` 调整），部分主题为事件触发即时发布（如客户端连接/断开）。
 
 > 注意：系统主题以 `$SYS/` 开头，默认情况下非管理员客户端无法订阅，请按需配置 ACL。
 

@@ -24,11 +24,12 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 log_config = "./config/logger.toml"
 log_path = "./data/logs"
 
-[network]
+[broker_network]
 accept_thread_num = 1
 handler_thread_num = 64
 queue_size = 5000
-keep_alive_enable = false
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 [meta_runtime]
 heartbeat_timeout_ms = 30000
@@ -36,47 +37,40 @@ heartbeat_check_time_ms = 1000
 raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
+meta_worker_threads = 16
 
-[mqtt_keep_alive]
+[mqtt_runtime]
+broker_worker_threads = 16
+
+[mqtt_runtime.keep_alive]
 enable = true
 default_time = 180
 max_time = 3600
 default_timeout = 2
 
-[message_storage]
-storage_type = "EngineRocksDB"
-
-[mqtt_system_topic]
-# Interval in milliseconds for publishing system topic data (e.g. stats, metrics).
-# Default: 60000 (60 seconds). Recommended range: 10000 ~ 60000.
-interval_ms = 60000
-
-[mqtt_offline_message]
+[mqtt_runtime.offline_message]
 enable = true
 expire_ms = 3600000
 max_messages_num = 100000
 
-[storage_offset]
-enable_cache = true
-
 [storage_runtime]
+offset_enable_cache = true
 tcp_port = 1779
 max_segment_size = 1073741824
 data_path = ["./data/engine"]
 io_thread_num = 4
 
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
+# Number of HTTP/2 channels (TCP connections) per gRPC server address.
+# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
+channels_per_address = 4
 # Worker threads for each Tokio runtime.  0 = auto (recommended).
 # server: gRPC + HTTP admin  → auto = num_cpus
 # meta:   Raft state machines → auto = num_cpus
 # broker: MQTT hot path       → auto = num_cpus
 server_worker_threads = 16
-meta_worker_threads = 16
-broker_worker_threads = 16
 
-[mqtt_runtime]
+[mqtt_runtime.auth]
 default_user = "admin"
 default_password = "robustmq"
 # Enable durable sessions (persistent sessions stored in RocksDB + Raft)
@@ -85,12 +79,6 @@ default_password = "robustmq"
 durable_sessions_enable = false
 secret_free_login = false
 is_self_protection_status = false
-
-[grpc_client]
-# Number of HTTP/2 channels (TCP connections) per gRPC server address.
-# Each channel supports ~200 concurrent RPCs via HTTP/2 multiplexing.
-# Default of 4 handles ~800 concurrent RPCs; increase only under extreme load.
-channels_per_address = 4
 
 # [llm_client]
 # # Supported values include:
@@ -103,7 +91,6 @@ channels_per_address = 4
 # # For ollama, default is http://localhost:11434/v1/
 # # Useful for custom OpenAI-compatible gateways/private deployments.
 # # base_url = "https://api.openai.com/v1/"
-
 
 [nats_runtime]
 tcp_port = 4222

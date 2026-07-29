@@ -122,7 +122,7 @@ impl MqttService {
         .await;
 
         // flapping detect check
-        if cluster.mqtt_flapping_detect.enable {
+        if cluster.mqtt_runtime.flapping_detect.enable {
             if let Err(e) = check_flapping_detect(
                 &tenant.tenant_name,
                 context.connect.client_id.clone(),
@@ -342,12 +342,12 @@ fn build_connect_ack_success_packet(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(context.session_expiry_interval),
-        receive_max: Some(context.cluster.mqtt_protocol.receive_max),
+        receive_max: Some(context.cluster.mqtt_runtime.protocol.receive_max),
         max_qos: Some(2),
         retain_available: Some(1),
-        max_packet_size: Some(context.cluster.mqtt_protocol.max_packet_size),
+        max_packet_size: Some(context.cluster.mqtt_runtime.protocol.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(context.cluster.mqtt_protocol.topic_alias_max),
+        topic_alias_max: Some(context.cluster.mqtt_runtime.protocol.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
         wildcard_subscription_available: Some(1),
@@ -441,7 +441,7 @@ fn connect_validator(
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
 ) -> Option<MqttPacket> {
-    if cluster.mqtt_runtime.is_self_protection_status {
+    if cluster.mqtt_runtime.auth.is_self_protection_status {
         return Some(build_connect_ack_fail_packet(
             protocol,
             ConnectReturnCode::ServerBusy,
@@ -585,10 +585,10 @@ fn connection_max_packet_size(
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.mqtt_protocol.max_packet_size);
+            return min(size, cluster.mqtt_runtime.protocol.max_packet_size);
         }
     }
-    cluster.mqtt_protocol.max_packet_size
+    cluster.mqtt_runtime.protocol.max_packet_size
 }
 
 #[cfg(test)]
@@ -998,7 +998,7 @@ mod tests {
     async fn test_connection_total_num_limit_returns_quota_exceeded() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let mut config = common_config::broker::default_broker_config();
-        config.mqtt_limit.cluster.max_connections_per_node = 0;
+        config.mqtt_runtime.limit.cluster.max_connections_per_node = 0;
         cache_manager.node_cache.set_cluster_config(config);
         cache_manager.add_connection(1, MQTTConnection::default());
 

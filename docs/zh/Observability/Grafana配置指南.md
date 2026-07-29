@@ -5,7 +5,7 @@
 ## 环境要求
 
 - Grafana 8.0+、Prometheus 2.30+、Docker 20.10+（可选）
-- 默认端口：RobustMQ 指标端口(9091)、Prometheus(9090)、Grafana(3000)、Alertmanager(9093)
+- 默认端口：RobustMQ 指标端口（复用 `http_port`，默认 58080）、Prometheus(9090)、Grafana(3000)、Alertmanager(9093)
 
 ## 快速部署
 
@@ -27,18 +27,12 @@ docker-compose -f docker-compose.monitoring.yml up -d
 
 ## RobustMQ 配置
 
-在 `config/server.toml` 中启用 Prometheus 指标导出：
+RobustMQ 的指标始终通过 Admin HTTP API 的 `GET /metrics` 暴露，复用 `http_port`（`config/server.toml` 中配置，默认 `58080`），没有独立的开关或端口。
 
-```toml
-[prometheus]
-enable = true
-port = 9091
-```
-
-验证指标是否正常暴露：
+验证指标是否正常暴露（`58080` 替换为你实际配置的 `http_port`）：
 
 ```bash
-curl http://localhost:9091/metrics
+curl http://localhost:58080/metrics
 ```
 
 ## Prometheus 配置
@@ -58,37 +52,22 @@ rule_files:
 scrape_configs:
   - job_name: 'robustmq-mqtt-broker'
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: ['localhost:58080']
     metrics_path: /metrics
 ```
 
 ### 集群配置
+
+RobustMQ 目前是单一 `broker-server` 二进制，节点通过 `roles`（`meta`/`broker`/`engine`）决定承担的职责，同一进程只暴露一个 `http_port`，不区分 Meta Service / Journal Server 独立端口：
 
 ```yaml
 scrape_configs:
   - job_name: 'robustmq-mqtt-broker-cluster'
     static_configs:
       - targets:
-        - 'node1:9091'
-        - 'node2:9091'
-        - 'node3:9091'
-    metrics_path: /metrics
-```
-
-### 多服务配置
-
-如果同时运行 Meta Service 和 Journal Server，可以分别采集：
-
-```yaml
-scrape_configs:
-  - job_name: 'robustmq-meta-service'
-    static_configs:
-      - targets: ['localhost:9092']
-    metrics_path: /metrics
-
-  - job_name: 'robustmq-journal-server'
-    static_configs:
-      - targets: ['localhost:9093']
+        - 'node1:58080'
+        - 'node2:58080'
+        - 'node3:58080'
     metrics_path: /metrics
 ```
 
@@ -343,5 +322,5 @@ groups:
 | `grafana/prometheus-config-example.yml` | Prometheus 采集配置示例 |
 | `grafana/robustmq-alerts.yml` | 告警规则定义 |
 | `grafana/docker-compose.monitoring.yml` | Docker Compose 监控栈 |
-| `config/server.toml` | RobustMQ 服务配置（含 Prometheus 端口） |
+| `config/server.toml` | RobustMQ 服务配置（`http_port` 即指标暴露端口） |
 | `docs/zh/Observability/基础设施指标.md` | 完整指标参考文档 |

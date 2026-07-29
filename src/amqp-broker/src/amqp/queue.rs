@@ -268,6 +268,23 @@ async fn process_queue_delete(
         ));
     }
 
+    // Tear down the underlying message shard *before* deleting the queue's
+    // metadata: delete_storage_resource resolves which shards to remove via
+    // the topic lookup (build_driver -> broker_cache.get_topic_by_name),
+    // which depends on that same metadata still being registered. Doing
+    // this after the metadata delete makes the topic lookup fail, so the
+    // shard (and its messages) is silently never removed -- a later
+    // redeclare of the same queue name then resurrects the old messages.
+    if let Err(e) = storage_driver_manager
+        .delete_storage_resource(&tenant, &queue_name)
+        .await
+    {
+        warn!(
+            "AMQP Queue.Delete: failed to remove underlying storage for {}: {}",
+            queue_name, e
+        );
+    }
+
     let storage = QueueStorage::new(
         storage_driver_manager
             .engine_storage_handler
@@ -285,18 +302,6 @@ async fn process_queue_delete(
         ));
     }
     amqp_cache.remove_queue(&tenant, &queue_name);
-    // Metadata is gone at this point; also tear down the
-    // underlying message shard so a later redeclare starts fresh
-    // instead of silently resurrecting old messages.
-    if let Err(e) = storage_driver_manager
-        .delete_storage_resource(&tenant, &queue_name)
-        .await
-    {
-        warn!(
-            "AMQP Queue.Delete: failed to remove underlying storage for {}: {}",
-            queue_name, e
-        );
-    }
 
     if delete.nowait {
         return None;

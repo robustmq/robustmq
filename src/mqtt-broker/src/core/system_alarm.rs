@@ -87,7 +87,7 @@ impl SystemAlarm {
             self.try_send_a_new_system_event(
                 AlarmType::HighCpuUsage,
                 cpu_usage,
-                mqtt_conf.mqtt_system_monitor.os_cpu_high_watermark,
+                mqtt_conf.mqtt_runtime.system_monitor.os_cpu_high_watermark,
             )
             .await?;
 
@@ -95,7 +95,10 @@ impl SystemAlarm {
             self.try_send_a_new_system_event(
                 AlarmType::HighMemoryUsage,
                 memory_usage,
-                mqtt_conf.mqtt_system_monitor.os_memory_high_watermark,
+                mqtt_conf
+                    .mqtt_runtime
+                    .system_monitor
+                    .os_memory_high_watermark,
             )
             .await?;
             Ok(())

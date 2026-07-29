@@ -26,7 +26,7 @@ mod tests {
     #[tokio::test]
     async fn mqtt_acl_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let acl = SecurityAcl {
             name: "test-acl-loboxu".to_string(),
