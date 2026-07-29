@@ -87,9 +87,6 @@ mod tests {
         let session = build_session(DEFAULT_TENANT, &client_id);
         create_sessions(&client_pool, &addrs, vec![session.clone()]).await;
 
-        // verify session exists. list_session reads whichever node's local
-        // cache/RocksDB serves the request, with no leader gating, so a read
-        // right after a successful write can momentarily miss it.
         let present = wait_until(|| async {
             list_sessions(&client_pool, &addrs, DEFAULT_TENANT, &client_id)
                 .await
@@ -99,7 +96,6 @@ mod tests {
         .await;
         assert!(present, "created session {client_id} not visible");
 
-        // delete and verify gone
         placement_delete_session(
             &client_pool,
             &addrs,
@@ -142,32 +138,23 @@ mod tests {
         )
         .await;
 
-        // list_session reads whichever node's local cache/RocksDB serves the
-        // request, with no leader gating, so a read right after a successful
-        // write can momentarily miss it -- poll until the batch is visible.
         let results_a = wait_until_len(&client_pool, &addrs, &tenant_a, "", 2).await;
         assert_eq!(results_a.len(), 2);
         assert!(results_a.iter().all(|s| s.tenant == tenant_a));
 
-        // list by tenant_b: should return only tenant_b sessions
         let results_b = wait_until_len(&client_pool, &addrs, &tenant_b, "", 1).await;
         assert_eq!(results_b.len(), 1);
         assert_eq!(results_b[0].tenant, tenant_b);
 
-        // get specific session by tenant + client_id
         let results = wait_until_len(&client_pool, &addrs, &tenant_a, &client_id_1, 1).await;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], session_a1);
 
-        // same client_id under tenant_b returns different session
         let results = wait_until_len(&client_pool, &addrs, &tenant_b, &client_id_1, 1).await;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], session_b1);
     }
 
-    // Poll list_sessions until it returns exactly `expected_len` results, or the
-    // 15s wait_until deadline elapses (in which case the last-seen result is
-    // returned so callers still get a useful assertion failure).
     async fn wait_until_len(
         client_pool: &Arc<ClientPool>,
         addrs: &[String],

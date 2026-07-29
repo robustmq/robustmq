@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_security::storage::user::UserStorage;
     use grpc_clients::pool::ClientPool;
@@ -26,7 +27,7 @@ mod tests {
         init_broker_conf_by_config(config.clone());
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let user_storage = UserStorage::new(client_pool);
-        let username = "test".to_string();
+        let username = unique_id();
         let password = "test_password".to_string();
         let is_superuser = true;
         let user_info = metadata_struct::auth::user::SecurityUser {
@@ -67,9 +68,6 @@ mod tests {
             .unwrap();
         assert!(result.is_none());
 
-        // Other tests in this shared-cluster integration suite create/delete their
-        // own users concurrently, so the *total* user count isn't stable here --
-        // only assert that this test's own user is gone, not an exact count delta.
         let result = user_storage.user_list().await.unwrap();
         assert!(!result.iter().any(|u| u.username == username));
     }

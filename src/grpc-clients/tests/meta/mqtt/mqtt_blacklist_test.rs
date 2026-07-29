@@ -51,8 +51,6 @@ mod tests {
             }
         }
 
-        // list is served from a node's local replica, which can briefly lag the
-        // just-committed create; poll until the entry appears.
         let present = wait_until(|| async {
             let request = ListBlacklistRequest {
                 tenant: "default".to_string(),
