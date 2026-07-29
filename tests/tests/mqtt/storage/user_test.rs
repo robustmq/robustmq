@@ -49,8 +49,7 @@ mod tests {
         assert_eq!(result.is_superuser, is_superuser);
 
         let result = user_storage.user_list().await.unwrap();
-        let prev_len = result.len();
-        assert!(!result.is_empty());
+        assert!(result.iter().any(|u| u.username == username));
 
         user_storage
             .delete_user("default".to_string(), username.clone())
@@ -68,7 +67,10 @@ mod tests {
             .unwrap();
         assert!(result.is_none());
 
+        // Other tests in this shared-cluster integration suite create/delete their
+        // own users concurrently, so the *total* user count isn't stable here --
+        // only assert that this test's own user is gone, not an exact count delta.
         let result = user_storage.user_list().await.unwrap();
-        assert_eq!(result.len(), prev_len - 1);
+        assert!(!result.iter().any(|u| u.username == username));
     }
 }
