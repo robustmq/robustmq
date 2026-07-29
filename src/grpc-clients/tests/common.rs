@@ -64,8 +64,19 @@ pub fn seq_num() -> u64 {
     4
 }
 
-pub fn get_placement_addr() -> String {
-    "127.0.0.1:1228".to_string()
+// All meta-service nodes in the 3-node cluster started by scripts/cluster.sh /
+// ig-test.sh (see config/cluster/server-{1,2,3}.toml). Read-only calls like
+// ListAcl are rejected outright by any node that isn't the current metadata
+// raft leader (no forwarding, unlike writes) -- passing every node lets the
+// gRPC client's own round-robin retry find whichever node is actually leader,
+// instead of only ever hitting node 1 and failing whenever leadership has
+// moved elsewhere.
+pub fn get_placement_addr() -> Vec<String> {
+    vec![
+        "127.0.0.1:1228".to_string(),
+        "127.0.0.1:2228".to_string(),
+        "127.0.0.1:3228".to_string(),
+    ]
 }
 
 // Poll `check` until it returns true or the deadline (15s) elapses.

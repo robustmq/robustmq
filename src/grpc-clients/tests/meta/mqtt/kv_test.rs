@@ -27,7 +27,7 @@ mod tests {
     #[tokio::test]
     async fn kv_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let key = "test-sub-name".to_string();
         let value = "test-group-name".to_string();
         let request = SetRequest {

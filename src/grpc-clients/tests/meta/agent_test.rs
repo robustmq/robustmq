@@ -141,7 +141,7 @@ mod tests {
     #[tokio::test]
     async fn test_agent_register_list_unregister() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let tenant = unique_id();
 
         let card = make_agent_card(
@@ -184,7 +184,7 @@ mod tests {
     #[tokio::test]
     async fn test_agent_search_vector_and_fts() {
         let client_pool = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let tenant = unique_id();
 
         let card = make_agent_card(

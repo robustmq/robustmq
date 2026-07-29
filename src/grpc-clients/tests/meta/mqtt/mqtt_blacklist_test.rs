@@ -24,13 +24,13 @@ mod tests {
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};
 
-    use crate::common::get_placement_addr;
+    use crate::common::{get_placement_addr, wait_until};
 
     #[tokio::test]
 
     async fn mqtt_blacklist_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let blacklist = SecurityBlackList {
             name: "test-blacklist-loboxu".to_string(),
@@ -51,25 +51,22 @@ mod tests {
             }
         }
 
-        let request = ListBlacklistRequest {
-            tenant: "default".to_string(),
-        };
-
-        match list_blacklist(&client_pool, &addrs, request).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.blacklists {
-                    let tmp = SecurityBlackList::decode(&raw).unwrap();
-                    if tmp.name == blacklist.name {
-                        flag = true;
-                    }
-                }
-                assert!(flag);
+        // list is served from a node's local replica, which can briefly lag the
+        // just-committed create; poll until the entry appears.
+        let present = wait_until(|| async {
+            let request = ListBlacklistRequest {
+                tenant: "default".to_string(),
+            };
+            match list_blacklist(&client_pool, &addrs, request).await {
+                Ok(data) => data
+                    .blacklists
+                    .iter()
+                    .any(|raw| SecurityBlackList::decode(raw).unwrap().name == blacklist.name),
+                Err(_) => false,
             }
-            Err(e) => {
-                panic!("{e:?}");
-            }
-        }
+        })
+        .await;
+        assert!(present, "created blacklist {} not visible", blacklist.name);
 
         let request = DeleteBlacklistRequest {
             tenant: "default".to_string(),

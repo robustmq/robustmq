@@ -28,7 +28,7 @@ mod tests {
     #[tokio::test]
     async fn node_list_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
@@ -40,7 +40,7 @@ mod tests {
     #[tokio::test]
     async fn set_resource_config_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
@@ -70,7 +70,7 @@ mod tests {
     #[tokio::test]
     async fn get_resource_config_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         // Check if the cluster is available
         let request = ClusterStatusRequest::default();
@@ -111,7 +111,7 @@ mod tests {
     #[tokio::test]
     async fn delete_resource_config_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let request = ClusterStatusRequest::default();
         assert!(cluster_status(&client_pool, &addrs, request).await.is_ok());
