@@ -40,6 +40,9 @@ rustls.workspace = true
 cli-command.workspace = true
 cli-bench.workspace = true
 broker-server.workspace = true
+# Not used directly; pulls in the vendored-OpenSSL feature for every binary
+# built from this crate (see the comment on [workspace.dependencies].openssl).
+openssl.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
