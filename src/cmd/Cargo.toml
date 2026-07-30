@@ -40,9 +40,15 @@ rustls.workspace = true
 cli-command.workspace = true
 cli-bench.workspace = true
 broker-server.workspace = true
-# Not used directly; pulls in the vendored-OpenSSL feature for every binary
-# built from this crate (see the comment on [workspace.dependencies].openssl).
-openssl.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+
+# Not used directly; pulls in the vendored-OpenSSL feature for every binary
+# built from this crate (see the comment on [workspace.dependencies].openssl).
+# Windows is excluded: its openssl-sys build there uses a pre-installed OpenSSL
+# via OPENSSL_DIR/OPENSSL_STATIC (see release.yml), not a from-source vendored
+# build -- the CI runner's perl is missing CPAN modules openssl-src's
+# Configure script needs, so forcing vendored there fails the build.
+[target.'cfg(not(windows))'.dependencies]
+openssl.workspace = true
