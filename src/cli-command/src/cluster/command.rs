@@ -16,11 +16,11 @@ use crate::mqtt::pub_sub::error_info;
 use crate::output::OutputFormat;
 use admin_server::{
     client::AdminHttpClient,
-    cluster::{config::ClusterConfigSetReq, tenant::TenantListRow, ClusterInfoResp},
+    cluster::{ClusterInfoResp, config::ClusterConfigSetReq, tenant::TenantListRow},
 };
 use chrono::{Local, TimeZone};
 use common_config::config::BrokerConfig;
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use serde::Serialize;
 
 #[derive(Clone)]
@@ -63,7 +63,8 @@ impl ClusterCommand {
         ClusterCommand {}
     }
     pub async fn start(&self, params: ClusterCliCommandParam) {
-        match params.action.clone() {
+        let action = params.action.clone();
+        match action {
             ClusterActionType::Status => {
                 self.status(params).await;
             }
@@ -74,7 +75,7 @@ impl ClusterCommand {
                 self.get_cluster_config(params).await;
             }
             ClusterActionType::SetConfig(request) => {
-                self.set_cluster_config(params, request.clone()).await;
+                self.set_cluster_config(params, request).await;
             }
             ClusterActionType::ListTenant => {
                 self.list_tenant(params).await;
