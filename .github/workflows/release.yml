@@ -183,10 +183,22 @@ jobs:
     if: >
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.title, 'release:')
+    # NOTE: the actual compile+release runs inside the manylinux2014
+    # container via `docker run` below, not via a job-level `container:`.
+    # GitHub Actions' JS actions (checkout, rust-cache, ...) now execute
+    # under Node 24, which needs glibc >= 2.28 -- manylinux2014 (CentOS 7,
+    # glibc 2.17) can't run Node 24 at all, so a job scoped to that
+    # container fails on the very first `actions/checkout` step. Keeping the
+    # job on the normal host runner and only shelling out to the container
+    # for the build step keeps checkout/caching/upload on a modern
+    # toolchain while the compiled binary still only needs glibc 2.17.
     runs-on: ubuntu-22.04
-    container:
-      image: quay.io/pypa/manylinux2014_x86_64
     timeout-minutes: 240
+    env:
+      # Workspace-relative so it's automatically covered by the bind mount
+      # passed to `docker run` below -- the container and the host runner
+      # end up reading/writing the exact same files on disk.
+      CARGO_HOME: ${{ github.workspace }}/.cargo-home
 
     steps:
       - name: Checkout code
@@ -195,28 +207,38 @@ jobs:
           ref: main
           submodules: true
 
-      # manylinux2014 is CentOS 7-based (glibc 2.17), so anything linked here
-      # will run on any glibc >= 2.17 host. Its default gcc (4.8) can't build
-      # our dependencies though, so switch to the devtoolset-10 toolchain it
-      # ships -- that gives a modern-enough compiler while the produced
-      # binaries still only require symbols up to glibc 2.17.
-      - name: Install devtoolset-10 and system dependencies
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release-linux-amd64-manylinux2014"
+          save-if: "true"
+
+      # Everything below needs to run with manylinux2014's glibc 2.17
+      # baseline, so it's a single script executed inside the container via
+      # `docker run`, not individual workflow steps.
+      - name: Write in-container build script
         run: |
+          cat > build-in-container.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          # manylinux2014 is CentOS 7-based (glibc 2.17), so anything linked
+          # here will run on any glibc >= 2.17 host. Its default gcc (4.8)
+          # can't build our dependencies though, so switch to the
+          # devtoolset-10 toolchain it ships -- that gives a modern-enough
+          # compiler while the produced binaries still only require symbols
+          # up to glibc 2.17.
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
-          echo "/opt/rh/devtoolset-10/root/usr/bin" >> "$GITHUB_PATH"
-          {
-            echo "CC=/opt/rh/devtoolset-10/root/usr/bin/gcc"
-            echo "CXX=/opt/rh/devtoolset-10/root/usr/bin/g++"
-          } >> "$GITHUB_ENV"
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz jq
+          export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
+          export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
+          export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
 
-      # yum's own protobuf-compiler/cmake are years too old for our
-      # dependencies (tonic-prost-build, librocksdb-sys); install known-good
-      # versions from upstream prebuilt releases instead of relying on the
-      # container's package repos.
-      - name: Install protoc and cmake (prebuilt)
-        run: |
+          # yum's own protobuf-compiler/cmake are years too old for our
+          # dependencies (tonic-prost-build, librocksdb-sys); install
+          # known-good versions from upstream prebuilt releases instead of
+          # relying on the container's package repos.
           curl -sSL -o /tmp/protoc.zip \
             https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip
           unzip -o /tmp/protoc.zip -d /usr/local
@@ -229,38 +251,39 @@ jobs:
           ln -sf /opt/cmake-3.28.1-linux-x86_64/bin/ctest /usr/local/bin/ctest
           cmake --version
 
-      - name: Install Rust toolchain
-        run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
 
-      # Node 20+ itself requires glibc >= 2.28, which this container doesn't
-      # have -- only Node 16 still supports glibc 2.17. It's only needed here
-      # to build the (glibc-independent) static frontend assets bundled into
-      # every release package via --with-frontend.
-      - name: Install Node.js 16 and pnpm (frontend build only)
-        run: |
+          # Node 20+ itself requires glibc >= 2.28, which this container
+          # doesn't have -- only Node 16 still supports glibc 2.17. It's
+          # only needed here to build the (glibc-independent) static
+          # frontend assets bundled into every release package via
+          # --with-frontend.
           curl -sSL -o /tmp/node.tar.xz https://nodejs.org/dist/v16.20.2/node-v16.20.2-linux-x64.tar.xz
           tar xJf /tmp/node.tar.xz -C /opt
-          echo "/opt/node-v16.20.2-linux-x64/bin" >> "$GITHUB_PATH"
           export PATH="/opt/node-v16.20.2-linux-x64/bin:$PATH"
           node --version
           npm install -g pnpm@9
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "release-linux-amd64-manylinux2014"
-          save-if: "true"
+          make release
+          SCRIPT
+          chmod +x build-in-container.sh
 
-      - name: Run make release
+      - name: Run make release (inside manylinux2014 container)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PLATFORM: linux-amd64-manylinux2014
         run: |
           echo "Building and releasing linux-amd64-manylinux2014 (glibc 2.17), version from Cargo.toml"
-          make release
+          docker run --rm \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            -e GITHUB_TOKEN \
+            -e PLATFORM \
+            -e CARGO_HOME \
+            quay.io/pypa/manylinux2014_x86_64 \
+            ./build-in-container.sh
 
       - name: Summary
         run: |
@@ -273,10 +296,14 @@ jobs:
     if: >
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.title, 'release:')
+    # See the same note on build-legacy-glibc above: the container only
+    # wraps the compile step via `docker run`, it's not a job-level
+    # `container:`, because manylinux2014's glibc 2.17 can't run the Node 24
+    # runtime GitHub Actions' JS actions (checkout, rust-cache, ...) require.
     runs-on: ubuntu-22.04-arm
-    container:
-      image: quay.io/pypa/manylinux2014_aarch64
     timeout-minutes: 240
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo-home
 
     steps:
       - name: Checkout code
@@ -285,23 +312,29 @@ jobs:
           ref: main
           submodules: true
 
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release-linux-arm64-manylinux2014"
+          save-if: "true"
+
       # Same rationale as the x86_64 manylinux2014 job: CentOS 7-based
       # (glibc 2.17) so anything linked here runs on any glibc >= 2.17 aarch64
       # host -- notably AWS Graviton's default Amazon Linux 2 image, which
       # ships glibc 2.26, lower than our regular linux-arm64 build's baseline.
-      - name: Install devtoolset-10 and system dependencies
+      - name: Write in-container build script
         run: |
+          cat > build-in-container.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
-          echo "/opt/rh/devtoolset-10/root/usr/bin" >> "$GITHUB_PATH"
-          {
-            echo "CC=/opt/rh/devtoolset-10/root/usr/bin/gcc"
-            echo "CXX=/opt/rh/devtoolset-10/root/usr/bin/g++"
-          } >> "$GITHUB_ENV"
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz jq
+          export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
+          export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
+          export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
 
-      - name: Install protoc and cmake (prebuilt)
-        run: |
           curl -sSL -o /tmp/protoc.zip \
             https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-aarch_64.zip
           unzip -o /tmp/protoc.zip -d /usr/local
@@ -314,33 +347,25 @@ jobs:
           ln -sf /opt/cmake-3.28.1-linux-aarch64/bin/ctest /usr/local/bin/ctest
           cmake --version
 
-      - name: Install Rust toolchain
-        run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
 
-      - name: Install Node.js 16 and pnpm (frontend build only)
-        run: |
           curl -sSL -o /tmp/node.tar.xz https://nodejs.org/dist/v16.20.2/node-v16.20.2-linux-arm64.tar.xz
           tar xJf /tmp/node.tar.xz -C /opt
-          echo "/opt/node-v16.20.2-linux-arm64/bin" >> "$GITHUB_PATH"
           export PATH="/opt/node-v16.20.2-linux-arm64/bin:$PATH"
           node --version
           npm install -g pnpm@9
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "release-linux-arm64-manylinux2014"
-          save-if: "true"
+          make release
+          SCRIPT
+          chmod +x build-in-container.sh
 
       # Reduced parallelism + no LTO, same as the regular linux-arm64 build in
       # the main matrix, to avoid OOM during link on memory-constrained arm64
       # runners. The swap-file workaround used there isn't available here:
-      # this job's steps run inside the container, which doesn't have host
-      # swap/sysctl access.
-      - name: Run make release
+      # the container doesn't have host swap/sysctl access.
+      - name: Run make release (inside manylinux2014 container)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PLATFORM: linux-arm64-manylinux2014
@@ -349,7 +374,17 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
         run: |
           echo "Building and releasing linux-arm64-manylinux2014 (glibc 2.17), version from Cargo.toml"
-          make release
+          docker run --rm \
+            -v "${{ github.workspace }}:${{ github.workspace }}" \
+            -w "${{ github.workspace }}" \
+            -e GITHUB_TOKEN \
+            -e PLATFORM \
+            -e CARGO_HOME \
+            -e CARGO_BUILD_JOBS \
+            -e CARGO_PROFILE_RELEASE_LTO \
+            -e CARGO_PROFILE_RELEASE_CODEGEN_UNITS \
+            quay.io/pypa/manylinux2014_aarch64 \
+            ./build-in-container.sh
 
       - name: Summary
         run: |
