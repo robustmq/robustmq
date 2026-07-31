@@ -230,7 +230,7 @@ jobs:
           # up to glibc 2.17.
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz jq
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
@@ -251,9 +251,18 @@ jobs:
           ln -sf /opt/cmake-3.28.1-linux-x86_64/bin/ctest /usr/local/bin/ctest
           cmake --version
 
+          # jq isn't in manylinux2014's (CentOS 7) base yum repos without
+          # EPEL; grab the static binary instead, same approach as
+          # protoc/cmake above. release.sh needs it to parse GitHub API
+          # responses when creating/uploading the release.
+          curl -sSL -o /usr/local/bin/jq \
+            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+          chmod +x /usr/local/bin/jq
+          jq --version
+
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
-          export PATH="$HOME/.cargo/bin:$PATH"
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
           # Node 20+ itself requires glibc >= 2.28, which this container
           # doesn't have -- only Node 16 still supports glibc 2.17. It's
@@ -330,7 +339,7 @@ jobs:
 
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz jq
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
@@ -339,6 +348,14 @@ jobs:
             https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-aarch_64.zip
           unzip -o /tmp/protoc.zip -d /usr/local
           protoc --version
+
+          # jq isn't in manylinux2014's (CentOS 7) base yum repos without
+          # EPEL; grab the static binary instead, same approach as
+          # protoc/cmake. release.sh needs it to parse GitHub API responses.
+          curl -sSL -o /usr/local/bin/jq \
+            https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-arm64
+          chmod +x /usr/local/bin/jq
+          jq --version
 
           curl -sSL -o /tmp/cmake.tar.gz \
             https://github.com/Kitware/CMake/releases/download/v3.28.1/cmake-3.28.1-linux-aarch64.tar.gz
@@ -349,7 +366,7 @@ jobs:
 
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
-          export PATH="$HOME/.cargo/bin:$PATH"
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
           curl -sSL -o /tmp/node.tar.xz https://nodejs.org/dist/v16.20.2/node-v16.20.2-linux-arm64.tar.xz
           tar xJf /tmp/node.tar.xz -C /opt
