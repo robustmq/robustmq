@@ -34,5 +34,3 @@ serde_json.workspace = true
 [dev-dependencies]
 metadata-struct.workspace = true
 a2a-types.workspace = true
-llm-engine.workspace = true
-search-engine.workspace = true

@@ -41,6 +41,13 @@ cli-command.workspace = true
 cli-bench.workspace = true
 broker-server.workspace = true
 
+[features]
+# mq9 agent semantic/full-text search (lancedb + fastembed/ort). Off by
+# default: heavy (large binary, no musl-compatible ONNX Runtime binaries) and
+# only used by this one feature. Enable for a build that needs mq9 agent
+# search, e.g. `cargo build --features vector-search`.
+vector-search = ["broker-server/vector-search"]
+
 [dev-dependencies]
 mockall.workspace = true
 
