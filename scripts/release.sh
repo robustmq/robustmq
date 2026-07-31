@@ -261,6 +261,11 @@ github_api_request() {
         echo "$response_body"
     else
         log_error "GitHub API request failed with HTTP $http_code"
+        # Callers capture this function's stdout via $(...), so the body
+        # never reaches the log there -- print it to stderr too, otherwise
+        # the actual reason (e.g. GitHub's validation error message) is
+        # invisible in CI output.
+        log_error "Response body: $response_body"
         echo "$response_body"
         return 1
     fi
@@ -442,6 +447,20 @@ EOF
         log_info "GitHub has automatically generated PR and contributor information"
         echo "$release_id"
     else
+        # Multiple platform jobs in this workflow run in parallel and each
+        # independently check-then-create a release for the same tag. If
+        # another job won that race between our "does it exist" check and
+        # this create call, GitHub rejects our create as a duplicate. Rather
+        # than failing the whole job, fall back to fetching the release the
+        # other job just created.
+        log_warning "Create failed, checking whether another parallel job already created it..."
+        local existing_id
+        if existing_id=$(get_release_id "$version" 2>/dev/null) && [ -n "$existing_id" ]; then
+            log_success "Release $version already exists (ID: $existing_id), using it"
+            echo "$existing_id"
+            return 0
+        fi
+
         log_error "Failed to create GitHub release"
         return 1
     fi
