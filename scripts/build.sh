@@ -298,6 +298,16 @@ show_cache_diagnostics() {
     fi
 }
 
+# The frontend build produces glibc-independent static assets, so a caller
+# (e.g. the manylinux2014 release jobs, which can't run the frontend's
+# required Node >=20 inside their glibc-2.17 container) may have already
+# built it in a separate host step. When that's the case, neither
+# check_dependencies nor build_frontend need pnpm/git at all.
+frontend_already_built() {
+    local frontend_dist="$PROJECT_ROOT/build/robustmq-copilot/packages/web-ui/dist"
+    [ -d "$frontend_dist" ] && [ -n "$(ls -A "$frontend_dist" 2>/dev/null)" ]
+}
+
 check_dependencies() {
     if ! command -v cargo >/dev/null 2>&1; then
         log_error "cargo not found. Please install Rust."
@@ -323,7 +333,7 @@ check_dependencies() {
 
     configure_rustc_wrapper
 
-    if [ "$BUILD_FRONTEND" = "true" ]; then
+    if [ "$BUILD_FRONTEND" = "true" ] && ! frontend_already_built; then
         if ! command -v pnpm >/dev/null 2>&1; then
             log_error "pnpm not found. Please install pnpm for frontend build."
             echo
@@ -360,15 +370,9 @@ build_frontend() {
 
     local frontend_dir="$PROJECT_ROOT/build/robustmq-copilot"
     local frontend_repo="https://github.com/robustmq/robustmq-copilot.git"
-    local frontend_dist="$frontend_dir/packages/web-ui/dist"
 
-    # The frontend build produces glibc-independent static assets, so a
-    # caller (e.g. the manylinux2014 release jobs, which can't run the
-    # frontend's required Node >=20 inside their glibc-2.17 container) may
-    # have already built it on a separate host step. Reuse that instead of
-    # rebuilding.
-    if [ -d "$frontend_dist" ] && [ -n "$(ls -A "$frontend_dist" 2>/dev/null)" ]; then
-        log_info "Frontend already built at $frontend_dist, skipping rebuild"
+    if frontend_already_built; then
+        log_info "Frontend already built at $frontend_dir/packages/web-ui/dist, skipping rebuild"
         return 0
     fi
 

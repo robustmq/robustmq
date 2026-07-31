@@ -257,7 +257,7 @@ jobs:
           # up to glibc 2.17.
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel libzstd-devel pkgconfig unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
@@ -384,7 +384,7 @@ jobs:
 
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel unzip xz
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel libzstd-devel pkgconfig unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
