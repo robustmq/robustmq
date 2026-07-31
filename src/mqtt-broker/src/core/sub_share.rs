@@ -26,19 +26,27 @@ pub fn is_mqtt_share_subscribe(path: &str) -> bool {
 }
 
 pub fn decode_share_info(path: &str) -> (String, String) {
-    let parts: Vec<&str> = path.split('/').collect();
-
-    if parts.len() < 3 || parts[0] != "$share" {
+    let mut parts = path.splitn(3, '/');
+    if parts.next() != Some(SHARE_SUB_PREFIX) {
         return (String::new(), String::new());
     }
 
-    let group_name = parts[1].to_string();
-    let topic_path = format!("/{}", parts[2..].join("/"));
-    (group_name, topic_path)
+    let Some(group_name) = parts.next() else {
+        return (String::new(), String::new());
+    };
+    let Some(topic_filter) = parts.next() else {
+        return (String::new(), String::new());
+    };
+
+    (group_name.to_string(), topic_filter.to_string())
 }
 
+/// Build the stable share-group key as `<group>/<topic-filter>`.
+///
+/// The separator is explicit because `decode_share_info` preserves whether the
+/// MQTT topic filter itself starts with `/`.
 pub fn full_group_name(group_name: &str, sub_name: &str) -> String {
-    format!("{group_name}{sub_name}")
+    format!("{group_name}/{sub_name}")
 }
 
 pub async fn is_share_sub_leader(
@@ -106,14 +114,18 @@ mod tests {
     fn test_decode_share_info() {
         assert_eq!(
             decode_share_info("$share/consumer1/sport/tennis/+"),
-            ("consumer1".to_string(), "/sport/tennis/+".to_string())
+            ("consumer1".to_string(), "sport/tennis/+".to_string())
         );
         assert_eq!(
             decode_share_info("$share/group/a/b/c"),
-            ("group".to_string(), "/a/b/c".to_string())
+            ("group".to_string(), "a/b/c".to_string())
         );
         assert_eq!(
             decode_share_info("$share/g/t"),
+            ("g".to_string(), "t".to_string())
+        );
+        assert_eq!(
+            decode_share_info("$share/g//t"),
             ("g".to_string(), "/t".to_string())
         );
         assert_eq!(decode_share_info(""), ("".to_string(), "".to_string()));
@@ -129,6 +141,12 @@ mod tests {
             decode_share_info("share/g/t"),
             ("".to_string(), "".to_string())
         );
+    }
+
+    #[test]
+    fn test_full_group_name() {
+        assert_eq!(full_group_name("g", "a/b"), "g/a/b");
+        assert_eq!(full_group_name("g", "/a/b"), "g//a/b");
     }
 
     #[test]
