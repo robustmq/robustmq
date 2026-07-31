@@ -282,18 +282,27 @@ async fn write_websocket_response(
     let mut codec = RobustMQCodec::new();
     let mut response_buf = BytesMut::new();
 
-    let codec_wrapper = match packet_wrapper.packet.clone() {
-        RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
-            protocol_version: packet_wrapper.protocol.to_u8(),
-            packet: pkg,
-        }),
-        RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
-        RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(pkg),
-        RobustMQPacket::AMQP(pkg) => RobustMQCodecWrapper::AMQP(pkg),
-        RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
-    };
+    // AMQP's logical replies can be more than one wire frame (e.g. GetOk +
+    // content header + body); encode each into the same buffer in order and
+    // send them as a single WebSocket message.
+    if let RobustMQPacket::AMQP(frames) = packet_wrapper.packet.clone() {
+        for frame in frames {
+            codec.encode_data(RobustMQCodecWrapper::AMQP(frame), &mut response_buf)?;
+        }
+    } else {
+        let codec_wrapper = match packet_wrapper.packet.clone() {
+            RobustMQPacket::MQTT(pkg) => RobustMQCodecWrapper::MQTT(MqttPacketWrapper {
+                protocol_version: packet_wrapper.protocol.to_u8(),
+                packet: pkg,
+            }),
+            RobustMQPacket::StorageEngine(pkg) => RobustMQCodecWrapper::StorageEngine(pkg),
+            RobustMQPacket::KAFKA(pkg) => RobustMQCodecWrapper::KAFKA(pkg),
+            RobustMQPacket::AMQP(_) => unreachable!("handled above"),
+            RobustMQPacket::NATS(pkt) => RobustMQCodecWrapper::NATS(pkt),
+        };
 
-    codec.encode_data(codec_wrapper, &mut response_buf)?;
+        codec.encode_data(codec_wrapper, &mut response_buf)?;
+    }
 
     connection_manager
         .write_websocket_frame(

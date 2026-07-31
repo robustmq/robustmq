@@ -432,7 +432,13 @@ message CreateShareGroupRequest {
   bytes params = 3;
 }
 
-message CreateShareGroupReply {}
+// `group` carries the authoritative encoded ShareGroup (including the
+// elected leader_broker) — whether this call created it or it already
+// existed — so the caller never needs a separate read-back to learn what it
+// (or a racing creator) just wrote.
+message CreateShareGroupReply {
+  bytes group = 1;
+}
 
 message DeleteShareGroupRequest {
   string tenant = 1 [(validate.rules).string.min_len = 1];

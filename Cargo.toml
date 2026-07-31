@@ -58,12 +58,17 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.4.8"
+version = "0.4.11"
 edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
 libc = "0.2"
+# Force every transitive consumer of openssl-sys (native-tls via reqwest/mysql/
+# pulsar/hf-hub, paho-mqtt-sys) to statically link a vendored OpenSSL instead of
+# the host's libssl. Without this, release binaries built on Ubuntu (OpenSSL 3.x)
+# fail to start on older distros (RHEL/CentOS 7-8) that only ship libssl.so.1.1.
+openssl = { version = "0.10", features = ["vendored"] }
 # ====================
 # Async Runtime & Utilities
 # ====================

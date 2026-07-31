@@ -23,6 +23,7 @@ use crate::storage::kafka::delegation_token::KafkaDelegationTokenStorage;
 use crate::storage::kafka::quota::KafkaQuotaStorage;
 use crate::storage::kafka::scram::KafkaScramStorage;
 use bytes::Bytes;
+use grpc_clients::utils::NOT_RAFT_LEADER_MARKER;
 use metadata_struct::kafka::delegation_token::KafkaDelegationToken;
 use metadata_struct::kafka::quota::KafkaClientQuota;
 use metadata_struct::kafka::scram::KafkaScramCredential;
@@ -293,6 +294,18 @@ impl KafkaService for GrpcKafkaService {
     ) -> Result<Response<ListScramCredentialReply>, Status> {
         let req = request.into_inner();
         Self::validate_request(&req)?;
+
+        // This only reads local raft-applied state, with no linearizability
+        // guarantee — a follower that hasn't yet applied a just-committed
+        // delete would still report the deleted credential as present. Only
+        // the leader (where set/delete_scram_credential always apply) is
+        // guaranteed caught up on a write it just processed, so refuse here
+        // otherwise and let the client sweep to another node.
+        if !self.raft_manager.is_metadata_leader() {
+            return Err(Self::to_status(format!(
+                "{NOT_RAFT_LEADER_MARKER} for ListScramCredential"
+            )));
+        }
 
         let storage = KafkaScramStorage::new(self.rocksdb_engine_handler.clone());
         let credentials = storage

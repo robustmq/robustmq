@@ -18,10 +18,11 @@ use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_config::broker::broker_config;
 use common_config::config::{
-    BrokerConfig, KafkaDynamic, MetaRuntime, MqttFlappingDetect, MqttOfflineMessage,
-    MqttProtocolConfig, MqttSchema, MqttSlowSubscribeConfig, MqttSystemMonitor,
+    BrokerConfig, MetaRuntime, MqttFlappingDetect, MqttOfflineMessage, MqttProtocolConfig,
+    MqttSchema, MqttSlowSubscribeConfig, MqttSystemMonitor,
 };
 use grpc_clients::pool::ClientPool;
+use serde::Deserialize;
 use std::sync::Arc;
 use strum_macros::{Display, EnumString};
 
@@ -40,36 +41,45 @@ pub enum ClusterDynamicConfig {
     KafkaDynamic,
 }
 
+/// Wire shape for the `KafkaDynamic` dynamic-config entry. `KafkaDynamic` was
+/// folded into `KafkaRuntime` as a plain field, but the RocksDB/Raft-stored
+/// bytes under the `KafkaDynamic` key still hold this exact single-field JSON
+/// shape, so this struct exists purely to decode/encode that stored value.
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+struct KafkaDynamicWire {
+    auto_create_topics_enable: bool,
+}
+
 pub async fn build_cluster_config(
     client_pool: &Arc<ClientPool>,
 ) -> Result<BrokerConfig, CommonError> {
     let mut conf = broker_config().clone();
     if let Some(data) = get_mqtt_protocol(client_pool).await? {
-        conf.mqtt_protocol = data;
+        conf.mqtt_runtime.protocol = data;
     }
 
     if let Some(data) = get_slow_subscribe_config(client_pool).await? {
-        conf.mqtt_slow_subscribe = data;
+        conf.mqtt_runtime.slow_subscribe = data;
     }
 
     if let Some(data) = get_flapping_detect(client_pool).await? {
-        conf.mqtt_flapping_detect = data;
+        conf.mqtt_runtime.flapping_detect = data;
     }
 
     if let Some(data) = get_offline_message(client_pool).await? {
-        conf.mqtt_offline_message = data;
+        conf.mqtt_runtime.offline_message = data;
     }
 
     if let Some(data) = get_schema(client_pool).await? {
-        conf.mqtt_schema = data;
+        conf.mqtt_runtime.schema = data;
     }
 
     if let Some(data) = get_system_monitor(client_pool).await? {
-        conf.mqtt_system_monitor = data;
+        conf.mqtt_runtime.system_monitor = data;
     }
 
     if let Some(data) = get_kafka_dynamic(client_pool).await? {
-        conf.kafka_dynamic = data;
+        conf.kafka_runtime.auto_create_topics_enable = data.auto_create_topics_enable;
     }
 
     Ok(conf)
@@ -86,31 +96,32 @@ pub fn update_cluster_dynamic_config(
             new_config.cluster_limit = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttSlowSubscribeConfig => {
-            new_config.mqtt_slow_subscribe = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.slow_subscribe = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttFlappingDetect => {
-            new_config.mqtt_flapping_detect = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.flapping_detect = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttProtocol => {
-            new_config.mqtt_protocol = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.protocol = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttOfflineMessage => {
-            new_config.mqtt_offline_message = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.offline_message = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttSystemMonitor => {
-            new_config.mqtt_system_monitor = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.system_monitor = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttSchema => {
-            new_config.mqtt_schema = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.schema = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MqttLimit => {
-            new_config.mqtt_limit = serde_json::from_slice(&config)?;
+            new_config.mqtt_runtime.limit = serde_json::from_slice(&config)?;
         }
         ClusterDynamicConfig::MetaRuntime => {
             new_config.meta_runtime = serde_json::from_slice::<MetaRuntime>(&config)?;
         }
         ClusterDynamicConfig::KafkaDynamic => {
-            new_config.kafka_dynamic = serde_json::from_slice(&config)?;
+            let data: KafkaDynamicWire = serde_json::from_slice(&config)?;
+            new_config.kafka_runtime.auto_create_topics_enable = data.auto_create_topics_enable;
         }
     }
     node_cache.set_cluster_config(new_config);
@@ -217,14 +228,14 @@ async fn get_system_monitor(
 
 async fn get_kafka_dynamic(
     client_pool: &Arc<ClientPool>,
-) -> Result<Option<KafkaDynamic>, CommonError> {
+) -> Result<Option<KafkaDynamicWire>, CommonError> {
     let cluster_storage = ClusterStorage::new(client_pool.clone());
     let data = cluster_storage
         .get_dynamic_config(&ClusterDynamicConfig::KafkaDynamic.to_string())
         .await?;
 
     if !data.is_empty() {
-        return Ok(Some(serde_json::from_slice::<KafkaDynamic>(&data)?));
+        return Ok(Some(serde_json::from_slice::<KafkaDynamicWire>(&data)?));
     }
 
     Ok(None)

@@ -1,217 +1,201 @@
 # RobustMQ AMQP Protocol Support
 
-This document lists the AMQP 0.9.1 protocol methods that RobustMQ needs to support as an AMQP Broker, along with their priority and description.
+This document lists RobustMQ's **actual support status**, per AMQP 0-9-1 Class/Method, as an AMQP broker. Status uses three levels:
+
+- ✅ **Fully supported**: the protocol semantics are correctly implemented.
+- 🟡 **Partially supported**: the handshake/interface works, but the behavior is a simplified implementation or has a known limitation — see the note.
+- ❌ **Not supported**: the method itself errors out or has no real semantics.
 
 References:
-- [AMQP 0.9.1 Protocol Specification](https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf)
-- [AMQP 0.9.1 XML Definition](https://www.rabbitmq.com/resources/specs/amqp0-9-1.xml)
+- [AMQP 0-9-1 Protocol Specification](https://www.rabbitmq.com/resources/specs/amqp0-9-1.pdf)
+- [AMQP 0-9-1 XML Definition](https://www.rabbitmq.com/resources/specs/amqp0-9-1.xml)
+
+See [Compatibility & Limitations](./Compatibility-and-Limitations.md) for the reasoning and impact behind each item.
 
 ---
 
 ## Protocol Basics
 
-AMQP 0.9.1 runs over TCP and uses a frame-based transport. Each frame consists of a type, channel number, payload length, payload, and a frame-end byte (0xCE).
+AMQP 0-9-1 runs over TCP and transmits data as frames. Each frame consists of a type, channel number, length, payload, and a frame-end marker (`0xCE`).
 
-- Connection flow
+- Connection-related
 ![img](../../images/amqp-01.jpg)
 
-- Produce & Consume flow
+- Publish/consume-related
 
 ![img](../../images/amqp-02.jpg)
 
-- Broker internal logic
+- Broker-internal logic
 ![img](../../images/amqp-03.jpg)
 
 ### Frame Types
 
-| Frame Type | Code | Description |
-|------------|------|-------------|
-| Method Frame | 1 | Control commands (all Class/Method pairs) |
+| Frame type | ID | Description |
+|--------|------|------|
+| Method Frame | 1 | Control commands (all Class/Method) |
 | Content Header Frame | 2 | Message properties (content-type, delivery-mode, headers, etc.) |
-| Content Body Frame | 3 | Message payload (may be split across multiple frames) |
-| Heartbeat Frame | 8 | Keep-alive heartbeat |
+| Content Body Frame | 3 | Message body payload (may be split across frames) |
+| Heartbeat Frame | 8 | Keepalive |
 
-Message publishing and delivery each require a **Method + Content Header + Content Body** frame sequence.
-
----
-
-## 1. Connection Class (Required)
-
-Connection-level handshake, all on channel=0. The broker initiates `start`, `secure`, `tune`, and `close`, and processes the client's responses.
-
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| connection.start | 10.10 | S→C | Broker initiates handshake, advertises supported SASL mechanisms and locales | ❌ |
-| connection.start-ok | 10.11 | C→S | Client selects SASL mechanism and sends authentication response | ❌ |
-| connection.secure | 10.20 | S→C | Broker sends SASL challenge (for multi-step mechanisms) | ❌ |
-| connection.secure-ok | 10.21 | C→S | Client responds to SASL challenge | ❌ |
-| connection.tune | 10.30 | S→C | Broker proposes channel-max, frame-max, heartbeat parameters | ❌ |
-| connection.tune-ok | 10.31 | C→S | Client confirms connection parameters | ❌ |
-| connection.open | 10.40 | C→S | Client opens a virtual host | ❌ |
-| connection.open-ok | 10.41 | S→C | Broker confirms vhost connection | ❌ |
-| connection.close | 10.50 | Both | Either side initiates connection close (with error code) | ❌ |
-| connection.close-ok | 10.51 | Both | Confirms close | ❌ |
+Both publishing and delivery are completed via the **Method + Content Header + Content Body** frame combination.
 
 ---
 
-## 2. Channel Class (Required)
+## 1. Connection Class
 
-Multiple channels can be multiplexed over a single TCP connection, each independently handling message flow.
-
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| channel.open | 20.10 | C→S | Client opens a channel | ❌ |
-| channel.open-ok | 20.11 | S→C | Broker confirms channel is open | ❌ |
-| channel.flow | 20.20 | Both | Pause or resume message flow (back-pressure control) | ❌ |
-| channel.flow-ok | 20.21 | Both | Confirms flow command | ❌ |
-| channel.close | 20.40 | Both | Close channel (with error code) | ❌ |
-| channel.close-ok | 20.41 | Both | Confirms close | ❌ |
-
----
-
-## 3. Exchange Class (Required)
-
-Exchanges are the core of message routing, supporting direct, fanout, topic, and headers types.
-
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| exchange.declare | 40.10 | C→S | Create or verify an exchange (type/passive/durable/no-wait) | ❌ |
-| exchange.declare-ok | 40.11 | S→C | Confirms creation | ❌ |
-| exchange.delete | 40.20 | C→S | Delete an exchange (if-unused option) | ❌ |
-| exchange.delete-ok | 40.21 | S→C | Confirms deletion | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| connection.start | 10.10 | S→C | Broker initiates the handshake, advertising supported SASL mechanisms and locale | ✅ |
+| connection.start-ok | 10.11 | C→S | Client selects a SASL mechanism and sends the auth response | ✅ PLAIN only |
+| connection.secure | 10.20 | S→C | Broker sends a SASL challenge (multi-round auth) | 🟡 Unused (not needed for PLAIN) |
+| connection.secure-ok | 10.21 | C→S | Client responds to the SASL challenge | 🟡 Ack-only stub |
+| connection.tune | 10.30 | S→C | Broker proposes channel-max, frame-max, heartbeat | ✅ |
+| connection.tune-ok | 10.31 | C→S | Client confirms connection parameters | ✅ Server takes the smaller of the client's negotiated values and its own proposal |
+| connection.open | 10.40 | C→S | Client opens a virtual host (mapped to a tenant) | ✅ |
+| connection.open-ok | 10.41 | S→C | Broker confirms the vhost connection succeeded | ✅ |
+| connection.close | 10.50 | Both | Either side initiates connection close (carries an error code) | ✅ |
+| connection.close-ok | 10.51 | Both | Confirms close | ✅ |
+| connection.blocked | 10.60 | S→C | Connection-level flow-control warning | 🟡 Unused (no active throttling) |
+| connection.unblocked | 10.61 | S→C | Clears the flow-control warning | 🟡 Unused |
+| connection.update-secret | 10.70 | C→S | Updates auth credentials on an established connection | 🟡 Ack-only stub, no real credential rotation |
+| connection.update-secret-ok | 10.71 | S→C | Confirms the update | 🟡 |
 
 ---
 
-## 4. Queue Class (Required)
+## 2. Channel Class
 
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| queue.declare | 50.10 | C→S | Create or verify a queue (passive/durable/exclusive/auto-delete) | ❌ |
-| queue.declare-ok | 50.11 | S→C | Confirms creation, returns queue name, message count, consumer count | ❌ |
-| queue.bind | 50.20 | C→S | Bind a queue to an exchange (with routing-key) | ❌ |
-| queue.bind-ok | 50.21 | S→C | Confirms binding | ❌ |
-| queue.unbind | 50.50 | C→S | Remove a queue binding from an exchange | ❌ |
-| queue.unbind-ok | 50.51 | S→C | Confirms unbinding | ❌ |
-| queue.purge | 50.30 | C→S | Remove all unacknowledged messages from a queue | ❌ |
-| queue.purge-ok | 50.31 | S→C | Confirms purge, returns message count removed | ❌ |
-| queue.delete | 50.40 | C→S | Delete a queue (if-unused / if-empty options) | ❌ |
-| queue.delete-ok | 50.41 | S→C | Confirms deletion, returns message count removed | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| channel.open | 20.10 | C→S | Client opens a channel | ✅ |
+| channel.open-ok | 20.11 | S→C | Broker confirms the channel is open | ✅ |
+| channel.flow | 20.20 | Both | Pause/resume the message flow (backpressure) | 🟡 Only takes effect for push delivery on the local node — see [Compatibility & Limitations](./Compatibility-and-Limitations.md) |
+| channel.flow-ok | 20.21 | Both | Confirms the flow command | ✅ |
+| channel.close | 20.40 | Both | Closes the channel (carries an error code) | ✅ |
+| channel.close-ok | 20.41 | Both | Confirms close | ✅ |
 
 ---
 
-## 5. Basic Class (Required)
+## 3. Exchange Class
 
-The Basic class is the core of AMQP 0.9.1, covering message publishing, delivery, and acknowledgment.
+Exchanges are the core of message routing, with all four standard types supported: `direct`, `fanout`, `topic`, `headers`.
+
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| exchange.declare | 40.10 | C→S | Create or verify an exchange (type/passive/durable/no-wait) | ✅ Including passive semantics (404 if it doesn't exist) |
+| exchange.declare-ok | 40.11 | S→C | Confirms creation | ✅ |
+| exchange.delete | 40.20 | C→S | Delete an exchange (if-unused option) | ✅ |
+| exchange.delete-ok | 40.21 | S→C | Confirms deletion | ✅ |
+| exchange.bind | 40.30 | C→S | Exchange-to-exchange binding (RabbitMQ extension) | ✅ Supports chained routing, with cycle protection |
+| exchange.bind-ok | 40.31 | S→C | Confirms the binding | ✅ |
+| exchange.unbind | 40.40 | C→S | Remove an exchange-to-exchange binding | ✅ |
+| exchange.unbind-ok | 40.51 | S→C | Confirms the unbind | ✅ |
+
+---
+
+## 4. Queue Class
+
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| queue.declare | 50.10 | C→S | Create or verify a queue (passive/durable/exclusive/auto-delete) | ✅ Including passive semantics |
+| queue.declare-ok | 50.11 | S→C | Confirms creation; returns queue name, message count, consumer count | ✅ Real counts (based on current storage offsets and shared consume-group member count) |
+| queue.bind | 50.20 | C→S | Bind a queue to an exchange (with a routing-key) | ✅ |
+| queue.bind-ok | 50.21 | S→C | Confirms the binding | ✅ |
+| queue.unbind | 50.50 | C→S | Remove the binding between a queue and an exchange | ✅ |
+| queue.unbind-ok | 50.51 | S→C | Confirms the unbind | ✅ |
+| queue.purge | 50.30 | C→S | Purge all messages from a queue | ✅ |
+| queue.purge-ok | 50.31 | S→C | Confirms the purge; returns the number of purged messages | ✅ |
+| queue.delete | 50.40 | C→S | Delete a queue (if-unused / if-empty options) | ✅ |
+| queue.delete-ok | 50.41 | S→C | Confirms deletion; returns the number of deleted messages | ✅ |
+
+---
+
+## 5. Basic Class
+
+The Basic class is the heart of AMQP 0-9-1, covering all message publish, delivery, and acknowledgement logic.
 
 ### 5.1 Consumer Management
 
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| basic.qos | 60.10 | C→S | Set prefetch (prefetch-size, prefetch-count, global) | ❌ |
-| basic.qos-ok | 60.11 | S→C | Confirms QoS settings | ❌ |
-| basic.consume | 60.20 | C→S | Register a consumer, start push-mode delivery (no-local/no-ack/exclusive) | ❌ |
-| basic.consume-ok | 60.21 | S→C | Returns consumer-tag | ❌ |
-| basic.cancel | 60.30 | C→S | Cancel a consumer | ❌ |
-| basic.cancel-ok | 60.31 | S→C | Confirms cancellation | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| basic.qos | 60.10 | C→S | Set prefetch (prefetch-size, prefetch-count, global) | 🟡 Enforced when the consumer is co-located with the queue leader; best-effort across nodes; `prefetch-size` has no effect |
+| basic.qos-ok | 60.11 | S→C | Confirms the QoS setting | ✅ |
+| basic.consume | 60.20 | C→S | Register a consumer, start push-mode delivery (no-local/no-ack/exclusive) | ✅ `exclusive` is enforced; `no-local` has no effect (matches RabbitMQ classic queues) |
+| basic.consume-ok | 60.21 | S→C | Returns the consumer-tag | ✅ Broker generates one if the client leaves it blank |
+| basic.cancel | 60.30 | C→S | Cancel a consumer | ✅ |
+| basic.cancel-ok | 60.31 | S→C | Confirms the cancellation | ✅ |
 
-### 5.2 Message Publishing
+### 5.2 Publishing
 
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| basic.publish | 60.40 | C→S | Publish a message (exchange, routing-key, mandatory, immediate), followed by Content Header + Body frames | ❌ |
-| basic.return | 60.50 | S→C | Return an unroutable message to publisher (triggered by mandatory/immediate flags) | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| basic.publish | 60.40 | C→S | Publish a message (exchange, routing-key, mandatory, immediate), followed by Content Header + Body frames | ✅ `immediate` is a deprecated flag and gets no special handling (matches modern RabbitMQ) |
+| basic.return | 60.50 | S→C | Return an unroutable message (triggered by the `mandatory` flag) | ✅ |
 
-### 5.3 Message Delivery
+### 5.3 Delivery
 
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| basic.deliver | 60.60 | S→C | Broker pushes message to consumer (push mode), followed by Content Header + Body frames | ❌ |
-| basic.get | 60.70 | C→S | Synchronously pull one message (pull mode) | ❌ |
-| basic.get-ok | 60.71 | S→C | Returns message, followed by Content Header + Body frames | ❌ |
-| basic.get-empty | 60.72 | S→C | Response when queue is empty | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| basic.deliver | 60.60 | S→C | Broker pushes a message to a consumer (push mode), followed by Content Header + Body frames | ✅ |
+| basic.get | 60.70 | C→S | Synchronously pull one message (pull mode) | ✅ Auto-forwarded across nodes to the queue leader |
+| basic.get-ok | 60.71 | S→C | Returns the message, followed by Content Header + Body frames | ✅ |
+| basic.get-empty | 60.72 | S→C | Response when the queue is empty | ✅ |
 
-### 5.4 Message Acknowledgment
+### 5.4 Acknowledgement
 
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| basic.ack | 60.80 | C→S | Acknowledge message(s) as processed (multiple flag for batch ack) | ❌ |
-| basic.reject | 60.90 | C→S | Reject a message (requeue=true to requeue, false to discard) | ❌ |
-| basic.recover | 60.110 | C→S | Ask broker to redeliver all unacknowledged messages | ❌ |
-| basic.recover-ok | 60.111 | S→C | Confirms recover | ❌ |
-
----
-
-## 6. Tx Class (Optional, Local Transactions)
-
-| Class.Method | Code | Direction | Description | Supported |
-|--------------|------|-----------|-------------|-----------|
-| tx.select | 90.10 | C→S | Enable transaction mode | ❌ |
-| tx.select-ok | 90.11 | S→C | Confirms transaction mode enabled | ❌ |
-| tx.commit | 90.20 | C→S | Commit transaction (publish + ack atomically) | ❌ |
-| tx.commit-ok | 90.21 | S→C | Confirms commit | ❌ |
-| tx.rollback | 90.30 | C→S | Roll back transaction | ❌ |
-| tx.rollback-ok | 90.31 | S→C | Confirms rollback | ❌ |
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| basic.ack | 60.80 | C→S | Acknowledge a message as processed (supports batch ack via `multiple`) | ✅ |
+| basic.reject | 60.90 | C→S | Reject a message (`requeue=true` puts it back, `false` discards it) | ✅ |
+| basic.recover-async | 60.100 | C→S | Ask the broker to redeliver all unacked messages (fire-and-forget) | ✅ |
+| basic.recover | 60.110 | C→S | Ask the broker to redeliver all unacked messages | ✅ |
+| basic.recover-ok | 60.111 | S→C | Confirms the recover | ✅ |
+| basic.nack | 60.120 | C→S | Batch-reject messages (RabbitMQ extension) | ✅ |
 
 ---
 
-## 7. RabbitMQ Extensions (Optional)
+## 6. Tx Class (No Real Semantics)
 
-The following are RabbitMQ private extensions to AMQP 0.9.1, not part of the standard spec, but widely used by mainstream clients:
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| tx.select | 90.10 | C→S | Enter transaction mode | 🟡 Handshake only, replies select-ok |
+| tx.select-ok | 90.11 | S→C | Confirms transaction mode is on | 🟡 |
+| tx.commit | 90.20 | C→S | Commit a transaction (publish + ack take effect atomically) | 🟡 Replies commit-ok only, no real atomic commit |
+| tx.commit-ok | 90.21 | S→C | Confirms the commit | 🟡 |
+| tx.rollback | 90.30 | C→S | Roll back a transaction | 🟡 Replies rollback-ok only, no real rollback |
+| tx.rollback-ok | 90.31 | S→C | Confirms the rollback | 🟡 |
 
-| Extension | Description | Supported |
-|-----------|-------------|-----------|
-| **basic.nack** | Batch reject messages (standard reject only handles one at a time) | ❌ |
-| **confirm.select / confirm.select-ok** | Publisher Confirm mode: broker sends ack/nack for each published message | ❌ |
-| **exchange.bind / exchange.bind-ok** | Exchange-to-Exchange binding | ❌ |
-| **exchange.unbind / exchange.unbind-ok** | Remove Exchange-to-Exchange binding | ❌ |
-
-> Publisher Confirm is an almost universally required reliability feature in production — recommended to implement alongside basic.publish.
-
----
-
-## Core Broker Business Logic
-
-About half of the 53 methods in AMQP 0.9.1 are `*-ok` acknowledgment replies that the broker constructs and returns directly. The methods requiring real business logic are:
-
-| Capability | Methods Involved | Description |
-|------------|-----------------|-------------|
-| **Authentication** | connection.start / start-ok / secure / secure-ok | SASL handshake, supporting PLAIN and AMQPLAIN mechanisms |
-| **Routing** | exchange.declare + queue.bind + basic.publish | publish → exchange → binding → queue matching; supports direct/fanout/topic/headers |
-| **Push Delivery** | basic.consume + basic.deliver | Maintain consumer registry, respect prefetch window, push messages to consumers |
-| **Acknowledgment** | basic.ack / reject / nack / recover | Drive message state transitions (unacked → acked / requeued / dead-lettered) |
-| **Transactions** | tx.select / commit / rollback | Atomicity guarantee for publish and ack operations (optional) |
+> After `Tx.Select`, publishes and acks still take effect **immediately** — they are not buffered until commit, and there is no rollback undo. For reliable publishing, use [Publisher Confirms](./PublisherConfirms.md) instead.
 
 ---
 
-## Implementation Roadmap
+## 7. Confirm Class (Publisher Confirms, RabbitMQ Extension)
 
-### Phase 1: Standard Client Compatibility
+| Class.Method | ID | Direction | Description | Status |
+|--------------|------|------|------|------|
+| confirm.select | 85.10 | C→S | Enable Publisher Confirm mode | ✅ |
+| confirm.select-ok | 85.11 | S→C | Confirms it's enabled | ✅ |
 
-After implementing the following methods, standard AMQP clients (pika, amqplib, etc.) can send and receive messages:
+Once enabled, every `basic.publish` on that channel receives a matching `basic.ack` (success) or `basic.nack` (failure) once the message is durably written — see [Publisher Confirms](./PublisherConfirms.md).
 
-```text
-connection: start → start-ok → tune → tune-ok → open → open-ok
-channel: open → open-ok
-exchange: declare → declare-ok
-queue: declare → declare-ok → bind → bind-ok
-basic: publish(+Header+Body) → deliver(+Header+Body)
-basic: consume → consume-ok → ack
-connection/channel: close → close-ok
-```
+---
 
-### Phase 2: Full Message Semantics
+## Broker Core Business Logic
 
-Add on top of Phase 1:
+About half of AMQP 0-9-1's methods are `*-ok` acknowledgements the broker can construct directly. The real business logic lives in:
 
-- basic.qos (prefetch flow control)
-- basic.reject / basic.recover (message redelivery)
-- basic.get / get-ok / get-empty (pull mode)
-- basic.return (mandatory message return)
-- queue.purge / delete, exchange.delete
+| Core capability | Methods involved | Status |
+|----------|-------------|------|
+| **Authentication** | connection.start / start-ok | ✅ SASL PLAIN |
+| **Routing** | exchange.declare + queue.bind + basic.publish | ✅ direct/fanout/topic/headers + exchange-chain bindings |
+| **Shared queues / push delivery** | basic.consume + basic.deliver | ✅ Driven by the shared consume group's leader — see [Shared Queue Group](./SharedQueueGroup.md) |
+| **Acknowledgement** | basic.ack / reject / nack / recover | ✅ Drives message state transitions (unacked → acked / requeued) |
+| **Reliable publishing** | confirm.select + basic.ack/nack | ✅ See [Publisher Confirms](./PublisherConfirms.md) |
+| **Prefetch flow control** | basic.qos | 🟡 Enforced locally, best-effort across nodes |
+| **Transactions** | tx.select / commit / rollback | 🟡 Handshake only, no real semantics |
 
-### Phase 3: Reliability & Transactions
+## Further Reading
 
-- Publisher Confirm (confirm.select + basic.ack/nack)
-- Tx transactions (tx.select / commit / rollback)
-- basic.nack (batch reject)
-- Exchange-to-Exchange binding
+- [Core Concepts](./AMQPCoreConcepts.md)
+- [System Architecture](./SystemArchitecture.md)
+- [Compatibility & Limitations](./Compatibility-and-Limitations.md)
+- [Roadmap](./Roadmap.md)

@@ -17,7 +17,7 @@ mod macros;
 pub mod broker;
 pub mod meta;
 pub mod pool;
-mod utils;
+pub mod utils;
 // const MAX_RETRY_TIMES: usize = 10;
 
 pub fn retry_times() -> usize {

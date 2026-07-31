@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     use common_base::tools::now_second;
+    use common_base::uuid::unique_id;
     use common_config::broker::{default_broker_config, init_broker_conf_by_config};
     use common_security::storage::user::UserStorage;
     use grpc_clients::pool::ClientPool;
@@ -26,7 +27,7 @@ mod tests {
         init_broker_conf_by_config(config.clone());
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let user_storage = UserStorage::new(client_pool);
-        let username = "test".to_string();
+        let username = unique_id();
         let password = "test_password".to_string();
         let is_superuser = true;
         let user_info = metadata_struct::auth::user::SecurityUser {
@@ -49,8 +50,7 @@ mod tests {
         assert_eq!(result.is_superuser, is_superuser);
 
         let result = user_storage.user_list().await.unwrap();
-        let prev_len = result.len();
-        assert!(!result.is_empty());
+        assert!(result.iter().any(|u| u.username == username));
 
         user_storage
             .delete_user("default".to_string(), username.clone())
@@ -69,6 +69,6 @@ mod tests {
         assert!(result.is_none());
 
         let result = user_storage.user_list().await.unwrap();
-        assert_eq!(result.len(), prev_len - 1);
+        assert!(!result.iter().any(|u| u.username == username));
     }
 }

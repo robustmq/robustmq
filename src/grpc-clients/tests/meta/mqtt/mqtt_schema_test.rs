@@ -38,7 +38,7 @@ mod test {
     #[tokio::test]
     async fn schema_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
 
         let schema_name = unique_id();
 

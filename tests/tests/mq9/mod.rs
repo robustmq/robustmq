@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct StorageDriverMinIoConfig {
-    pub data_dir: String,
-    pub bucket: String,
-}
+pub mod agent_core;
+pub mod agent_discover;
+pub mod mq9_core;
+pub mod mq9_delay;
+pub mod mq9_fetch;
+pub mod mq9_mail;
+pub mod mq9_msg_id;
+pub mod mq9_msg_tags;
+pub mod mq9_msg_ttl;
+pub mod mq9_priority;

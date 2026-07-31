@@ -48,25 +48,25 @@ info "Local branch: ${LOCAL_BRANCH}"
 # single "R" status, since --diff-filter=ACM/D below don't include R and would
 # otherwise silently drop renamed files from every category.
 # 1. Committed locally but not yet pushed
-COMMITTED_FILES=$(git -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=ACM \
+COMMITTED_FILES=$(git -c core.quotePath=false -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=ACM \
   "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)
 
 # 2. Modified in working tree but not committed
-WORKDIR_FILES=$(git -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=ACM \
+WORKDIR_FILES=$(git -c core.quotePath=false -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=ACM \
   HEAD 2>/dev/null || true)
 
 # 3. Untracked new files (entire repo, respects .gitignore)
-UNTRACKED_FILES=$(git -C "$PROJECT_ROOT" ls-files --others --exclude-standard \
+UNTRACKED_FILES=$(git -c core.quotePath=false -C "$PROJECT_ROOT" ls-files --others --exclude-standard \
   2>/dev/null || true)
 
 # 4. Files deleted locally that exist on origin → remove on remote
 #    Sources: committed-but-not-pushed, staged, and unstaged deletions.
 _DELETED_RAW=$(printf '%s\n%s\n%s' \
-  "$(git -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=D \
+  "$(git -c core.quotePath=false -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=D \
       "origin/${LOCAL_BRANCH}" HEAD 2>/dev/null || true)" \
-  "$(git -C "$PROJECT_ROOT" diff --no-renames --cached --name-only --diff-filter=D \
+  "$(git -c core.quotePath=false -C "$PROJECT_ROOT" diff --no-renames --cached --name-only --diff-filter=D \
       2>/dev/null || true)" \
-  "$(git -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=D \
+  "$(git -c core.quotePath=false -C "$PROJECT_ROOT" diff --no-renames --name-only --diff-filter=D \
       2>/dev/null || true)" \
   | sort -u)
 # Keep only files that are truly gone from disk

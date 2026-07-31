@@ -1,0 +1,248 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Full reference template for config/server.toml.
+#
+# Every field here has a built-in default, so nothing below is required --
+# copy only what you need to override into your own config/server.toml (see
+# config/server.toml for a minimal working example). Values shown are the
+# built-in defaults unless noted otherwise. Every key can also be set via an
+# environment variable: ROBUST_MQ_SERVER_{SECTION}_{KEY}, uppercase, with
+# "." replaced by "_" (e.g. ROBUST_MQ_SERVER_MQTT_RUNTIME_SERVER_TCP_PORT).
+# Full docs: docs/zh/Configuration/ (or docs/en/Configuration/).
+
+# ============================================================================
+# Base configuration
+# ============================================================================
+cluster_name = "robust_mq_cluster_default"
+broker_id = 1
+# broker_ip = "127.0.0.1"                    # default: auto-detected local IP
+roles = ["meta", "broker", "engine"]          # meta | broker | engine, any combination
+grpc_port = 1228
+http_port = 58080
+
+[meta_addrs]
+# Node ID -> gRPC address for every meta node in the cluster (this node included).
+# Single node:
+1 = "127.0.0.1:1228"
+# Multi-node example:
+# 1 = "192.168.1.10:1228"
+# 2 = "192.168.1.11:1228"
+# 3 = "192.168.1.12:1228"
+
+# ============================================================================
+# [log] - logging
+# ============================================================================
+[log]
+log_config = "./config/logger.toml"
+log_path = "./data/logs"
+
+# ============================================================================
+# [runtime] - gRPC client pool, pprof, global defaults
+# ============================================================================
+[runtime]
+channels_per_address = 4    # HTTP/2 channels per gRPC server address (~200 concurrent RPCs each)
+server_worker_threads = 0   # server-runtime (gRPC/HTTP admin) worker threads, 0 = auto: max(4, cpus/2)
+pprof_enable = false        # flamegraph exposed at /debug/pprof/flamegraph on http_port, no separate port
+default_topic_partition_num = 3
+default_topic_replica_num = 2
+
+# ============================================================================
+# [meta_runtime] - metadata service heartbeat, Raft
+# ============================================================================
+[meta_runtime]
+heartbeat_timeout_ms = 30000
+heartbeat_check_time_ms = 1000
+raft_write_timeout_sec = 30
+offset_raft_group_num = 1
+data_raft_group_num = 1
+group_offset_expire_sec = 604800  # 7 days
+meta_worker_threads = 0            # meta-runtime (Raft/RocksDB) worker threads, 0 = auto: max(4, cpus/2)
+
+# ============================================================================
+# [rocksdb] - local RocksDB storage
+# ============================================================================
+[rocksdb]
+data_path = "./data"
+max_open_files = 10000
+
+# ============================================================================
+# [storage_runtime] - Journal storage engine
+# ============================================================================
+[storage_runtime]
+tcp_port = 1778
+max_segment_size = 1073741824  # 1 GB
+io_thread_num = 8
+data_path = ["./data/engine"]
+expire_scan_task_num = 10
+offset_enable_cache = true
+
+# ============================================================================
+# [delay_task] - delayed message processing queues
+# ============================================================================
+[delay_task]
+delay_task_queue_num = 100
+delay_task_handler_concurrency = 100
+
+# ============================================================================
+# [broker_network] - shared network threads + TLS (used by every protocol)
+# ============================================================================
+[broker_network]
+accept_thread_num = 2
+handler_thread_num = 16
+queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
+
+# ============================================================================
+# [admin] - Admin HTTP API auth
+# ============================================================================
+[admin]
+username = "admin"
+password = "admin"                                    # CHANGE IN PRODUCTION
+jwt_secret = "robustmq-change-me-in-production"       # CHANGE IN PRODUCTION (32+ random chars)
+token_ttl_hours = 8
+# Requests from 127.0.0.1/::1 never need a token; remote requests need
+# `Authorization: Bearer <token>`. /api/v1/login, /health/*, /metrics are
+# always public. Prometheus metrics and pprof flamegraphs are exposed on
+# http_port too -- there's no separate [prometheus]/[pprof] section.
+
+# ============================================================================
+# [llm_client] - optional, unified LLM client (unset = disabled)
+# ============================================================================
+# [llm_client]
+# # platform: open_ai | open_ai_resp | gemini | anthropic | fireworks | together
+# #         | groq | mimo | nebius | xai | deep_seek | zai | big_model | cohere | ollama
+# platform = "open_ai"
+# model = "gpt-4o-mini"
+# token = "your_api_token"                # not required for ollama
+# # base_url = "https://api.openai.com/v1/"       # omit to use each platform's official endpoint
+# # embedding = "text-embedding-3-small"
+# # embedding_model_path = "./models/embedding"
+
+# ============================================================================
+# [mqtt_runtime] - MQTT protocol (see docs/zh/Configuration/MQTTConfig.md)
+# ============================================================================
+[mqtt_runtime]
+broker_worker_threads = 0  # broker-runtime (MQTT hot path) worker threads, 0 = auto: cpus
+
+[mqtt_runtime.server]
+tcp_port = 1883
+tls_port = 1885
+websocket_port = 8083
+websockets_port = 8085
+quic_port = 9083
+
+[mqtt_runtime.auth]
+default_user = "admin"
+default_password = "robustmq"                # CHANGE IN PRODUCTION
+durable_sessions_enable = false               # false = transient (memory-only, faster)
+secret_free_login = false
+is_self_protection_status = false
+
+[mqtt_runtime.keep_alive]
+enable = true
+default_time = 180
+max_time = 3600
+default_timeout = 2
+
+[mqtt_runtime.protocol]
+max_session_expiry_interval = 1800
+default_session_expiry_interval = 30
+topic_alias_max = 65535
+max_packet_size = 10485760  # 10 MB
+receive_max = 65535
+max_message_expiry_interval = 3600
+client_pkid_persistent = false
+
+[mqtt_runtime.offline_message]
+enable = true
+expire_ms = 0        # 0 = never expires
+max_messages_num = 0 # 0 = unlimited
+
+[mqtt_runtime.flapping_detect]
+enable = false
+window_time = 1
+max_client_connections = 15
+ban_time = 5
+
+[mqtt_runtime.slow_subscribe]
+enable = false
+record_time = 1000
+delay_type = "Whole"  # Whole | Partial
+
+[mqtt_runtime.schema]
+enable = true
+strategy = "ALL"              # ALL | Any
+failed_operation = "Discard"  # Discard | DisconnectAndDiscard | Ignore
+echo_log = true
+log_level = "info"
+
+[mqtt_runtime.system_monitor]
+enable = false
+os_cpu_high_watermark = 70.0
+os_memory_high_watermark = 80.0
+system_topic_interval_ms = 60000
+
+[mqtt_runtime.limit.cluster]
+max_connections_per_node = 10000000
+max_connection_rate = 100000
+max_topics = 5000000
+max_sessions = 50000000
+max_publish_rate = 10000
+
+[mqtt_runtime.limit.tenant]
+max_connections_per_node = 1000000
+max_connection_rate = 10000
+max_topics = 500000
+max_sessions = 5000000
+max_publish_rate = 10000
+
+# ============================================================================
+# [kafka_runtime] - Kafka protocol (see docs/zh/Configuration/KafkaConfig.md)
+# ============================================================================
+[kafka_runtime]
+tcp_port = 9092
+max_fetch_bytes = 4194304        # 4 MB, per-partition Fetch response cap
+max_message_bytes = 1048588      # single Produce record batch cap (MESSAGE_TOO_LARGE above this)
+max_describe_topic_partitions = 2000
+auto_create_topics_enable = true  # can be overridden via cluster dynamic config (KafkaDynamic)
+
+[kafka_runtime.sasl]
+enabled = false
+mechanisms = ["SCRAM-SHA-256", "SCRAM-SHA-512"]
+
+# ============================================================================
+# [amqp_runtime] - AMQP protocol (see docs/zh/Configuration/AMQPConfig.md)
+# ============================================================================
+[amqp_runtime]
+tcp_port = 5672  # same default as RabbitMQ; no TLS port or dynamic config yet
+
+# ============================================================================
+# [nats_runtime] - NATS Core / mq9 (see docs/zh/Configuration/NATSConfig.md)
+# ============================================================================
+[nats_runtime]
+tcp_port = 4222
+tls_port = 4223
+ws_port = 4080
+wss_port = 4443
+max_payload = 1048576          # 1 MB
+auth_required = false
+ping_interval = 60
+ping_max = 3
+ping_send_chunk = 10000
+core_shard_num = 10
+push_thread_num = 1
+push_queue_thread_num = 10
+mq9_mailbox_default_ttl = 86400  # 1 day

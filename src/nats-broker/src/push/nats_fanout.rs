@@ -24,7 +24,7 @@ use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
 use protocol::nats::packet::NatsPacket;
 use std::sync::Arc;
-use storage_adapter::consumer::{GroupConsumer, StartOffsetStrategy};
+use storage_adapter::consumer::GroupConsumer;
 use storage_adapter::driver::StorageDriverManager;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -137,9 +137,22 @@ impl FanoutPushManager {
             self.storage_driver_manager.clone(),
             subscriber.uniq_id.clone(),
         ));
-        consumer
-            .set_start_offset_strategy(StartOffsetStrategy::Latest)
-            .await;
+        // Pin the start position to the offsets snapshotted when this
+        // subscriber was registered (see `register_subscriber` in
+        // push/parse.rs), not `StartOffsetStrategy::Latest` resolved lazily
+        // on whatever poll tick first sees it in the bucket. That lazy
+        // resolution races the subscribe->publish gap: this push loop only
+        // checks the bucket every ~100ms (`adaptive_sleep`) and the
+        // subscriber itself may not land in the bucket until after a couple
+        // of raft round trips, so by the time `Latest` got resolved the
+        // shard's tail had already moved past a message published right
+        // after subscribing — permanently skipping it, deterministically,
+        // not just occasionally.
+        consumer.set_current_offsets(
+            &subscriber.tenant,
+            &subscriber.subject,
+            &subscriber.initial_offsets,
+        );
         self.consumers
             .insert(subscriber.uniq_id.clone(), consumer.clone());
         consumer

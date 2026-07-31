@@ -24,6 +24,7 @@ use protocol::meta::meta_service_mq9::{
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::sync::Arc;
+#[cfg(feature = "vector-search")]
 use tracing::warn;
 
 #[derive(Clone)]
@@ -59,28 +60,31 @@ impl DataRouteMq9 {
         let storage = Mq9AgentStorage::new(self.rocksdb_engine_handler.clone());
         storage.save(&agent)?;
 
-        let tenant = agent.tenant.clone();
-        let agent_info = agent.agent_info.clone();
-        tokio::spawn(async move {
-            if let Ok(card) = serde_json::from_str(&agent_info) {
-                let text = search_engine::agent::embed_text(&card);
-                match llm_engine::embedding::fastembed::embed(&text).await {
-                    Ok(vector) => {
-                        if let Err(e) = search_engine::agent::register_agent(
-                            &tenant,
-                            &card,
-                            &agent_info,
-                            vector,
-                        )
-                        .await
-                        {
-                            warn!("agent vector index register failed: {e}");
+        #[cfg(feature = "vector-search")]
+        {
+            let tenant = agent.tenant.clone();
+            let agent_info = agent.agent_info.clone();
+            tokio::spawn(async move {
+                if let Ok(card) = serde_json::from_str(&agent_info) {
+                    let text = search_engine::agent::embed_text(&card);
+                    match llm_engine::embedding::fastembed::embed(&text).await {
+                        Ok(vector) => {
+                            if let Err(e) = search_engine::agent::register_agent(
+                                &tenant,
+                                &card,
+                                &agent_info,
+                                vector,
+                            )
+                            .await
+                            {
+                                warn!("agent vector index register failed: {e}");
+                            }
                         }
+                        Err(e) => warn!("agent embed failed: {e}"),
                     }
-                    Err(e) => warn!("agent embed failed: {e}"),
                 }
-            }
-        });
+            });
+        }
 
         Ok(())
     }
@@ -90,13 +94,16 @@ impl DataRouteMq9 {
         let storage = Mq9AgentStorage::new(self.rocksdb_engine_handler.clone());
         storage.delete(&req.tenant, &req.name)?;
 
-        let tenant = req.tenant.clone();
-        let name = req.name.clone();
-        tokio::spawn(async move {
-            if let Err(e) = search_engine::agent::unregister_agent(&tenant, &name).await {
-                warn!("agent vector index unregister failed: {e}");
-            }
-        });
+        #[cfg(feature = "vector-search")]
+        {
+            let tenant = req.tenant.clone();
+            let name = req.name.clone();
+            tokio::spawn(async move {
+                if let Err(e) = search_engine::agent::unregister_agent(&tenant, &name).await {
+                    warn!("agent vector index unregister failed: {e}");
+                }
+            });
+        }
 
         Ok(())
     }

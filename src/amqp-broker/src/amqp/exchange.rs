@@ -24,6 +24,7 @@ use metadata_struct::amqp::exchange::{AmqpExchange, AmqpExchangeType};
 use storage_adapter::driver::StorageDriverManager;
 use tracing::warn;
 
+use crate::amqp::channel::channel_error_close;
 use crate::amqp::route;
 use crate::core::cache::AmqpCacheManager;
 use crate::storage::binding::BindingStorage;
@@ -89,6 +90,25 @@ async fn process_exchange_declare(
     storage_driver_manager: &Arc<StorageDriverManager>,
 ) -> Option<AMQPFrame> {
     let exchange_name = declare.exchange.to_string();
+    let tenant = amqp_cache.tenant_for(connection_id);
+
+    // Passive: assert existence without declaring anything, mirroring
+    // Queue.Declare's passive handling. A missing exchange is a channel
+    // exception (404 NOT_FOUND), not a silent create.
+    if declare.passive {
+        if amqp_cache.get_exchange(&tenant, &exchange_name).is_none() {
+            return Some(channel_error_close(channel_id, 404, "NOT_FOUND", 40, 10));
+        }
+        return if declare.nowait {
+            None
+        } else {
+            Some(AMQPFrame::Method(
+                channel_id,
+                AMQPClass::Exchange(AMQPMethod::DeclareOk(DeclareOk {})),
+            ))
+        };
+    }
+
     let exchange_type =
         AmqpExchangeType::from_str_opt(declare.kind.as_str()).unwrap_or_else(|| {
             warn!(
@@ -100,7 +120,6 @@ async fn process_exchange_declare(
         });
     let arguments = route::field_table_to_map(&declare.arguments);
 
-    let tenant = amqp_cache.tenant_for(connection_id);
     let exchange = AmqpExchange::new(
         &tenant,
         &exchange_name,
@@ -116,11 +135,21 @@ async fn process_exchange_declare(
             .client_pool
             .clone(),
     );
-    match storage.set_exchange(&exchange).await {
-        Ok(()) => amqp_cache.set_exchange(exchange),
-        Err(e) => warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e),
+    if let Err(e) = storage.set_exchange(&exchange).await {
+        warn!("AMQP Exchange.Declare failed for {}: {}", exchange_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            10,
+        ));
     }
+    amqp_cache.set_exchange(exchange);
 
+    if declare.nowait {
+        return None;
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Exchange(AMQPMethod::DeclareOk(DeclareOk {})),
@@ -136,17 +165,42 @@ async fn process_exchange_delete(
 ) -> Option<AMQPFrame> {
     let exchange_name = delete.exchange.to_string();
     let tenant = amqp_cache.tenant_for(connection_id);
+
+    if delete.if_unused
+        && !amqp_cache
+            .list_bindings_by_source(&tenant, &exchange_name)
+            .is_empty()
+    {
+        return Some(channel_error_close(
+            channel_id,
+            406,
+            "PRECONDITION_FAILED",
+            40,
+            20,
+        ));
+    }
+
     let storage = ExchangeStorage::new(
         storage_driver_manager
             .engine_storage_handler
             .client_pool
             .clone(),
     );
-    match storage.delete_exchange(&tenant, &exchange_name).await {
-        Ok(()) => amqp_cache.remove_exchange(&tenant, &exchange_name),
-        Err(e) => warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e),
+    if let Err(e) = storage.delete_exchange(&tenant, &exchange_name).await {
+        warn!("AMQP Exchange.Delete failed for {}: {}", exchange_name, e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            20,
+        ));
     }
+    amqp_cache.remove_exchange(&tenant, &exchange_name);
 
+    if delete.nowait {
+        return None;
+    }
     Some(AMQPFrame::Method(
         channel_id,
         AMQPClass::Exchange(AMQPMethod::DeleteOk(DeleteOk {})),
@@ -176,10 +230,17 @@ async fn process_exchange_bind(
             .client_pool
             .clone(),
     );
-    match storage.set_binding(&binding).await {
-        Ok(()) => amqp_cache.set_binding(binding),
-        Err(e) => warn!("AMQP Exchange.Bind failed: {}", e),
+    if let Err(e) = storage.set_binding(&binding).await {
+        warn!("AMQP Exchange.Bind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            30,
+        ));
     }
+    amqp_cache.set_binding(binding);
 
     Some(AMQPFrame::Method(
         channel_id,
@@ -202,7 +263,7 @@ async fn process_exchange_unbind(
             .clone(),
     );
     let destination_type = AmqpBindingDestinationType::Exchange;
-    match storage
+    if let Err(e) = storage
         .delete_binding(
             &tenant,
             unbind.source.as_str(),
@@ -212,18 +273,23 @@ async fn process_exchange_unbind(
         )
         .await
     {
-        Ok(()) => {
-            let key = format!(
-                "{}/{}/{}/{}",
-                unbind.source.as_str(),
-                destination_type.as_str(),
-                unbind.destination.as_str(),
-                unbind.routing_key.as_str()
-            );
-            amqp_cache.remove_binding(&tenant, &key);
-        }
-        Err(e) => warn!("AMQP Exchange.Unbind failed: {}", e),
+        warn!("AMQP Exchange.Unbind failed: {}", e);
+        return Some(channel_error_close(
+            channel_id,
+            541,
+            "INTERNAL_ERROR",
+            40,
+            40,
+        ));
     }
+    let key = format!(
+        "{}/{}/{}/{}",
+        unbind.source.as_str(),
+        destination_type.as_str(),
+        unbind.destination.as_str(),
+        unbind.routing_key.as_str()
+    );
+    amqp_cache.remove_binding(&tenant, &key);
 
     Some(AMQPFrame::Method(
         channel_id,

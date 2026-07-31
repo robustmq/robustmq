@@ -14,6 +14,7 @@
 
 use crate::core::error::NatsBrokerError;
 use crate::core::queue_name::send_share_group_message_to_other_broker;
+use crate::nats::subscribe::subject_message_tag;
 use crate::push::common::{adaptive_sleep, should_stop, BATCH_SIZE};
 use crate::push::manager::NatsSubscribeManager;
 use crate::push::nats_fanout::send_packet;
@@ -142,8 +143,9 @@ impl QueuePushManager {
         }
         let consumer = self.consumer.as_ref().unwrap();
 
+        let tag = subject_message_tag(&self.tenant, &self.subject);
         let records = consumer
-            .next_messages(&self.tenant, &self.subject, &read_config)
+            .next_messages_by_tags(&self.tenant, &self.subject, &tag, &read_config)
             .await
             .map_err(NatsBrokerError::from)?;
 
@@ -249,11 +251,13 @@ async fn round_robin_send(
                     subscribe_manager.add_not_push_client(subscriber.connect_id);
                 }
                 Err(e) => {
+                    // Transient send error (e.g. backpressure) — the connection is
+                    // still alive, so don't blacklist it; just try the next
+                    // subscriber and retry this one on the next poll cycle.
                     debug!(
                         "NATS queue send failed [connect_id={}, sid={}]: {}",
                         subscriber.connect_id, subscriber.sid, e
                     );
-                    subscribe_manager.add_not_push_client(subscriber.connect_id);
                 }
             }
         } else {
@@ -271,7 +275,6 @@ async fn round_robin_send(
                         "NATS queue remote send failed [broker_id={}, connect_id={}, sid={}]: {}",
                         subscriber.broker_id, subscriber.connect_id, subscriber.sid, e
                     );
-                    subscribe_manager.add_not_push_client(subscriber.connect_id);
                 }
             }
         }

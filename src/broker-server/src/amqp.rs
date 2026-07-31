@@ -14,6 +14,7 @@
 
 use amqp_broker::broker::{AmqpBrokerServer, AmqpBrokerServerParams};
 use amqp_broker::core::cache::AmqpCacheManager;
+use amqp_broker::push::AmqpPushManager;
 use broker_core::cache::NodeCacheManager;
 use common_base::{role::is_broker_node, task::TaskSupervisor};
 use common_security::manager::SecurityManager;
@@ -52,6 +53,7 @@ pub fn build_amqp_params(p: AmqpBuildParams) -> AmqpBrokerServerParams {
         storage_driver_manager: p.storage_driver_manager,
         amqp_cache: p.amqp_cache,
         security_manager: p.security_manager,
+        push_manager: Arc::new(AmqpPushManager::new()),
     }
 }
 

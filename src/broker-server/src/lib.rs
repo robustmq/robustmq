@@ -36,6 +36,7 @@ use delay_message::manager::DelayMessageManager;
 use delay_task::manager::DelayTaskManager;
 use grpc_clients::pool::ClientPool;
 use kafka_broker::broker::KafkaBrokerServerParams;
+#[cfg(feature = "vector-search")]
 use llm_engine::embedding::fastembed;
 use meta_service::MetaServiceServerParams;
 use mqtt_broker::broker::MqttBrokerServerParams;
@@ -49,6 +50,7 @@ use rocksdb_engine::{
     rocksdb::RocksDBEngine,
     storage::family::{column_family_list, rocksdb_data_fold},
 };
+#[cfg(feature = "vector-search")]
 use search_engine::lancedb;
 use std::sync::Arc;
 use storage_adapter::driver::StorageDriverManager;
@@ -196,12 +198,12 @@ impl BrokerServer {
         // tokio::spawn inside openraft) land on meta_runtime, not server_runtime.
         let meta_runtime = create_runtime(
             "meta-runtime",
-            resolve_meta_worker_threads(config.runtime.meta_worker_threads),
+            resolve_meta_worker_threads(config.meta_runtime.meta_worker_threads),
         );
         // broker_runtime is created here for broker-specific tasks.
         let broker_runtime = create_runtime(
             "broker-runtime",
-            resolve_broker_worker_threads(config.runtime.broker_worker_threads),
+            resolve_broker_worker_threads(config.mqtt_runtime.broker_worker_threads),
         );
         let engine_runtime = create_runtime(
             "engine-runtime",
@@ -462,13 +464,16 @@ impl BrokerServer {
                 std::process::exit(1);
             }
 
-            if let Err(e) = fastembed::init() {
-                error!("Failed to initialize fastembed: {}", e);
-                std::process::exit(1);
-            }
-            if let Err(e) = lancedb::init().await {
-                error!("Failed to initialize lancedb: {}", e);
-                std::process::exit(1);
+            #[cfg(feature = "vector-search")]
+            {
+                if let Err(e) = fastembed::init() {
+                    error!("Failed to initialize fastembed: {}", e);
+                    std::process::exit(1);
+                }
+                if let Err(e) = lancedb::init().await {
+                    error!("Failed to initialize lancedb: {}", e);
+                    std::process::exit(1);
+                }
             }
         });
 
@@ -528,10 +533,11 @@ impl BrokerServer {
             self.kafka_params.kafka_cache.clone(),
         ));
         let amqp_cmd = Some(amqp_broker::handler::command::create_command_with_state(
-            self.connection_manager.clone(),
             self.amqp_params.storage_driver_manager.clone(),
             self.amqp_params.amqp_cache.clone(),
             self.amqp_params.security_manager.clone(),
+            self.amqp_params.client_pool.clone(),
+            self.amqp_params.push_manager.clone(),
         ));
         let nats_cmd = Some(nats_broker::handler::command::create_command(
             self.connection_manager.clone(),

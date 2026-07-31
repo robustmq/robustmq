@@ -18,6 +18,7 @@ pub mod engine;
 pub mod group_gc;
 pub mod kafka;
 pub mod mcp_test;
+pub mod mq9;
 pub mod mqtt;
 pub mod nats;
 pub mod node_call;

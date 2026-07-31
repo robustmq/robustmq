@@ -15,6 +15,7 @@
 use crate::core::cache::AmqpCacheManager;
 use crate::core::keep_alive::AmqpKeepAlive;
 use crate::core::recovery::AmqpRecoveryScanner;
+use crate::push::{start_amqp_push_watcher, AmqpPushManager, PushWatcherParams};
 use crate::server::{AmqpServer, AmqpServerParams};
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
@@ -41,6 +42,7 @@ pub struct AmqpBrokerServerParams {
     pub storage_driver_manager: Arc<StorageDriverManager>,
     pub amqp_cache: Arc<AmqpCacheManager>,
     pub security_manager: Arc<SecurityManager>,
+    pub push_manager: Arc<AmqpPushManager>,
 }
 
 pub struct AmqpBrokerServer {
@@ -48,6 +50,7 @@ pub struct AmqpBrokerServer {
     stop_sx: broadcast::Sender<bool>,
     keep_alive: AmqpKeepAlive,
     recovery_scanner: AmqpRecoveryScanner,
+    push_watcher_params: PushWatcherParams,
 }
 
 impl AmqpBrokerServer {
@@ -58,6 +61,14 @@ impl AmqpBrokerServer {
             params.client_pool.clone(),
             params.storage_driver_manager.clone(),
         );
+        let push_watcher_params = PushWatcherParams {
+            connection_manager: params.connection_manager.clone(),
+            storage_driver_manager: params.storage_driver_manager.clone(),
+            amqp_cache: params.amqp_cache.clone(),
+            client_pool: params.client_pool.clone(),
+            push_manager: params.push_manager.clone(),
+            stop_sx: params.stop_sx.clone(),
+        };
 
         let server = AmqpServer::new(AmqpServerParams {
             connection_manager: params.connection_manager,
@@ -74,6 +85,7 @@ impl AmqpBrokerServer {
             stop_sx: params.stop_sx,
             keep_alive,
             recovery_scanner,
+            push_watcher_params,
         }
     }
 
@@ -85,6 +97,15 @@ impl AmqpBrokerServer {
         let recovery_scanner = self.recovery_scanner.clone();
         let recovery_stop = self.stop_sx.clone();
         tokio::spawn(async move { recovery_scanner.start(&recovery_stop).await });
+
+        start_amqp_push_watcher(PushWatcherParams {
+            connection_manager: self.push_watcher_params.connection_manager.clone(),
+            storage_driver_manager: self.push_watcher_params.storage_driver_manager.clone(),
+            amqp_cache: self.push_watcher_params.amqp_cache.clone(),
+            client_pool: self.push_watcher_params.client_pool.clone(),
+            push_manager: self.push_watcher_params.push_manager.clone(),
+            stop_sx: self.push_watcher_params.stop_sx.clone(),
+        });
 
         let port = broker_config().amqp_runtime.tcp_port;
         self.server.start(port).await.map_err(|e| {

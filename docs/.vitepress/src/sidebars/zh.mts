@@ -23,7 +23,8 @@ const items = [
                 text: "版本计划",
                 collapsed: true,
                 items: [
-                    { text: "2026 年 RoadMap", link: "/zh/OverView/RoadMap-2026" },
+                    { text: "2026 年 RoadMap（更新版）", link: "/zh/OverView/RoadMap-2026-Update" },
+                    { text: "2026 年 RoadMap（原版）", link: "/zh/OverView/RoadMap-2026" },
                     { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
@@ -37,8 +38,10 @@ const items = [
         items: [
             { text: "快速安装", link: "/zh/QuickGuide/Quick-Install" },
             { text: "体验 MQTT", link: "/zh/QuickGuide/Experience-MQTT" },
+            { text: "体验 Kafka", link: "/zh/QuickGuide/Experience-Kafka" },
             { text: "体验 NATS Core", link: "/zh/QuickGuide/Experience-NATS" },
             { text: "体验 mq9", link: "/zh/QuickGuide/Experience-MQ9" },
+            { text: "体验 AMQP", link: "/zh/QuickGuide/Experience-AMQP" },
             { text: "公共 Server", link: "/zh/QuickGuide/PublicMqttServer" },
         ],
     },
@@ -240,7 +243,54 @@ const items = [
     collapsed: true,
     items: [
       { text: "概览", link: "/zh/RobustMQ-AMQP/Overview" },
+      { text: "核心概念", link: "/zh/RobustMQ-AMQP/AMQPCoreConcepts" },
+      { text: "系统架构", link: "/zh/RobustMQ-AMQP/SystemArchitecture" },
       { text: "协议支持", link: "/zh/RobustMQ-AMQP/Protocol" },
+      { text: "快速开始", link: "/zh/RobustMQ-AMQP/QuickStart" },
+      {
+        text: "消息",
+        collapsed: true,
+        items: [
+          { text: "发布", link: "/zh/RobustMQ-AMQP/Publishing" },
+          { text: "消费", link: "/zh/RobustMQ-AMQP/Consuming" },
+          { text: "共享队列组", link: "/zh/RobustMQ-AMQP/SharedQueueGroup" },
+          { text: "消息确认", link: "/zh/RobustMQ-AMQP/Acknowledgement" },
+          { text: "Publisher Confirm", link: "/zh/RobustMQ-AMQP/PublisherConfirms" },
+        ],
+      },
+      {
+        text: "存储",
+        collapsed: true,
+        items: [
+          { text: "存储模型", link: "/zh/RobustMQ-AMQP/Storage" },
+          { text: "队列清空与删除", link: "/zh/RobustMQ-AMQP/QueuePurgeAndDelete" },
+        ],
+      },
+      {
+        text: "安全",
+        collapsed: true,
+        items: [
+          { text: "概览", link: "/zh/RobustMQ-AMQP/Security/Overview" },
+          { text: "认证(SASL)", link: "/zh/RobustMQ-AMQP/Security/Authentication-SASL" },
+        ],
+      },
+      {
+        text: "配置",
+        collapsed: true,
+        items: [
+          { text: "Broker 配置", link: "/zh/RobustMQ-AMQP/Configuration/BrokerConfig" },
+          { text: "Exchange 与 Queue 声明参数", link: "/zh/RobustMQ-AMQP/Configuration/ExchangeAndQueueConfig" },
+        ],
+      },
+      {
+        text: "客户端 SDK",
+        collapsed: true,
+        items: [
+          { text: "Java 客户端", link: "/zh/RobustMQ-AMQP/SDK/java-client" },
+        ],
+      },
+      { text: "兼容性与限制", link: "/zh/RobustMQ-AMQP/Compatibility-and-Limitations" },
+      { text: "路线图", link: "/zh/RobustMQ-AMQP/Roadmap" },
     ],
   },
 
@@ -335,7 +385,11 @@ const items = [
         text: "配置说明",
         collapsed: true,
         items: [
-          { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
+          { text: "Broker 基础配置", link: "/zh/Configuration/BROKER" },
+          { text: "MQTT 配置", link: "/zh/Configuration/MQTTConfig" },
+          { text: "Kafka 配置", link: "/zh/Configuration/KafkaConfig" },
+          { text: "AMQP 配置", link: "/zh/Configuration/AMQPConfig" },
+          { text: "NATS 配置", link: "/zh/Configuration/NATSConfig" },
           { text: "日志配置", link: "/zh/Configuration/Logging" },
           { text: "性能调优指南", link: "/zh/Configuration/Tuning" },
         ],

@@ -48,6 +48,10 @@ BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
 BUILD_PROFILE="${BUILD_PROFILE:-release}"
 USE_SCCACHE="${USE_SCCACHE:-auto}"
+# Extra cargo --features to pass to the cmd crate (e.g. "vector-search" to
+# enable mq9 agent semantic/full-text search, off by default -- see
+# src/cmd/Cargo.toml). Comma-separated, same syntax as `cargo build --features`.
+FEATURES="${FEATURES:-}"
 DIAGNOSE_CACHE="false"
 
 # Helper functions
@@ -85,6 +89,8 @@ show_help() {
     echo "    --sccache auto|on|off   Use sccache when available (default: auto)"
     echo "    --diagnose-cache        Print build cache settings and exit"
     echo "    --with-frontend         Build with frontend"
+    echo "    --features FEATURES     Extra cargo --features for the cmd crate"
+    echo "                            (e.g. vector-search for mq9 agent search)"
     echo "    --clean                 Clean build directory before building"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
@@ -292,6 +298,16 @@ show_cache_diagnostics() {
     fi
 }
 
+# The frontend build produces glibc-independent static assets, so a caller
+# (e.g. the manylinux2014 release jobs, which can't run the frontend's
+# required Node >=20 inside their glibc-2.17 container) may have already
+# built it in a separate host step. When that's the case, neither
+# check_dependencies nor build_frontend need pnpm/git at all.
+frontend_already_built() {
+    local frontend_dist="$PROJECT_ROOT/build/robustmq-copilot/packages/web-ui/dist"
+    [ -d "$frontend_dist" ] && [ -n "$(ls -A "$frontend_dist" 2>/dev/null)" ]
+}
+
 check_dependencies() {
     if ! command -v cargo >/dev/null 2>&1; then
         log_error "cargo not found. Please install Rust."
@@ -317,7 +333,7 @@ check_dependencies() {
 
     configure_rustc_wrapper
 
-    if [ "$BUILD_FRONTEND" = "true" ]; then
+    if [ "$BUILD_FRONTEND" = "true" ] && ! frontend_already_built; then
         if ! command -v pnpm >/dev/null 2>&1; then
             log_error "pnpm not found. Please install pnpm for frontend build."
             echo
@@ -354,6 +370,11 @@ build_frontend() {
 
     local frontend_dir="$PROJECT_ROOT/build/robustmq-copilot"
     local frontend_repo="https://github.com/robustmq/robustmq-copilot.git"
+
+    if frontend_already_built; then
+        log_info "Frontend already built at $frontend_dir/packages/web-ui/dist, skipping rebuild"
+        return 0
+    fi
 
     # Check if frontend directory exists, if not clone it
     if [ ! -d "$frontend_dir" ]; then
@@ -434,6 +455,11 @@ build_server() {
         cargo_args+=(--target "$rust_target")
     else
         log_info "Using host target cache: target/$(get_profile_target_dir "$build_profile")"
+    fi
+
+    if [ -n "$FEATURES" ]; then
+        log_info "Extra cargo features: $FEATURES"
+        cargo_args+=(--features "$FEATURES")
     fi
 
     if ! cargo "${cargo_args[@]}"; then
@@ -613,6 +639,14 @@ main() {
                 DIAGNOSE_CACHE="true"
                 shift
                 ;;
+            --features)
+                if [[ $# -lt 2 || -z "$2" ]]; then
+                    log_error "--features requires a value, e.g. vector-search"
+                    exit 1
+                fi
+                FEATURES="$2"
+                shift 2
+                ;;
             --clean)
                 log_info "Cleaning build directory..."
                 rm -rf "$OUTPUT_DIR"
@@ -639,6 +673,13 @@ main() {
     if [ $? -ne 0 ]; then
         exit 1
     fi
+
+    # Package/tarball name only; the Rust target and build logic below always
+    # follow the real detected `platform`. Lets e.g. a glibc-2.17-compatible
+    # build produced on a modern host (see release.yml's manylinux2014 job)
+    # get packaged as "linux-amd64-manylinux2014" instead of colliding with the
+    # regular "linux-amd64" tarball.
+    local package_platform="${PLATFORM:-$platform}"
 
     local rust_target=$(get_rust_target "$platform")
     if [ $? -ne 0 ]; then
@@ -691,7 +732,7 @@ main() {
     fi
 
     # Create package
-    create_package "$VERSION" "$platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
+    create_package "$VERSION" "$package_platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -699,7 +740,7 @@ main() {
     # Show completion message
     echo
     log_success "Build completed successfully!"
-    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$platform.tar.gz"
+    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$package_platform.tar.gz"
 }
 
 # Run main function

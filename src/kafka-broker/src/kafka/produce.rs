@@ -260,13 +260,15 @@ fn build_produce_response(
     match result {
         Ok(rows) => {
             if let Some(failed) = rows.iter().find(|r| r.is_error()) {
+                let error_info = failed.error_info();
                 warn!(
                     "Kafka Produce partial write failure for {}[{}]: {}",
-                    topic_name,
-                    index,
-                    failed.error_info()
+                    topic_name, index, error_info
                 );
-                return produce_partition_error(index, ResponseError::UnknownServerError);
+                return produce_partition_error(
+                    index,
+                    classify_write_error(&CommonError::CommonError(error_info)),
+                );
             }
             let base_offset = rows.first().map_or(NO_BASE_OFFSET, |r| r.offset as i64);
             produce_partition_ok(index, base_offset)
@@ -276,8 +278,29 @@ fn build_produce_response(
                 "Kafka Produce write failed for {}[{}]: {}",
                 topic_name, index, e
             );
-            produce_partition_error(index, ResponseError::UnknownServerError)
+            produce_partition_error(index, classify_write_error(&e))
         }
+    }
+}
+
+/// `resolve_topic_driver` above already confirmed the topic exists in this
+/// broker's cache, but the underlying shard/segment is populated by a
+/// *separate* async cache-update broadcast that can lag behind it on a
+/// freshly created topic — a Produce landing on this broker can race ahead
+/// of that broadcast and hit `ShardNotExist`/`SegmentNotExist`/
+/// `NotAvailableSegments` even though the topic is genuinely about to be (or
+/// already is) ready. That's a transient condition, not a real failure, so
+/// it must map to a *retriable* Kafka error — real Kafka clients only retry
+/// automatically (respecting `retries`/`delivery.timeout.ms`) for error codes
+/// marked retriable in the protocol; `UnknownServerError` is not one of
+/// those, so misclassifying this as `UnknownServerError` turns a
+/// self-resolving race into a hard failure the producer never recovers from.
+fn classify_write_error(e: &CommonError) -> ResponseError {
+    let msg = e.to_string();
+    if msg.contains("does not exist") || msg.contains("No Segment is available") {
+        ResponseError::UnknownTopicOrPartition
+    } else {
+        ResponseError::UnknownServerError
     }
 }
 

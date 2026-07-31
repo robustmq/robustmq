@@ -136,16 +136,6 @@ pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
         .build()
 }
 
-pub fn get_default_runtime_worker_threads() -> usize {
-    1
-}
-
-pub fn calc_runtime_worker_threads(multiplier: usize) -> usize {
-    let cpus = num_cpus();
-    let m = if multiplier == 0 { 1 } else { multiplier };
-    m * cpus
-}
-
 fn num_cpus() -> usize {
     std::thread::available_parallelism()
         .map(|n| n.get())

@@ -212,6 +212,7 @@ mod tests {
             subject: subject.to_string(),
             queue_group: None,
             create_time: 0,
+            known_topic_offsets: Default::default(),
         }
     }
 
@@ -226,6 +227,7 @@ mod tests {
             subject: subject.to_string(),
             queue_group: None,
             create_time: now_second(),
+            initial_offsets: Default::default(),
         }
     }
 

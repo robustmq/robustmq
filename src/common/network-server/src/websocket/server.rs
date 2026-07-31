@@ -84,8 +84,8 @@ impl WebSocketServer {
 
         let config = broker_config();
         let tls_config = RustlsConfig::from_pem_file(
-            PathBuf::from(config.runtime.tls_cert.clone()),
-            PathBuf::from(config.runtime.tls_key.clone()),
+            PathBuf::from(config.broker_network.tls_cert.clone()),
+            PathBuf::from(config.broker_network.tls_key.clone()),
         )
         .await?;
 
@@ -181,7 +181,7 @@ async fn handle_socket(
                                     let robust_packet = match packet {
                                         RobustMQCodecWrapper::MQTT(pkg) => RobustMQPacket::MQTT(pkg.packet),
                                         RobustMQCodecWrapper::KAFKA(pkg) => RobustMQPacket::KAFKA(pkg),
-                                        RobustMQCodecWrapper::AMQP(pkg) => RobustMQPacket::AMQP(pkg),
+                                        RobustMQCodecWrapper::AMQP(pkg) => RobustMQPacket::AMQP(vec![pkg]),
                                         RobustMQCodecWrapper::StorageEngine(pkg) => RobustMQPacket::StorageEngine(pkg),
                                         RobustMQCodecWrapper::NATS(pkt) => RobustMQPacket::NATS(pkt),
                                     };

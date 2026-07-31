@@ -188,6 +188,19 @@ where
                 // leader, instead of pinning to the same dead address.
                 client_pool.remove_leader_addr(method);
             }
+        } else if is_stale_reader(&err) {
+            // A read handler that only serves from local state (no raft
+            // linearizability guarantee) reported it isn't the current raft
+            // leader, i.e. it can't vouch for being caught up on the latest
+            // committed writes. Sweep to the next node like a transport
+            // error, instead of returning this as authoritative — one of the
+            // `max_attempts` (>= addrs.len()) sweeps is guaranteed to land on
+            // the actual leader, whose local state is always current for
+            // writes it just processed itself.
+            warn!(
+                "retry_call {} attempt {}: {} is not the current leader, trying another node",
+                method, times, target_addr
+            );
         } else {
             // The node responded and rejected the request for an
             // application reason (e.g. "not enough nodes"). This is an
@@ -216,6 +229,22 @@ fn is_transport_error(err: &CommonError) -> bool {
         || s.contains("Connection refused")
         || s.contains("ConnectError")
         || s.contains("The service is currently unavailable")
+}
+
+/// Marker returned by read-only meta-service handlers (list/describe) that
+/// have no linearizability guarantee of their own — they just read whatever
+/// this node's local raft-applied state currently holds, which can lag a
+/// just-committed write if this node isn't the raft leader (see e.g.
+/// `list_acl_by_req`/`list_scram_credential` in meta-service). Kept distinct
+/// from the write path's leader-forward error (`has to forward request to`,
+/// which openraft itself raises and which includes the actual leader address
+/// to jump straight to) since these handlers don't know or need to resolve
+/// the leader's address themselves — round-robin sweeping every node is
+/// enough to eventually land on it.
+pub const NOT_RAFT_LEADER_MARKER: &str = "meta-service node is not currently the raft leader";
+
+fn is_stale_reader(err: &CommonError) -> bool {
+    err.to_string().contains(NOT_RAFT_LEADER_MARKER)
 }
 
 pub fn get_forward_addr(err: &CommonError) -> Option<String> {

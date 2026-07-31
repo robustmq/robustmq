@@ -64,8 +64,14 @@ pub fn seq_num() -> u64 {
     4
 }
 
-pub fn get_placement_addr() -> String {
-    "127.0.0.1:1228".to_string()
+// All 3 meta-service nodes started by scripts/cluster.sh, so read-only calls
+// can find whichever node is the current raft leader.
+pub fn get_placement_addr() -> Vec<String> {
+    vec![
+        "127.0.0.1:1228".to_string(),
+        "127.0.0.1:2228".to_string(),
+        "127.0.0.1:3228".to_string(),
+    ]
 }
 
 // Poll `check` until it returns true or the deadline (15s) elapses.

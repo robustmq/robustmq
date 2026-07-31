@@ -232,6 +232,14 @@ impl NodeCacheManager {
         self.share_group_list.get(&key).map(|g| g.clone())
     }
 
+    pub fn get_share_group_members(&self, tenant: &str, group_name: &str) -> Vec<ShareGroupMember> {
+        let key = format!("{tenant}/{group_name}");
+        self.share_group_members
+            .get(&key)
+            .map(|m| m.clone())
+            .unwrap_or_default()
+    }
+
     pub fn add_share_group_member(&self, member: &ShareGroupMember) {
         let key = format!("{}/{}", member.tenant, member.group_name);
         self.share_group_members
@@ -243,8 +251,12 @@ impl NodeCacheManager {
     pub fn remove_share_group_member(&self, member: &ShareGroupMember) {
         let key = format!("{}/{}", member.tenant, member.group_name);
         if let Some(mut members) = self.share_group_members.get_mut(&key) {
+            // sid also distinguishes members sharing (broker_id, connect_id),
+            // e.g. two channels consuming the same queue.
             members.retain(|m| {
-                !(m.broker_id == member.broker_id && m.connect_id == member.connect_id)
+                !(m.broker_id == member.broker_id
+                    && m.connect_id == member.connect_id
+                    && m.sid == member.sid)
             });
         }
     }

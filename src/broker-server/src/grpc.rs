@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::cluster_service::GrpcBrokerService;
-use amqp_broker::core::cache::AmqpCacheManager;
+use amqp_broker::broker::AmqpBrokerServerParams;
 use axum::http::{self};
 use common_base::error::common::CommonError;
 use common_base::role::is_meta_node;
@@ -56,7 +56,7 @@ pub async fn start_grpc_server(
     nats_params: NatsBrokerServerParams,
     engine_params: StorageEngineParams,
     kafka_cache: Arc<KafkaCacheManager>,
-    amqp_cache: Arc<AmqpCacheManager>,
+    amqp_params: AmqpBrokerServerParams,
     grpc_port: u32,
 ) -> Result<(), CommonError> {
     let ip = format!("0.0.0.0:{grpc_port}").parse()?;
@@ -81,7 +81,7 @@ pub async fn start_grpc_server(
                 nats_params.clone(),
                 engine_params.clone(),
                 kafka_cache,
-                amqp_cache,
+                amqp_params,
             ))
             .max_decoding_message_size(grpc_max_decoding_message_size),
         );

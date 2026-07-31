@@ -210,7 +210,7 @@ pub(crate) fn read_tls_frame_process(
                                         read_packet(RobustMQPacket::KAFKA(pk), &request_channel, &connection, &network_type).await;
                                     }
                                     RobustMQCodecWrapper::AMQP(pk) => {
-                                        read_packet(RobustMQPacket::AMQP(pk), &request_channel, &connection, &network_type).await;
+                                        read_packet(RobustMQPacket::AMQP(vec![pk]), &request_channel, &connection, &network_type).await;
                                     }
                                      RobustMQCodecWrapper::StorageEngine(pk) => {
                                         read_packet(RobustMQPacket::StorageEngine(pk), &request_channel, &connection, &network_type).await;
@@ -244,8 +244,8 @@ pub(crate) fn read_tls_frame_process(
 #[allow(clippy::result_large_err)]
 fn create_tls_accept() -> Result<TlsAcceptor, CommonError> {
     let conf = broker_config();
-    let certs = load_certs(Path::new(&conf.runtime.tls_cert))?;
-    let key = load_key(Path::new(&conf.runtime.tls_key))?;
+    let certs = load_certs(Path::new(&conf.broker_network.tls_cert))?;
+    let key = load_key(Path::new(&conf.broker_network.tls_key))?;
     let config = ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)?;

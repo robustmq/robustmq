@@ -84,8 +84,10 @@ pub async fn create_share_group_by_req(
     req: &CreateShareGroupRequest,
 ) -> Result<CreateShareGroupReply, MetaServiceError> {
     let storage = ShareGroupStorage::new(rocksdb_engine_handler.clone());
-    if storage.get(&req.tenant, &req.group)?.is_some() {
-        return Ok(CreateShareGroupReply {});
+    if let Some(existing) = storage.get(&req.tenant, &req.group)? {
+        return Ok(CreateShareGroupReply {
+            group: existing.encode()?,
+        });
     }
 
     let target_broker_id =
@@ -111,9 +113,16 @@ pub async fn create_share_group_by_req(
         Bytes::copy_from_slice(&leader.encode()?),
     );
     raft_manager.write_data(&req.group, data).await?;
-    send_notify_by_set_share_group(call_manager, leader).await?;
+    send_notify_by_set_share_group(call_manager, leader.clone()).await?;
 
-    Ok(CreateShareGroupReply {})
+    // Return the row we just wrote directly: the caller (often the very
+    // broker that's about to look this group up again, e.g. AMQP's
+    // resolve_queue_leader) would otherwise have to re-read it back through
+    // raft, racing the commit-vs-apply gap on whichever node answers that
+    // read (see resolve_queue_leader's doc comment for the full story).
+    Ok(CreateShareGroupReply {
+        group: leader.encode()?,
+    })
 }
 
 pub async fn delete_share_group_by_req(
