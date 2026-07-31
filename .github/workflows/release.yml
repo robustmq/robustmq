@@ -255,9 +255,17 @@ jobs:
           # devtoolset-10 toolchain it ships -- that gives a modern-enough
           # compiler while the produced binaries still only require symbols
           # up to glibc 2.17.
+          # Note: no libzstd-devel -- the workspace's `zstd` crate (which
+          # librocksdb-sys's "zstd" feature reads via DEP_ZSTD_INCLUDE) vendors
+          # and compiles its own copy of the zstd C source via `cc`, it never
+          # looks for a system libzstd. Same reasoning covers rdkafka's
+          # zstd/ssl/sasl cargo features: none of them are enabled here (see
+          # rdkafka's own default features, and this workspace's Cargo.toml),
+          # so cyrus-sasl-devel/openssl-devel below are for other consumers
+          # (paho-mqtt's "ssl" feature, etc.), not rdkafka.
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel libzstd-devel pkgconfig unzip xz
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel pkgconfig unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
@@ -291,6 +299,16 @@ jobs:
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
+          # The repo's .cargo/config.toml pins
+          # [target.x86_64-unknown-linux-gnu] to `linker = "clang"` +
+          # `-fuse-ld=lld`, tuned for the regular apt-based CI runners which
+          # ship clang/lld out of the box. This container only has the
+          # devtoolset-10 gcc we installed above, so override both back to
+          # it -- env vars take full precedence over the config file's
+          # linker/rustflags (they don't merge with it).
+          export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$CC"
+          export RUSTFLAGS="--cfg tokio_unstable"
+
           # No Node/pnpm here: the frontend was already built on the host in
           # the "Build frontend" step above (its glibc-independent output
           # lives at build/robustmq-copilot/packages/web-ui/dist, inside the
@@ -314,6 +332,15 @@ jobs:
             -e CARGO_HOME \
             quay.io/pypa/manylinux2014_x86_64 \
             ./build-in-container.sh
+
+      # The container runs as root (needed for `yum install`), so everything
+      # it wrote into the bind-mounted workspace (target/, .cargo-home,
+      # build/ output) is root-owned on the host afterward. Reclaim it before
+      # the job ends, otherwise Swatinem/rust-cache's post-job save step
+      # (which runs as the normal runner user) can silently fail to read it.
+      - name: Fix workspace ownership (container ran as root)
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" "${{ github.workspace }}"
 
       - name: Summary
         run: |
@@ -382,9 +409,12 @@ jobs:
           #!/usr/bin/env bash
           set -euo pipefail
 
+          # See the same note on the x86_64 job: no libzstd-devel, the
+          # workspace's zstd/rdkafka cargo features vendor their own C source
+          # rather than needing a system libzstd.
           yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ devtoolset-10-make \
             perl-IPC-Cmd perl-Locale-Maketext-Simple \
-            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel libzstd-devel pkgconfig unzip xz
+            openssl-devel cyrus-sasl-devel libcurl-devel zlib-devel pkgconfig unzip xz
           export PATH="/opt/rh/devtoolset-10/root/usr/bin:$PATH"
           export CC=/opt/rh/devtoolset-10/root/usr/bin/gcc
           export CXX=/opt/rh/devtoolset-10/root/usr/bin/g++
@@ -444,6 +474,12 @@ jobs:
             -e CARGO_PROFILE_RELEASE_CODEGEN_UNITS \
             quay.io/pypa/manylinux2014_aarch64 \
             ./build-in-container.sh
+
+      # See the same note on build-legacy-glibc above: the container ran as
+      # root, so reclaim ownership of anything it wrote before the job ends.
+      - name: Fix workspace ownership (container ran as root)
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" "${{ github.workspace }}"
 
       - name: Summary
         run: |
