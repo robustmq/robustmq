@@ -221,7 +221,7 @@ elasticsearch = { version = "8.19.0-alpha.1", default-features = false }
 paho-mqtt = { version = "0.13.3", default-features = false, features = [
     "bundled",
 ] }
-clickhouse = "0.14.2"
+clickhouse = "0.15.1"
 scylla = "0.15"
 
 # ====================
