@@ -48,6 +48,10 @@ BUILD_FRONTEND="${BUILD_FRONTEND:-false}"
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_ROOT}/build}"
 BUILD_PROFILE="${BUILD_PROFILE:-release}"
 USE_SCCACHE="${USE_SCCACHE:-auto}"
+# Extra cargo --features to pass to the cmd crate (e.g. "vector-search" to
+# enable mq9 agent semantic/full-text search, off by default -- see
+# src/cmd/Cargo.toml). Comma-separated, same syntax as `cargo build --features`.
+FEATURES="${FEATURES:-}"
 DIAGNOSE_CACHE="false"
 
 # Helper functions
@@ -85,6 +89,8 @@ show_help() {
     echo "    --sccache auto|on|off   Use sccache when available (default: auto)"
     echo "    --diagnose-cache        Print build cache settings and exit"
     echo "    --with-frontend         Build with frontend"
+    echo "    --features FEATURES     Extra cargo --features for the cmd crate"
+    echo "                            (e.g. vector-search for mq9 agent search)"
     echo "    --clean                 Clean build directory before building"
     echo
     echo -e "${BOLD}EXAMPLES:${NC}"
@@ -436,6 +442,11 @@ build_server() {
         log_info "Using host target cache: target/$(get_profile_target_dir "$build_profile")"
     fi
 
+    if [ -n "$FEATURES" ]; then
+        log_info "Extra cargo features: $FEATURES"
+        cargo_args+=(--features "$FEATURES")
+    fi
+
     if ! cargo "${cargo_args[@]}"; then
         log_error "Failed to build server binaries"
         return 1
@@ -613,6 +624,14 @@ main() {
                 DIAGNOSE_CACHE="true"
                 shift
                 ;;
+            --features)
+                if [[ $# -lt 2 || -z "$2" ]]; then
+                    log_error "--features requires a value, e.g. vector-search"
+                    exit 1
+                fi
+                FEATURES="$2"
+                shift 2
+                ;;
             --clean)
                 log_info "Cleaning build directory..."
                 rm -rf "$OUTPUT_DIR"
@@ -639,6 +658,13 @@ main() {
     if [ $? -ne 0 ]; then
         exit 1
     fi
+
+    # Package/tarball name only; the Rust target and build logic below always
+    # follow the real detected `platform`. Lets e.g. a glibc-2.17-compatible
+    # build produced on a modern host (see release.yml's manylinux2014 job)
+    # get packaged as "linux-amd64-manylinux2014" instead of colliding with the
+    # regular "linux-amd64" tarball.
+    local package_platform="${PLATFORM:-$platform}"
 
     local rust_target=$(get_rust_target "$platform")
     if [ $? -ne 0 ]; then
@@ -691,7 +717,7 @@ main() {
     fi
 
     # Create package
-    create_package "$VERSION" "$platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
+    create_package "$VERSION" "$package_platform" "$rust_target" "$BUILD_PROFILE" "$host_target"
     if [ $? -ne 0 ]; then
         exit 1
     fi
@@ -699,7 +725,7 @@ main() {
     # Show completion message
     echo
     log_success "Build completed successfully!"
-    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$platform.tar.gz"
+    log_info "Package created: $OUTPUT_DIR/robustmq-$VERSION-$package_platform.tar.gz"
 }
 
 # Run main function

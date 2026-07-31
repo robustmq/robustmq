@@ -49,6 +49,18 @@ GITHUB_REPO="${GITHUB_REPO:-robustmq/robustmq}"
 UPLOAD_ONLY="${UPLOAD_ONLY:-false}"
 UPLOAD_MAX_RETRIES="${UPLOAD_MAX_RETRIES:-5}"
 UPLOAD_RETRY_DELAY="${UPLOAD_RETRY_DELAY:-15}"
+# Overrides the auto-detected `uname`-based platform string (e.g. "linux-amd64").
+# Needed when a build doesn't target the host's native ABI baseline, e.g. a
+# glibc-2.17-compatible build produced on a modern glibc host inside an older
+# container -- `uname` alone can't tell those two linux-amd64 builds apart.
+PLATFORM="${PLATFORM:-}"
+# Exported so build.sh (invoked as a subprocess via build_package) sees the
+# same override, whether it came from the PLATFORM env var or --platform.
+export PLATFORM
+# Extra cargo --features passed through to build.sh, e.g. "vector-search" to
+# build the mq9-agent-search-enabled package (see src/cmd/Cargo.toml).
+FEATURES="${FEATURES:-}"
+export FEATURES
 
 # GitHub API base URL
 GITHUB_API_URL="https://api.github.com"
@@ -85,11 +97,17 @@ show_help() {
     echo "    -v, --version VERSION       Release version (default: auto-detect from Cargo.toml)"
     echo "    -t, --token TOKEN          GitHub personal access token"
     echo "    --upload-only              Only upload current platform to existing release"
+    echo "    --platform PLATFORM        Override the auto-detected platform name"
+    echo "                               (e.g. linux-amd64-manylinux2014)"
+    echo "    --features FEATURES        Extra cargo --features to build with"
+    echo "                               (e.g. vector-search for mq9 agent search)"
     echo
     echo -e "${BOLD}ENVIRONMENT VARIABLES:${NC}"
     echo "    GITHUB_TOKEN              GitHub personal access token"
     echo "    VERSION                   Release version"
     echo "    UPLOAD_ONLY               Upload to existing release only (true/false)"
+    echo "    PLATFORM                  Override the auto-detected platform name"
+    echo "    FEATURES                  Extra cargo --features to build with"
     echo "    UPLOAD_MAX_RETRIES         Maximum retry attempts for upload (default: 3)"
     echo "    UPLOAD_RETRY_DELAY         Initial delay in seconds between retries (default: 5)"
     echo
@@ -274,11 +292,22 @@ Welcome to RobustMQ $version release!
 
 This release includes pre-built binaries for multiple platforms:
 
-- **Linux AMD64** (\`robustmq-${version}-linux-amd64.tar.gz\`)
-- **Linux ARM64** (\`robustmq-${version}-linux-arm64.tar.gz\`)
-- **macOS AMD64** (\`robustmq-${version}-darwin-amd64.tar.gz\`)
-- **macOS ARM64** (\`robustmq-${version}-darwin-arm64.tar.gz\`)
-- **Windows AMD64** (\`robustmq-${version}-windows-amd64.tar.gz\`)
+| Package | Platform | Requires | mq9 agent search |
+|---|---|---|---|
+| \`robustmq-${version}-linux-amd64.tar.gz\` | Linux x86_64 | glibc 2.34+ (Ubuntu 22.04+, Debian 12+, RHEL/CentOS 9+, Rocky/Alma 9+) | No |
+| \`robustmq-${version}-linux-amd64-manylinux2014.tar.gz\` | Linux x86_64 | glibc 2.17+ (RHEL/CentOS 7+, Ubuntu 16.04+, and effectively any Linux from the last decade) | No |
+| \`robustmq-${version}-linux-amd64-mq9.tar.gz\` | Linux x86_64 | glibc 2.34+ (see linux-amd64 above) | **Yes** |
+| \`robustmq-${version}-linux-arm64.tar.gz\` | Linux aarch64 | glibc 2.34+ (see linux-amd64 above) | No |
+| \`robustmq-${version}-linux-arm64-manylinux2014.tar.gz\` | Linux aarch64 | glibc 2.17+ (**AWS Graviton on Amazon Linux 2**, which ships glibc 2.26 — lower than the regular linux-arm64 build's baseline — RHEL/CentOS 7+, and effectively any 64-bit ARM Linux from the last decade) | No |
+| \`robustmq-${version}-darwin-amd64.tar.gz\` | macOS Intel | macOS 13+ | No |
+| \`robustmq-${version}-darwin-arm64.tar.gz\` | macOS Apple Silicon | macOS 14+ | No |
+| \`robustmq-${version}-windows-amd64.tar.gz\` | Windows x86_64 | Windows 10/Server 2019+ | No |
+
+**Which Linux x86_64 package do I want?** Start with the regular \`linux-amd64\` package. If it fails to start with an error like \`version 'GLIBC_2.3x' not found\` or \`version 'GLIBCXX_3.4.2x' not found\`, your system's glibc is older than what that build was linked against — use \`linux-amd64-manylinux2014\` instead, which is built against the [manylinux2014](https://github.com/pypa/manylinux) baseline (glibc 2.17) and runs on effectively any 64-bit Linux from the last decade, including RHEL/CentOS 7.
+
+**Which Linux ARM64 package do I want?** Same idea as x86_64: start with \`linux-arm64\`, and switch to \`linux-arm64-manylinux2014\` on the same \`GLIBC_2.3x\`/\`GLIBCXX_3.4.2x not found\` errors. This is especially likely on **AWS Graviton instances running Amazon Linux 2** (glibc 2.26) — use \`linux-arm64-manylinux2014\` there.
+
+**Do I need the \`-mq9\` package?** All packages support mq9 mailboxes and basic agent registration. Only the \`linux-amd64-mq9\` package additionally supports mq9 **agent semantic/full-text search** (\`SearchAgentRequest\`) — it bundles LanceDB + an embedding model (ONNX Runtime) for that feature, which makes it noticeably larger. The other packages return a clear error if you call that API. Use \`-mq9\` only if you need agent search.
 
 > **Note**: Platform-specific packages are uploaded incrementally. If your platform is not yet available, please check back shortly.
 
@@ -439,6 +468,9 @@ build_package() {
     log_step "Building package for $platform"
 
     local build_cmd="$SCRIPT_DIR/build.sh --version $version --with-frontend"
+    if [ -n "$FEATURES" ]; then
+        build_cmd="$build_cmd --features $FEATURES"
+    fi
 
     if ! $build_cmd; then
         log_error "Failed to build package"
@@ -618,6 +650,14 @@ main() {
                 UPLOAD_ONLY="true"
                 shift
                 ;;
+            --platform)
+                PLATFORM="$2"
+                shift 2
+                ;;
+            --features)
+                FEATURES="$2"
+                shift 2
+                ;;
             *)
                 log_error "Unknown option: $1"
                 echo "Use --help for usage information"
@@ -639,10 +679,15 @@ main() {
         VERSION="v$VERSION"
     fi
 
-    # Detect current platform
-    local platform=$(detect_current_platform)
-    if [ $? -ne 0 ]; then
-        exit 1
+    # Detect current platform, unless explicitly overridden (--platform / PLATFORM)
+    local platform
+    if [ -n "$PLATFORM" ]; then
+        platform="$PLATFORM"
+    else
+        platform=$(detect_current_platform)
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
     fi
 
     # Show configuration
