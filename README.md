@@ -65,7 +65,7 @@ MQTT publish  →  RobustMQ unified storage  →  Kafka consume
 
 ## 🤖 mq9 — Communication Infrastructure for Multi-Agent Systems
 
-**mq9** is the infrastructure layer for multi-agent systems, built as RobustMQ's fifth native protocol. It solves the two foundational problems every multi-agent system faces: how Agents find each other, and how they communicate reliably and asynchronously.
+**mq9** is the infrastructure layer for multi-agent systems, built as RobustMQ's fifth native protocol. It solves the two foundational problems every multi-agent system faces: how Agents find each other, and how they communicate reliably and asynchronously
 
 Unlike general-purpose registries (etcd, Consul) combined with general-purpose queues (Kafka, NATS), mq9 is designed specifically for Agent communication. It provides an AgentCard data model, capability-based semantic discovery, per-Agent persistent mailboxes, N-to-N Agent topology, and long-task state retention — all in a single broker with shared runtime, storage, network, and cluster coordination.
 
