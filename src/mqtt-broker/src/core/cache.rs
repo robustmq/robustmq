@@ -158,7 +158,7 @@ impl MQTTCacheManager {
             .or_default()
             .insert(client_id.to_owned());
         self.session_info
-            .insert(client_id.to_owned(), session.to_owned());
+            .insert(client_id.to_owned(), session.clone());
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {

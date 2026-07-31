@@ -52,7 +52,7 @@ pub fn is_new_sub(
         let is_new = subscribe_manager
             .get_subscribe(tenant, client_id, &filter.path)
             .is_none();
-        results.insert(filter.path.to_owned(), is_new);
+        results.insert(filter.path.clone(), is_new);
     }
     results
 }
@@ -63,18 +63,18 @@ pub async fn save_subscribe(context: SaveSubscribeContext) -> ResultMqttBrokerEr
     for filter in filters {
         let subscribe_data = MqttSubscribe {
             tenant: context.tenant.clone(),
-            client_id: context.client_id.to_owned(),
+            client_id: context.client_id.clone(),
             path: filter.path.clone(),
             broker_id: conf.broker_id,
             filter: filter.clone(),
             pkid: context.subscribe.packet_identifier,
-            subscribe_properties: context.subscribe_properties.to_owned(),
-            protocol: context.protocol.to_owned(),
+            subscribe_properties: context.subscribe_properties.clone(),
+            protocol: context.protocol.clone(),
             create_time: now_second(),
         };
 
         let request = SetSubscribeRequest {
-            client_id: context.client_id.to_owned(),
+            client_id: context.client_id.clone(),
             path: filter.path.clone(),
             subscribe: subscribe_data.encode()?,
         };
