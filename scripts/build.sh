@@ -360,6 +360,17 @@ build_frontend() {
 
     local frontend_dir="$PROJECT_ROOT/build/robustmq-copilot"
     local frontend_repo="https://github.com/robustmq/robustmq-copilot.git"
+    local frontend_dist="$frontend_dir/packages/web-ui/dist"
+
+    # The frontend build produces glibc-independent static assets, so a
+    # caller (e.g. the manylinux2014 release jobs, which can't run the
+    # frontend's required Node >=20 inside their glibc-2.17 container) may
+    # have already built it on a separate host step. Reuse that instead of
+    # rebuilding.
+    if [ -d "$frontend_dist" ] && [ -n "$(ls -A "$frontend_dist" 2>/dev/null)" ]; then
+        log_info "Frontend already built at $frontend_dist, skipping rebuild"
+        return 0
+    fi
 
     # Check if frontend directory exists, if not clone it
     if [ ! -d "$frontend_dir" ]; then

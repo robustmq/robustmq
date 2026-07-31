@@ -213,6 +213,33 @@ jobs:
           shared-key: "release-linux-amd64-manylinux2014"
           save-if: "true"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Setup Node.js (for frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The frontend's own package.json requires Node >=20, which can't run
+      # inside the manylinux2014 container (glibc 2.17, Node 20 needs
+      # glibc >= 2.28). Its build output is glibc-independent static JS/HTML/
+      # CSS though, so there's no need to build it inside the container at
+      # all -- build it here on the host, then build.sh (running in the
+      # container below) will detect it's already built and just copy it in.
+      - name: Build frontend (host, glibc-independent asset build)
+        run: |
+          set -euo pipefail
+          frontend_dir="$GITHUB_WORKSPACE/build/robustmq-copilot"
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          git clone https://github.com/robustmq/robustmq-copilot.git "$frontend_dir"
+          cd "$frontend_dir"
+          pnpm install --no-frozen-lockfile
+          pnpm ui:build
+
       # Everything below needs to run with manylinux2014's glibc 2.17
       # baseline, so it's a single script executed inside the container via
       # `docker run`, not individual workflow steps.
@@ -264,17 +291,11 @@ jobs:
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
-          # Node 20+ itself requires glibc >= 2.28, which this container
-          # doesn't have -- only Node 16 still supports glibc 2.17. It's
-          # only needed here to build the (glibc-independent) static
-          # frontend assets bundled into every release package via
-          # --with-frontend.
-          curl -sSL -o /tmp/node.tar.xz https://nodejs.org/dist/v16.20.2/node-v16.20.2-linux-x64.tar.xz
-          tar xJf /tmp/node.tar.xz -C /opt
-          export PATH="/opt/node-v16.20.2-linux-x64/bin:$PATH"
-          node --version
-          npm install -g pnpm@9
-
+          # No Node/pnpm here: the frontend was already built on the host in
+          # the "Build frontend" step above (its glibc-independent output
+          # lives at build/robustmq-copilot/packages/web-ui/dist, inside the
+          # bind-mounted workspace), and build.sh detects that and skips
+          # rebuilding it.
           make release
           SCRIPT
           chmod +x build-in-container.sh
@@ -327,6 +348,30 @@ jobs:
           shared-key: "release-linux-arm64-manylinux2014"
           save-if: "true"
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Setup Node.js (for frontend build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # See the same note on build-legacy-glibc above: the frontend requires
+      # Node >=20, which can't run inside this glibc-2.17 container, but its
+      # output is glibc-independent, so build it on the host instead.
+      - name: Build frontend (host, glibc-independent asset build)
+        run: |
+          set -euo pipefail
+          frontend_dir="$GITHUB_WORKSPACE/build/robustmq-copilot"
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          git clone https://github.com/robustmq/robustmq-copilot.git "$frontend_dir"
+          cd "$frontend_dir"
+          pnpm install --no-frozen-lockfile
+          pnpm ui:build
+
       # Same rationale as the x86_64 manylinux2014 job: CentOS 7-based
       # (glibc 2.17) so anything linked here runs on any glibc >= 2.17 aarch64
       # host -- notably AWS Graviton's default Amazon Linux 2 image, which
@@ -368,12 +413,9 @@ jobs:
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 
-          curl -sSL -o /tmp/node.tar.xz https://nodejs.org/dist/v16.20.2/node-v16.20.2-linux-arm64.tar.xz
-          tar xJf /tmp/node.tar.xz -C /opt
-          export PATH="/opt/node-v16.20.2-linux-arm64/bin:$PATH"
-          node --version
-          npm install -g pnpm@9
-
+          # No Node/pnpm here: the frontend was already built on the host in
+          # the "Build frontend" step above, and build.sh detects the
+          # existing dist/ and skips rebuilding it.
           make release
           SCRIPT
           chmod +x build-in-container.sh
