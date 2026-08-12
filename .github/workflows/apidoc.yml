@@ -39,7 +39,7 @@ jobs:
     - uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: dtolnay/rust-toolchain@1.97.0
+    - uses: dtolnay/rust-toolchain@1.100.0
       with:
         # Keep in sync with rust-toolchain.toml
         toolchain: "1.97.0"
