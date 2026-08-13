@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::mqtt::pub_sub::{PublishArgsRequest, SubscribeArgsRequest};
+use crate::mqtt::pub_sub::{connect_server5, error_info};
 use crate::output::OutputFormat;
 use admin_server::client::AdminHttpClient;
 use admin_server::mqtt::session::SessionListRow;
 use common_base::uuid::unique_id;
 use metadata_struct::mqtt::topic::Topic;
 use paho_mqtt::{DisconnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode};
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use serde::Serialize;
 
 use tokio::io::{self, AsyncBufReadExt, BufReader};
@@ -131,26 +131,26 @@ impl MqttBrokerCommand {
         match params.action {
             // overview
             MqttActionType::Overview => {
-                self.cluster_overview(params.clone()).await;
+                self.cluster_overview(params_clone.clone()).await;
             }
             // client
             MqttActionType::ListClient => {
-                self.list_clients(params.clone()).await;
+                self.list_clients(params_clone.clone()).await;
             }
 
             // session
             MqttActionType::ListSession => {
-                self.list_session(params.clone()).await;
+                self.list_session(params_clone.clone()).await;
             }
 
             // topic
             MqttActionType::ListTopic => {
-                self.list_topic(params.clone()).await;
+                self.list_topic(params_clone.clone()).await;
             }
 
             // topic rewrite
             MqttActionType::ListTopicRewrite => {
-                self.list_topic_rewrite_rule(params.clone()).await;
+                self.list_topic_rewrite_rule(params_clone.clone()).await;
             }
 
             MqttActionType::CreateTopicRewrite(request) => {
@@ -263,10 +263,10 @@ impl MqttBrokerCommand {
 
             // pub && sub
             MqttActionType::Publish(ref request) => {
-                self.publish(params.clone(), request.clone()).await;
+                self.publish(params_clone.clone(), request.clone()).await;
             }
             MqttActionType::Subscribe(ref request) => {
-                self.subscribe(params.clone(), request.clone()).await;
+                self.subscribe(params_clone.clone(), request.clone()).await;
             }
         }
     }

@@ -40,11 +40,11 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use node_call::NodeCallManager;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, mqtt_packet_to_string, Connect, ConnectProperties,
-    ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq, PubAck, PubAckProperties,
-    PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
-    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq,
+    PubAck, PubAckProperties, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
+    PubRelProperties, Publish, PublishProperties, Subscribe, SubscribeProperties, Unsubscribe,
+    UnsubscribeProperties, is_mqtt3, is_mqtt4, is_mqtt5, mqtt_packet_to_string,
 };
 use protocol::robust::RobustMQPacket;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -294,9 +294,9 @@ impl MQTTHandlerCommand {
         login: Option<Login>,
     ) -> Option<ResponsePackage> {
         self.connection_manager
-            .set_mqtt_connect_protocol(tcp_connection.connection_id, protocol_version.to_owned());
+            .set_mqtt_connect_protocol(tcp_connection.connection_id, protocol_version);
 
-        let resp_pkg = if is_mqtt3(protocol_version.to_owned()) {
+        let resp_pkg = if is_mqtt3(protocol_version) {
             let connect_context = MqttServiceConnectContext {
                 connect_id: tcp_connection.connection_id,
                 connect: connect.clone(),
@@ -307,7 +307,7 @@ impl MQTTHandlerCommand {
                 addr: *addr,
             };
             Some(self.mqtt3_service.connect(connect_context).await)
-        } else if is_mqtt4(protocol_version.to_owned()) {
+        } else if is_mqtt4(protocol_version) {
             let connect_context = MqttServiceConnectContext {
                 connect_id: tcp_connection.connection_id,
                 connect: connect.clone(),
@@ -318,7 +318,7 @@ impl MQTTHandlerCommand {
                 addr: *addr,
             };
             Some(self.mqtt4_service.connect(connect_context).await)
-        } else if is_mqtt5(protocol_version.to_owned()) {
+        } else if is_mqtt5(protocol_version) {
             let connect_context = MqttServiceConnectContext {
                 connect_id: tcp_connection.connection_id,
                 connect: connect.clone(),

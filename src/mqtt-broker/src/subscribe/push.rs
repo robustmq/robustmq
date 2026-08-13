@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::common::min_qos;
 use super::common::Subscriber;
+use super::common::min_qos;
 use crate::core::cache::{
     MQTTCacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
 };
@@ -22,7 +22,7 @@ use crate::core::metrics::record_publish_send_metrics;
 use crate::core::metrics::record_send_metrics;
 use crate::core::sub_slow::record_slow_subscribe_data;
 use crate::core::tool::ResultMqttBrokerError;
-use crate::subscribe::common::{client_unavailable_error, SubPublishParam};
+use crate::subscribe::common::{SubPublishParam, client_unavailable_error};
 use axum::extract::ws::Message;
 use bytes::{Bytes, BytesMut};
 use common_base::network::broker_not_available;
@@ -30,8 +30,8 @@ use common_base::tools::now_millis;
 use common_base::tools::now_second;
 use metadata_struct::storage::record::StorageRecord;
 use network_server::common::connection_manager::ConnectionManager;
-use network_server::common::packet::build_mqtt_packet_wrapper;
 use network_server::common::packet::ResponsePackage;
+use network_server::common::packet::build_mqtt_packet_wrapper;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::{MqttPacket, PubRel, Publish, PublishProperties, QoS};
@@ -102,7 +102,7 @@ pub async fn build_publish_message(
     let connect_id = cache_manager
         .get_connect_id(&subscriber.client_id)
         .ok_or_else(|| {
-            MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.to_owned())
+            MqttBrokerError::ConnectionNullSkipPushMessage(subscriber.client_id.clone())
         })?;
 
     let qos = build_pub_qos(subscriber);

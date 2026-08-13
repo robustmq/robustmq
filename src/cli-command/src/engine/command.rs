@@ -22,7 +22,7 @@ use admin_server::cluster::offset::{
 use admin_server::engine::segment::{SegmentListReq, SegmentListResp};
 use admin_server::engine::shard::{ShardCreateReq, ShardDeleteReq, ShardListReq, ShardListRow};
 use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
-use prettytable::{row, Table};
+use prettytable::{Table, row};
 use serde::Serialize;
 
 #[derive(Clone)]
@@ -79,7 +79,8 @@ impl EngineCommand {
     }
 
     pub async fn start(&self, params: EngineCliCommandParam) {
-        match params.action.clone() {
+        let action = params.action.clone();
+        match action {
             EngineActionType::ShardList { shard_name } => self.shard_list(params, shard_name).await,
             EngineActionType::ShardCreate { shard_name, config } => {
                 self.shard_create(params, shard_name, config).await
