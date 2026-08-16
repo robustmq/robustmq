@@ -23,7 +23,7 @@ use openraft::{
     AnyError, Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, StorageIOError,
     Vote,
 };
-use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions, WriteBatch, DB};
+use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions, WriteBatch, WriteOptions, DB};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
@@ -58,6 +58,21 @@ fn sto_read_msg(msg: String) -> StorageError<NodeId> {
     StorageIOError::<NodeId>::read(AnyError::error(msg)).into()
 }
 
+/// Write options that fsync the WAL before the write returns.
+///
+/// Openraft requires every durable-state write to be on disk before the
+/// storage method reports success: `save_vote` "must be persisted on disk
+/// before returning", and the entries handed to `append` must be on disk
+/// before `LogFlushed::log_io_completed` fires. RocksDB's default write
+/// options only put the record in the OS page cache, which a machine crash or
+/// kernel panic discards — losing a vote lets a node vote twice in one term,
+/// and losing acknowledged entries drops already-committed data.
+fn sync_write_opts() -> WriteOptions {
+    let mut opts = WriteOptions::default();
+    opts.set_sync(true);
+    opts
+}
+
 #[derive(Debug, Clone)]
 pub struct LogStore {
     pub machine: String,
@@ -89,7 +104,12 @@ impl LogStore {
     fn set_last_purged_(&self, log_id: LogId<NodeId>) -> StorageResult<()> {
         let data = serialize(&log_id).map_err(|e| sto_write(&*e))?;
         self.db
-            .put_cf(&self.store(), key_last_purged_log_id(&self.machine), data)
+            .put_cf_opt(
+                &self.store(),
+                key_last_purged_log_id(&self.machine),
+                data,
+                &sync_write_opts(),
+            )
             .map_err(|e| sto_write(&e))?;
         Ok(())
     }
@@ -99,13 +119,22 @@ impl LogStore {
             Some(log_id) => {
                 let data = serialize(log_id).map_err(|e| sto_write(&*e))?;
                 self.db
-                    .put_cf(&self.store(), key_committed(&self.machine), data)
+                    .put_cf_opt(
+                        &self.store(),
+                        key_committed(&self.machine),
+                        data,
+                        &sync_write_opts(),
+                    )
                     .map_err(|e| sto_write(&e))?;
                 Ok(())
             }
             None => {
                 self.db
-                    .delete_cf(&self.store(), key_committed(&self.machine))
+                    .delete_cf_opt(
+                        &self.store(),
+                        key_committed(&self.machine),
+                        &sync_write_opts(),
+                    )
                     .map_err(|e| sto_write(&e))?;
                 Ok(())
             }
@@ -127,7 +156,12 @@ impl LogStore {
     fn set_vote_(&self, vote: &Vote<NodeId>) -> StorageResult<()> {
         let data = serialize(vote).map_err(|e| sto_write_vote(&*e))?;
         self.db
-            .put_cf(&self.store(), key_vote(&self.machine), data)
+            .put_cf_opt(
+                &self.store(),
+                key_vote(&self.machine),
+                data,
+                &sync_write_opts(),
+            )
             .map_err(|e| sto_write_vote(&e))?;
         Ok(())
     }
@@ -261,7 +295,9 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         }
 
         if has_entries {
-            self.db.write(batch).map_err(|e| sto_write_logs(&e))?;
+            self.db
+                .write_opt(batch, &sync_write_opts())
+                .map_err(|e| sto_write_logs(&e))?;
         }
 
         let batch_ms = batch_start.elapsed().as_secs_f64() * 1000.0;
@@ -275,7 +311,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         let from = key_raft_log(&self.machine, log_id.index);
         let to = key_raft_log(&self.machine, u64::MAX);
         self.db
-            .delete_range_cf(&self.store(), &from, &to)
+            .delete_range_cf_opt(&self.store(), &from, &to, &sync_write_opts())
             .map_err(|e| sto_write_logs(&e))?;
         Ok(())
     }
@@ -285,7 +321,7 @@ impl RaftLogStorage<TypeConfig> for LogStore {
         let to = key_raft_log(&self.machine, log_id.index + 1);
 
         self.db
-            .delete_range_cf(&self.store(), &from, &to)
+            .delete_range_cf_opt(&self.store(), &from, &to, &sync_write_opts())
             .map_err(|e| sto_write_logs(&e))?;
 
         self.set_last_purged_(log_id)?;
