@@ -295,6 +295,26 @@ jobs:
           chmod +x /usr/local/bin/jq
           jq --version
 
+          # librocksdb-sys depends on zstd-sys without disabling its default
+          # features, and zstd-sys's defaults include "bindgen" -- so
+          # bindgen's libclang requirement is real, not optional, no matter
+          # what our own workspace Cargo.toml sets for the zstd/rocksdb
+          # features directly (Cargo unifies features additively across the
+          # whole dependency graph). A plain yum clang wouldn't necessarily
+          # run on glibc 2.17 anyway, so pull the prebuilt libclang wheel
+          # PyPI publishes specifically tagged for this exact glibc baseline
+          # -- guaranteed to run here by definition of the tag. Downloading
+          # and unzipping the wheel directly (rather than `pip install
+          # --target`) sidesteps whatever pip version happens to be bundled
+          # in this image mishandling the wheel's .data/platlib directory.
+          curl -sSL -o /tmp/libclang.whl \
+            https://files.pythonhosted.org/packages/1d/fc/716c1e62e512ef1c160e7984a73a5fc7df45166f2ff3f254e71c58076f7c/libclang-18.1.1-py2.py3-none-manylinux2010_x86_64.whl
+          unzip -o -q /tmp/libclang.whl -d /opt/libclang-pkg
+          LIBCLANG_DIR="$(dirname "$(find /opt/libclang-pkg -name 'libclang.so*' | head -1)")"
+          export LIBCLANG_PATH="$LIBCLANG_DIR"
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
+          ls -la "$LIBCLANG_PATH"
+
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
@@ -438,6 +458,20 @@ jobs:
           ln -sf /opt/cmake-3.28.1-linux-aarch64/bin/cmake /usr/local/bin/cmake
           ln -sf /opt/cmake-3.28.1-linux-aarch64/bin/ctest /usr/local/bin/ctest
           cmake --version
+
+          # See the same note on the x86_64 job: librocksdb-sys pulls in
+          # zstd-sys with its default "bindgen" feature enabled, so libclang
+          # is a real build requirement. Download+unzip PyPI's libclang wheel
+          # directly (built for this exact glibc baseline) rather than
+          # `pip install --target`, to sidestep whatever pip version is
+          # bundled in this image mishandling the wheel's .data/platlib dir.
+          curl -sSL -o /tmp/libclang.whl \
+            https://files.pythonhosted.org/packages/3c/3d/f0ac1150280d8d20d059608cf2d5ff61b7c3b7f7bcf9c0f425ab92df769a/libclang-18.1.1-py2.py3-none-manylinux2014_aarch64.whl
+          unzip -o -q /tmp/libclang.whl -d /opt/libclang-pkg
+          LIBCLANG_DIR="$(dirname "$(find /opt/libclang-pkg -name 'libclang.so*' | head -1)")"
+          export LIBCLANG_PATH="$LIBCLANG_DIR"
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
+          ls -la "$LIBCLANG_PATH"
 
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
             sh -s -- -y --profile minimal --default-toolchain 1.97.0
