@@ -23,7 +23,9 @@ use openraft::{
     AnyError, Entry, LogId, LogState, OptionalSend, RaftLogReader, StorageError, StorageIOError,
     Vote,
 };
-use rocksdb::{BoundColumnFamily, Direction, IteratorMode, ReadOptions, WriteBatch, WriteOptions, DB};
+use rocksdb::{
+    BoundColumnFamily, Direction, IteratorMode, ReadOptions, WriteBatch, WriteOptions, DB,
+};
 use rocksdb_engine::storage::family::DB_COLUMN_FAMILY_META_RAFT;
 use std::fmt::Debug;
 use std::ops::RangeBounds;
