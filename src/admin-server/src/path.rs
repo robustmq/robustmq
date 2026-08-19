@@ -177,5 +177,12 @@ mod tests {
         // Verify paths don't already contain /api prefix
         assert!(!MQTT_OVERVIEW_PATH.starts_with("/api"));
         assert!(!CLUSTER_CONFIG_GET_PATH.starts_with("/api"));
+        assert!(!HEALTH_READY_PATH.starts_with("/api"));
+        assert!(!HEALTH_NODE_PATH.starts_with("/api"));
+        assert!(!HEALTH_CLUSTER_PATH.starts_with("/api"));
+
+        assert_eq!(HEALTH_READY_PATH, "/health/ready");
+        assert_eq!(HEALTH_NODE_PATH, "/health/node");
+        assert_eq!(HEALTH_CLUSTER_PATH, "/health/cluster");
     }
 }
