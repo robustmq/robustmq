@@ -176,7 +176,7 @@ sha1 = "0.10.6"
 sha2 = "0.10.9"
 bcrypt = "0.17.1"
 pbkdf2 = "0.12.2"
-hmac = "0.12.1"
+hmac = "0.13.0"
 hex = "0.4.3"
 base64 = "0.22.1"
 jsonwebtoken = { version = "10.0.0", default-features = false, features = [
