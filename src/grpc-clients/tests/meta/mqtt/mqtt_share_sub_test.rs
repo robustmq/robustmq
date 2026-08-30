@@ -34,7 +34,7 @@ mod tests {
     #[tokio::test]
     async fn mqtt_share_sub_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let group_name: String = unique_id();
         let tenant: String = unique_id();
         let node_ip: String = "127.0.0.1".to_string();

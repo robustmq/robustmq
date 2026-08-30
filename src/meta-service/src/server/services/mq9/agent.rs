@@ -20,9 +20,11 @@ use crate::storage::mq9::agent::Mq9AgentStorage;
 use common_base::utils::serialize::encode_to_bytes;
 use metadata_struct::mq9::agent::MQ9Agent;
 use node_call::NodeCallManager;
+#[cfg(feature = "vector-search")]
+use protocol::meta::meta_service_mq9::AgentSearchItem;
 use protocol::meta::meta_service_mq9::{
-    AgentSearchItem, CreateAgentReply, CreateAgentRequest, DeleteAgentReply, DeleteAgentRequest,
-    ListAgentReply, ListAgentRequest, SearchAgentReply, SearchAgentRequest,
+    CreateAgentReply, CreateAgentRequest, DeleteAgentReply, DeleteAgentRequest, ListAgentReply,
+    ListAgentRequest, SearchAgentReply, SearchAgentRequest,
 };
 use rocksdb_engine::rocksdb::RocksDBEngine;
 use std::pin::Pin;
@@ -89,6 +91,7 @@ pub async fn delete_agent_by_req(
     Ok(DeleteAgentReply {})
 }
 
+#[cfg(feature = "vector-search")]
 pub async fn search_agent_by_req(
     req: &SearchAgentRequest,
 ) -> Result<SearchAgentReply, MetaServiceError> {
@@ -130,4 +133,14 @@ pub async fn search_agent_by_req(
         .collect();
 
     Ok(SearchAgentReply { items })
+}
+
+#[cfg(not(feature = "vector-search"))]
+pub async fn search_agent_by_req(
+    _req: &SearchAgentRequest,
+) -> Result<SearchAgentReply, MetaServiceError> {
+    Err(MetaServiceError::CommonError(
+        "agent search is not enabled in this build (missing the 'vector-search' feature)"
+            .to_string(),
+    ))
 }

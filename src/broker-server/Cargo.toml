@@ -60,8 +60,17 @@ node-call.workspace = true
 connector.workspace = true
 common-healthy.workspace = true
 async-nats.workspace = true
-llm-engine.workspace = true
-search-engine.workspace = true
+llm-engine = { workspace = true, optional = true }
+search-engine = { workspace = true, optional = true }
+
+[features]
+# mq9 agent semantic/full-text search (lancedb + fastembed/ort). See the same
+# feature on the meta-service crate for why this is off by default.
+vector-search = [
+    "dep:llm-engine",
+    "dep:search-engine",
+    "meta-service/vector-search",
+]
 
 [target.'cfg(not(windows))'.dependencies]
 pprof.workspace = true

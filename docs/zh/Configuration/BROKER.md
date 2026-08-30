@@ -1,6 +1,6 @@
 # Broker 配置说明
 
-> 本文档描述 RobustMQ Broker 服务的所有配置项。日志配置请参考 [Logging.md](Logging.md)。
+> 本文档描述 RobustMQ 的全局/基础配置项。日志配置请参考 [Logging.md](Logging.md)；各协议自己的配置已经拆分为独立文档：[MQTT 配置](MQTTConfig.md)、[Kafka 配置](KafkaConfig.md)、[AMQP 配置](AMQPConfig.md)、[NATS 配置](NATSConfig.md)。
 
 ## 概述
 
@@ -28,8 +28,8 @@ ROBUST_MQ_SERVER_{SECTION}_{KEY}
 
 ```bash
 export ROBUST_MQ_SERVER_CLUSTER_NAME="my-cluster"
-export ROBUST_MQ_SERVER_MQTT_SERVER_TCP_PORT=1883
-export ROBUST_MQ_SERVER_PROMETHEUS_PORT=9091
+export ROBUST_MQ_SERVER_MQTT_RUNTIME_SERVER_TCP_PORT=1883
+export ROBUST_MQ_SERVER_RUNTIME_CHANNELS_PER_ADDRESS=8
 ```
 
 ---
@@ -74,43 +74,44 @@ http_port = 58080
 
 ### [runtime]
 
-Tokio 运行时与 TLS 配置。RobustMQ 内部划分了三个独立的 Tokio 运行时，分别承担不同职责，可以独立调优。
+gRPC 客户端连接池、pprof 采集与全局默认值配置。各 Tokio 运行时的工作线程数配置项已下放到各自归属的表下（`server_worker_threads` 留在这里，`meta_worker_threads` 见 [Meta 运行时配置](#3-meta-运行时配置)，`broker_worker_threads`（MQTT 热路径专用）见 [MQTT 配置](MQTTConfig.md)）。
 
 ```toml
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
-# 各运行时工作线程数，0 = 自动（推荐）
-# server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
-# runtime_worker_threads = 1  # 兼容旧版，新版请用各运行时独立配置
+channels_per_address = 4
+# server_worker_threads = 0  # 0 = 自动（推荐）
 # pprof_enable = false
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS 证书文件路径 |
-| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS 私钥文件路径 |
+| `channels_per_address` | `usize` | `4` | 每个 gRPC 服务地址维护的 HTTP/2 Channel（TCP 连接）数量 |
 | `server_worker_threads` | `usize` | `0`（自动） | server-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
-| `meta_worker_threads` | `usize` | `0`（自动） | meta-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
-| `broker_worker_threads` | `usize` | `0`（自动） | broker-runtime 工作线程数，自动值 = `CPU核数` |
-| `runtime_worker_threads` | `usize` | `1` | 兼容旧版全局线程倍数，各运行时字段为 0 时作为回退值，新版建议保持默认 |
-| `pprof_enable` | `bool` | `false` | 是否启用内置 pprof 性能分析采集（不依赖独立端口） |
+| `pprof_enable` | `bool` | `false` | 是否启用内置 pprof 性能分析采集；采集到的火焰图通过 Admin HTTP API（复用 `http_port`）暴露，没有独立端口 |
 
 **三个运行时说明：**
 
-| 运行时 | 职责 | 默认线程数 |
-|--------|------|-----------|
-| `server-runtime` | gRPC 服务、HTTP Admin API、Prometheus 指标暴露 | `max(4, CPU/2)` |
-| `meta-runtime` | Raft 状态机、RocksDB 写入 | `max(4, CPU/2)` |
-| `broker-runtime` | MQTT 连接处理、消息投递热路径 | `CPU核数` |
+| 运行时 | 职责 | 线程数配置项 | 默认线程数 |
+|--------|------|-------------|-----------|
+| `server-runtime` | gRPC 服务、HTTP Admin API、Prometheus 指标暴露 | `runtime.server_worker_threads` | `max(4, CPU/2)` |
+| `meta-runtime` | Raft 状态机、RocksDB 写入 | `meta_runtime.meta_worker_threads` | `max(4, CPU/2)` |
+| `broker-runtime` | MQTT 连接处理、消息投递热路径 | `mqtt_runtime.broker_worker_threads` | `CPU核数` |
 
 > **调优建议：** 保持默认值 `0` 即可。通过 Grafana 的 `tokio_runtime_busy_ratio` 指标判断是否需要调整：某个运行时繁忙比持续 > 80% 时，可适当增加其线程数。
 
+**gRPC 客户端连接池调优：** 每个 HTTP/2 Channel 支持约 200 个并发 Stream（即并发 RPC 请求），默认值 `4` 可支撑约 800 个并发 gRPC 请求，覆盖绝大多数生产场景。
+
+| 场景 | 建议值 |
+|------|--------|
+| 默认 / 常规生产 | `4` |
+| 高并发（万级 MQTT 连接） | `8` ~ `16` |
+| 极高并发压测 | `32` |
+
+> **注意：** 该值过大会导致系统打开的 TCP 文件描述符数量暴增（每个 Channel 占用一个 fd），在 `ulimit -n` 较小的环境下可能引发 `Too many open files` 错误。
+
 ---
 
-## 4. Meta 运行时配置
+## 3. Meta 运行时配置
 
 ### [meta_runtime]
 
@@ -124,6 +125,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0  # 0 = 自动，meta-runtime 工作线程数
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -134,10 +136,11 @@ group_offset_expire_sec = 604800
 | `offset_raft_group_num` | `u32` | `1` | Offset Raft 分组数量 |
 | `data_raft_group_num` | `u32` | `1` | 数据 Raft 分组数量 |
 | `group_offset_expire_sec` | `u64` | `604800` | 消费组 Offset 过期时间（秒），默认 7 天 |
+| `meta_worker_threads` | `usize` | `0`（自动） | meta-runtime 工作线程数，自动值 = `max(4, CPU核数 / 2)` |
 
 ---
 
-## 5. RocksDB 配置
+## 4. RocksDB 配置
 
 ### [rocksdb]
 
@@ -156,7 +159,7 @@ max_open_files = 10000
 
 ---
 
-## 6. 存储引擎运行时配置
+## 5. 存储引擎运行时配置
 
 ### [storage_runtime]
 
@@ -169,11 +172,7 @@ max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
 expire_scan_task_num = 10
-
-[storage_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
+offset_enable_cache = true
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -183,399 +182,13 @@ queue_size = 1000
 | `io_thread_num` | `u32` | `8` | IO 处理线程数 |
 | `data_path` | `array` | `[]` | 数据存储路径列表 |
 | `expire_scan_task_num` | `usize` | `10` | 过期数据扫描并发任务数 |
+| `offset_enable_cache` | `bool` | `true` | 是否启用消费 Offset 缓存 |
 
-**[storage_runtime.network] 网络线程配置：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
-| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
-| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+> 存储引擎的网络线程复用统一的 [`[broker_network]`](#7-broker-网络配置) 配置，不再有独立的 `[storage_runtime.network]`。
 
 ---
 
-## 6a. Kafka 运行时配置
-
-### [kafka_runtime]
-
-Kafka 协议服务配置。
-
-```toml
-[kafka_runtime]
-tcp_port = 9095
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `tcp_port` | `u32` | `9095` | Kafka 协议 TCP 监听端口 |
-
----
-
-## 6b. AMQP 运行时配置
-
-### [amqp_runtime]
-
-AMQP 协议服务配置。
-
-```toml
-[amqp_runtime]
-tcp_port = 5672
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `tcp_port` | `u32` | `5672` | AMQP 协议 TCP 监听端口 |
-
----
-
-## 7. 消息存储配置
-
-### [message_storage]
-
-消息持久化存储后端配置。
-
-```toml
-[message_storage]
-storage_type = "EngineMemory"
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `storage_type` | `string` | `"EngineMemory"` | 存储类型 |
-
-**存储类型可选值：**
-
-| 值 | 说明 |
-|----|------|
-| `EngineMemory` | 内存存储（重启后数据丢失，适用于测试） |
-| `EngineSegment` | 基于 Segment 的存储引擎 |
-| `EngineRocksDB` | 基于 RocksDB 的本地存储 |
-| `Mysql` | MySQL 数据库存储 |
-| `MinIO` | MinIO 对象存储 |
-| `S3` | AWS S3 对象存储 |
-
-根据所选 `storage_type`，需配置对应子项：
-
-**memory_config（EngineMemory 时可选）：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `max_records_per_shard` | `usize` | `1000` | 每个 Shard 的最大记录数 |
-| `max_shard_size_limit` | `usize` | `10000000` | 每个 Shard 的最大总大小 |
-
-**mysql_config（Mysql 时）：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `mysql_addr` | `string` | `""` | MySQL 数据库地址 |
-
-**minio_config（MinIO 时）：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `data_dir` | `string` | `""` | MinIO 数据目录 |
-| `bucket` | `string` | `""` | MinIO Bucket 名称 |
-
-**s3_config（S3 时）：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `endpoint` | `string` | `""` | S3 端点地址 |
-| `bucket` | `string` | `""` | S3 Bucket 名称 |
-| `region` | `string` | `""` | S3 Region |
-| `access_key` | `string` | `""` | 访问密钥 |
-| `secret_key` | `string` | `""` | 密钥 |
-| `enable_virtual_host_style` | `bool` | `false` | 是否使用虚拟主机风格访问 |
-
----
-
-## 8. Offset 存储配置
-
-### [storage_offset]
-
-消息消费 Offset 缓存配置。
-
-```toml
-[storage_offset]
-enable_cache = true
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable_cache` | `bool` | `true` | 是否启用 Offset 缓存 |
-
----
-
-## 9. MQTT 服务器配置
-
-### [mqtt_server]
-
-MQTT 协议监听端口配置。
-
-```toml
-[mqtt_server]
-tcp_port = 1883
-tls_port = 1885
-websocket_port = 8083
-websockets_port = 8085
-quic_port = 9083
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `tcp_port` | `u32` | `1883` | MQTT over TCP 端口 |
-| `tls_port` | `u32` | `1885` | MQTT over TLS 端口 |
-| `websocket_port` | `u32` | `8083` | MQTT over WebSocket 端口 |
-| `websockets_port` | `u32` | `8085` | MQTT over WebSocket Secure 端口 |
-| `quic_port` | `u32` | `9083` | MQTT over QUIC 端口 |
-
----
-
-## 10. MQTT 运行时配置
-
-### [mqtt_runtime]
-
-MQTT 运行时基本参数。
-
-```toml
-[mqtt_runtime]
-default_user = "admin"
-default_password = "robustmq"
-durable_sessions_enable = false
-secret_free_login = false
-is_self_protection_status = false
-
-[mqtt_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `default_user` | `string` | `"admin"` | 系统默认用户名 |
-| `default_password` | `string` | `"robustmq"` | 系统默认密码 |
-| `durable_sessions_enable` | `bool` | `false` | 是否启用持久会话（`false` 为临时会话，性能更好） |
-| `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
-| `is_self_protection_status` | `bool` | `false` | 是否处于自我保护状态（连接过载时拒绝新连接） |
-
-**[mqtt_runtime.network] 网络线程配置：**
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
-| `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
-| `queue_size` | `usize` | `1000` | 内部处理队列大小 |
-
----
-
-## 11. MQTT Keep Alive 配置
-
-### [mqtt_keep_alive]
-
-MQTT 心跳保活配置。
-
-```toml
-[mqtt_keep_alive]
-enable = true
-default_time = 180
-max_time = 3600
-default_timeout = 2
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `true` | 是否启用 Keep Alive 心跳检测 |
-| `default_time` | `u16` | `180` | 默认心跳间隔（秒） |
-| `max_time` | `u16` | `3600` | 最大心跳间隔（秒） |
-| `default_timeout` | `u16` | `2` | 连续超时次数后断开连接 |
-
----
-
-## 12. MQTT 协议配置
-
-### [mqtt_protocol]
-
-MQTT 协议参数配置。
-
-```toml
-[mqtt_protocol]
-max_session_expiry_interval = 1800
-default_session_expiry_interval = 30
-topic_alias_max = 65535
-max_packet_size = 10485760
-receive_max = 65535
-max_message_expiry_interval = 3600
-client_pkid_persistent = false
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `max_session_expiry_interval` | `u32` | `1800` | 会话最大过期时间（秒） |
-| `default_session_expiry_interval` | `u32` | `30` | 会话默认过期时间（秒） |
-| `topic_alias_max` | `u16` | `65535` | 主题别名最大数量 |
-| `max_packet_size` | `u32` | `10485760` (10 MB) | 单个 MQTT 数据包最大大小（字节） |
-| `receive_max` | `u16` | `65535` | 未确认的 PUBLISH 数据包最大数量 |
-| `max_message_expiry_interval` | `u64` | `3600` | 消息最大过期时间（秒） |
-| `client_pkid_persistent` | `bool` | `false` | 是否持久化客户端 Packet ID |
-
----
-
-## 13. 限流配置
-
-### [limit]
-
-集群和租户级别的资源限流配置。
-
-```toml
-[limit.cluster]
-max_connections_per_node = 10000000
-max_connection_rate = 100000
-max_topics = 5000000
-max_sessions = 50000000
-max_publish_rate = 10000
-
-[limit.tenant]
-max_connections_per_node = 1000000
-max_connection_rate = 10000
-max_topics = 500000
-max_sessions = 5000000
-max_publish_rate = 10000
-```
-
-| 配置项 | 类型 | 说明 |
-|--------|------|------|
-| `max_connections_per_node` | `u64` | 每节点最大连接数 |
-| `max_connection_rate` | `u32` | 每秒最大新建连接速率 |
-| `max_topics` | `u64` | 最大 Topic 数量 |
-| `max_sessions` | `u64` | 最大 Session 数量 |
-| `max_publish_rate` | `u32` | 每秒最大 Publish 消息速率 |
-
----
-
-## 15. MQTT 离线消息配置
-
-### [mqtt_offline_message]
-
-客户端离线期间的消息存储配置。
-
-```toml
-[mqtt_offline_message]
-enable = true
-expire_ms = 0
-max_messages_num = 0
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `true` | 是否启用离线消息 |
-| `expire_ms` | `u32` | `0` | 离线消息过期时间（毫秒），`0` 表示不过期 |
-| `max_messages_num` | `u32` | `0` | 每个客户端最大离线消息数，`0` 表示无限制 |
-
----
-
-## 16. MQTT 连接抖动检测配置
-
-### [mqtt_flapping_detect]
-
-检测客户端频繁连接/断开（抖动）并自动封禁。
-
-```toml
-[mqtt_flapping_detect]
-enable = false
-window_time = 1
-max_client_connections = 15
-ban_time = 5
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `false` | 是否启用连接抖动检测 |
-| `window_time` | `u32` | `1` | 检测时间窗口（秒） |
-| `max_client_connections` | `u64` | `15` | 时间窗口内最大连接次数 |
-| `ban_time` | `u32` | `5` | 触发抖动后封禁时间（秒） |
-
----
-
-## 17. MQTT 慢订阅检测配置
-
-### [mqtt_slow_subscribe]
-
-慢订阅监控配置，用于检测消息分发延迟。
-
-```toml
-[mqtt_slow_subscribe]
-enable = false
-record_time = 1000
-delay_type = "Whole"
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `false` | 是否启用慢订阅检测 |
-| `record_time` | `u64` | `1000` | 慢订阅记录阈值（毫秒） |
-| `delay_type` | `string` | `"Whole"` | 延迟计算类型：`Whole`（全链路）、`Partial`（部分） |
-
----
-
-## 18. MQTT Schema 验证配置
-
-### [mqtt_schema]
-
-消息 Schema 验证配置。
-
-```toml
-[mqtt_schema]
-enable = true
-strategy = "ALL"
-failed_operation = "Discard"
-echo_log = true
-log_level = "info"
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `true` | 是否启用 Schema 验证 |
-| `strategy` | `string` | `"ALL"` | 验证策略 |
-| `failed_operation` | `string` | `"Discard"` | 验证失败时的操作 |
-| `echo_log` | `bool` | `true` | 是否输出 Schema 验证日志 |
-| `log_level` | `string` | `"info"` | Schema 验证日志级别 |
-
-**验证策略（strategy）：**
-- `ALL`：消息必须通过所有绑定的 Schema 验证
-- `Any`：消息只需通过任一 Schema 验证
-
-**失败操作（failed_operation）：**
-- `Discard`：丢弃验证失败的消息
-- `DisconnectAndDiscard`：断开连接并丢弃消息
-- `Ignore`：忽略验证失败，继续处理
-
----
-
-## 19. MQTT 系统监控配置
-
-### [mqtt_system_monitor]
-
-系统资源监控配置。
-
-```toml
-[mqtt_system_monitor]
-enable = false
-os_cpu_high_watermark = 70.0
-os_memory_high_watermark = 80.0
-system_topic_interval_ms = 60000
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `false` | 是否启用系统资源监控 |
-| `os_cpu_high_watermark` | `f32` | `70.0` | CPU 使用率高水位线（%） |
-| `os_memory_high_watermark` | `f32` | `80.0` | 内存使用率高水位线（%） |
-| `system_topic_interval_ms` | `u64` | `60000` | 系统 Topic 指标发布间隔（毫秒） |
-
----
-
-## 19b. 延迟任务配置
+## 6. 延迟任务配置
 
 ### [delay_task]
 
@@ -594,58 +207,19 @@ delay_task_handler_concurrency = 100
 
 ---
 
-## 19c. NATS 运行时配置
-
-### [nats_runtime]
-
-NATS/mq9 协议服务配置。
-
-```toml
-[nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port = 4080
-wss_port = 4443
-max_payload = 1048576
-auth_required = false
-ping_interval = 60
-ping_max = 3
-ping_send_chunk = 10000
-core_shard_num = 10
-push_thread_num = 1
-push_queue_thread_num = 10
-mq9_mailbox_default_ttl = 86400
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `tcp_port` | `u32` | `4222` | NATS TCP 监听端口 |
-| `tls_port` | `u32` | `4223` | NATS TLS 监听端口 |
-| `ws_port` | `u32` | `4080` | NATS WebSocket 监听端口 |
-| `wss_port` | `u32` | `4443` | NATS WebSocket Secure 监听端口 |
-| `max_payload` | `u64` | `1048576` (1 MB) | 单条消息最大 payload 大小（字节） |
-| `auth_required` | `bool` | `false` | 是否要求客户端认证 |
-| `ping_interval` | `u64` | `60` | 服务端主动发送 PING 的间隔（秒） |
-| `ping_max` | `u64` | `3` | 最大未回应 PING 次数，超过后断开连接 |
-| `ping_send_chunk` | `usize` | `10000` | 发送 PING 时每批处理的连接数 |
-| `core_shard_num` | `usize` | `10` | 内部核心分片数量 |
-| `push_thread_num` | `usize` | `1` | 直接推送线程数（每个 bucket 一个线程） |
-| `push_queue_thread_num` | `usize` | `10` | 队列推送线程数（每个队列组 bucket 一个线程） |
-| `mq9_mailbox_default_ttl` | `u64` | `86400` | mq9 Mailbox 默认 TTL（秒），客户端未指定时使用 |
-
----
-
-## 19d. Broker 网络配置
+## 7. Broker 网络配置
 
 ### [broker_network]
 
-Broker 内部通用网络线程配置。
+Broker 内部通用网络线程配置，以及所有协议共用的 TLS 证书/私钥路径。
 
 ```toml
 [broker_network]
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 ```
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -653,44 +227,12 @@ queue_size = 1000
 | `accept_thread_num` | `usize` | `2` | 接受连接的线程数 |
 | `handler_thread_num` | `usize` | `16` | 请求处理线程数 |
 | `queue_size` | `usize` | `1000` | 内部处理队列大小 |
+| `tls_cert` | `string` | `"./config/certs/cert.pem"` | TLS 证书文件路径（所有协议共用） |
+| `tls_key` | `string` | `"./config/certs/key.pem"` | TLS 私钥文件路径（所有协议共用） |
 
 ---
 
-## 20. gRPC 客户端配置
-
-### [grpc_client]
-
-控制 Broker 内部 gRPC 客户端的连接池行为。RobustMQ 使用 HTTP/2 进行节点间通信，每个 Channel 是一条独立的 TCP 连接，支持多路复用。
-
-```toml
-[grpc_client]
-channels_per_address = 4
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `channels_per_address` | `usize` | `4` | 每个 gRPC 服务地址维护的 HTTP/2 Channel 数量 |
-
-**调优说明：**
-
-每个 HTTP/2 Channel 支持约 200 个并发 Stream（即并发 RPC 请求），默认值 `4` 可支撑约 800 个并发 gRPC 请求，覆盖绝大多数生产场景。
-
-| 场景 | 建议值 |
-|------|--------|
-| 默认 / 常规生产 | `4` |
-| 高并发（万级 MQTT 连接） | `8` ~ `16` |
-| 极高并发压测 | `32` |
-
-> **注意：** 该值过大会导致系统打开的 TCP 文件描述符数量暴增（每个 Channel 占用一个 fd），在 `ulimit -n` 较小的环境下可能引发 `Too many open files` 错误。
-
-**环境变量：**
-```bash
-export ROBUST_MQ_SERVER_GRPC_CLIENT_CHANNELS_PER_ADDRESS=8
-```
-
----
-
-## 21. LLM 客户端配置
+## 8. LLM 客户端配置
 
 ### [llm_client]
 
@@ -764,7 +306,7 @@ export ROBUST_MQ_SERVER_LLM_CLIENT_TOKEN=your_api_token
 
 ---
 
-## 22. Admin HTTP API 鉴权配置
+## 9. Admin HTTP API 鉴权配置
 
 ### [admin]
 
@@ -794,43 +336,18 @@ token_ttl_hours = 8
 
 ---
 
-## 23. 监控配置
+## 10. 监控与性能分析
 
-### [prometheus]
+RobustMQ 没有独立的 `[prometheus]` 或 `[pprof]` 配置 section——两者都复用 Admin HTTP API 的 `http_port`，没有独立可配置端口：
 
-Prometheus 指标暴露配置。
-
-```toml
-[prometheus]
-enable = true
-port = 9090
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `true` | 是否启用 Prometheus 指标收集 |
-| `port` | `u32` | `9090` | Prometheus 指标暴露端口 |
-
-### [pprof]
-
-PProf 性能分析配置。
-
-```toml
-[pprof]
-enable = false
-port = 6060
-frequency = 100
-```
-
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enable` | `bool` | `false` | 是否启用 PProf 性能分析 |
-| `port` | `u16` | `6060` | PProf 服务端口 |
-| `frequency` | `i32` | `100` | 采样频率 |
+- **Prometheus 指标**：始终通过 `GET /metrics`（Admin HTTP API，见 [基础配置](#1-基础配置) 的 `http_port`）暴露，无需单独开关或端口配置。
+- **pprof 性能分析**：由 [2. 运行时配置](#2-运行时配置) 中的 `runtime.pprof_enable` 控制是否采集，采集到的火焰图同样通过 Admin HTTP API 暴露，没有独立的 `port`/`frequency` 配置项。
 
 ---
 
 ## 完整配置示例
+
+以下示例包含全部基础配置项；`[mqtt_runtime]`/`[kafka_runtime]`/`[amqp_runtime]`/`[nats_runtime]` 各协议自己的完整示例请见对应文档（[MQTT](MQTTConfig.md#完整示例)、[Kafka](KafkaConfig.md)、[AMQP](AMQPConfig.md)、[NATS](NATSConfig.md)）。
 
 ```toml
 # ========== 基础配置 ==========
@@ -847,11 +364,9 @@ http_port = 58080
 
 # ========== 运行时 ==========
 [runtime]
-tls_cert = "./config/certs/cert.pem"
-tls_key = "./config/certs/key.pem"
+channels_per_address = 4
 # server_worker_threads = 0
-# meta_worker_threads = 0
-# broker_worker_threads = 0
+# pprof_enable = false
 
 # ========== Meta ==========
 [meta_runtime]
@@ -861,6 +376,7 @@ raft_write_timeout_sec = 30
 offset_raft_group_num = 1
 data_raft_group_num = 1
 group_offset_expire_sec = 604800
+# meta_worker_threads = 0
 
 # ========== RocksDB ==========
 [rocksdb]
@@ -873,130 +389,20 @@ tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
 expire_scan_task_num = 10
-
-[storage_runtime.network]
-accept_thread_num = 2
-handler_thread_num = 16
-queue_size = 1000
-
-# ========== Kafka 运行时 ==========
-[kafka_runtime]
-tcp_port = 9095
-
-# ========== AMQP 运行时 ==========
-[amqp_runtime]
-tcp_port = 5672
-
-# ========== NATS 运行时 ==========
-[nats_runtime]
-tcp_port = 4222
-tls_port = 4223
-ws_port = 4080
-wss_port = 4443
-max_payload = 1048576
-auth_required = false
-ping_interval = 60
-ping_max = 3
-mq9_mailbox_default_ttl = 86400
+offset_enable_cache = true
 
 # ========== 延迟任务 ==========
 [delay_task]
 delay_task_queue_num = 100
 delay_task_handler_concurrency = 100
 
-# ========== 消息存储 ==========
-[message_storage]
-storage_type = "EngineMemory"
-
-# ========== Offset 缓存 ==========
-[storage_offset]
-enable_cache = true
-
-# ========== MQTT 服务器 ==========
-[mqtt_server]
-tcp_port = 1883
-tls_port = 1885
-websocket_port = 8083
-websockets_port = 8085
-quic_port = 9083
-
-# ========== MQTT 运行时 ==========
-[mqtt_runtime]
-default_user = "admin"
-default_password = "your_secure_password"
-durable_sessions_enable = false
-secret_free_login = false
-is_self_protection_status = false
-
-[mqtt_runtime.network]
+# ========== Broker 网络 ==========
+[broker_network]
 accept_thread_num = 2
 handler_thread_num = 16
 queue_size = 1000
-
-# ========== MQTT Keep Alive ==========
-[mqtt_keep_alive]
-enable = true
-default_time = 180
-max_time = 3600
-default_timeout = 2
-
-# ========== MQTT 协议 ==========
-[mqtt_protocol]
-max_session_expiry_interval = 1800
-default_session_expiry_interval = 30
-topic_alias_max = 65535
-max_packet_size = 10485760
-receive_max = 65535
-max_message_expiry_interval = 3600
-client_pkid_persistent = false
-
-# ========== MQTT 离线消息 ==========
-[mqtt_offline_message]
-enable = true
-expire_ms = 0
-max_messages_num = 0
-
-# ========== MQTT 抖动检测 ==========
-[mqtt_flapping_detect]
-enable = false
-window_time = 1
-max_client_connections = 15
-ban_time = 5
-
-# ========== MQTT 慢订阅 ==========
-[mqtt_slow_subscribe]
-enable = false
-record_time = 1000
-delay_type = "Whole"
-
-# ========== MQTT Schema ==========
-[mqtt_schema]
-enable = true
-strategy = "ALL"
-failed_operation = "Discard"
-echo_log = true
-log_level = "info"
-
-# ========== MQTT 系统监控 ==========
-[mqtt_system_monitor]
-enable = false
-os_cpu_high_watermark = 70.0
-os_memory_high_watermark = 80.0
-system_topic_interval_ms = 60000
-
-# ========== 监控 ==========
-[prometheus]
-enable = true
-port = 9090
-
-[pprof]
-enable = false
-port = 6060
-frequency = 100
-
-# ========== gRPC 客户端 ==========
-[grpc_client]
-channels_per_address = 4
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
 # ========== LLM 客户端（可选） ==========
 [llm_client]

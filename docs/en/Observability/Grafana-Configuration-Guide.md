@@ -5,7 +5,7 @@ This document describes how to configure the Grafana monitoring system for Robus
 ## Requirements
 
 - Grafana 8.0+, Prometheus 2.30+, Docker 20.10+ (optional)
-- Default ports: RobustMQ metrics (9091), Prometheus (9090), Grafana (3000), Alertmanager (9093)
+- Default ports: RobustMQ metrics (shares `http_port`, default 58080), Prometheus (9090), Grafana (3000), Alertmanager (9093)
 
 ## Quick Deployment
 
@@ -27,18 +27,12 @@ This starts the following services:
 
 ## RobustMQ Configuration
 
-Enable Prometheus metrics export in `config/server.toml`:
+RobustMQ metrics are always exposed via the Admin HTTP API's `GET /metrics`, sharing `http_port` (configured in `config/server.toml`, default `58080`) — there's no separate enable switch or port.
 
-```toml
-[prometheus]
-enable = true
-port = 9091
-```
-
-Verify metrics are exposed:
+Verify metrics are exposed (replace `58080` with your configured `http_port`):
 
 ```bash
-curl http://localhost:9091/metrics
+curl http://localhost:58080/metrics
 ```
 
 ## Prometheus Configuration
@@ -58,37 +52,22 @@ rule_files:
 scrape_configs:
   - job_name: 'robustmq-mqtt-broker'
     static_configs:
-      - targets: ['localhost:9091']
+      - targets: ['localhost:58080']
     metrics_path: /metrics
 ```
 
 ### Cluster
+
+RobustMQ ships as a single `broker-server` binary; each node's `roles` (`meta`/`broker`/`engine`) determines what it does, but the process exposes only one `http_port` — there's no separate Meta Service / Journal Server port:
 
 ```yaml
 scrape_configs:
   - job_name: 'robustmq-mqtt-broker-cluster'
     static_configs:
       - targets:
-        - 'node1:9091'
-        - 'node2:9091'
-        - 'node3:9091'
-    metrics_path: /metrics
-```
-
-### Multiple Services
-
-If running Meta Service and Journal Server alongside the broker:
-
-```yaml
-scrape_configs:
-  - job_name: 'robustmq-meta-service'
-    static_configs:
-      - targets: ['localhost:9092']
-    metrics_path: /metrics
-
-  - job_name: 'robustmq-journal-server'
-    static_configs:
-      - targets: ['localhost:9093']
+        - 'node1:58080'
+        - 'node2:58080'
+        - 'node3:58080'
     metrics_path: /metrics
 ```
 
@@ -343,5 +322,5 @@ groups:
 | `grafana/prometheus-config-example.yml` | Prometheus scrape configuration example |
 | `grafana/robustmq-alerts.yml` | Alert rules definition |
 | `grafana/docker-compose.monitoring.yml` | Docker Compose monitoring stack |
-| `config/server.toml` | RobustMQ server configuration (includes Prometheus port) |
+| `config/server.toml` | RobustMQ server configuration (`http_port` is also the metrics port) |
 | `docs/en/Observability/Infrastructure-Metrics.md` | Complete metrics reference |

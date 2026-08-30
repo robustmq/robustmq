@@ -253,19 +253,20 @@ mod tests {
             ("/sensor/+/temperature", "/sensor/temperature3", false),
             ("/sensor/+", "/sensor/temperature3", true),
             ("/sensor/#", "/sensor/temperature3/tmpq", true),
-            ("$share/group/topic/test", "/topic/test", true),
+            ("$share/group/topic/test", "topic/test", true),
             (
                 "$share/group/sensor/+/temperature",
-                "/sensor/1/temperature",
+                "sensor/1/temperature",
                 true,
             ),
             (
                 "$share/group/sensor/+/temperature",
-                "/sensor/1/2/temp",
+                "sensor/1/2/temp",
                 false,
             ),
-            ("$share/group/sensor/+", "/sensor/temperature3", true),
-            ("$share/group/sensor/#", "/sensor/temperature3/tmpq", true),
+            ("$share/group/sensor/+", "sensor/temperature3", true),
+            ("$share/group/sensor/#", "sensor/temperature3/tmpq", true),
+            ("$share/group//sensor/+", "/sensor/temperature3", true),
             ("y/+/z/#", "y/a/z/b", true),
         ];
 
@@ -291,25 +292,25 @@ mod tests {
 
         let (group_name, topic_name) = decode_share_info(&sub1);
         assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+        assert_eq!(topic_name, "sport/tennis/+".to_string());
 
         let (group_name, topic_name) = decode_share_info(&sub2);
         assert_eq!(group_name, "consumer2".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+        assert_eq!(topic_name, "sport/tennis/+".to_string());
 
         let (group_name, topic_name) = decode_share_info(&sub3);
         assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/#".to_string());
+        assert_eq!(topic_name, "sport/#".to_string());
 
         let (group_name, topic_name) = decode_share_info(&sub4);
         assert_eq!(group_name, "comsumer1".to_string());
-        assert_eq!(topic_name, "/finance/#".to_string());
+        assert_eq!(topic_name, "finance/#".to_string());
     }
 
     #[tokio::test]
     async fn decode_sub_path_sub_test() {
         let path = "$share/group1/topic1/1".to_string();
-        assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());
+        assert_eq!(decode_sub_path(&path), "topic1/1".to_string());
 
         let path = "/topic1/1".to_string();
         assert_eq!(decode_sub_path(&path), "/topic1/1".to_string());

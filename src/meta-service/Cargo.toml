@@ -49,8 +49,15 @@ zstd.workspace = true
 delay-task.workspace = true
 storage-adapter.workspace = true
 node-call.workspace = true
-search-engine.workspace = true
-llm-engine.workspace = true
+search-engine = { workspace = true, optional = true }
+llm-engine = { workspace = true, optional = true }
+
+[features]
+# mq9 agent semantic/full-text search. Pulls in lancedb + fastembed/ort, which
+# are heavy (large binary, no musl-compatible ONNX Runtime binaries) and only
+# used by this one feature -- off by default so regular builds stay small and
+# portable; enable explicitly for a build that needs mq9 agent search.
+vector-search = ["dep:search-engine", "dep:llm-engine"]
 
 [dev-dependencies]
 tempfile.workspace = true

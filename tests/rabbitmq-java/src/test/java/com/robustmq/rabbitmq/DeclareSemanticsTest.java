@@ -16,6 +16,7 @@
 package com.robustmq.rabbitmq;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
@@ -89,6 +90,25 @@ class DeclareSemanticsTest {
     }
 
     @Test
+    void queueUnbindStopsFurtherRouting() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String exchange = Support.declareDirectExchange(channel, "it-unbind-exch");
+            String queue = Support.declareQueue(channel, "it-unbind-queue");
+            String routingKey = "rk";
+            channel.queueBind(queue, exchange, routingKey);
+
+            channel.basicPublish(exchange, routingKey, null, "before-unbind".getBytes(StandardCharsets.UTF_8));
+            assertNotNull(Support.pollGet(channel, queue, true));
+
+            channel.queueUnbind(queue, exchange, routingKey);
+
+            channel.basicPublish(exchange, routingKey, null, "after-unbind".getBytes(StandardCharsets.UTF_8));
+            Support.assertEventuallyEmpty(channel, queue);
+        }
+    }
+
+    @Test
     void exchangeDeleteIfUnusedFailsWhenStillBound() throws Exception {
         try (Connection connection = Support.newConnection()) {
             Channel channel = connection.createChannel();
@@ -110,6 +130,57 @@ class DeclareSemanticsTest {
 
             Channel deleteChannel = connection.createChannel();
             assertThrows(IOException.class, () -> deleteChannel.queueDelete(queue, true, false));
+        }
+    }
+
+    @Test
+    void queueDeleteIfEmptyFailsWhenMessagesPending() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-queue-if-empty");
+            channel.basicPublish("", queue, null, "still-here".getBytes(StandardCharsets.UTF_8));
+            awaitMessageCount(channel, queue, 1);
+
+            assertThrows(IOException.class, () -> channel.queueDelete(queue, false, true));
+        }
+    }
+
+    @Test
+    void queueDeleteSucceedsAndRedeclareStartsFresh() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-queue-delete-ok");
+            channel.basicPublish("", queue, null, "old-message".getBytes(StandardCharsets.UTF_8));
+            awaitMessageCount(channel, queue, 1);
+
+            channel.queueDelete(queue, false, false); // no messages/consumers required
+
+            // Passive declare of a deleted queue must fail like any other missing queue.
+            Channel probeChannel = connection.createChannel();
+            assertThrows(IOException.class, () -> probeChannel.queueDeclarePassive(queue));
+
+            // Redeclaring under the same name must not resurrect the old message.
+            // The underlying shard's physical deletion is async across the Raft
+            // cluster (mark PrepareDelete -> propagate -> physically remove
+            // segment files, observed to take a few seconds), so this can't be
+            // asserted synchronously -- poll like the other eventually-consistent
+            // assertions in this file/Support.
+            Channel redeclareChannel = connection.createChannel();
+            redeclareChannel.queueDeclare(queue, true, false, false, null);
+            Support.assertEventuallyEmpty(redeclareChannel, queue);
+        }
+    }
+
+    @Test
+    void exchangeDeleteSucceedsWhenUnused() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String exchange = Support.declareDirectExchange(channel, "it-exch-delete-ok");
+
+            channel.exchangeDelete(exchange, true);
+
+            Channel probeChannel = connection.createChannel();
+            assertThrows(IOException.class, () -> probeChannel.exchangeDeclarePassive(exchange));
         }
     }
 

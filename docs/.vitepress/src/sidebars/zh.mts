@@ -23,7 +23,8 @@ const items = [
                 text: "版本计划",
                 collapsed: true,
                 items: [
-                    { text: "2026 年 RoadMap", link: "/zh/OverView/RoadMap-2026" },
+                    { text: "2026 年 RoadMap（更新版）", link: "/zh/OverView/RoadMap-2026-Update" },
+                    { text: "2026 年 RoadMap（原版）", link: "/zh/OverView/RoadMap-2026" },
                     { text: "2025 年 RoadMap", link: "/zh/OverView/RoadMap-2025" },
                     { text: "MQTT Release 计划", link: "/zh/OverView/MQTT-Release" },
                     { text: "Good First Issue", link: "/zh/OverView/Good-First-Issue" },
@@ -384,7 +385,11 @@ const items = [
         text: "配置说明",
         collapsed: true,
         items: [
-          { text: "Broker 配置", link: "/zh/Configuration/BROKER" },
+          { text: "Broker 基础配置", link: "/zh/Configuration/BROKER" },
+          { text: "MQTT 配置", link: "/zh/Configuration/MQTTConfig" },
+          { text: "Kafka 配置", link: "/zh/Configuration/KafkaConfig" },
+          { text: "AMQP 配置", link: "/zh/Configuration/AMQPConfig" },
+          { text: "NATS 配置", link: "/zh/Configuration/NATSConfig" },
           { text: "日志配置", link: "/zh/Configuration/Logging" },
           { text: "性能调优指南", link: "/zh/Configuration/Tuning" },
         ],

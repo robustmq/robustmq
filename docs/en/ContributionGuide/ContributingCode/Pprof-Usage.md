@@ -2,48 +2,36 @@
 
 ## Overview
 
-Pprof is a built-in performance analysis tool in RobustMQ that generates application performance flame graphs to help developers identify performance bottlenecks and optimization opportunities.
+Pprof is a built-in performance analysis tool in RobustMQ that generates application performance flame graphs to help developers identify performance bottlenecks and optimization opportunities. It has no dedicated HTTP port — collection is toggled by `[runtime]`'s `pprof_enable`, and the flame graph is exposed via the Admin HTTP API (sharing `http_port`).
 
 ## Configuration
 
 Add the following configuration to the `config/server.toml` file:
 
 ```toml
-[pprof]
-enable = true      # Enable pprof functionality
-port = 6777        # HTTP service port
-frequency = 1000   # Sampling frequency (Hz)
+[runtime]
+pprof_enable = true   # Enable pprof collection, default is false
 ```
-
-### Configuration Parameters
-
-- `enable`: Whether to enable pprof monitoring, default is `false`
-- `port`: HTTP server listening port, default is `6060`
-- `frequency`: Performance sampling frequency in Hz, default is `100`
 
 ## Usage
 
 ### 1. Start Service
 
-Ensure `enable = true` in the configuration file, then start the RobustMQ service:
+Ensure `runtime.pprof_enable = true` in the configuration file, then start the RobustMQ service:
 
 ```bash
 ./bin/robust-server start
 ```
 
-After the service starts, you will see logs similar to:
-```
-Pprof HTTP Server started successfully, listening port: 6777
-```
-
 ### 2. Generate Flame Graph
 
-Access in your browser:
+Access in your browser (replace `{http_port}` with the `http_port` configured in `server.toml`, default `58080`):
+
 ```
-http://127.0.0.1:6777/flamegraph
+http://127.0.0.1:{http_port}/debug/pprof/flamegraph
 ```
 
-The system will return a performance flame graph in SVG format.
+The system will return a performance flame graph in SVG format. If `pprof_enable` is not set, this endpoint returns a plain-text notice instead of a flame graph.
 
 ### 3. Analyze Flame Graph
 

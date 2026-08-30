@@ -67,32 +67,23 @@ GET /api/cluster/config/get?broker_id=2
     "meta_addrs": {
       "1": "127.0.0.1:1228"
     },
-    "prometheus": {
-      "enable": true,
-      "port": 9090
-    },
     "log": {
       "log_path": "./logs",
       "log_config": "./config/broker-tracing.toml"
     },
     "runtime": {
-      "runtime_worker_threads": 1,
       "server_worker_threads": 0,
-      "meta_worker_threads": 0,
-      "broker_worker_threads": 0,
       "channels_per_address": 10,
-      "tls_cert": "./config/certs/cert.pem",
-      "tls_key": "./config/certs/key.pem"
+      "pprof_enable": false,
+      "default_topic_partition_num": 3,
+      "default_topic_replica_num": 2
     },
-    "network": {
+    "broker_network": {
       "accept_thread_num": 8,
       "handler_thread_num": 32,
-      "queue_size": 1000
-    },
-    "pprof": {
-      "enable": false,
-      "port": 6060,
-      "frequency": 100
+      "queue_size": 1000,
+      "tls_cert": "./config/certs/cert.pem",
+      "tls_key": "./config/certs/key.pem"
     },
     "rocksdb": {
       "data_path": "./data",
@@ -109,7 +100,8 @@ GET /api/cluster/config/get?broker_id=2
       "heartbeat_check_time_ms": 1000,
       "raft_write_timeout_sec": 30,
       "offset_raft_group_num": 1,
-      "data_raft_group_num": 1
+      "data_raft_group_num": 1,
+      "meta_worker_threads": 0
     },
     "storage_runtime": {
       "tcp_port": 1778,
@@ -118,78 +110,81 @@ GET /api/cluster/config/get?broker_id=2
       "data_path": [],
       "offset_enable_cache": true
     },
-    "mqtt_server": {
-      "tcp_port": 1883,
-      "tls_port": 1885,
-      "websocket_port": 8083,
-      "websockets_port": 8085,
-      "quic_port": 9083
-    },
-    "mqtt_keep_alive": {
-      "enable": true,
-      "default_time": 180,
-      "max_time": 3600,
-      "default_timeout": 2
-    },
     "mqtt_runtime": {
-      "default_user": "admin",
-      "default_password": "robustmq",
-      "durable_sessions_enable": false,
-      "secret_free_login": false,
-      "is_self_protection_status": false
-    },
-    "mqtt_offline_message": {
-      "enable": true,
-      "expire_ms": 0,
-      "max_messages_num": 0
-    },
-    "mqtt_slow_subscribe": {
-      "enable": false,
-      "record_time": 1000,
-      "delay_type": "Whole"
-    },
-    "mqtt_flapping_detect": {
-      "enable": false,
-      "window_time": 1,
-      "max_client_connections": 15,
-      "ban_time": 5
-    },
-    "mqtt_protocol": {
-      "max_session_expiry_interval": 1800,
-      "default_session_expiry_interval": 30,
-      "topic_alias_max": 65535,
-      "max_packet_size": 10485760,
-      "receive_max": 65535,
-      "max_message_expiry_interval": 3600,
-      "client_pkid_persistent": false
-    },
-    "mqtt_schema": {
-      "enable": true,
-      "strategy": "ALL",
-      "failed_operation": "Discard",
-      "echo_log": true,
-      "log_level": "info"
-    },
-    "mqtt_system_monitor": {
-      "enable": false,
-      "os_cpu_high_watermark": 70.0,
-      "os_memory_high_watermark": 80.0,
-      "system_topic_interval_ms": 60000
-    },
-    "mqtt_limit": {
-      "cluster": {
-        "max_connections_per_node": 10000000,
-        "max_connection_rate": 100000,
-        "max_topics": 5000000,
-        "max_sessions": 50000000,
-        "max_publish_rate": 10000
+      "broker_worker_threads": 0,
+      "server": {
+        "tcp_port": 1883,
+        "tls_port": 1885,
+        "websocket_port": 8083,
+        "websockets_port": 8085,
+        "quic_port": 9083
       },
-      "tenant": {
-        "max_connections_per_node": 1000000,
-        "max_connection_rate": 10000,
-        "max_topics": 500000,
-        "max_sessions": 5000000,
-        "max_publish_rate": 10000
+      "keep_alive": {
+        "enable": true,
+        "default_time": 180,
+        "max_time": 3600,
+        "default_timeout": 2
+      },
+      "auth": {
+        "default_user": "admin",
+        "default_password": "robustmq",
+        "durable_sessions_enable": false,
+        "secret_free_login": false,
+        "is_self_protection_status": false
+      },
+      "offline_message": {
+        "enable": true,
+        "expire_ms": 0,
+        "max_messages_num": 0
+      },
+      "slow_subscribe": {
+        "enable": false,
+        "record_time": 1000,
+        "delay_type": "Whole"
+      },
+      "flapping_detect": {
+        "enable": false,
+        "window_time": 1,
+        "max_client_connections": 15,
+        "ban_time": 5
+      },
+      "protocol": {
+        "max_session_expiry_interval": 1800,
+        "default_session_expiry_interval": 30,
+        "topic_alias_max": 65535,
+        "max_packet_size": 10485760,
+        "receive_max": 65535,
+        "max_message_expiry_interval": 3600,
+        "client_pkid_persistent": false
+      },
+      "schema": {
+        "enable": true,
+        "strategy": "ALL",
+        "failed_operation": "Discard",
+        "echo_log": true,
+        "log_level": "info"
+      },
+      "system_monitor": {
+        "enable": false,
+        "os_cpu_high_watermark": 70.0,
+        "os_memory_high_watermark": 80.0,
+        "system_topic_interval_ms": 60000
+      },
+      "limit": {
+        "cluster": {
+          "max_connections_per_node": 10000000,
+          "max_connection_rate": 100000,
+          "max_topics": 5000000,
+          "max_sessions": 50000000,
+          "max_publish_rate": 10000
+        },
+        "tenant": {
+          "max_connections_per_node": 1000000,
+          "max_connection_rate": 10000,
+          "max_topics": 500000,
+          "max_sessions": 5000000,
+          "max_publish_rate": 10000
+        }
       }
     },
     "admin": {
@@ -546,12 +541,7 @@ Content-Type: application/json
 | `http_port` | u32 | HTTP API service port |
 | `meta_addrs` | object | Meta node address map (node ID → address) |
 
-### prometheus
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `enable` | bool | Whether to enable Prometheus metrics |
-| `port` | u16 | Prometheus metrics port |
+> Note: `[prometheus]` and `[pprof]` sections do not exist as separate config — Prometheus metrics are always exposed via `GET /metrics` on the same `http_port`, and pprof profiling is controlled by `runtime.pprof_enable` (see below), with no dedicated port for either. See [Broker Configuration](../Configuration/BROKER.md#10-monitoring-profiling) for details.
 
 ### log
 
@@ -564,29 +554,21 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `runtime_worker_threads` | usize | Legacy global thread multiplier; used as fallback when per-runtime fields are 0 |
 | `server_worker_threads` | usize | Server runtime threads (0 = auto, equals CPU core count) |
-| `meta_worker_threads` | usize | Meta runtime threads (0 = auto) |
-| `broker_worker_threads` | usize | Broker runtime threads (0 = auto, hot-path runtime) |
 | `channels_per_address` | usize | Number of gRPC connection channels per address |
-| `tls_cert` | string | TLS certificate file path |
-| `tls_key` | string | TLS private key file path |
+| `pprof_enable` | bool | Whether to enable built-in pprof profiling collection |
+| `default_topic_partition_num` | u32 | Default number of partitions for new topics |
+| `default_topic_replica_num` | u32 | Default number of replicas for new topics |
 
-### network
+### broker_network
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `accept_thread_num` | usize | Number of connection accept threads |
 | `handler_thread_num` | usize | Number of message handler threads |
 | `queue_size` | usize | Internal queue size |
-
-### pprof
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `enable` | bool | Whether to enable pprof profiling |
-| `port` | u16 | pprof HTTP port |
-| `frequency` | i32 | Sampling frequency |
+| `tls_cert` | string | TLS certificate file path (shared by all protocols) |
+| `tls_key` | string | TLS private key file path (shared by all protocols) |
 
 ### meta_runtime
 
@@ -597,6 +579,7 @@ Content-Type: application/json
 | `raft_write_timeout_sec` | u64 | Raft write timeout (seconds) |
 | `offset_raft_group_num` | u32 | Number of Offset Raft shard groups (default 1) |
 | `data_raft_group_num` | u32 | Number of data Raft shard groups (default 1) |
+| `meta_worker_threads` | usize | Meta runtime worker threads (0 = auto) |
 
 ### rocksdb
 
@@ -615,7 +598,15 @@ Content-Type: application/json
 | `data_path` | string[] | List of data storage paths |
 | `offset_enable_cache` | bool | Whether to enable offset cache |
 
-### mqtt_server
+### mqtt_runtime
+
+All MQTT configuration is grouped under `mqtt_runtime`; see [MQTT Configuration](../Configuration/MQTTConfig.md) for the full breakdown. Top-level field:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `broker_worker_threads` | usize | Broker runtime worker threads (0 = auto), the MQTT hot-path runtime |
+
+#### mqtt_runtime.server
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -625,7 +616,7 @@ Content-Type: application/json
 | `websockets_port` | u32 | MQTT WebSocket Secure port |
 | `quic_port` | u32 | MQTT QUIC port |
 
-### mqtt_keep_alive
+#### mqtt_runtime.keep_alive
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -634,7 +625,7 @@ Content-Type: application/json
 | `max_time` | u16 | Maximum keep-alive time (seconds) |
 | `default_timeout` | u16 | Timeout multiplier |
 
-### mqtt_runtime
+#### mqtt_runtime.auth
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -644,7 +635,7 @@ Content-Type: application/json
 | `secret_free_login` | bool | Whether to allow password-free login |
 | `is_self_protection_status` | bool | Whether the node is in self-protection mode |
 
-### mqtt_offline_message
+#### mqtt_runtime.offline_message
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -652,7 +643,7 @@ Content-Type: application/json
 | `expire_ms` | u32 | Expiry time (ms), 0 means no expiry |
 | `max_messages_num` | u32 | Maximum offline messages per client, 0 means unlimited |
 
-### mqtt_slow_subscribe
+#### mqtt_runtime.slow_subscribe
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -660,7 +651,7 @@ Content-Type: application/json
 | `record_time` | u64 | Recording threshold (ms) |
 | `delay_type` | string | Delay type: `Whole`, `Internal`, `Response` |
 
-### mqtt_flapping_detect
+#### mqtt_runtime.flapping_detect
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -669,7 +660,7 @@ Content-Type: application/json
 | `max_client_connections` | u64 | Maximum connections in the window |
 | `ban_time` | u32 | Ban duration (minutes) |
 
-### mqtt_protocol
+#### mqtt_runtime.protocol
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -681,7 +672,7 @@ Content-Type: application/json
 | `max_message_expiry_interval` | u64 | Maximum message expiry interval (seconds) |
 | `client_pkid_persistent` | bool | Whether to persist client Packet IDs |
 
-### mqtt_schema
+#### mqtt_runtime.schema
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -691,7 +682,7 @@ Content-Type: application/json
 | `echo_log` | bool | Whether to output validation logs |
 | `log_level` | string | Log level |
 
-### mqtt_system_monitor
+#### mqtt_runtime.system_monitor
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -708,7 +699,7 @@ Content-Type: application/json
 | `max_network_connection_rate` | u32 | Maximum new connection rate per second in the cluster |
 | `max_admin_http_uri_rate` | u32 | Maximum Admin HTTP request rate per second |
 
-### mqtt_limit
+### mqtt_runtime.limit
 
 Both `cluster` and `tenant` use the `LimitQuota` structure:
 

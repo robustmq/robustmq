@@ -114,7 +114,10 @@ impl SystemTopic {
             Ok(())
         };
 
-        let interval_ms = broker_config().mqtt_system_monitor.system_topic_interval_ms;
+        let interval_ms = broker_config()
+            .mqtt_runtime
+            .system_monitor
+            .system_topic_interval_ms;
         loop_select_ticket(ac_fn, interval_ms, &stop_send).await;
     }
 }

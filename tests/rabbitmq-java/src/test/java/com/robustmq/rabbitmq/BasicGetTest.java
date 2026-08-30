@@ -120,6 +120,56 @@ class BasicGetTest {
     }
 
     @Test
+    void basicAckWithMultipleAcksAllPriorUnackedMessages() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-ack-multiple");
+            channel.basicPublish("", queue, null, "a".getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish("", queue, null, "b".getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish("", queue, null, "c".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse first = Support.pollGet(channel, queue, false);
+            GetResponse second = Support.pollGet(channel, queue, false);
+            GetResponse third = Support.pollGet(channel, queue, false);
+            assertNotNull(first);
+            assertNotNull(second);
+            assertNotNull(third);
+
+            // Acking only the last tag with multiple=true must settle all three.
+            channel.basicAck(third.getEnvelope().getDeliveryTag(), true);
+
+            assertNull(channel.basicGet(queue, true), "multiple=true ack should have settled a, b and c");
+        }
+    }
+
+    @Test
+    void basicNackWithMultipleRequeuesAllPriorUnackedMessages() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String queue = Support.declareQueue(channel, "it-nack-multiple");
+            channel.basicPublish("", queue, null, "a".getBytes(StandardCharsets.UTF_8));
+            channel.basicPublish("", queue, null, "b".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse first = Support.pollGet(channel, queue, false);
+            GetResponse second = Support.pollGet(channel, queue, false);
+            assertNotNull(first);
+            assertNotNull(second);
+
+            // Nacking only the last tag with multiple=true must requeue both.
+            channel.basicNack(second.getEnvelope().getDeliveryTag(), true, true);
+
+            GetResponse redeliveredFirst = Support.pollGet(channel, queue, false);
+            GetResponse redeliveredSecond = Support.pollGet(channel, queue, false);
+            assertNotNull(redeliveredFirst, "first message should have been requeued by multiple=true nack");
+            assertNotNull(redeliveredSecond, "second message should have been requeued by multiple=true nack");
+            assertTrue(redeliveredFirst.getEnvelope().isRedeliver());
+            assertTrue(redeliveredSecond.getEnvelope().isRedeliver());
+            channel.basicAck(redeliveredFirst.getEnvelope().getDeliveryTag(), false);
+            channel.basicAck(redeliveredSecond.getEnvelope().getDeliveryTag(), false);
+        }
+    }
+
+    @Test
     void basicRecoverRequeuesUnackedMessages() throws Exception {
         try (Connection connection = Support.newConnection()) {
             Channel channel = connection.createChannel();

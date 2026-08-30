@@ -31,7 +31,7 @@ mod tests {
 
     async fn mqtt_topic_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let topic_name: String = unique_id();
 
         let mqtt_topic: Topic = Topic {

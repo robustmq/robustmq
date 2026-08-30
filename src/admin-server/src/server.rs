@@ -96,8 +96,12 @@ impl AdminServer {
         // static fallback so the SPA's index.html (login page) is served.
         // The cluster info JSON previously exposed on `/` is still available
         // at `/api/info`.
+        //
+        // Health checks are mounted on the root router (not under `/api`) so
+        // Kubernetes probes can hit `/health/*` without a Bearer token.
         let route = Router::new()
             .merge(mcp_route())
+            .merge(health_route())
             .route(DEBUG_PPROF_FLAMEGRAPH_PATH, get(pprof_flamegraph))
             .route(METRICS_PATH, get(|| async { dump_metrics() }))
             .merge(auth_router())
@@ -141,9 +145,6 @@ impl AdminServer {
 
     fn common_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
-            .route(HEALTH_READY_PATH, get(health_ready))
-            .route(HEALTH_NODE_PATH, get(health_node))
-            .route(HEALTH_CLUSTER_PATH, get(health_cluster))
             // config
             .route(CLUSTER_CONFIG_SET_PATH, post(cluster_config_set))
             .route(CLUSTER_CONFIG_GET_PATH, get(cluster_config_get))
@@ -272,6 +273,17 @@ impl AdminServer {
     fn kafka_route(&self) -> Router<Arc<HttpState>> {
         Router::new()
     }
+}
+
+/// Public health endpoints served at `/health/*` (no `/api` prefix, no auth).
+fn health_route<S>() -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new()
+        .route(HEALTH_READY_PATH, get(health_ready))
+        .route(HEALTH_NODE_PATH, get(health_node))
+        .route(HEALTH_CLUSTER_PATH, get(health_cluster))
 }
 
 async fn rate_limit_middleware(
@@ -512,5 +524,50 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-real-ip", "192.168.1.200".parse().unwrap());
         assert_eq!(extract_client_ip(&headers, socket_addr), "192.168.1.200");
+    }
+
+    #[tokio::test]
+    async fn health_endpoints_are_public_at_root() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+        use tower::ServiceExt;
+
+        init_broker_conf_by_config(default_broker_config());
+
+        let app = health_route::<()>();
+        for path in [HEALTH_READY_PATH, HEALTH_NODE_PATH, HEALTH_CLUSTER_PATH] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert!(
+                response.status() == StatusCode::OK
+                    || response.status() == StatusCode::SERVICE_UNAVAILABLE,
+                "unexpected status {} for {}",
+                response.status(),
+                path
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn health_endpoints_are_not_nested_under_api() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+
+        let app = health_route::<()>();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/health/ready")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

@@ -575,7 +575,8 @@ impl AdminHttpClient {
 
     /// Get cluster health status
     pub async fn get_cluster_healthy(&self) -> Result<String, HttpClientError> {
-        self.get_raw(&api_path(HEALTH_CLUSTER_PATH)).await
+        // Health checks are mounted at `/health/*` (not under `/api`).
+        self.get_raw(HEALTH_CLUSTER_PATH).await
     }
 
     /// Get cluster status / info

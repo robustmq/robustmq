@@ -4,7 +4,7 @@
 
 RobustMQ MQTT Broker publishes its own runtime status and statistics via `$SYS/` system topics. Clients can subscribe to these topics just like any regular MQTT topic to monitor connections, message throughput, alarm events, and other key metrics in real time — no additional monitoring agent required.
 
-System topics are periodically published by the Broker (refreshed every **60 seconds** by default, configurable via `mqtt_system_topic.interval_ms`). Some topics are published immediately when an event occurs (e.g., client connect/disconnect).
+System topics are periodically published by the Broker (refreshed every **60 seconds** by default, configurable via `mqtt_runtime.system_monitor.system_topic_interval_ms`). Some topics are published immediately when an event occurs (e.g., client connect/disconnect).
 
 > **Note**: System topics start with `$SYS/`. By default, non-admin clients cannot subscribe to them. Make sure your ACL configuration allows access.
 

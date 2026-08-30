@@ -66,7 +66,8 @@ pub async fn record_slow_subscribe_data(
     let slow_config = cache_manager
         .node_cache
         .get_cluster_config()
-        .mqtt_slow_subscribe;
+        .mqtt_runtime
+        .slow_subscribe;
 
     if !slow_config.enable {
         return Ok(());

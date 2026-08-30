@@ -193,6 +193,48 @@ class PublishTest {
     }
 
     @Test
+    void exchangeToExchangeBindingChainsRouting() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String upstream = Support.declareDirectExchange(channel, "it-e2e-upstream");
+            String downstream = Support.declareDirectExchange(channel, "it-e2e-downstream");
+            String queue = Support.declareQueue(channel, "it-e2e-queue");
+            String routingKey = "chained";
+
+            // upstream --(exchange.bind)--> downstream --(queue.bind)--> queue
+            channel.exchangeBind(downstream, upstream, routingKey);
+            channel.queueBind(queue, downstream, routingKey);
+
+            channel.basicPublish(upstream, routingKey, null, "via-chain".getBytes(StandardCharsets.UTF_8));
+
+            GetResponse resp = Support.pollGet(channel, queue, true);
+            assertNotNull(resp);
+            assertEquals("via-chain", new String(resp.getBody(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void exchangeUnbindBreaksTheChain() throws Exception {
+        try (Connection connection = Support.newConnection()) {
+            Channel channel = connection.createChannel();
+            String upstream = Support.declareDirectExchange(channel, "it-e2e-unbind-upstream");
+            String downstream = Support.declareDirectExchange(channel, "it-e2e-unbind-downstream");
+            String queue = Support.declareQueue(channel, "it-e2e-unbind-queue");
+            String routingKey = "chained";
+
+            channel.exchangeBind(downstream, upstream, routingKey);
+            channel.queueBind(queue, downstream, routingKey);
+            channel.basicPublish(upstream, routingKey, null, "before-unbind".getBytes(StandardCharsets.UTF_8));
+            assertNotNull(Support.pollGet(channel, queue, true));
+
+            channel.exchangeUnbind(downstream, upstream, routingKey);
+
+            channel.basicPublish(upstream, routingKey, null, "after-unbind".getBytes(StandardCharsets.UTF_8));
+            Support.assertEventuallyEmpty(channel, queue);
+        }
+    }
+
+    @Test
     void contentTypeAndHeadersRoundTrip() throws Exception {
         try (Connection connection = Support.newConnection()) {
             Channel channel = connection.createChannel();

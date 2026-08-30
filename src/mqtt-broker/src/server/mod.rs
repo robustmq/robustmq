@@ -117,8 +117,8 @@ impl Server {
         let tls_server = TcpServer::new(RobustMQProtocol::MQTT4, server_context.clone());
 
         let ws_server = WebSocketServer::new(WebSocketServerState {
-            ws_port: conf.mqtt_server.websocket_port,
-            wss_port: conf.mqtt_server.websockets_port,
+            ws_port: conf.mqtt_runtime.server.websocket_port,
+            wss_port: conf.mqtt_runtime.server.websockets_port,
             connection_manager: context.connection_manager.clone(),
             node_cache: context.broker_cache.clone(),
             global_limit_manager: context.global_limit_manager.clone(),
@@ -143,11 +143,11 @@ impl Server {
         let conf = broker_config();
 
         self.tcp_server
-            .start(false, conf.mqtt_server.tcp_port)
+            .start(false, conf.mqtt_runtime.server.tcp_port)
             .await?;
 
         self.tls_server
-            .start(true, conf.mqtt_server.tls_port)
+            .start(true, conf.mqtt_runtime.server.tls_port)
             .await?;
 
         let ws_server = self.ws_server.clone();
@@ -166,7 +166,9 @@ impl Server {
             }
         }));
 
-        self.quic_server.start(conf.mqtt_server.quic_port).await?;
+        self.quic_server
+            .start(conf.mqtt_runtime.server.quic_port)
+            .await?;
         Ok(())
     }
 

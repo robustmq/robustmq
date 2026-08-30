@@ -85,12 +85,12 @@ mod tests {
         let admin_client = create_test_env().await;
 
         let mut config = BrokerConfig::default();
-        config.mqtt_flapping_detect.enable = true;
-        config.mqtt_flapping_detect.window_time = 60;
-        config.mqtt_flapping_detect.max_client_connections = 20;
-        config.mqtt_flapping_detect.ban_time = 1;
+        config.mqtt_runtime.flapping_detect.enable = true;
+        config.mqtt_runtime.flapping_detect.window_time = 60;
+        config.mqtt_runtime.flapping_detect.max_client_connections = 20;
+        config.mqtt_runtime.flapping_detect.ban_time = 1;
 
-        let config_json = serde_json::to_string(&config.mqtt_flapping_detect).unwrap();
+        let config_json = serde_json::to_string(&config.mqtt_runtime.flapping_detect).unwrap();
         let request = ClusterConfigSetReq {
             config_type: "MqttFlappingDetect".to_string(),
             config: config_json,
@@ -104,12 +104,12 @@ mod tests {
         let admin_client = create_test_env().await;
 
         let mut config = BrokerConfig::default();
-        config.mqtt_flapping_detect.enable = false;
-        config.mqtt_flapping_detect.window_time = 60;
-        config.mqtt_flapping_detect.max_client_connections = 20;
-        config.mqtt_flapping_detect.ban_time = 1;
+        config.mqtt_runtime.flapping_detect.enable = false;
+        config.mqtt_runtime.flapping_detect.window_time = 60;
+        config.mqtt_runtime.flapping_detect.max_client_connections = 20;
+        config.mqtt_runtime.flapping_detect.ban_time = 1;
 
-        let config_json = serde_json::to_string(&config.mqtt_flapping_detect).unwrap();
+        let config_json = serde_json::to_string(&config.mqtt_runtime.flapping_detect).unwrap();
         let request = ClusterConfigSetReq {
             config_type: "MqttFlappingDetect".to_string(),
             config: config_json,

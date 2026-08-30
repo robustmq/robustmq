@@ -182,7 +182,7 @@ Each handler is a Tokio task. Even idle tasks contribute to the `alive_tasks` co
 Nodes communicate via gRPC, and each Channel is one HTTP/2 TCP connection:
 
 ```toml
-[grpc_client]
+[runtime]
 channels_per_address = 4
 ```
 
@@ -234,7 +234,7 @@ max_open_files = 10000
 ### 2.6 Message Queue and QoS In-Flight Window
 
 ```toml
-[mqtt_protocol]
+[mqtt_runtime.protocol]
 max_qos_flight_message = 2    # Per-connection QoS 1/2 in-flight window
 receive_max = 65535           # Receive window advertised to clients
 ```

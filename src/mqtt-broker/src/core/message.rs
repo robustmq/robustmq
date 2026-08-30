@@ -31,7 +31,7 @@ pub async fn build_message_expire(
     }
 
     let cluster = cache_manager.node_cache.get_cluster_config();
-    now_second() + cluster.mqtt_protocol.max_message_expiry_interval
+    now_second() + cluster.mqtt_runtime.protocol.max_message_expiry_interval
 }
 
 #[cfg(test)]
@@ -39,15 +39,18 @@ mod tests {
     use crate::core::message::build_message_expire;
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_base::tools::now_second;
-    use common_config::config::{BrokerConfig, MqttProtocolConfig};
+    use common_config::config::{BrokerConfig, MqttProtocolConfig, MqttRuntime};
     use protocol::mqtt::common::PublishProperties;
 
     #[tokio::test]
     async fn build_message_expire_test() {
         let cache_manager = test_build_mqtt_cache_manager().await;
         let cluster = BrokerConfig {
-            mqtt_protocol: MqttProtocolConfig {
-                max_message_expiry_interval: 10,
+            mqtt_runtime: MqttRuntime {
+                protocol: MqttProtocolConfig {
+                    max_message_expiry_interval: 10,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             ..Default::default()

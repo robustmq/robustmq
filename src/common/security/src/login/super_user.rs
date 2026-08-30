@@ -26,8 +26,8 @@ pub async fn try_init_system_user(client_pool: &Arc<ClientPool>) -> ResultCommon
     let conf = broker_config();
     let system_user_info = SecurityUser {
         tenant: DEFAULT_TENANT.to_string(),
-        username: conf.mqtt_runtime.default_user.clone(),
-        password: conf.mqtt_runtime.default_password.clone(),
+        username: conf.mqtt_runtime.auth.default_user.clone(),
+        password: conf.mqtt_runtime.auth.default_password.clone(),
         salt: None,
         is_superuser: true,
         create_time: now_second(),

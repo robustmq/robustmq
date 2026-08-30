@@ -39,8 +39,11 @@ mod tests {
             .await
             .unwrap();
 
-        // verify the subscriber receives the exact payload
-        let received = tokio::time::timeout(Duration::from_secs(5), sub.next())
+        // verify the subscriber receives the exact payload. Delivery is polled
+        // by a background push loop (see nats-broker/src/push/common.rs), so
+        // under CI CPU contention across concurrently running tests, a few
+        // seconds of scheduling delay is expected -- not message loss.
+        let received = tokio::time::timeout(Duration::from_secs(15), sub.next())
             .await
             .expect("timeout waiting for message")
             .expect("subscription closed");

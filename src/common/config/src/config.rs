@@ -35,19 +35,19 @@ use super::default::{
     default_mqtt_tls_port, default_mqtt_websocket_port, default_mqtt_websockets_port,
     default_network, default_offline_message_enable, default_offline_message_expire_ms,
     default_offline_message_max_num, default_queue_size, default_raft_write_timeout_sec,
-    default_receive_max, default_roles, default_runtime, default_runtime_worker_threads,
-    default_schema_echo_log, default_schema_enable, default_schema_failed_operation,
-    default_schema_log_level, default_schema_strategy, default_session_expiry_interval,
-    default_slow_subscribe_delay_type, default_slow_subscribe_record_time,
-    default_storage_expire_scan_task_num, default_storage_io_thread_num,
-    default_storage_isr_maintain_interval_ms, default_storage_max_segment_size,
-    default_storage_metadata_reconcile_interval_ms, default_storage_num_replica_fetchers,
-    default_storage_offset_enable_cache, default_storage_replica_fetch_backoff_ms,
-    default_storage_replica_fetch_max_wait_ms, default_storage_replica_fetch_min_bytes,
-    default_storage_replica_lag_time_max_ms, default_storage_tcp_port,
-    default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
-    default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
-    default_topic_alias_max, default_topic_partition_num, default_topic_replica_num,
+    default_receive_max, default_roles, default_runtime, default_schema_echo_log,
+    default_schema_enable, default_schema_failed_operation, default_schema_log_level,
+    default_schema_strategy, default_session_expiry_interval, default_slow_subscribe_delay_type,
+    default_slow_subscribe_record_time, default_storage_expire_scan_task_num,
+    default_storage_io_thread_num, default_storage_isr_maintain_interval_ms,
+    default_storage_max_segment_size, default_storage_metadata_reconcile_interval_ms,
+    default_storage_num_replica_fetchers, default_storage_offset_enable_cache,
+    default_storage_replica_fetch_backoff_ms, default_storage_replica_fetch_max_wait_ms,
+    default_storage_replica_fetch_min_bytes, default_storage_replica_lag_time_max_ms,
+    default_storage_tcp_port, default_system_monitor_cpu_watermark,
+    default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
+    default_tls_cert, default_tls_key, default_topic_alias_max, default_topic_partition_num,
+    default_topic_replica_num,
 };
 use crate::common::default_log;
 use crate::common::Log;
@@ -77,11 +77,9 @@ pub enum LLMPlatform {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct LLMConfig {
-    // embedding
     pub embedding: Option<String>,
     pub embedding_model_path: Option<String>,
 
-    // llm api
     pub platform: Option<LLMPlatform>,
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -117,7 +115,6 @@ impl LLMConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerConfig {
-    // Global
     #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
 
@@ -135,6 +132,9 @@ pub struct BrokerConfig {
 
     #[serde(default = "default_http_port")]
     pub http_port: u32,
+
+    #[serde(default = "default_network")]
+    pub broker_network: Network,
 
     #[serde(default = "default_meta_addrs")]
     pub meta_addrs: Table,
@@ -154,78 +154,37 @@ pub struct BrokerConfig {
     #[serde(default)]
     pub cluster_limit: ClusterLimit,
 
+    #[serde(default)]
+    pub admin: AdminConfig,
+
     #[serde(default = "default_delay_task")]
     pub delay_task: DelayTask,
 
     #[serde(default = "default_delay_message")]
     pub delay_message: DelayMessageConfig,
 
-    // meta
     #[serde(default = "default_meta_runtime")]
     pub meta_runtime: MetaRuntime,
 
-    // Storage Engine
     #[serde(default = "default_engine_runtime")]
     pub storage_runtime: StorageRuntime,
 
-    // MQTT
-    #[serde(default = "default_mqtt_server")]
-    pub mqtt_server: MqttServer,
-
-    #[serde(default = "default_mqtt_keep_alive")]
-    pub mqtt_keep_alive: MqttKeepAlive,
-
-    #[serde(default = "default_mqtt_runtime")]
+    #[serde(default)]
     pub mqtt_runtime: MqttRuntime,
 
-    #[serde(default = "default_mqtt_offline_message")]
-    pub mqtt_offline_message: MqttOfflineMessage,
-
-    #[serde(default = "default_mqtt_slow_subscribe")]
-    pub mqtt_slow_subscribe: MqttSlowSubscribeConfig,
-
-    #[serde(default = "default_mqtt_flapping_detect")]
-    pub mqtt_flapping_detect: MqttFlappingDetect,
-
-    #[serde(default = "default_mqtt_protocol")]
-    pub mqtt_protocol: MqttProtocolConfig,
-
-    #[serde(default = "default_mqtt_schema")]
-    pub mqtt_schema: MqttSchema,
-
-    #[serde(default = "default_mqtt_system_monitor")]
-    pub mqtt_system_monitor: MqttSystemMonitor,
-
-    #[serde(default)]
-    pub mqtt_limit: MQTTLimit,
-
-    // Kafka
     #[serde(default)]
     pub kafka_runtime: KafkaRuntime,
-    #[serde(default)]
-    pub kafka_dynamic: KafkaDynamic,
 
-    // AMQP
     #[serde(default)]
     pub amqp_runtime: AmqpRuntime,
 
-    // NATS
     #[serde(default)]
     pub nats_runtime: NatsRuntime,
-
-    // Shared broker network config (handler pool + request channel)
-    #[serde(default = "default_network")]
-    pub broker_network: Network,
-
-    // Admin HTTP API authentication
-    #[serde(default)]
-    pub admin: AdminConfig,
 }
 
 impl Default for BrokerConfig {
     fn default() -> Self {
         Self {
-            // Global
             cluster_name: default_cluster_name(),
             broker_id: default_broker_id(),
             broker_ip: default_broker_ip(),
@@ -241,35 +200,18 @@ impl Default for BrokerConfig {
             delay_task: default_delay_task(),
             delay_message: default_delay_message(),
 
-            // Meta Service
             meta_runtime: default_meta_runtime(),
 
-            // Storage Engine
             storage_runtime: default_engine_runtime(),
 
-            // MQTT Broker
-            mqtt_runtime: default_mqtt_runtime(),
-            mqtt_server: default_mqtt_server(),
-            mqtt_keep_alive: default_mqtt_keep_alive(),
-            mqtt_offline_message: default_mqtt_offline_message(),
-            mqtt_slow_subscribe: default_mqtt_slow_subscribe(),
-            mqtt_flapping_detect: default_mqtt_flapping_detect(),
-            mqtt_protocol: default_mqtt_protocol(),
-            mqtt_schema: default_mqtt_schema(),
-            mqtt_system_monitor: default_mqtt_system_monitor(),
-            mqtt_limit: MQTTLimit::default(),
+            mqtt_runtime: MqttRuntime::default(),
 
-            // Kafka
             kafka_runtime: KafkaRuntime::default(),
-            kafka_dynamic: KafkaDynamic::default(),
 
-            // AMQP
             amqp_runtime: AmqpRuntime::default(),
 
-            // NATS
             nats_runtime: NatsRuntime::default(),
 
-            // Shared broker network config
             broker_network: default_network(),
             admin: AdminConfig::default(),
         }
@@ -285,45 +227,21 @@ impl BrokerConfig {
     }
 
     pub fn is_enable_slow_subscribe_record(&self) -> bool {
-        self.mqtt_slow_subscribe.enable
+        self.mqtt_runtime.slow_subscribe.enable
     }
 
     pub fn get_slow_subscribe_delay_type(&self) -> DelayType {
-        self.mqtt_slow_subscribe.delay_type
+        self.mqtt_runtime.slow_subscribe.delay_type
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
-    /// Legacy single multiplier kept for backward-compatibility.
-    /// When the per-runtime fields below are 0 (auto), this value × num_cpus
-    /// is used as a fallback.  Default: 1 (= num_cpus threads per runtime).
-    #[serde(default = "default_runtime_worker_threads")]
-    pub runtime_worker_threads: usize,
-
-    /// Worker threads for the server runtime (gRPC, HTTP admin, Prometheus).
-    /// 0 = auto: num_cpus.
     #[serde(default)]
     pub server_worker_threads: usize,
 
-    /// Worker threads for the meta runtime (Raft state machines, RocksDB).
-    /// 0 = auto: num_cpus.
-    #[serde(default)]
-    pub meta_worker_threads: usize,
-
-    /// Worker threads for the broker runtime (MQTT handler pool, push manager).
-    /// 0 = auto: num_cpus.  This is the hot-path runtime.
-    #[serde(default)]
-    pub broker_worker_threads: usize,
-
     #[serde(default = "default_channels_per_address")]
     pub channels_per_address: usize,
-
-    #[serde(default = "default_tls_cert")]
-    pub tls_cert: String,
-
-    #[serde(default = "default_tls_key")]
-    pub tls_key: String,
 
     #[serde(default)]
     pub pprof_enable: bool,
@@ -351,6 +269,12 @@ pub struct Network {
 
     #[serde(default = "default_queue_size")]
     pub queue_size: usize,
+
+    #[serde(default = "default_tls_cert")]
+    pub tls_cert: String,
+
+    #[serde(default = "default_tls_key")]
+    pub tls_key: String,
 }
 
 impl Default for Network {
@@ -455,6 +379,9 @@ pub struct MetaRuntime {
     pub segment_leader_rebalance_interval_ms: u64,
     #[serde(default = "default_segment_leader_rebalance_max_moves")]
     pub segment_leader_rebalance_max_moves: u32,
+
+    #[serde(default)]
+    pub meta_worker_threads: usize,
 }
 
 fn default_raft_sharded_group_num() -> u32 {
@@ -462,7 +389,6 @@ fn default_raft_sharded_group_num() -> u32 {
 }
 
 fn default_group_offset_expire_sec() -> u64 {
-    // 7 days
     7 * 24 * 3600
 }
 
@@ -519,7 +445,7 @@ impl Default for MqttKeepAlive {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MqttRuntime {
+pub struct MqttAuthConfig {
     #[serde(default = "default_mqtt_runtime_user")]
     pub default_user: String,
 
@@ -534,12 +460,9 @@ pub struct MqttRuntime {
 
     #[serde(default)]
     pub is_self_protection_status: bool,
-
-    #[serde(default = "default_network")]
-    pub network: Network,
 }
 
-impl Default for MqttRuntime {
+impl Default for MqttAuthConfig {
     fn default() -> Self {
         default_mqtt_runtime()
     }
@@ -592,11 +515,9 @@ impl MqttOfflineMessage {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DelayTask {
-    /// Number of sharded delay queues. 0 = auto: number of CPUs.
     #[serde(default = "default_delay_task_queue_num")]
     pub delay_task_queue_num: usize,
 
-    /// Max concurrent delay message handler tasks. 0 = auto: number of CPUs.
     #[serde(default = "default_delay_task_handler_concurrency")]
     pub delay_task_handler_concurrency: usize,
 }
@@ -648,7 +569,6 @@ impl MqttSchema {
     }
 }
 
-// MQTT cluster protocol related dynamic configuration
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MqttProtocolConfig {
     #[serde(default = "default_max_session_expiry_interval")]
@@ -768,14 +688,48 @@ pub struct StorageRuntime {
     pub metadata_reconcile_interval_ms: u64,
     #[serde(default = "default_storage_isr_maintain_interval_ms")]
     pub isr_maintain_interval_ms: u64,
-    #[serde(default = "default_network")]
-    pub network: Network,
 }
 
 impl Default for StorageRuntime {
     fn default() -> Self {
         default_engine_runtime()
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct MqttRuntime {
+    #[serde(default)]
+    pub server: MqttServer,
+
+    #[serde(default)]
+    pub keep_alive: MqttKeepAlive,
+
+    #[serde(default)]
+    pub auth: MqttAuthConfig,
+
+    #[serde(default)]
+    pub offline_message: MqttOfflineMessage,
+
+    #[serde(default)]
+    pub slow_subscribe: MqttSlowSubscribeConfig,
+
+    #[serde(default)]
+    pub flapping_detect: MqttFlappingDetect,
+
+    #[serde(default)]
+    pub protocol: MqttProtocolConfig,
+
+    #[serde(default)]
+    pub schema: MqttSchema,
+
+    #[serde(default)]
+    pub system_monitor: MqttSystemMonitor,
+
+    #[serde(default)]
+    pub limit: MQTTLimit,
+
+    #[serde(default)]
+    pub broker_worker_threads: usize,
 }
 
 fn default_kafka_tcp_port() -> u32 {
@@ -787,7 +741,6 @@ fn default_kafka_max_fetch_bytes() -> u32 {
 }
 
 fn default_kafka_max_message_bytes() -> u32 {
-    // Kafka's default max.message.bytes (1 MiB + record-batch overhead).
     1_048_588
 }
 
@@ -795,22 +748,16 @@ fn default_kafka_max_message_bytes() -> u32 {
 pub struct KafkaRuntime {
     #[serde(default = "default_kafka_tcp_port")]
     pub tcp_port: u32,
-    /// Upper bound (per partition) on how many bytes a Fetch response may
-    /// return, regardless of what the client requests via `max_bytes`/
-    /// `partition_max_bytes`.
     #[serde(default = "default_kafka_max_fetch_bytes")]
     pub max_fetch_bytes: u32,
-    /// Upper bound on the size of a single produced record batch. A batch larger
-    /// than this is rejected with MESSAGE_TOO_LARGE, matching Kafka's
-    /// `message.max.bytes` / topic `max.message.bytes`.
     #[serde(default = "default_kafka_max_message_bytes")]
     pub max_message_bytes: u32,
-    /// Upper bound on how many partitions a single DescribeTopicPartitions
-    /// response may return, regardless of the client's `response_partition_limit`.
     #[serde(default = "default_kafka_max_describe_topic_partitions")]
     pub max_describe_topic_partitions: u32,
     #[serde(default)]
     pub sasl: KafkaSasl,
+    #[serde(default = "default_auto_create_topics_enable")]
+    pub auto_create_topics_enable: bool,
 }
 
 impl Default for KafkaRuntime {
@@ -821,17 +768,15 @@ impl Default for KafkaRuntime {
             max_message_bytes: default_kafka_max_message_bytes(),
             max_describe_topic_partitions: default_kafka_max_describe_topic_partitions(),
             sasl: KafkaSasl::default(),
+            auto_create_topics_enable: default_auto_create_topics_enable(),
         }
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct KafkaSasl {
-    /// When false (the default) connections are accepted without authentication
-    /// and the SASL handshake/authenticate handlers stay inert.
     #[serde(default)]
     pub enabled: bool,
-    /// SASL mechanisms the broker offers, e.g. ["SCRAM-SHA-256", "SCRAM-SHA-512"].
     #[serde(default = "default_kafka_sasl_mechanisms")]
     pub mechanisms: Vec<String>,
 }
@@ -850,23 +795,7 @@ fn default_kafka_sasl_mechanisms() -> Vec<String> {
 }
 
 fn default_auto_create_topics_enable() -> bool {
-    // Match Kafka's broker default (`auto.create.topics.enable=true`); operators
-    // can turn it off via the cluster dynamic config.
     true
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct KafkaDynamic {
-    #[serde(default = "default_auto_create_topics_enable")]
-    pub auto_create_topics_enable: bool,
-}
-
-impl Default for KafkaDynamic {
-    fn default() -> Self {
-        KafkaDynamic {
-            auto_create_topics_enable: default_auto_create_topics_enable(),
-        }
-    }
 }
 
 fn default_kafka_max_describe_topic_partitions() -> u32 {
@@ -908,7 +837,7 @@ fn default_nats_wss_port() -> u32 {
 }
 
 fn default_nats_max_payload() -> u64 {
-    1024 * 1024 // 1 MB
+    1024 * 1024
 }
 
 fn default_nats_auth_required() -> bool {
@@ -957,25 +886,18 @@ pub struct NatsRuntime {
     pub max_payload: u64,
     #[serde(default = "default_nats_auth_required")]
     pub auth_required: bool,
-    /// Interval in seconds between server-initiated PINGs.
     #[serde(default = "default_nats_ping_interval")]
     pub ping_interval: u64,
-    /// Maximum number of unanswered PINGs before the connection is closed.
     #[serde(default = "default_nats_ping_max")]
     pub ping_max: u64,
-    /// Number of connections processed per spawn batch when sending PINGs.
     #[serde(default = "default_nats_ping_send_chunk")]
     pub ping_send_chunk: usize,
-    /// Number of internal core shards to initialize on startup.
     #[serde(default = "default_nats_core_shard_num")]
     pub core_shard_num: usize,
-    /// Number of directly-push threads (one thread per bucket).
     #[serde(default = "default_nats_push_thread_num")]
     pub push_thread_num: usize,
-    /// Number of queue-push threads (one thread per queue-group bucket).
     #[serde(default = "default_nats_push_queue_thread_num")]
     pub push_queue_thread_num: usize,
-    /// Default TTL in seconds for MQ9 mailboxes when the client does not specify one.
     #[serde(default = "default_nats_mq9_mailbox_ttl")]
     pub mq9_mailbox_default_ttl: u64,
 }
@@ -1002,20 +924,15 @@ impl Default for NatsRuntime {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AdminConfig {
-    /// Admin username for Dashboard / CLI login. Defaults to "admin".
     #[serde(default = "default_admin_username")]
     pub username: String,
 
-    /// Admin password (plain-text in config; should be changed in production).
     #[serde(default = "default_admin_password")]
     pub password: String,
 
-    /// HMAC-SHA256 secret used to sign JWT tokens.
-    /// Change this to a random string in production.
     #[serde(default = "default_admin_jwt_secret")]
     pub jwt_secret: String,
 
-    /// JWT token validity in hours. Defaults to 8.
     #[serde(default = "default_admin_token_ttl_hours")]
     pub token_ttl_hours: u64,
 }

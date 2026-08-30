@@ -157,7 +157,7 @@ async fn build_new_session(context: &BuildSessionContext) -> MqttSession {
 fn is_persist_session(_client_id: &str) -> bool {
     // todo
     let conf = broker_config();
-    conf.mqtt_runtime.durable_sessions_enable
+    conf.mqtt_runtime.auth.durable_sessions_enable
 }
 
 async fn save_session(
@@ -177,12 +177,14 @@ async fn session_expiry_interval(
     let default_session_expiry_interval = cache_manager
         .node_cache
         .get_cluster_config()
-        .mqtt_protocol
+        .mqtt_runtime
+        .protocol
         .default_session_expiry_interval;
     let max_session_expiry_interval = cache_manager
         .node_cache
         .get_cluster_config()
-        .mqtt_protocol
+        .mqtt_runtime
+        .protocol
         .max_session_expiry_interval;
 
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
@@ -240,7 +242,8 @@ mod test {
             cache_manager
                 .node_cache
                 .get_cluster_config()
-                .mqtt_protocol
+                .mqtt_runtime
+                .protocol
                 .default_session_expiry_interval as u64
         );
 

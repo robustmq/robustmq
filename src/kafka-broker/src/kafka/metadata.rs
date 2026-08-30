@@ -227,7 +227,7 @@ async fn build_topics_from_cache(
     let auto_create = req.allow_auto_topic_creation
         && cache
             .get_cluster_config()
-            .kafka_dynamic
+            .kafka_runtime
             .auto_create_topics_enable;
 
     let mut topics = Vec::with_capacity(requested.len());

@@ -33,7 +33,7 @@ mod tests {
 
     async fn mqtt_user_test() {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = get_placement_addr();
         let user_name: String = unique_id();
         let password: String = "123456".to_string();
 

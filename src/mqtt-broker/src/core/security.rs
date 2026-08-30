@@ -40,7 +40,7 @@ pub async fn security_login_check(
 ) -> Result<bool, MqttBrokerError> {
     let cluster = node_cache.get_cluster_config();
 
-    if cluster.mqtt_runtime.secret_free_login {
+    if cluster.mqtt_runtime.auth.secret_free_login {
         return Ok(true);
     }
 
