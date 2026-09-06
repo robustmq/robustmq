@@ -155,16 +155,16 @@ pub mod will {
     use super::*;
 
     pub fn len(will: &LastWill) -> usize {
-        let mut len = 0;
+        let mut total_len = 0;
         //check later what the following 2 bytes mean for will topic and message, for length?
 
-        len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will topic length
-        len += will.topic.len();
+        total_len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will topic length
+        total_len += will.topic.len();
 
-        len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will message length
-        len += will.message.len();
+        total_len += MQTT_LENGTH_MSB + MQTT_LENGTH_LSB; // will message length
+        total_len += will.message.len();
 
-        len
+        total_len
     }
 
     pub fn read(
