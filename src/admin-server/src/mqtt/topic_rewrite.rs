@@ -28,6 +28,7 @@ use common_base::{
 use metadata_struct::mqtt::topic_rewrite_rule::MqttTopicRewriteRule;
 use mqtt_broker::storage::topic_rewrite::TopicRewriteStorage;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 use validator::Validate;
 
@@ -107,13 +108,13 @@ pub struct TopicRewriteListRow {
 }
 
 impl Queryable for TopicRewriteListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "name" => Some(self.name.clone()),
-            "tenant" => Some(self.tenant.clone()),
-            "source_topic" => Some(self.source_topic.clone()),
-            "dest_topic" => Some(self.dest_topic.clone()),
-            "action" => Some(self.action.clone()),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "source_topic" => Some(Cow::Borrowed(&self.source_topic)),
+            "dest_topic" => Some(Cow::Borrowed(&self.dest_topic)),
+            "action" => Some(Cow::Borrowed(&self.action)),
             _ => None,
         }
     }

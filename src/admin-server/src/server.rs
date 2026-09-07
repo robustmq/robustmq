@@ -416,13 +416,13 @@ fn normalize_uri_path(path: &str) -> String {
         .map(|segment| {
             // Replace UUIDs, IDs, and other dynamic segments
             if segment.chars().all(|c| c.is_ascii_digit()) && segment.len() > 3 {
-                "{id}".to_string()
+                "{id}"
             } else if segment.len() == 36 && segment.chars().filter(|&c| c == '-').count() == 4 {
-                "{uuid}".to_string()
+                "{uuid}"
             } else if segment.len() > 20 && segment.chars().all(|c| c.is_ascii_alphanumeric()) {
-                "{hash}".to_string()
+                "{hash}"
             } else {
-                segment.to_string()
+                segment
             }
         })
         .collect::<Vec<_>>()

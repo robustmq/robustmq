@@ -82,12 +82,7 @@ pub async fn cluster_config_get(
         None => return success_response(state.broker_cache.get_cluster_config()),
     };
 
-    let node = match state
-        .broker_cache
-        .node_lists
-        .get(&broker_id)
-        .map(|n| n.clone())
-    {
+    let node = match state.broker_cache.node_lists.get(&broker_id) {
         Some(n) => n,
         None => return error_response(format!("Broker node {} not found", broker_id)),
     };

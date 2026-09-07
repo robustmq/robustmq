@@ -25,6 +25,7 @@ use broker_core::tenant::TenantStorage;
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::tenant::TenantConfig;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 use validator::Validate;
 
@@ -115,9 +116,9 @@ pub struct TenantListRow {
 }
 
 impl Queryable for TenantListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant_name" => Some(self.tenant_name.clone()),
+            "tenant_name" => Some(Cow::Borrowed(&self.tenant_name)),
             _ => None,
         }
     }
@@ -156,7 +157,7 @@ pub async fn tenant_list(
         })
         .collect();
 
-    tenants.sort_by_key(|t| t.tenant_name.clone());
+    tenants.sort_by(|a, b| a.tenant_name.cmp(&b.tenant_name));
 
     let filtered = apply_filters(tenants, &options);
     let sorted = apply_sorting(filtered, &options);

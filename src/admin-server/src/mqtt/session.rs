@@ -54,6 +54,7 @@ use axum::extract::Query;
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mqtt::session::MqttSession;
 use mqtt_broker::storage::last_will::LastWillStorage;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub async fn session_list(
@@ -61,8 +62,8 @@ pub async fn session_list(
     Query(params): Query<SessionListReq>,
 ) -> String {
     // Extract filter params before build_query_params partially moves `params`.
-    let filter_tenant = params.tenant.clone();
-    let filter_client_id = params.client_id.clone();
+    let filter_tenant = params.tenant.as_deref();
+    let filter_client_id = params.client_id.as_deref();
 
     let options = build_query_params(
         params.page,
@@ -76,8 +77,7 @@ pub async fn session_list(
 
     let cache = &state.mqtt_context.cache_manager;
 
-    let sample =
-        sample_sessions_up_to_100(cache, filter_tenant.as_deref(), filter_client_id.as_deref());
+    let sample = sample_sessions_up_to_100(cache, filter_tenant, filter_client_id);
 
     let total_count = sample.len();
 
@@ -164,10 +164,10 @@ fn session_matches(session: &MqttSession, filter_client_id: Option<&str>) -> boo
 }
 
 impl Queryable for SessionListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "client_id" => Some(self.client_id.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
             _ => None,
         }
     }

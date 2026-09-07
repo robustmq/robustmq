@@ -74,6 +74,7 @@ use common_base::{
 };
 use common_security::storage::user::UserStorage;
 use metadata_struct::auth::user::SecurityUser;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub async fn user_list(
@@ -130,10 +131,10 @@ pub async fn user_list(
 }
 
 impl Queryable for UserListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "username" => Some(self.username.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "username" => Some(Cow::Borrowed(&self.username)),
             _ => None,
         }
     }

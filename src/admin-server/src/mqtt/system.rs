@@ -85,6 +85,7 @@ use common_base::{
     utils::time_util::timestamp_to_local_datetime,
 };
 use mqtt_broker::storage::local::LocalStorage;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub async fn system_alarm_list(
@@ -129,10 +130,10 @@ pub async fn system_alarm_list(
 }
 
 impl Queryable for SystemAlarmListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "name" => Some(self.name.clone()),
-            "message" => Some(self.message.clone()),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "message" => Some(Cow::Borrowed(&self.message)),
             _ => None,
         }
     }
@@ -199,10 +200,10 @@ pub async fn flapping_detect_list(
 }
 
 impl Queryable for FlappingDetectListRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "client_id" => Some(self.client_id.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
             _ => None,
         }
     }
@@ -252,10 +253,10 @@ pub async fn ban_log_list(
 }
 
 impl Queryable for BanLogListRaw {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "resource_name" => Some(self.resource_name.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "resource_name" => Some(Cow::Borrowed(&self.resource_name)),
             _ => None,
         }
     }

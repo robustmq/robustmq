@@ -23,6 +23,7 @@ use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mq9::mail::MQ9Mail;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -36,10 +37,10 @@ pub struct MailListReq {
 }
 
 impl Queryable for MQ9Mail {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "mail_address" => Some(self.mail_address.clone()),
-            "tenant" => Some(self.tenant.clone()),
+            "mail_address" => Some(Cow::Borrowed(&self.mail_address)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
             _ => None,
         }
     }
@@ -68,21 +69,20 @@ pub async fn mail_list(
         .cache_manager
         .mail_info
         .iter()
-        .filter(|e| {
+        .filter_map(|e| {
             let mail = e.value();
             if let Some(tenant) = params.tenant.as_deref() {
                 if mail.tenant != tenant {
-                    return false;
+                    return None;
                 }
             }
             if let Some(keyword) = params.mail_address.as_deref() {
                 if !mail.mail_address.contains(keyword) {
-                    return false;
+                    return None;
                 }
             }
-            true
+            Some(mail.clone())
         })
-        .map(|e| e.value().clone())
         .collect();
 
     let sorted = apply_sorting(mails, &options);
