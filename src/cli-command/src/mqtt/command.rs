@@ -787,8 +787,7 @@ impl MqttBrokerCommand {
                     let protocol = client
                         .network_connection
                         .and_then(|nc| nc.protocol)
-                        .map(|p| p.to_str().to_owned())
-                        .unwrap_or_else(|| "-".to_owned());
+                        .map_or("-",|p| p.to_str());
                     table.add_row(row![
                         client.client_id,
                         client.connection_id,

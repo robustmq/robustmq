@@ -40,11 +40,11 @@ use network_server::common::connection_manager::ConnectionManager;
 use network_server::common::packet::ResponsePackage;
 use node_call::NodeCallManager;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, mqtt_packet_to_string, Connect, ConnectProperties,
-    ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MqttPacket, MqttProtocol, PingReq, PubAck, PubAckProperties,
-    PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
-    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    is_mqtt3, is_mqtt4, is_mqtt5, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
+    DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket,
+    MqttProtocol, PingReq, PubAck, PubAckProperties, PubComp, PubCompProperties, PubRec,
+    PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, Subscribe,
+    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use protocol::robust::RobustMQPacket;
 use rate_limit::global::GlobalRateLimiterManager;
@@ -243,7 +243,7 @@ impl Command for MQTTHandlerCommand {
             error!(
                 connect_id = tcp_connection.connection_id,
                 protocol = ?tcp_connection.get_protocol(),
-                request_packet = %mqtt_packet_to_string(&packet),
+                request_packet = %packet.as_str(),
                 error = %e,
                 "Failed to process server-side disconnect side effects"
             );
@@ -251,7 +251,7 @@ impl Command for MQTTHandlerCommand {
 
         record_packet_process_duration(
             &tcp_connection.connection_type,
-            &mqtt_packet_to_string(&packet),
+            packet.as_str(),
             (now_millis() - start) as f64,
         );
         resp_package
@@ -273,7 +273,7 @@ impl MQTTHandlerCommand {
                     &self.connection_manager,
                     &self.subscribe_manager,
                     tcp_connection.connection_id,
-                    &tcp_connection.get_protocol(),
+                    tcp_connection.get_protocol(),
                 )?;
                 disconnect_connection(context).await?;
             }

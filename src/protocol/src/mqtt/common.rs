@@ -19,7 +19,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use common_base::error::mqtt_protocol_error::MQTTProtocolError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MqttProtocol {
     #[default]
     Mqtt3,
@@ -118,25 +118,32 @@ pub enum MqttPacket {
     Auth(Auth, Option<AuthProperties>),
 }
 
-pub fn mqtt_packet_to_string(packet: &MqttPacket) -> String {
-    let str = match packet {
-        MqttPacket::Connect(_, _, _, _, _, _) => "Connect",
-        MqttPacket::ConnAck(_, _) => "ConnAck",
-        MqttPacket::Publish(_, _) => "Publish",
-        MqttPacket::PubAck(_, _) => "PubAck",
-        MqttPacket::PubRec(_, _) => "PubRec",
-        MqttPacket::PubRel(_, _) => "PubRel",
-        MqttPacket::PubComp(_, _) => "PubComp",
-        MqttPacket::Subscribe(_, _) => "Subscribe",
-        MqttPacket::SubAck(_, _) => "SubAck",
-        MqttPacket::Unsubscribe(_, _) => "Unsubscribe",
-        MqttPacket::UnsubAck(_, _) => "UnsubAck",
-        MqttPacket::PingReq(_) => "PingReq",
-        MqttPacket::PingResp(_) => "PingResp",
-        MqttPacket::Disconnect(_, _) => "Disconnect",
-        MqttPacket::Auth(_, _) => "Auth",
-    };
-    str.to_string()
+impl MqttPacket {
+    pub const fn as_str(&self) -> &'_ str {
+        match self {
+            MqttPacket::Connect(..) => "Connect",
+            MqttPacket::ConnAck(..) => "ConnAck",
+            MqttPacket::Publish(..) => "Publish",
+            MqttPacket::PubAck(..) => "PubAck",
+            MqttPacket::PubRec(..) => "PubRec",
+            MqttPacket::PubRel(..) => "PubRel",
+            MqttPacket::PubComp(..) => "PubComp",
+            MqttPacket::Subscribe(..) => "Subscribe",
+            MqttPacket::SubAck(..) => "SubAck",
+            MqttPacket::Unsubscribe(..) => "Unsubscribe",
+            MqttPacket::UnsubAck(..) => "UnsubAck",
+            MqttPacket::PingReq(..) => "PingReq",
+            MqttPacket::PingResp(..) => "PingResp",
+            MqttPacket::Disconnect(..) => "Disconnect",
+            MqttPacket::Auth(..) => "Auth",
+        }
+    }
+}
+
+/** deprecated: use [MqttPacket::as_str()] instead */
+#[deprecated(since = "0.4.11", note = "use `MqttPacket::as_str()` instead")]
+pub fn mqtt_packet_to_str(packet: &MqttPacket) -> &'_ str {
+    packet.as_str()
 }
 
 /// Packet type from a byte

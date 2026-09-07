@@ -23,7 +23,7 @@ use tokio::sync::mpsc;
 use tracing::debug;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     Tcp,
     Tls,
@@ -89,21 +89,21 @@ impl NetworkConnection {
     }
 
     pub fn is_mqtt3(&self) -> bool {
-        if let Some(protocol) = self.protocol.clone() {
+        if let Some(protocol) = self.protocol {
             return protocol == RobustMQProtocol::MQTT3;
         }
         false
     }
 
     pub fn is_mqtt4(&self) -> bool {
-        if let Some(protocol) = self.protocol.clone() {
+        if let Some(protocol) = self.protocol {
             return protocol == RobustMQProtocol::MQTT4;
         }
         false
     }
 
     pub fn is_mqtt5(&self) -> bool {
-        if let Some(protocol) = self.protocol.clone() {
+        if let Some(protocol) = self.protocol {
             return protocol == RobustMQProtocol::MQTT5;
         }
         false

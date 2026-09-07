@@ -159,7 +159,7 @@ impl ClientKeepAlive {
                     &self.connection_manager,
                     &self.subscribe_manager,
                     connect_id,
-                    &protocol,
+                    protocol,
                 ) {
                     Ok(ctx) => {
                         if let Err(e) = disconnect_connection(ctx).await {
@@ -300,7 +300,7 @@ async fn close_connect(context: &TrySendDistinctPacketContext) -> Result<(), Mqt
         &context.connection_manager,
         &context.subscribe_manager,
         context.connect_id,
-        &context.protocol,
+        context.protocol,
     )?;
     disconnect_connection(context).await?;
     record_mqtt_connection_expired();

@@ -17,10 +17,7 @@ use amq_protocol::frame::AMQPFrame;
 use crate::{
     amqp::codec::AmqpCodec,
     kafka::{codec::KafkaCodec, packet::KafkaPacketWrapper},
-    mqtt::{
-        codec::{MqttCodec, MqttPacketWrapper},
-        common::mqtt_packet_to_string,
-    },
+    mqtt::codec::{MqttCodec, MqttPacketWrapper},
     nats::{codec::NatsCodec, packet::NatsPacket},
     robust::RobustMQProtocol,
     storage::codec::{StorageEngineCodec, StorageEnginePacket},
@@ -47,7 +44,7 @@ impl fmt::Display for RobustMQCodecWrapper {
                     f,
                     "MQTT(v{}, {})",
                     wrapper.protocol_version,
-                    mqtt_packet_to_string(&wrapper.packet)
+                    wrapper.packet.as_str()
                 )
             }
             RobustMQCodecWrapper::KAFKA(wrapper) => {

@@ -69,10 +69,10 @@ pub fn build_mqtt_packet_wrapper(
     packet: MqttPacket,
 ) -> RobustMQPacketWrapper {
     RobustMQPacketWrapper {
-        protocol: protocol.clone(),
         extend: RobustMQWrapperExtend::MQTT(MqttWrapperExtend {
             protocol_version: protocol.to_u8(),
         }),
+        protocol,
         packet: RobustMQPacket::MQTT(packet),
     }
 }
