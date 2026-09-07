@@ -73,28 +73,28 @@ pub async fn run_connector_loop<S: ConnectorSink>(
     client_pool: &Arc<ClientPool>,
     connector_manager: &Arc<ConnectorManager>,
     storage_driver_manager: &Arc<StorageDriverManager>,
-    connector_name: String,
+    connector_name: &str,
     config: BridgePluginReadConfig,
     mut stop_recv: mpsc::Receiver<bool>,
 ) -> Result<(), CommonError> {
     sink.validate().await?;
 
     let mut resource = Some(sink.init_sink().await?);
-    let connector_tenant = config.tenant.clone();
+    let connector_tenant = &config.tenant;
     let connector_type = connector_manager
-        .get_connector(&connector_name)
-        .map(|c| c.connector_type.to_string())
-        .unwrap_or_else(|| "unknown".to_string());
+        .get_connector(connector_name)
+        .map(|c| c.connector_type.as_str())
+        .unwrap_or_else(|| "unknown");
 
     let ctx = BatchCtx {
-        connector_name: &connector_name,
-        connector_type: &connector_type,
-        tenant: &connector_tenant,
+        connector_name: connector_name,
+        connector_type: connector_type,
+        tenant: connector_tenant,
         storage_driver_manager,
         connector_manager,
     };
 
-    let consumer = GroupConsumer::new_manual(storage_driver_manager.clone(), &connector_name);
+    let consumer = GroupConsumer::new_manual(storage_driver_manager.clone(), connector_name);
     let read_config = AdapterReadConfig {
         max_record_num: config.record_num,
         max_size: 1024 * 1024 * 30,
@@ -114,7 +114,7 @@ pub async fn run_connector_loop<S: ConnectorSink>(
             val = consumer.next_messages(&config.tenant, &config.topic_name, &read_config) => {
                 match val {
                     Ok(data) => {
-                        connector_manager.report_heartbeat(&connector_tenant, &connector_name);
+                        connector_manager.report_heartbeat(connector_tenant, connector_name);
 
                         if data.is_empty() {
                             sleep(Duration::from_millis(100)).await;

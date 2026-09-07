@@ -163,8 +163,8 @@ fn start_thread(
     thread: BridgePluginThread,
     stop_rx: Receiver<bool>,
 ) {
-    let connector_name = connector.connector_name.clone();
-    let connector_type = connector.connector_type.clone();
+    let connector_name = &connector.connector_name;
+    let connector_type = &connector.connector_type;
 
     debug!(
         "Dispatching connector '{}' to type-specific handler: {:?}",

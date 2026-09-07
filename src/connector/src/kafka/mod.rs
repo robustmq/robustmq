@@ -187,8 +187,8 @@ pub fn start_kafka_connector(
     stop_recv: Receiver<bool>,
 ) {
     tokio::spawn(Box::pin(async move {
-        let connector_name = connector.connector_name.clone();
-        let connector_type = connector.connector_type.to_string();
+        let connector_name = &connector.connector_name;
+        let connector_type = &connector.connector_type;
         let bridge = match KafkaBridgePlugin::new(connector.clone()) {
             Ok(bridge) => bridge,
             Err(e) => {
@@ -210,7 +210,7 @@ pub fn start_kafka_connector(
             &client_pool,
             &connector_manager,
             &storage_driver_manager,
-            connector.connector_name.clone(),
+            &connector.connector_name,
             BridgePluginReadConfig {
                 tenant: connector.tenant.clone(),
                 topic_name: connector.topic_name.clone(),
