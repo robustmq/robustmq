@@ -58,12 +58,22 @@ struct ApiResponse<T: Serialize> {
     message: String,
 }
 
-fn ok<T: Serialize>(data: T) -> Json<ApiResponse<T>> {
-    Json(ApiResponse {
+impl<T: Serialize> IntoResponse for ApiResponse<T> {
+    fn into_response(self) -> Response {
+        (
+            StatusCode::from_u16(self.code as u16).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            Json(self),
+        )
+            .into_response()
+    }
+}
+
+fn ok<T: Serialize>(data: T) -> ApiResponse<T> {
+    ApiResponse {
         code: 0,
         data,
         message: "success".to_string(),
-    })
+    }
 }
 
 pub fn auth_router() -> Router<Arc<HttpState>> {
@@ -78,15 +88,12 @@ pub async fn login_handler(
     let admin = &config.admin;
 
     if req.username != admin.username || req.password != admin.password {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(ApiResponse {
-                code: 401,
-                data: (),
-                message: "Invalid username or password".to_string(),
-            }),
-        )
-            .into_response();
+        return ApiResponse {
+            code: 401,
+            data: (),
+            message: "Invalid username or password".to_string(),
+        }
+        .into_response();
     }
 
     match generate_token(config) {
@@ -94,15 +101,12 @@ pub async fn login_handler(
             let _ = state; // state available for future use
             ok(LoginResponse { token, expires_in }).into_response()
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse {
-                code: 500,
-                data: (),
-                message: format!("Failed to generate token: {e}"),
-            }),
-        )
-            .into_response(),
+        Err(e) => ApiResponse {
+            code: 500,
+            data: (),
+            message: format!("Failed to generate token: {e}"),
+        }
+        .into_response(),
     }
 }
 
@@ -161,30 +165,24 @@ pub async fn auth_middleware(
     let token = match extract_bearer(&headers) {
         Some(t) => t,
         None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({
-                    "code": 401,
-                    "data": null,
-                    "message": "Missing Authorization header"
-                })),
-            )
-                .into_response()
+            return ApiResponse {
+                code: 401,
+                data: (),
+                message: "Missing Authorization header".to_string(),
+            }
+            .into_response()
         }
     };
 
     let config = common_config::broker::broker_config();
     match verify_token(token, config) {
         Ok(_) => next.run(request).await,
-        Err(_) => (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "code": 401,
-                "data": null,
-                "message": "Invalid or expired token"
-            })),
-        )
-            .into_response(),
+        Err(_) => ApiResponse {
+            code: 401,
+            data: (),
+            message: "Invalid or expired token".to_string(),
+        }
+        .into_response(),
     }
 }
 
