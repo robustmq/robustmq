@@ -20,29 +20,10 @@ pub mod mqtt_protocol_error;
 
 pub type ResultCommonError = Result<(), CommonError>;
 
-pub fn client_unavailable_error_by_str(error: &String) -> bool {
-    if error
-        .to_string()
-        .contains("Connection management could not obtain an available")
-    {
-        return true;
-    }
-
-    if error.to_string().contains("IO error: Broken pipe") {
-        return true;
-    }
-
-    if error.to_string().contains("Broken pipe (os error 32)") {
-        return true;
-    }
-
-    if error.to_string().contains("Broken pipe") {
-        return true;
-    }
-
-    if error.to_string().contains("work with closed connection") {
-        return true;
-    }
-
-    false
+pub fn client_unavailable_error_by_str(error: &str) -> bool {
+    error.contains("Connection management could not obtain an available")
+        || error.contains("IO error: Broken pipe")
+        || error.contains("Broken pipe (os error 32)")
+        || error.contains("Broken pipe")
+        || error.contains("work with closed connection")
 }

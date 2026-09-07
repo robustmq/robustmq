@@ -17,13 +17,13 @@ pub const ROLE_META: &str = "meta";
 pub const ROLE_ENGINE: &str = "engine";
 
 pub fn is_meta_node(roles: &[String]) -> bool {
-    roles.contains(&ROLE_META.to_string())
+    roles.iter().any(|role| role == ROLE_META)
 }
 
 pub fn is_engine_node(roles: &[String]) -> bool {
-    roles.contains(&ROLE_ENGINE.to_string())
+    roles.iter().any(|role| role == ROLE_ENGINE)
 }
 
 pub fn is_broker_node(roles: &[String]) -> bool {
-    roles.contains(&ROLE_BROKER.to_string())
+    roles.iter().any(|role| role == ROLE_BROKER)
 }

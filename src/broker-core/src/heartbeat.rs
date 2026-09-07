@@ -101,7 +101,8 @@ pub async fn report_heartbeat(
                 debug!("Heartbeat report success for node {}", config.broker_id);
             }
             Ok(Err(e)) => {
-                if e.to_string().contains("Node") && e.to_string().contains("does not exist") {
+                let err_string = e.to_string();
+                if err_string.contains("Node") && err_string.contains("does not exist") {
                     if let Err(register_err) = register_node(client_pool, cache_manager).await {
                         error!(
                             "Failed to re-register node {} after heartbeat failure: {}",

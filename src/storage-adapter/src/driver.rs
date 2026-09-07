@@ -167,14 +167,14 @@ impl StorageDriverManager {
     ) -> Result<Vec<StorageRecord>, CommonError> {
         let (topic, driver) = self.build_driver(tenant, topic_name).await?;
         let mut results = Vec::new();
-        for (_, shard_name) in topic.storage_name_list {
-            let offset = if let Some(offset) = offsets.get(&shard_name) {
+        for shard_name in topic.storage_name_list.values() {
+            let offset = if let Some(offset) = offsets.get(shard_name) {
                 *offset
             } else {
                 0
             };
             let resp = driver
-                .read_by_offset(&shard_name, offset, read_config)
+                .read_by_offset(shard_name, offset, read_config)
                 .await?;
             results.extend(resp);
         }
