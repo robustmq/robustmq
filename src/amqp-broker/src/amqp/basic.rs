@@ -257,7 +257,7 @@ async fn process_settle(
     channel_id: u16,
     ctx: &BasicCtx,
 ) {
-    let mut settled: Vec<(u64, UnackedEntry)> = Vec::new();
+    let mut tags = Vec::new();
     for entry in ctx.amqp_cache.unacked().iter() {
         let &(conn, chan, tag) = entry.key();
         if conn != connection_id || chan != channel_id {
@@ -268,17 +268,22 @@ async fn process_settle(
             None => true,
         };
         if matches {
-            settled.push((tag, entry.value().clone()));
+            tags.push(tag);
         }
     }
-    for (tag, _) in &settled {
-        ctx.amqp_cache
-            .unacked()
-            .remove(&(connection_id, channel_id, *tag));
-    }
+    // Release iterator guards before removing entries or awaiting storage operations.
+    let settled: Vec<UnackedEntry> = tags
+        .into_iter()
+        .filter_map(|tag| {
+            ctx.amqp_cache
+                .unacked()
+                .remove(&(connection_id, channel_id, tag))
+                .map(|(_, entry)| entry)
+        })
+        .collect();
 
     if requeue {
-        for (_, entry) in &settled {
+        for entry in &settled {
             if let Err(e) = requeue_message(
                 &ctx.storage_driver_manager,
                 &entry.tenant,
@@ -297,17 +302,17 @@ async fn process_settle(
         return;
     }
 
-    let mut by_queue: HashMap<(String, String), Vec<u64>> = HashMap::new();
-    for (_, entry) in &settled {
+    let mut by_queue: HashMap<(&str, &str), Vec<u64>> = HashMap::new();
+    for entry in &settled {
         by_queue
-            .entry((entry.tenant.clone(), entry.queue.clone()))
+            .entry((entry.tenant.as_str(), entry.queue.as_str()))
             .or_default()
             .push(entry.offset);
     }
     for ((tenant, queue), offsets) in by_queue {
         if let Err(e) = ctx
             .storage_driver_manager
-            .delete_by_offsets(&tenant, &queue, &offsets)
+            .delete_by_offsets(tenant, queue, &offsets)
             .await
         {
             error!(
@@ -316,7 +321,7 @@ async fn process_settle(
             );
         }
     }
-    for (_, entry) in &settled {
+    for entry in &settled {
         if let Err(e) =
             unacked_index::delete_entry(&ctx.storage_driver_manager, entry.index_offset).await
         {
@@ -332,17 +337,24 @@ pub(crate) async fn requeue_channel(connection_id: u64, channel_id: u16, ctx: &B
 
 pub(crate) async fn requeue_connection(connection_id: u64, ctx: &BasicCtx) {
     cancel_connection_consumers(connection_id, ctx).await;
-    let mut settled: Vec<((u64, u16, u64), UnackedEntry)> = Vec::new();
+    let mut keys = Vec::new();
     for entry in ctx.amqp_cache.unacked().iter() {
         let key = *entry.key();
         if key.0 == connection_id {
-            settled.push((key, entry.value().clone()));
+            keys.push(key);
         }
     }
-    for (key, _) in &settled {
-        ctx.amqp_cache.unacked().remove(key);
-    }
-    for (_, entry) in &settled {
+    // Take ownership without retaining DashMap guards across awaits.
+    let settled: Vec<UnackedEntry> = keys
+        .into_iter()
+        .filter_map(|key| {
+            ctx.amqp_cache
+                .unacked()
+                .remove(&key)
+                .map(|(_, entry)| entry)
+        })
+        .collect();
+    for entry in &settled {
         if let Err(e) = requeue_message(
             &ctx.storage_driver_manager,
             &entry.tenant,
