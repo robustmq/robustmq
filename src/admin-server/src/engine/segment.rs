@@ -224,9 +224,9 @@ pub async fn segment_detail(
             let node = state.broker_cache.node_lists.get(&node_id);
             let http_addr = match &node {
                 Some(n) => {
-                    let addr = n.http_addr.clone();
+                    let addr = &n.http_addr;
                     if addr.starts_with("http://") || addr.starts_with("https://") {
-                        addr
+                        addr.clone()
                     } else {
                         format!("http://{addr}")
                     }

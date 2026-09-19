@@ -50,6 +50,7 @@ use metadata_struct::connector::{
     ConnectorType, FailureHandlingStrategy, MQTTConnector,
 };
 use mqtt_broker::storage::connector::ConnectorStorage;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::{
@@ -307,14 +308,14 @@ pub async fn connector_list(
 }
 
 impl Queryable for ConnectorListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "connector_name" => Some(self.connector_name.clone()),
-            "connector_type" => Some(self.connector_type.clone()),
-            "topic_name" => Some(self.topic_name.clone()),
-            "status" => Some(self.status.clone()),
-            "broker_id" => Some(self.broker_id.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "connector_name" => Some(Cow::Borrowed(&self.connector_name)),
+            "connector_type" => Some(Cow::Borrowed(&self.connector_type)),
+            "topic_name" => Some(Cow::Borrowed(&self.topic_name)),
+            "status" => Some(Cow::Borrowed(&self.status)),
+            "broker_id" => Some(Cow::Borrowed(&self.broker_id)),
             _ => None,
         }
     }
@@ -548,12 +549,7 @@ async fn forward_connector_detail(
     broker_id: u64,
     params: &ConnectorDetailReq,
 ) -> String {
-    let Some(node) = state
-        .broker_cache
-        .node_lists
-        .get(&broker_id)
-        .map(|n| n.clone())
-    else {
+    let Some(node) = state.broker_cache.node_lists.get(&broker_id) else {
         return error_response(format!(
             "Connector runs on broker {} which is not in the node cache.",
             broker_id

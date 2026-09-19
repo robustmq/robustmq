@@ -193,18 +193,28 @@ pub async fn search_agents_by_text(
 }
 
 pub fn embed_text(card: &AgentCard) -> String {
-    let mut parts = vec![card.name.clone(), card.description.clone()];
+    let mut text = String::new();
+    text.push_str(&card.name);
+    text.push_str(". ");
+    text.push_str(&card.description);
     for skill in &card.skills {
-        parts.push(skill.name.clone());
-        parts.push(skill.description.clone());
-        if !skill.tags.is_empty() {
-            parts.push(skill.tags.join(" "));
-        }
-        if !skill.examples.is_empty() {
-            parts.push(skill.examples.join(" "));
+        text.push_str(". ");
+        text.push_str(&skill.name);
+        text.push_str(". ");
+        text.push_str(&skill.description);
+        for group in [&skill.tags, &skill.examples] {
+            if !group.is_empty() {
+                text.push_str(". ");
+                for (i, value) in group.iter().enumerate() {
+                    if i > 0 {
+                        text.push(' ');
+                    }
+                    text.push_str(value);
+                }
+            }
         }
     }
-    parts.join(". ")
+    text
 }
 
 #[derive(Debug)]

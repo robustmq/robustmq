@@ -28,3 +28,6 @@ meta_addrs = { 1 = "127.0.0.1:1228" }
 [log]
 log_config = "./config/logger.toml"
 log_path = "./data/logs"
+
+[storage_runtime]
+data_path = ["./data/engine"]

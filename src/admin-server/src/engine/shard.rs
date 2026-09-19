@@ -29,6 +29,7 @@ use metadata_struct::adapter::adapter_offset::AdapterShardInfo;
 use metadata_struct::adapter::adapter_shard::AdapterShardDetail;
 use metadata_struct::storage::shard::EngineShardConfig;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -63,10 +64,10 @@ pub struct ShardListRow {
 }
 
 impl Queryable for ShardListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "shard_name" => Some(self.shard_info.shard_name.clone()),
-            "topic_name" => Some(self.shard_info.topic_name.clone()),
+            "shard_name" => Some(Cow::Borrowed(&self.shard_info.shard_name)),
+            "topic_name" => Some(Cow::Borrowed(&self.shard_info.topic_name)),
             _ => None,
         }
     }

@@ -209,25 +209,25 @@ async fn write_response(
                     packet: packet.clone(),
                 };
                 record_packet_send_metrics(&mqtt_wrapper, network_type.to_string());
-                build_mqtt_packet_wrapper(protocol.clone(), packet)
+                build_mqtt_packet_wrapper(protocol, packet)
             }
             RobustMQPacket::KAFKA(packet) => RobustMQPacketWrapper {
-                protocol: protocol.clone(),
+                protocol,
                 extend: RobustMQWrapperExtend::KAFKA(KafkaWrapperExtend {}),
                 packet: RobustMQPacket::KAFKA(packet),
             },
             RobustMQPacket::AMQP(packet) => RobustMQPacketWrapper {
-                protocol: protocol.clone(),
+                protocol,
                 extend: RobustMQWrapperExtend::AMQP(AmqpWrapperExtend {}),
                 packet: RobustMQPacket::AMQP(packet),
             },
             RobustMQPacket::StorageEngine(packet) => RobustMQPacketWrapper {
-                protocol: protocol.clone(),
+                protocol,
                 extend: RobustMQWrapperExtend::StorageEngine(StorageEngineWrapperExtend {}),
                 packet: RobustMQPacket::StorageEngine(packet),
             },
             RobustMQPacket::NATS(packet) => RobustMQPacketWrapper {
-                protocol: protocol.clone(),
+                protocol,
                 extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
                 packet: RobustMQPacket::NATS(packet),
             },

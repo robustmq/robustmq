@@ -52,6 +52,7 @@ pub struct ClientListRow {
 }
 use axum::extract::Query;
 use mqtt_broker::core::cache::MQTTCacheManager;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -163,22 +164,22 @@ fn sample_connections_up_to_100(
 }
 
 impl Queryable for ClientListRowLite {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "connection_id" => Some(self.connection_id.to_string()),
-            "client_id" => Some(self.client_id.to_string()),
-            "source_ip" => Some(self.mqtt_connection.source_ip_addr.clone()),
+            "connection_id" => Some(Cow::Owned(self.connection_id.to_string())),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
+            "source_ip" => Some(Cow::Borrowed(&self.mqtt_connection.source_ip_addr)),
             _ => None,
         }
     }
 }
 
 impl Queryable for ClientListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "connection_id" => Some(self.connection_id.to_string()),
-            "client_id" => Some(self.client_id.to_string()),
-            "source_ip" => Some(self.mqtt_connection.source_ip_addr.clone()),
+            "connection_id" => Some(Cow::Owned(self.connection_id.to_string())),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
+            "source_ip" => Some(Cow::Borrowed(&self.mqtt_connection.source_ip_addr)),
             _ => None,
         }
     }

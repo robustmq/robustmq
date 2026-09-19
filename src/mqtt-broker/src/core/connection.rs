@@ -247,7 +247,7 @@ pub fn build_server_disconnect_conn_context(
     connection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
     connect_id: u64,
-    protocol: &MqttProtocol,
+    protocol: MqttProtocol,
 ) -> Result<DisconnectConnectionContext, MqttBrokerError> {
     let connection = if let Some(connection) = cache_manager.get_connection(connect_id) {
         connection
@@ -275,7 +275,7 @@ pub fn build_server_disconnect_conn_context(
         disconnect_properties,
         connection,
         session,
-        protocol: protocol.clone(),
+        protocol,
     })
 }
 

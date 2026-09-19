@@ -23,6 +23,7 @@ use axum::extract::{Query, State};
 use common_base::http_response::{error_response, success_response};
 use metadata_struct::mq9::agent::MQ9Agent;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -36,10 +37,10 @@ pub struct AgentListReq {
 }
 
 impl Queryable for MQ9Agent {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "name" => Some(self.name.clone()),
-            "tenant" => Some(self.tenant.clone()),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
             _ => None,
         }
     }
@@ -68,21 +69,20 @@ pub async fn agent_list(
         .cache_manager
         .agent_info
         .iter()
-        .filter(|e| {
+        .filter_map(|e| {
             let agent = e.value();
             if let Some(tenant) = params.tenant.as_deref() {
                 if agent.tenant != tenant {
-                    return false;
+                    return None;
                 }
             }
             if let Some(keyword) = params.name.as_deref() {
                 if !agent.name.contains(keyword) {
-                    return false;
+                    return None;
                 }
             }
-            true
+            Some(agent.clone())
         })
-        .map(|e| e.value().clone())
         .collect();
 
     let sorted = apply_sorting(agents, &options);

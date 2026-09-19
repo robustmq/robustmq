@@ -30,10 +30,7 @@ use common_metrics::mqtt::{
     },
 };
 use metadata_struct::connection::NetworkConnectionType;
-use protocol::mqtt::{
-    codec::MqttPacketWrapper,
-    common::{mqtt_packet_to_string, MqttPacket},
-};
+use protocol::mqtt::{codec::MqttPacketWrapper, common::MqttPacket};
 
 pub fn record_publish_receive_metrics(
     tenant: &str,
@@ -77,7 +74,7 @@ pub fn record_send_metrics(
     if let Some(network) = network_type.clone() {
         record_packet_send_duration(
             network,
-            mqtt_packet_to_string(packet),
+            packet.as_str().to_owned(),
             (now_millis() - start) as f64,
         );
     }

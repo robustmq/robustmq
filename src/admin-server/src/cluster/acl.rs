@@ -143,6 +143,7 @@ use common_security::storage::acl::AclStorage;
 use metadata_struct::auth::acl::{
     EnumAclAction, EnumAclPermission, EnumAclResourceType, SecurityAcl,
 };
+use std::borrow::Cow;
 use std::{str::FromStr, sync::Arc};
 
 pub async fn acl_list(
@@ -203,14 +204,14 @@ pub async fn acl_list(
 }
 
 impl Queryable for AclListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "name" => Some(self.name.clone()),
-            "resource_type" => Some(self.resource_type.clone()),
-            "resource_name" => Some(self.resource_name.clone()),
-            "topic" => Some(self.topic.clone()),
-            "ip" => Some(self.ip.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "resource_type" => Some(Cow::Borrowed(&self.resource_type)),
+            "resource_name" => Some(Cow::Borrowed(&self.resource_name)),
+            "topic" => Some(Cow::Borrowed(&self.topic)),
+            "ip" => Some(Cow::Borrowed(&self.ip)),
             _ => None,
         }
     }

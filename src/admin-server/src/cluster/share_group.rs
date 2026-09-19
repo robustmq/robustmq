@@ -24,6 +24,7 @@ use common_base::http_response::{error_response, success_response};
 use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
 use metadata_struct::nats::subscriber::NatsSubscriber;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -59,10 +60,10 @@ pub struct ShareGroupDetailResp {
 }
 
 impl Queryable for ShareGroup {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "group_name" => Some(self.group_name.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "group_name" => Some(Cow::Borrowed(&self.group_name)),
             _ => None,
         }
     }
@@ -86,21 +87,20 @@ pub async fn share_group_list(
     let groups: Vec<ShareGroup> = cache
         .share_group_list
         .iter()
-        .filter(|e| {
+        .filter_map(|e| {
             let g = e.value();
             if let Some(t) = &params.tenant {
                 if &g.tenant != t {
-                    return false;
+                    return None;
                 }
             }
             if let Some(name) = &params.group_name {
                 if !g.group_name.contains(name.as_str()) {
-                    return false;
+                    return None;
                 }
             }
-            true
+            Some(g.clone())
         })
-        .map(|e| e.value().clone())
         .collect();
 
     let sorted = apply_sorting(groups, &options);
@@ -142,24 +142,27 @@ pub async fn share_group_detail(
     let (push_subscribers, push_thread_info) = if let Some(nats_ctx) = &state.nats_context {
         let sm = &nats_ctx.subscribe_manager;
 
-        let subscribers: Vec<NatsSubscriber> = sm
-            .nats_core_queue_push
-            .iter()
-            .filter(|e| e.key().starts_with(&queue_key_prefix))
-            .flat_map(|e| {
-                e.value()
-                    .buckets_data_list
-                    .iter()
-                    .flat_map(|b| {
-                        b.value()
-                            .iter()
-                            .map(|s| s.value().clone())
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let mut subscribers: Vec<NatsSubscriber> = Vec::new();
+        for entry in sm.nats_core_queue_push.iter() {
+            if !entry.key().starts_with(&queue_key_prefix) {
+                continue;
+            }
 
+            for bucket in entry.value().buckets_data_list.iter() {
+                subscribers.extend(bucket.value().iter().map(|s| s.value().clone()));
+            }
+        }
+
+        // TODO: Define the intended scope of push_thread_info for multi-subject groups.
+        // Threads are keyed by tenant#group_name#subject. Unlike push_subscribers above,
+        // find() returns only one matching subject, with no guaranteed iteration order,
+        // and the response does not identify that subject. Choose an API contract:
+        // - Return per-subject statistics with the subject included in each entry.
+        // - Aggregate matching threads: sum total_pushed and take max last_pull_time
+        //   (the latest activity can hide an inactive subject).
+        // - Require a subject in the request and look up its exact thread key.
+        // These statistics cover this node's current tasks, not cluster-wide history;
+        // counters reset when tasks are recreated.
         let thread_info = sm
             .nats_core_queue_push_thread
             .iter()

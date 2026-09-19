@@ -26,7 +26,7 @@ use crate::{
     storage::codec::StorageEnginePacket,
 };
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum RobustMQProtocol {
     #[default]
     MQTT3,
@@ -40,9 +40,10 @@ pub enum RobustMQProtocol {
 
 impl RobustMQProtocol {
     pub fn is_mqtt(&self) -> bool {
-        *self == RobustMQProtocol::MQTT3
-            || *self == RobustMQProtocol::MQTT4
-            || *self == RobustMQProtocol::MQTT5
+        matches!(
+            self,
+            RobustMQProtocol::MQTT3 | RobustMQProtocol::MQTT4 | RobustMQProtocol::MQTT5
+        )
     }
 
     pub fn is_mqtt5(&self) -> bool {
@@ -66,7 +67,7 @@ impl RobustMQProtocol {
     }
 
     pub fn to_u8(&self) -> u8 {
-        match *self {
+        match self {
             RobustMQProtocol::MQTT3 => 3,
             RobustMQProtocol::MQTT4 => 4,
             RobustMQProtocol::MQTT5 => 5,
@@ -77,20 +78,20 @@ impl RobustMQProtocol {
         }
     }
 
-    pub fn to_str(&self) -> String {
-        match *self {
-            RobustMQProtocol::MQTT3 => "MQTT3".to_string(),
-            RobustMQProtocol::MQTT4 => "MQTT4".to_string(),
-            RobustMQProtocol::MQTT5 => "MQTT5".to_string(),
-            RobustMQProtocol::KAFKA => "KAFKA".to_string(),
-            RobustMQProtocol::AMQP => "AMQP".to_string(),
-            RobustMQProtocol::StorageEngine => "StorageEngine".to_string(),
-            RobustMQProtocol::NATS => "NATS".to_string(),
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            RobustMQProtocol::MQTT3 => "MQTT3",
+            RobustMQProtocol::MQTT4 => "MQTT4",
+            RobustMQProtocol::MQTT5 => "MQTT5",
+            RobustMQProtocol::KAFKA => "KAFKA",
+            RobustMQProtocol::AMQP => "AMQP",
+            RobustMQProtocol::StorageEngine => "StorageEngine",
+            RobustMQProtocol::NATS => "NATS",
         }
     }
 
-    pub fn to_mqtt(&self) -> MqttProtocol {
-        match *self {
+    pub const fn to_mqtt(&self) -> MqttProtocol {
+        match self {
             RobustMQProtocol::MQTT3 => MqttProtocol::Mqtt3,
             RobustMQProtocol::MQTT4 => MqttProtocol::Mqtt4,
             RobustMQProtocol::MQTT5 => MqttProtocol::Mqtt5,
@@ -101,7 +102,7 @@ impl RobustMQProtocol {
         }
     }
 
-    pub fn from_u8(protocol: u8) -> RobustMQProtocol {
+    pub const fn from_u8(protocol: u8) -> RobustMQProtocol {
         match protocol {
             4 => RobustMQProtocol::MQTT4,
             5 => RobustMQProtocol::MQTT5,

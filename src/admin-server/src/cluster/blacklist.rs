@@ -103,6 +103,7 @@ use common_base::{
 };
 use common_security::storage::blacklist::BlackListStorage;
 use metadata_struct::auth::blacklist::{get_blacklist_type_by_str, SecurityBlackList};
+use std::borrow::Cow;
 use std::sync::Arc;
 
 pub async fn blacklist_list(
@@ -165,12 +166,12 @@ pub async fn blacklist_list(
 }
 
 impl Queryable for BlackListListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "name" => Some(self.name.clone()),
-            "tenant" => Some(self.tenant.clone()),
-            "blacklist_type" => Some(self.blacklist_type.clone()),
-            "resource_name" => Some(self.resource_name.clone()),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "blacklist_type" => Some(Cow::Borrowed(&self.blacklist_type)),
+            "resource_name" => Some(Cow::Borrowed(&self.resource_name)),
             _ => None,
         }
     }

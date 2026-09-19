@@ -17,6 +17,7 @@ use common_base::http_response::{error_response, success_response};
 use metadata_struct::schema::{SchemaData, SchemaType};
 use mqtt_broker::{core::error::MqttBrokerError, storage::schema::SchemaStorage};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::sync::Arc;
 use validator::Validate;
 
@@ -208,11 +209,11 @@ pub async fn schema_list(
 }
 
 impl Queryable for SchemaListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "name" => Some(self.name.clone()),
-            "schema_type" => Some(self.schema_type.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "schema_type" => Some(Cow::Borrowed(&self.schema_type)),
             _ => None,
         }
     }
@@ -317,7 +318,7 @@ pub async fn schema_bind_list(
 }
 
 impl Queryable for SchemaBindListRow {
-    fn get_field_str(&self, _: &str) -> Option<String> {
+    fn get_field_str(&self, _: &str) -> Option<Cow<'_, str>> {
         None
     }
 }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
+
 #[derive(Clone, Debug)]
 pub struct Pagination {
     pub limit: u32,
@@ -154,8 +156,8 @@ fn parse_order_by(sort_by: Option<String>) -> OrderDirection {
 /// The `Queryable` trait provides a uniform way to retrieve a named field’s
 /// string representation, enabling shared implementations of filtering,
 /// sorting, and pagination across different data types (e.g., `SessionRaw`,
-/// `ClientRaw`, etc.). By mapping field names to `Option<String>`, each
-/// implementer can handle optional fields and custom formatting.
+/// `ClientRaw`, etc.). By mapping field names to `Option<Cow<'_, str>>`, each
+/// implementer can borrow existing strings or own formatted values.
 ///
 /// Combined with the `apply_filters`, `apply_sorting`, and `apply_pagination`
 /// functions (driven by protobuf-defined `QueryOptions`, `MatchMode`, and
@@ -171,7 +173,7 @@ fn parse_order_by(sort_by: Option<String>) -> OrderDirection {
 /// makes it trivial to add new queryable types—simply implement `Queryable`.
 pub trait Queryable {
     /// given the field name, return the field's string representation or None
-    fn get_field_str(&self, field: &str) -> Option<String>;
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>>;
 }
 
 struct FilterSpec {

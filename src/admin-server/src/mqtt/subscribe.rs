@@ -184,6 +184,7 @@ use common_base::{
 use metadata_struct::mqtt::auto_subscribe::MqttAutoSubscribeRule;
 use mqtt_broker::storage::{auto_subscribe::AutoSubscribeStorage, local::LocalStorage};
 use protocol::mqtt::common::{qos, retain_forward_rule};
+use std::borrow::Cow;
 use std::{collections::HashMap, sync::Arc};
 
 pub async fn subscribe_list(
@@ -256,10 +257,10 @@ pub async fn subscribe_list(
 }
 
 impl Queryable for SubscribeListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "client_id" => Some(self.client_id.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
             _ => None,
         }
     }
@@ -379,11 +380,11 @@ pub async fn auto_subscribe_list(
 }
 
 impl Queryable for AutoSubscribeListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "name" => Some(self.name.clone()),
-            "tenant" => Some(self.tenant.clone()),
-            "topic" => Some(self.topic.clone()),
+            "name" => Some(Cow::Borrowed(&self.name)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "topic" => Some(Cow::Borrowed(&self.topic)),
             _ => None,
         }
     }
@@ -498,11 +499,11 @@ pub async fn slow_subscribe_list(
 }
 
 impl Queryable for SlowSubscribeListRow {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "tenant" => Some(self.tenant.clone()),
-            "client_id" => Some(self.client_id.clone()),
-            "topic_name" => Some(self.topic_name.clone()),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
+            "client_id" => Some(Cow::Borrowed(&self.client_id)),
+            "topic_name" => Some(Cow::Borrowed(&self.topic_name)),
             _ => None,
         }
     }

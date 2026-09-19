@@ -35,6 +35,7 @@ use metadata_struct::topic::{Topic as MetaTopic, TopicSource};
 use mqtt_broker::subscribe::manager::TopicSubscribeInfo;
 use mqtt_broker::{core::error::MqttBrokerError, storage::retain::RetainStorage};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
@@ -177,10 +178,10 @@ fn collect_topics(
 }
 
 impl Queryable for Topic {
-    fn get_field_str(&self, field: &str) -> Option<String> {
+    fn get_field_str(&self, field: &str) -> Option<Cow<'_, str>> {
         match field {
-            "topic_name" => Some(self.topic_name.clone()),
-            "tenant" => Some(self.tenant.clone()),
+            "topic_name" => Some(Cow::Borrowed(&self.topic_name)),
+            "tenant" => Some(Cow::Borrowed(&self.tenant)),
             _ => None,
         }
     }
