@@ -170,7 +170,7 @@ Journal 存储引擎运行时配置。
 tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
-data_path = []
+data_path = ["./data/engine"]
 expire_scan_task_num = 10
 offset_enable_cache = true
 ```
@@ -180,7 +180,7 @@ offset_enable_cache = true
 | `tcp_port` | `u32` | `1778` | 存储引擎 TCP 端口 |
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | 单个 Segment 文件最大大小（字节） |
 | `io_thread_num` | `u32` | `8` | IO 处理线程数 |
-| `data_path` | `array` | `[]` | 数据存储路径列表 |
+| `data_path` | `array` | `["./data/engine"]` | 数据存储路径列表。启用 `engine` 角色时不能为空，否则该节点无法承载任何分片副本 |
 | `expire_scan_task_num` | `usize` | `10` | 过期数据扫描并发任务数 |
 | `offset_enable_cache` | `bool` | `true` | 是否启用消费 Offset 缓存 |
 

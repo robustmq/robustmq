@@ -61,13 +61,7 @@ pub async fn decommission_node_segments(
         return Ok(());
     }
 
-    let alive_ids: Arc<Vec<u64>> = Arc::new(
-        meta_cache
-            .get_engine_node_list()
-            .iter()
-            .map(|n| n.node_id)
-            .collect(),
-    );
+    let alive_ids: Arc<Vec<u64>> = Arc::new(meta_cache.get_storage_ready_engine_node_ids());
     let load = Arc::new(Mutex::new(replica_load(meta_cache, &alive_ids)));
 
     let mut handles = Vec::new();

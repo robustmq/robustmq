@@ -186,7 +186,7 @@ pub fn default_engine_runtime() -> StorageRuntime {
     StorageRuntime {
         tcp_port: 1778,
         max_segment_size: 1073741824,
-        data_path: vec![],
+        data_path: default_storage_data_path(),
         io_thread_num: 8,
         offset_enable_cache: true,
         expire_scan_task_num: 16,
@@ -357,6 +357,9 @@ pub fn default_storage_max_segment_size() -> u32 {
 }
 pub fn default_storage_io_thread_num() -> u32 {
     8
+}
+pub fn default_storage_data_path() -> Vec<String> {
+    vec!["./data/engine".to_string()]
 }
 pub fn default_storage_offset_enable_cache() -> bool {
     true

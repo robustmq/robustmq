@@ -170,7 +170,7 @@ Journal storage engine runtime configuration.
 tcp_port = 1778
 max_segment_size = 1073741824
 io_thread_num = 8
-data_path = []
+data_path = ["./data/engine"]
 expire_scan_task_num = 10
 offset_enable_cache = true
 ```
@@ -180,7 +180,7 @@ offset_enable_cache = true
 | `tcp_port` | `u32` | `1778` | Storage engine TCP port |
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | Maximum segment file size (bytes) |
 | `io_thread_num` | `u32` | `8` | IO processing thread count |
-| `data_path` | `array` | `[]` | Data storage path list |
+| `data_path` | `array` | `["./data/engine"]` | Data storage path list. Must not be empty when the `engine` role is enabled, otherwise the node cannot host any shard replica |
 | `expire_scan_task_num` | `usize` | `10` | Concurrent expired data scan tasks |
 | `offset_enable_cache` | `bool` | `true` | Whether to enable consumer offset caching |
 

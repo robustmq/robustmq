@@ -160,9 +160,8 @@ mod tests {
         assert!(!sf2.exists(), "segment file must be physically deleted");
     }
 
-    // delete_by_shard wipes everything: RocksDB keys + physical directory.
     #[tokio::test]
-    async fn filesegment_delete_shard_clears_all() {
+    async fn filesegment_delete_shard_clears_index() {
         let (seg, cache, _fold, db) = setup_and_write(5).await;
 
         // Sanity: data is readable before deletion.
@@ -188,13 +187,6 @@ mod tests {
             gone_tag.is_empty(),
             "tag index must be gone after shard delete"
         );
-
-        // Note: delete_by_shard removes physical files by iterating
-        // broker_config().storage_runtime.data_path. In unit tests that field
-        // is empty (default_broker_config sets no data_path), so the directory
-        // removal loop is a no-op. The meaningful unit-test invariant is that
-        // the RocksDB index is cleared, which the key/tag assertions above
-        // already cover.
     }
 
     // Records written with expire_at in the past must be filtered out at read time.

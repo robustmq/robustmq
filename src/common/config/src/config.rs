@@ -38,16 +38,16 @@ use super::default::{
     default_receive_max, default_roles, default_runtime, default_schema_echo_log,
     default_schema_enable, default_schema_failed_operation, default_schema_log_level,
     default_schema_strategy, default_session_expiry_interval, default_slow_subscribe_delay_type,
-    default_slow_subscribe_record_time, default_storage_expire_scan_task_num,
-    default_storage_io_thread_num, default_storage_isr_maintain_interval_ms,
-    default_storage_max_segment_size, default_storage_metadata_reconcile_interval_ms,
-    default_storage_num_replica_fetchers, default_storage_offset_enable_cache,
-    default_storage_replica_fetch_backoff_ms, default_storage_replica_fetch_max_wait_ms,
-    default_storage_replica_fetch_min_bytes, default_storage_replica_lag_time_max_ms,
-    default_storage_tcp_port, default_system_monitor_cpu_watermark,
-    default_system_monitor_memory_watermark, default_system_monitor_topic_interval_ms,
-    default_tls_cert, default_tls_key, default_topic_alias_max, default_topic_partition_num,
-    default_topic_replica_num,
+    default_slow_subscribe_record_time, default_storage_data_path,
+    default_storage_expire_scan_task_num, default_storage_io_thread_num,
+    default_storage_isr_maintain_interval_ms, default_storage_max_segment_size,
+    default_storage_metadata_reconcile_interval_ms, default_storage_num_replica_fetchers,
+    default_storage_offset_enable_cache, default_storage_replica_fetch_backoff_ms,
+    default_storage_replica_fetch_max_wait_ms, default_storage_replica_fetch_min_bytes,
+    default_storage_replica_lag_time_max_ms, default_storage_tcp_port,
+    default_system_monitor_cpu_watermark, default_system_monitor_memory_watermark,
+    default_system_monitor_topic_interval_ms, default_tls_cert, default_tls_key,
+    default_topic_alias_max, default_topic_partition_num, default_topic_replica_num,
 };
 use crate::common::default_log;
 use crate::common::Log;
@@ -668,7 +668,7 @@ pub struct StorageRuntime {
     pub max_segment_size: u32,
     #[serde(default = "default_storage_io_thread_num")]
     pub io_thread_num: u32,
-    #[serde(default)]
+    #[serde(default = "default_storage_data_path")]
     pub data_path: Vec<String>,
     #[serde(default = "default_storage_offset_enable_cache")]
     pub offset_enable_cache: bool,
@@ -987,6 +987,25 @@ mod tests {
         assert_eq!(
             default_max_connection_per_ip(),
             ClusterLimit::default().max_connection_per_ip
+        );
+    }
+
+    #[test]
+    fn storage_data_path_defaults_and_overrides() {
+        let parse = |body: &str| {
+            toml::from_str::<BrokerConfig>(body)
+                .unwrap()
+                .storage_runtime
+        };
+
+        assert_eq!(parse("broker_id = 1").data_path, vec!["./data/engine"]);
+        assert_eq!(
+            parse("[storage_runtime]\ntcp_port = 1778").data_path,
+            vec!["./data/engine"]
+        );
+        assert_eq!(
+            parse("[storage_runtime]\ndata_path = [\"/mnt/d1\"]").data_path,
+            vec!["/mnt/d1"]
         );
     }
 }

@@ -76,7 +76,7 @@ pub async fn create_shard_by_req(
     // orphan shard. Inner/system topics are exempt: they may start
     // under-replicated and are topped up by the background fill task.
     if !shard_config.is_inner_topic {
-        let engine_node_num = cache_manager.get_engine_node_list().len() as u32;
+        let engine_node_num = cache_manager.get_storage_ready_engine_node_ids().len() as u32;
         if engine_node_num < shard_config.replica_num {
             return Err(MetaServiceError::NotEnoughEngineNodes(
                 "CreateShard".to_string(),
