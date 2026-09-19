@@ -487,25 +487,27 @@ create_package() {
     # Create package directory structure
     mkdir -p "$package_dir"/{bin,libs,config,dist}
 
-    # Copy bin directory from source code (scripts, startup files, etc.)
-    # On Windows the shell scripts in bin/ are not executable; skip them and
-    # leave a note explaining how to start the server directly.
+    # Copy bin directory from source code (scripts, startup files, etc.).
+    # Windows ships the .cmd scripts (bin/*.cmd); other platforms ship the
+    # POSIX shell scripts. Each package gets only the scripts it can run.
     if [[ "$platform" == windows-* ]]; then
-        cat > "$package_dir/bin/README.txt" << 'WINEOF'
-Windows users: the shell scripts in this directory are not supported on Windows.
-Start the server directly from the libs/ directory:
-
-  libs\broker-server.exe --config config\server.toml
-
-Management tool:
-  libs\cli-command.exe --help
-
-Benchmark tool:
-  libs\cli-bench.exe --help
-WINEOF
-        log_info "Skipped shell scripts in bin/ for Windows; added README.txt"
+        local copied_cmd=false
+        for script in "$PROJECT_ROOT/bin"/*.cmd; do
+            [ -e "$script" ] || continue
+            cp "$script" "$package_dir/bin/"
+            copied_cmd=true
+        done
+        if [ "$copied_cmd" = true ]; then
+            log_info "Copied Windows .cmd scripts to bin/"
+        else
+            log_warning "No Windows .cmd scripts found in bin/"
+        fi
     elif [ -d "$PROJECT_ROOT/bin" ]; then
-        cp -r "$PROJECT_ROOT/bin"/* "$package_dir/bin/" 2>/dev/null || true
+        for script in "$PROJECT_ROOT/bin"/*; do
+            [ -e "$script" ] || continue
+            case "$script" in *.cmd) continue ;; esac
+            cp -r "$script" "$package_dir/bin/"
+        done
         log_info "Copied source bin directory"
     fi
 
