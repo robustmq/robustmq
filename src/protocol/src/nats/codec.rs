@@ -704,6 +704,28 @@ mod tests {
     use super::*;
     use tokio_util::codec::{Decoder, Encoder};
 
+    #[test]
+    fn test_partial_connect_then_complete() {
+        let mut codec = NatsCodec::new();
+        let connect = b"CONNECT {\"protocol\":1,\"verbose\":false,\"pedantic\":false}\r\n";
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&connect[..30]);
+        assert!(
+            codec.decode(&mut buf).unwrap().is_none(),
+            "partial should be None"
+        );
+        buf.extend_from_slice(&connect[30..]);
+        buf.extend_from_slice(b"PING\r\n");
+        buf.extend_from_slice(b"PONG\r\n");
+        let r1 = codec.decode(&mut buf).unwrap();
+        assert!(matches!(r1, Some(NatsPacket::Connect { .. })), "got {r1:?}");
+        let r2 = codec.decode(&mut buf).unwrap();
+        assert!(matches!(r2, Some(NatsPacket::Ping)), "got {r2:?}");
+        let r3 = codec.decode(&mut buf).unwrap();
+        assert!(matches!(r3, Some(NatsPacket::Pong)), "got {r3:?}");
+        assert!(codec.decode(&mut buf).unwrap().is_none());
+    }
+
     fn encode(packet: NatsPacket) -> BytesMut {
         let mut codec = NatsCodec::new();
         let mut buf = BytesMut::new();

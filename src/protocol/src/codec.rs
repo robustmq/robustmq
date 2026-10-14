@@ -140,8 +140,15 @@ impl RobustMQCodec {
             }
             Some(RobustMQProtocol::NATS) => {
                 use tokio_util::codec::Decoder;
-                if let Ok(Some(pkt)) = self.nats_codec.decode(stream) {
-                    return Ok(Some(RobustMQCodecWrapper::NATS(pkt)));
+                // Propagate decode errors instead of swallowing them: the
+                // inner codec consumes frame bytes before parsing, so a
+                // swallowed error makes FramedRead treat the frame as
+                // "need more data" and the connection stalls until the peer
+                // disconnects. The acceptor closes the connection on Err.
+                match self.nats_codec.decode(stream) {
+                    Ok(Some(pkt)) => return Ok(Some(RobustMQCodecWrapper::NATS(pkt))),
+                    Ok(None) => {}
+                    Err(e) => return Err(CommonError::CommonError(e.to_string())),
                 }
             }
             None => {
