@@ -104,7 +104,8 @@ jobs:
 
       - name: Create formatting pull request
         if: inputs.dry_run == false && inputs.target_branch != ''
-        uses: peter-evans/create-pull-request@v7
+        id: create-pr
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: automation/manual-format-maintenance
@@ -119,3 +120,17 @@ jobs:
             - Formatting scope: `${{ inputs.format_scope }}`
 
             The workflow applies formatting only and does not change application logic.
+
+      - name: Report formatting result
+        if: always()
+        env:
+          PR_URL: ${{ steps.create-pr.outputs.pull-request-url }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run completed; no pull request was requested."
+          elif [ -n "$PR_URL" ]; then
+            echo "Formatting pull request: $PR_URL"
+          else
+            echo "No formatting changes were needed; no pull request was created."
+          fi
