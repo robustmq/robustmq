@@ -36,15 +36,17 @@ concurrency:
 
 jobs:
   security-audit:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Install cargo-audit
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit
-      
+
       - name: Run cargo audit (vulnerabilities only)
         # Only fail on actual security vulnerabilities, not unmaintained warnings
         # Unmaintained dependencies are reported but don't fail the build
@@ -52,7 +54,7 @@ jobs:
         # 0.102.8 (async-nats/rumqttc) cannot be upgraded until upstream crates
         # publish fixes; 0.103.x has been patched to 0.103.13 in Cargo.lock.
         run: cargo audit --ignore RUSTSEC-2026-0104
-      
+
       - name: Check for unmaintained dependencies (warning only)
         # Report unmaintained dependencies but don't fail
         run: cargo audit --deny unmaintained
@@ -70,3 +72,21 @@ jobs:
         # sources: verify crates come from allowed registries/repos
         run: cargo deny check licenses bans sources
 
+  dependency-review:
+    name: Dependency Review
+    permissions:
+      contents: read
+      pull-requests: write
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v5
+        with:
+          # Fail the build on critical vulnerabilities
+          fail-on-severity: critical
+          # License checking is handled by cargo-deny above, which understands
+          # Rust's multi-license expressions.
