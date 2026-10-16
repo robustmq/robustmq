@@ -84,9 +84,17 @@ jobs:
         env:
           SKIP: cargo-fmt-auto,hawkeye-fmt-auto
         run: |
+          mapfile -t format_files < <(
+            git ls-files -- . ':(exclude).github/**'
+          )
+          if [ "${#format_files[@]}" -eq 0 ]; then
+            echo "No safe formatting files were found."
+            exit 0
+          fi
+
           set +e
           for hook in end-of-file-fixer trailing-whitespace mixed-line-ending black; do
-            pre-commit run "$hook" --all-files
+            pre-commit run "$hook" --files "${format_files[@]}"
             status=$?
             if [ "$status" -gt 1 ]; then
               exit "$status"
