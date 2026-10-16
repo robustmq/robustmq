@@ -13,27 +13,43 @@
 # limitations under the License.
 
 fail_fast: false
+minimum_pre_commit_version: "3.5.0"
+default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
     hooks:
       - id: check-byte-order-marker
+        stages: [pre-commit]
       - id: check-case-conflict
+        stages: [pre-commit]
       - id: check-merge-conflict
+        stages: [pre-commit]
       - id: check-symlinks
+        stages: [pre-commit]
       - id: check-yaml
+        stages: [pre-commit]
         args: [--allow-multiple-documents]
       - id: end-of-file-fixer
+        stages: [pre-commit]
       - id: mixed-line-ending
+        stages: [pre-commit]
       - id: trailing-whitespace
+        stages: [pre-commit]
       - id: check-docstring-first
+        stages: [pre-commit]
       - id: check-added-large-files
+        stages: [pre-commit]
       - id: check-json
+        stages: [pre-commit]
       - id: check-toml
+        stages: [pre-commit]
   - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
       - id: black
+        stages: [pre-commit]
 # todo: we can use online github repo
 #  - repo: https://github.com/crate-ci/typos
 #    rev: v1.28.4
@@ -76,8 +92,7 @@ repos:
 #        pass_filenames: true
 #        args: [ '--exclude', 'precommit_venv' ]
       - id: cargo-check
-        stages:
-          - pre-commit
+        stages: [pre-commit, pre-push]
         name: cargo check
         description: Check the package for errors.
         entry: bash -c 'cargo check --all'
@@ -85,8 +100,7 @@ repos:
         files: \.rs$
         pass_filenames: false
       - id: hawkeye-fmt-check
-        stages:
-          - pre-commit
+        stages: [pre-commit, pre-push]
         name: hawkeye fmt check
         description: Check files with hawkeye.
         entry: bash -c 'hawkeye check'
@@ -94,8 +108,7 @@ repos:
         files: \.*$
         args: []
       - id: cargo-fmt-check
-        stages:
-          - pre-commit
+        stages: [pre-commit, pre-push]
         name: cargo fmt
         description: Format files with rustfmt.
         entry: bash -c 'cargo fmt -- --check'
@@ -104,8 +117,7 @@ repos:
         files: \.rs$
         args: [ ]
       - id: cargo-deny
-        stages:
-          - pre-commit
+        stages: [pre-commit, pre-push]
         name: cargo deny check
         description: Check cargo dependencies
         # we only check licenses
@@ -114,8 +126,7 @@ repos:
         files: \.rs$
         args: []
       - id: cargo-clippy
-        stages:
-          - pre-commit
+        stages: [pre-commit, pre-push]
         name: cargo clippy
         description: Lint rust sources
         entry: bash -c 'cargo clippy --all-targets --all-features --tests --benches -- -D warnings'
