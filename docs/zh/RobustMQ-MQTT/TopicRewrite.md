@@ -69,10 +69,10 @@
    # 订阅会被重写的主题
    mqttx sub -t 'y/a/z/b' -h '117.72.92.117' -p 1883 -v
    # 实际订阅: y/z/b
-   
+
    mqttx sub -t 'x/y/123' -h '117.72.92.117' -p 1883 -v
    # 实际订阅: z/y/123
-   
+
    mqttx sub -t 'x/1/2' -h '117.72.92.117' -p 1883 -v
    # 实际订阅: x/1/2 (不匹配正则表达式)
    ```
@@ -83,7 +83,7 @@
    # 发布到原始主题，会被重写
    mqttx pub -t 'y/device1/z/data' -m '{"temperature":25.5}' -h '117.72.92.117' -p 1883
    # 实际发布到: y/z/data
-   
+
    mqttx pub -t 'x/y/sensor' -m '{"humidity":60}' -h '117.72.92.117' -p 1883
    # 实际发布到: z/y/x/sensor
    ```

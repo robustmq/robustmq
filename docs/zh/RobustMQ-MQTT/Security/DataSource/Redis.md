@@ -34,8 +34,8 @@ Redis 数据源适合低延迟读取场景，常用于用户和 ACL 数据已缓
 
 ## 使用说明
 
-Redis 适配器会先执行 `query_user/query_acl/query_blacklist` 获取 ID 列表，  
-再按约定 key（例如 `mqtt:user:{id}`、`mqtt:acl:{id}`、`mqtt:blacklist:{id}`）读取 Hash 详情。  
+Redis 适配器会先执行 `query_user/query_acl/query_blacklist` 获取 ID 列表，
+再按约定 key（例如 `mqtt:user:{id}`、`mqtt:acl:{id}`、`mqtt:blacklist:{id}`）读取 Hash 详情。
 建议明确 key 命名规范，并保持字段定义稳定。
 
 ## Hash 字段约定

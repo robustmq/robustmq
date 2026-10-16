@@ -69,10 +69,10 @@ Target expressions support the following variables:
    # Subscribe to topics that will be rewritten
    mqttx sub -t 'y/a/z/b' -h '117.72.92.117' -p 1883 -v
    # Actually subscribes to: y/z/b
-   
+
    mqttx sub -t 'x/y/123' -h '117.72.92.117' -p 1883 -v
    # Actually subscribes to: z/y/123
-   
+
    mqttx sub -t 'x/1/2' -h '117.72.92.117' -p 1883 -v
    # Actually subscribes to: x/1/2 (doesn't match regex)
    ```
@@ -83,7 +83,7 @@ Target expressions support the following variables:
    # Publish to original topic, will be rewritten
    mqttx pub -t 'y/device1/z/data' -m '{"temperature":25.5}' -h '117.72.92.117' -p 1883
    # Actually publishes to: y/z/data
-   
+
    mqttx pub -t 'x/y/sensor' -m '{"humidity":60}' -h '117.72.92.117' -p 1883
    # Actually publishes to: z/y/x/sensor
    ```

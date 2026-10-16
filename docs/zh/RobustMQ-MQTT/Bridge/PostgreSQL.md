@@ -156,12 +156,12 @@ CREATE INDEX idx_mqtt_messages_topic_timestamp ON mqtt_messages (topic, timestam
 
 **SQL 示例：**
 ```sql
-INSERT INTO mqtt_messages (client_id, topic, timestamp, payload, data) 
-VALUES ($1, $2, $3, $4, $5) 
-ON CONFLICT (client_id, topic) 
-DO UPDATE SET 
-    timestamp = EXCLUDED.timestamp, 
-    payload = EXCLUDED.payload, 
+INSERT INTO mqtt_messages (client_id, topic, timestamp, payload, data)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (client_id, topic)
+DO UPDATE SET
+    timestamp = EXCLUDED.timestamp,
+    payload = EXCLUDED.payload,
     data = EXCLUDED.data
 ```
 
@@ -288,21 +288,21 @@ robust-ctl mqtt publish \
 
 ```sql
 -- 查询最近 1 小时的传感器数据
-SELECT client_id, topic, timestamp, payload 
-FROM mqtt_messages 
+SELECT client_id, topic, timestamp, payload
+FROM mqtt_messages
 WHERE timestamp > EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour')
 ORDER BY timestamp DESC;
 
 -- 查询特定客户端的消息
-SELECT topic, timestamp, payload 
-FROM mqtt_messages 
+SELECT topic, timestamp, payload
+FROM mqtt_messages
 WHERE client_id = 'sensor_001'
 ORDER BY timestamp DESC
 LIMIT 100;
 
 -- 查询特定主题的消息
-SELECT client_id, timestamp, payload 
-FROM mqtt_messages 
+SELECT client_id, timestamp, payload
+FROM mqtt_messages
 WHERE topic LIKE 'sensor/temperature%'
 ORDER BY timestamp DESC;
 ```
@@ -311,21 +311,21 @@ ORDER BY timestamp DESC;
 
 ```sql
 -- 统计每小时的消息数量
-SELECT 
+SELECT
     DATE_TRUNC('hour', TO_TIMESTAMP(timestamp)) as hour,
     COUNT(*) as message_count
-FROM mqtt_messages 
+FROM mqtt_messages
 WHERE timestamp > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')
 GROUP BY hour
 ORDER BY hour;
 
 -- 统计各主题的消息数量
-SELECT 
+SELECT
     topic,
     COUNT(*) as message_count,
     MIN(TO_TIMESTAMP(timestamp)) as first_message,
     MAX(TO_TIMESTAMP(timestamp)) as last_message
-FROM mqtt_messages 
+FROM mqtt_messages
 GROUP BY topic
 ORDER BY message_count DESC;
 ```
@@ -344,7 +344,7 @@ FOR VALUES FROM (1704067200) TO (1706745600);
 2. **定期清理**
 ```sql
 -- 删除 30 天前的数据
-DELETE FROM mqtt_messages 
+DELETE FROM mqtt_messages
 WHERE timestamp < EXTRACT(EPOCH FROM NOW() - INTERVAL '30 days');
 ```
 

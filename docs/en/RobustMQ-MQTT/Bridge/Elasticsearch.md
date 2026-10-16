@@ -382,5 +382,3 @@ The Elasticsearch connector is a powerful component of RobustMQ's data integrati
 - **Easy Integration**: Simple configuration to bridge MQTT data to Elasticsearch
 
 This connector fully leverages Rust's performance advantages and Elasticsearch's search capabilities, making it an ideal choice for building modern IoT data analysis and monitoring systems.
-
-

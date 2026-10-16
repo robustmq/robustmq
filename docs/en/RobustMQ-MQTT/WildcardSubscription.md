@@ -111,7 +111,7 @@ sensor/floor1/room1/device1/data
    ```bash
    # Subscribe to temperature data from all rooms
    mqttx sub -t 'sensor/+/temperature' -h '117.72.92.117' -p 1883 -v
-   
+
    # Subscribe to all data from specific device types
    mqttx sub -t 'device/+/status' -h '117.72.92.117' -p 1883 -v
    ```
@@ -121,7 +121,7 @@ sensor/floor1/room1/device1/data
    ```bash
    # Subscribe to all sensor data
    mqttx sub -t 'sensor/#' -h '117.72.92.117' -p 1883 -v
-   
+
    # Subscribe to all topics
    mqttx sub -t '#' -h '117.72.92.117' -p 1883 -v
    ```
@@ -132,7 +132,7 @@ sensor/floor1/room1/device1/data
    # Publish to topics matching single-level wildcard
    mqttx pub -t 'sensor/room1/temperature' -m '{"value":25.5}' -h '117.72.92.117' -p 1883
    mqttx pub -t 'sensor/room2/temperature' -m '{"value":26.0}' -h '117.72.92.117' -p 1883
-   
+
    # Publish to topics matching multi-level wildcard
    mqttx pub -t 'sensor/humidity' -m '{"value":60}' -h '117.72.92.117' -p 1883
    mqttx pub -t 'sensor/floor1/room1/device1/data' -m '{"data":"test"}' -h '117.72.92.117' -p 1883

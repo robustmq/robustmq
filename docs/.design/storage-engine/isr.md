@@ -842,7 +842,7 @@ fn cancel_inflight_producer_requests():
 
 ### 6.1 fetch_offset 的隐式含义(关键)
 
-follower 发送 `fetch_offset = X` 给 leader 时,**隐式声明:"我已经持久化了 [0, X) 的全部数据"**。  
+follower 发送 `fetch_offset = X` 给 leader 时,**隐式声明:"我已经持久化了 [0, X) 的全部数据"**。
 leader 收到后:
 1. 把 `follower_progress[replica_id].leo = X` 更新进 ReplicaState
 2. **leader 检查这是否能推进 HW**:`new_hw = min(leader_leo, min over isr.leo)`,若推进则唤醒 acks=all 等待者
@@ -1643,7 +1643,7 @@ on_receive_leader_and_isr(notification):
 
 ## 9. Log Truncation（KIP-101，协议强制路径）
 
-> ⚠️ **协议禁止用"truncate 到本地 HW"**。这是 Kafka 2017 年前的设计缺陷,会丢已 committed 数据(见 §13 KIP-101 行)。  
+> ⚠️ **协议禁止用"truncate 到本地 HW"**。这是 Kafka 2017 年前的设计缺陷,会丢已 committed 数据(见 §13 KIP-101 行)。
 > 唯一允许的 truncate 路径:**`OffsetsForLeaderEpoch`** RPC + 持久化 `LeaderEpochCache`。
 
 ### 9.1 触发时机

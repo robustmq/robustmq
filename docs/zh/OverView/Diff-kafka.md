@@ -132,4 +132,3 @@ Apache Kafka 和 RobustMQ 都是现代消息队列系统，但设计理念和目
 - [RobustMQ 官网](https://robustmq.com)
 - [RobustMQ GitHub](https://github.com/robustmq/robustmq)
 - [RobustMQ 文档](https://robustmq.com/zh/)
-

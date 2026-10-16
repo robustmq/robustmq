@@ -77,7 +77,7 @@ $queue/{topic}
    # 组1的订阅者
    mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
    mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
-   
+
    # 组2的订阅者
    mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v
    mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v

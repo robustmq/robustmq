@@ -66,10 +66,10 @@ $delayed/{DelayInterval}/{TopicName}
    ```bash
    # Publish after 15 seconds
    mqttx pub -t "$delayed/15/device/status" -m "online" -h '117.72.92.117' -p 1883
-   
+
    # Publish after 60 seconds
    mqttx pub -t "$delayed/60/system/backup" -m "backup completed" -h '117.72.92.117' -p 1883
-   
+
    # Publish after 3600 seconds (1 hour)
    mqttx pub -t "$delayed/3600/report/daily" -m "daily report ready" -h '117.72.92.117' -p 1883
    ```

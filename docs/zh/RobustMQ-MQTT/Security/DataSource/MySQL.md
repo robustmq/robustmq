@@ -33,7 +33,7 @@ MySQL 数据源适合已经把用户、ACL、黑名单维护在关系型数据�
 
 ## 使用说明
 
-RobustMQ 会执行 `query_user/query_acl/query_blacklist` 并把结果映射到内部模型。  
+RobustMQ 会执行 `query_user/query_acl/query_blacklist` 并把结果映射到内部模型。
 因此你可以对接已有表，不必强制使用固定表名。
 建议显式使用 `AS` 并保证字段别名一致，不要使用 `SELECT *`。
 

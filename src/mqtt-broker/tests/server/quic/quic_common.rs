@@ -23,7 +23,7 @@ fn create_client() -> QuicClient {
 }
 
 fn create_server() -> QuicServer {
-    // let context = 
+    // let context =
     let server = QuicServer::new(context);
     server.start(8888);
     server

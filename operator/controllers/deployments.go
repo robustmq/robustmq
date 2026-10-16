@@ -263,7 +263,7 @@ func (r *RobustMQReconciler) reconcileJournalServiceDeployment(ctx context.Conte
 // buildAllInOnePodSpec builds the pod specification for all-in-one deployment
 func (r *RobustMQReconciler) buildAllInOnePodSpec(robustmq *robustmqv1alpha1.RobustMQ) corev1.PodSpec {
 	image := fmt.Sprintf("%s:%s", robustmq.Spec.Image.Repository, robustmq.Spec.Image.Tag)
-	
+
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
@@ -348,7 +348,7 @@ func (r *RobustMQReconciler) buildAllInOnePodSpec(robustmq *robustmqv1alpha1.Rob
 // buildMetaServicePodSpec builds the pod specification for meta service
 func (r *RobustMQReconciler) buildMetaServicePodSpec(robustmq *robustmqv1alpha1.RobustMQ) corev1.PodSpec {
 	image := fmt.Sprintf("%s:%s", robustmq.Spec.Image.Repository, robustmq.Spec.Image.Tag)
-	
+
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
@@ -419,7 +419,7 @@ func (r *RobustMQReconciler) buildMetaServicePodSpec(robustmq *robustmqv1alpha1.
 // buildMQTTBrokerPodSpec builds the pod specification for MQTT broker
 func (r *RobustMQReconciler) buildMQTTBrokerPodSpec(robustmq *robustmqv1alpha1.RobustMQ) corev1.PodSpec {
 	image := fmt.Sprintf("%s:%s", robustmq.Spec.Image.Repository, robustmq.Spec.Image.Tag)
-	
+
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
@@ -472,7 +472,7 @@ func (r *RobustMQReconciler) buildMQTTBrokerPodSpec(robustmq *robustmqv1alpha1.R
 // buildJournalServicePodSpec builds the pod specification for journal service
 func (r *RobustMQReconciler) buildJournalServicePodSpec(robustmq *robustmqv1alpha1.RobustMQ) corev1.PodSpec {
 	image := fmt.Sprintf("%s:%s", robustmq.Spec.Image.Repository, robustmq.Spec.Image.Tag)
-	
+
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{

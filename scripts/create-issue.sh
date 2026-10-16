@@ -15,7 +15,7 @@
 
 
 # Script to create GitHub issues using GitHub API
-# Usage: 
+# Usage:
 #   ./scripts/create-issue.sh --title "Issue Title" --body-file issue.md --labels "bug,mqtt"
 #   ./scripts/create-issue.sh -t "Issue Title" -b "Issue body text" -l "enhancement"
 #   ./scripts/create-issue.sh --interactive
@@ -127,24 +127,24 @@ fi
 if [ "$INTERACTIVE" = true ]; then
     echo -e "${BLUE}=== Interactive Issue Creation ===${NC}"
     echo ""
-    
+
     read -p "$(echo -e ${YELLOW}Repository [robustmq/robustmq]:${NC} )" input_repo
     if [ -n "$input_repo" ]; then
         REPO="$input_repo"
     fi
-    
+
     read -p "$(echo -e ${YELLOW}Issue Title:${NC} )" TITLE
-    
+
     echo -e "${YELLOW}Issue Body (press Ctrl+D when done, or provide file path):${NC}"
     read -p "Body file path (leave empty to type inline): " input_file
-    
+
     if [ -n "$input_file" ]; then
         BODY_FILE="$input_file"
     else
         echo "Type issue body (press Ctrl+D when done):"
         BODY=$(cat)
     fi
-    
+
     read -p "$(echo -e ${YELLOW}Labels (comma-separated):${NC} )" LABELS
     echo ""
 fi

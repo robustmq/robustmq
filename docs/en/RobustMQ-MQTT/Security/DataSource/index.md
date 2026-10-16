@@ -37,7 +37,7 @@ The auth path is cache-first, with different update strategies per source:
 3. External data sources (MySQL/PostgreSQL/Redis/MongoDB/HTTP) update cache by periodic sync.
 4. External sources are used for sync/management, not queried on every CONNECT.
 
-By moving the hot path to memory, broker remains stable under connection bursts.  
+By moving the hot path to memory, broker remains stable under connection bursts.
 By default, external source sync has around a 5-second delay; built-in source does not.
 
 ## Currently Supported Data Sources
