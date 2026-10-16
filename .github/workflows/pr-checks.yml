@@ -1,0 +1,206 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Pull Request Checks
+
+on:
+  issues:
+    types: [opened, reopened, edited]
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [closed]
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+jobs:
+  title:
+    name: PR Title Checker
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      contains(fromJson('["opened", "edited", "synchronize", "labeled", "unlabeled"]'), github.event.action)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          # Skip if 'ignore-title' label is present
+          if echo "$LABELS" | grep -q "ignore-title"; then
+            echo "⏭️  Skipping title check (ignore-title label present)"
+            exit 0
+          fi
+
+          pattern='^(release|feat|deps|fix|test|refactor|chore|style|docs|perf|build|ci|revert)(\(.*\))?\!?:.*'
+          if ! echo "$PR_TITLE" | grep -qE "$pattern"; then
+            echo "❌ PR title '$PR_TITLE' does not follow Conventional Commits format."
+            echo "   Expected: <type>[(<scope>)][!]: <description>"
+            echo "   Types: release|feat|deps|fix|test|refactor|chore|style|docs|perf|build|ci|revert"
+            exit 1
+          fi
+          echo "✅ PR title format is valid: $PR_TITLE"
+
+          # Warn (non-blocking) if breaking change detected
+          if echo "$PR_TITLE" | grep -qE '!:'; then
+            echo "⚠️  Breaking change detected in PR title"
+          fi
+
+  size:
+    name: PR Size Labeler
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      contains(fromJson('["opened", "synchronize", "reopened"]'), github.event.action)
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: codelytv/pr-size-labeler@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          s_label: 'Size: S'
+          s_max_size: '100'
+          m_label: 'Size: M'
+          m_max_size: '500'
+          l_label: 'Size: L'
+          l_max_size: '1000'
+          xl_label: 'Size: XL'
+          fail_if_xl: 'false'
+          message_if_xl: ""
+          files_to_ignore: 'Cargo.lock'
+
+  label:
+    name: Issue and PR Labeler
+    if: >-
+      (github.event_name == 'issues' &&
+      contains(fromJson('["opened", "reopened", "edited"]'), github.event.action)) ||
+      (github.event_name == 'pull_request_target' &&
+      contains(fromJson('["opened", "reopened", "edited"]'), github.event.action))
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Apply labels by title
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const isPR = !!context.payload.pull_request;
+            const isIssue = !!context.payload.issue;
+            const title = isPR
+              ? context.payload.pull_request.title
+              : context.payload.issue.title;
+            const number = isPR
+              ? context.payload.pull_request.number
+              : context.payload.issue.number;
+
+            const prRules = [
+              { label: 'kind:feat',     regex: /^feat(\(.*\))?:/i },
+              { label: 'kind:bug',      regex: /^fix(\(.*\))?:/i },
+              { label: 'kind:test',     regex: /^test(\(.*\))?:/i },
+              { label: 'kind:refactor', regex: /^refactor(\(.*\))?:/i },
+              { label: 'kind:chore',    regex: /^chore(\(.*\))?:/i },
+              { label: 'kind:style',    regex: /^style(\(.*\))?:/i },
+              { label: 'kind:docs',     regex: /^docs(\(.*\))?:/i },
+              { label: 'kind:perf',     regex: /^perf(\(.*\))?:/i },
+              { label: 'kind:build',    regex: /^build(\(.*\))?:/i },
+              { label: 'kind:ci',       regex: /^ci(\(.*\))?:/i },
+              { label: 'kind:revert',   regex: /^revert(\(.*\))?:/i },
+            ];
+
+            const issueRules = [
+              { label: 'kind:style',    regex: /^\[(RBIP-\d+|MINOR)\]\[Style\]\[Subtask\]|^\[Style\]/i },
+              { label: 'kind:refactor', regex: /^\[(RBIP-\d+|MINOR)\]\[Refactor\]\[Subtask\]|^\[Refactor\]/i },
+              { label: 'kind:perf',    regex: /^\[(RBIP-\d+|MINOR)\]\[Performance\]\[Subtask\]|^\[Performance\]/i },
+              { label: 'kind:docs',    regex: /^\[(RBIP-\d+|MINOR)\]\[Docs\]\[Subtask\]|^\[Docs\]/i },
+              { label: 'kind:test',    regex: /^\[(RBIP-\d+|MINOR)\]\[Test\]\[Subtask\]|^\[Test\]/i },
+              { label: 'kind:build',   regex: /^\[(RBIP-\d+|MINOR)\]\[Build\]\[Subtask\]|^\[Build\]/i },
+              { label: 'kind:ci',      regex: /^\[(RBIP-\d+|MINOR)\]\[CI\]\[Subtask\]|^\[CI\]/i },
+              { label: 'kind:chore',   regex: /^\[(RBIP-\d+|MINOR)\]\[Chore\]\[Subtask\]|^\[Chore\]/i },
+              { label: 'kind:subtask', regex: /^\[(RBIP-\d+|MINOR)\].*\[Subtask\]/i },
+              { label: 'enhancement',  regex: /^\[(Style|Refactor|Performance|Docs|Test|Build|CI|Chore)\]/i },
+              { label: 'kind:bug',     regex: /^\[BUG\]/i },
+              { label: 'kind:feat',    regex: /^\[Feat\]/i },
+              { label: 'kind:umbrella', regex: /^\[(RBIP-\d+|MINOR)\](?!.*\[Subtask\])/i },
+            ];
+
+            const rules = isPR ? prRules : issueRules;
+            const labelsToAdd = rules
+              .filter(r => r.regex.test(title))
+              .map(r => r.label);
+
+            if (labelsToAdd.length === 0) return;
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              labels: labelsToAdd,
+            });
+
+            console.log(`Applied labels: ${labelsToAdd.join(', ')} to #${number}`);
+
+  actbot:
+    name: Issue and Pull Request Commands
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ShyunnY/actbot@v0.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  close-issues:
+    name: Close Issues on Merge
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Close Issues
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const prBody = pr.body || '';
+
+            // Extract issue numbers from PR body (supports: close #123, closes #123, fix #123, fixes #123, resolve #123, resolves #123)
+            const issueRefs = prBody.match(/(?:close|closes|fix|fixes|resolve|resolves)\s+#(\d+)/gi);
+
+            if (issueRefs) {
+              for (const ref of issueRefs) {
+                const issueNumber = parseInt(ref.match(/#(\d+)/)[1]);
+                try {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issueNumber,
+                    state: 'closed'
+                  });
+                  console.log(`Closed issue #${issueNumber}`);
+                } catch (error) {
+                  console.log(`Failed to close issue #${issueNumber}: ${error.message}`);
+                }
+              }
+            }

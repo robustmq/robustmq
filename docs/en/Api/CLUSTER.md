@@ -104,7 +104,7 @@ GET /api/cluster/config/get?broker_id=2
       "meta_worker_threads": 0
     },
     "storage_runtime": {
-      "tcp_port": 1778,
+      "tcp_port": 1779,
       "max_segment_size": 1073741824,
       "io_thread_num": 8,
       "data_path": [],

@@ -1,27 +1,66 @@
 # Running with Cargo
 
-1. **Run standalone by meta-service**
+The workspace currently runs RobustMQ as one broker binary. The old
+`meta-service`, `mqtt-server`, and `journal-server` Cargo commands are no
+longer part of the `cmd` package.
 
-   ```
-   cargo run --package cmd --bin meta-service -- --conf=config/meta-service.toml
-   ```
+## Standalone broker
 
-   If the following output is displayed, it indicates that the meta-service has started successfully:
-   ![image](../../../images/Cargo-Running-1.png)
+From the repository root:
 
-2. **Run standalone by mqtt-server**
+```bash
+make run
+```
 
-   ```
-   cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
-   ```
+This is equivalent to running the broker binary directly:
 
-   If the following output is displayed, it indicates that the mqtt-server has started successfully:![Cargo-Running-run-mqtt-server-2.png](../../../images/Cargo-Running-run-mqtt-server-2.png)
+```bash
+cargo run --package cmd --bin broker-server -- --conf=config/server.toml
+```
 
+The checked-in `config/server.toml` is a single-node configuration. It uses
+the `meta`, `broker`, and `engine` roles and stores data under `./data`.
 
-3. **Run standalone by journal-server**
+The broker listens on these default local ports:
 
-   ```
-   cargo run --package cmd --bin journal-server -- --conf=config/journal-server.toml
-   ```
-   The following output indicates that the journal-server has started successfully:
-   ![Cargo-Running-run-journal-server-3.png](../../../images/Cargo-Running-run-journal-server-3.png)
+| Service | Port |
+|---------|------|
+| MQTT | 1883 |
+| MQTT TLS | 1885 |
+| MQTT WebSocket | 8083 |
+| Kafka | 9092 |
+| AMQP | 5672 |
+| NATS | 4222 |
+| Storage engine | 1779 |
+| Admin HTTP API | 58080 |
+| gRPC | 1228 |
+
+## Verify
+
+In another terminal:
+
+```bash
+curl -i http://127.0.0.1:58080/health/node
+curl http://127.0.0.1:58080/metrics | head
+```
+
+For a real MQTT round trip, use MQTTX in two terminals:
+
+```bash
+mqttx sub -h 127.0.0.1 -p 1883 -u admin -P robustmq -t "test/topic"
+mqttx pub -h 127.0.0.1 -p 1883 -u admin -P robustmq \
+  -t "test/topic" -m "Hello RobustMQ!"
+```
+
+## Build only
+
+```bash
+cargo build --package cmd --bin broker-server
+```
+
+To run a different configuration, pass its path after `--conf`, for example:
+
+```bash
+cargo run --package cmd --bin broker-server -- \
+  --conf=config/cluster/server-1.toml
+```

@@ -15,14 +15,15 @@ This directory contains the Dockerfile and Docker Compose configuration for runn
 
 # Pull and run pre-built image
 docker run -d --name robustmq \
-  -p 1883:1883 -p 8083:8083 -p 1228:1228 \
+  -p 1883:1883 -p 1885:1885 -p 8083:8083 -p 8085:8085 \
+  -p 9092:9092 -p 1228:1228 -p 5672:5672 -p 58080:58080 \
   ghcr.io/robustmq/robustmq:latest
 
 # Or build and run with docker compose (all-in-one)
-docker compose up -d robustmq
+docker compose -f docker/robustmq/docker-compose.yml up -d robustmq
 
 # With monitoring stack (Prometheus + Grafana)
-docker compose --profile monitoring up -d
+docker compose -f docker/robustmq/docker-compose.yml --profile monitoring up -d
 ```
 
 ## Monitoring Access
@@ -30,14 +31,16 @@ docker compose --profile monitoring up -d
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | RobustMQ HTTP API | http://localhost:58080 | — |
+| RobustMQ metrics | http://localhost:58080/metrics | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 
 ## Build
 
 ```bash
-# Build from repo root
-docker build -f docker/robustmq/Dockerfile --target all-in-one -t robustmq:local .
+# Build from repo root using a published release package
+docker build -f docker/robustmq/Dockerfile --build-arg VERSION=v0.4.11 \
+  --target all-in-one -t robustmq:local .
 ```
 
 ## Supported Platforms

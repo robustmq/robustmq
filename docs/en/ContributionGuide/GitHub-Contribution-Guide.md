@@ -104,7 +104,7 @@ Signed-off-by: robustmq <robustmq@outlook.com>
 
 #### License Error
 
-License checker / license-header-check (pull_request) failed. Some files are missing a License, which needs to be added. It is best to run the check command before each submission.
+Code Style / license-header-check (pull_request) failed. Some files are missing a License, which needs to be added. It is best to run the check command before each submission.
 
 ```
 cargo install hawkeye
@@ -118,7 +118,7 @@ hawkeye format
 
 #### Title Format Error
 
-PR Title Checker / check (pull_request_target) failed due to incorrect PR title format.
+Pull Request Checks / PR Title Checker (pull_request_target) failed due to incorrect PR title format.
 
 ```
 Prefix: Title

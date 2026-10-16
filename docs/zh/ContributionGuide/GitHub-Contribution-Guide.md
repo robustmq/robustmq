@@ -115,9 +115,11 @@ fix: 修复登录跳转问题
 
 ### PR 提交检查
 
-在提交 PR 前，建议执行以下检查，避免因格式或 License 问题导致的 PR 提交失败：
+在提交 PR 前，建议执行以下检查，避免因格式、License 或依赖安全问题导致的 PR 提交失败：
 
 - **License 检查**：
+
+  GitHub Actions 中对应的检查为 `Code Style / license-header-check`。
 
 ```bash
 cargo install hawkeye
@@ -130,6 +132,10 @@ hawkeye format
 ```
 
 - **标题检查**：务必确认 PR 标题符合上述格式规范。
+
+  GitHub Actions 中对应的检查为 `Pull Request Checks / PR Title Checker`。
+
+- **依赖安全检查**：修改 `Cargo.toml` 或 `Cargo.lock` 时，GitHub Actions 会在 `Security Audit / Dependency Review` 中检查依赖变更；`Security Audit / security-audit` 负责漏洞、许可证、重复版本和来源检查。
 
 ### 签名
 
@@ -161,11 +167,11 @@ Signed-off-by: robustmq <robustmq@outlook.com>
 
 ### 1. License 检测失败
 
-- 使用上述 `hawkeye` 工具检查并自动修复 License 问题。
+- 如果 `Code Style / license-header-check` 失败，请使用上述 `hawkeye` 工具检查并自动修复 License 问题。
 
 ### 2. 标题格式错误
 
-- 确认标题格式符合规定，如：`feat: 新增用户登录功能`
+- 如果 `Pull Request Checks / PR Title Checker` 失败，请确认标题格式符合规定，如：`feat: 新增用户登录功能`
 - 不得出现未规范的前缀或无前缀的情况。
 
 更多细节，可参阅[提交 PR 的完整示例](./Pull-Request-Example.md)。
