@@ -153,10 +153,10 @@ CREATE INDEX idx_mqtt_messages_key_timestamp ON mqtt_messages (record_key, times
 
 **SQL 示例：**
 ```sql
-INSERT INTO mqtt_messages (record_key, payload, timestamp) 
-VALUES (?, ?, ?) 
-ON DUPLICATE KEY UPDATE 
-    payload = VALUES(payload), 
+INSERT INTO mqtt_messages (record_key, payload, timestamp)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    payload = VALUES(payload),
     timestamp = VALUES(timestamp)
 ```
 
@@ -299,20 +299,20 @@ robust-ctl mqtt publish \
 
 ```sql
 -- 查询最近 1 小时的数据
-SELECT record_key, payload, FROM_UNIXTIME(timestamp/1000) as time 
-FROM mqtt_messages 
+SELECT record_key, payload, FROM_UNIXTIME(timestamp/1000) as time
+FROM mqtt_messages
 WHERE timestamp > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR)) * 1000
 ORDER BY timestamp DESC;
 
 -- 查询特定记录键的消息
-SELECT payload, FROM_UNIXTIME(timestamp/1000) as time 
-FROM mqtt_messages 
+SELECT payload, FROM_UNIXTIME(timestamp/1000) as time
+FROM mqtt_messages
 WHERE record_key = 'sensor_001'
 ORDER BY timestamp DESC
 LIMIT 100;
 
 -- 查询特定时间范围的数据
-SELECT * FROM mqtt_messages 
+SELECT * FROM mqtt_messages
 WHERE timestamp BETWEEN 1640995200000 AND 1640995300000
 ORDER BY timestamp;
 ```
@@ -321,21 +321,21 @@ ORDER BY timestamp;
 
 ```sql
 -- 统计每小时的消息数量
-SELECT 
+SELECT
     FROM_UNIXTIME(timestamp/1000, '%Y-%m-%d %H:00:00') as hour,
     COUNT(*) as message_count
-FROM mqtt_messages 
+FROM mqtt_messages
 WHERE timestamp > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 24 HOUR)) * 1000
 GROUP BY hour
 ORDER BY hour;
 
 -- 统计各记录键的消息数量
-SELECT 
+SELECT
     record_key,
     COUNT(*) as message_count,
     FROM_UNIXTIME(MIN(timestamp)/1000) as first_message,
     FROM_UNIXTIME(MAX(timestamp)/1000) as last_message
-FROM mqtt_messages 
+FROM mqtt_messages
 GROUP BY record_key
 ORDER BY message_count DESC;
 ```
@@ -363,7 +363,7 @@ PARTITION BY RANGE (timestamp) (
 2. **定期清理**
 ```sql
 -- 删除 30 天前的数据
-DELETE FROM mqtt_messages 
+DELETE FROM mqtt_messages
 WHERE timestamp < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 30 DAY)) * 1000;
 ```
 
@@ -456,4 +456,3 @@ MySQL 连接器是 RobustMQ 数据集成系统的重要组件，提供了高性�
 - ✅ 自定义 SQL 模板
 - ✅ 灵活的数据模型
 - ✅ 完善的错误处理
-

@@ -179,8 +179,8 @@ auth::record_mqtt_auth_failed();
 
 // Record packet processing duration
 time::record_mqtt_packet_process_duration(
-    NetworkConnectionType::Tcp, 
-    "PUBLISH".to_string(), 
+    NetworkConnectionType::Tcp,
+    "PUBLISH".to_string(),
     15.5
 );
 

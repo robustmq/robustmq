@@ -388,7 +388,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 let storage_headers = convert_adapter_headers_to_storage(adapter_headers);
                 let tags_val = serde_json::from_slice(&tags).ok();
                 let key_val = if key.is_empty() { None } else { Some(key) };
-                
+
                 let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
                     .with_header(storage_headers)
                     .with_key(key_val)
@@ -448,7 +448,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 let storage_headers = convert_adapter_headers_to_storage(adapter_headers);
                 let tags_val = serde_json::from_slice(&tags).ok();
                 let key_val = if key.is_empty() { None } else { Some(key) };
-                
+
                 let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
                     .with_header(storage_headers)
                     .with_key(key_val)
@@ -510,7 +510,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     });
                     let tags_val = serde_json::from_slice(&tags).ok();
                     let key_val = if key.is_empty() { None } else { Some(key) };
-                    
+
                     let metadata = StorageEngineRecordMetadata::build(offset, shard.to_string(), 0)
                         .with_header(storage_headers)
                         .with_key(key_val)

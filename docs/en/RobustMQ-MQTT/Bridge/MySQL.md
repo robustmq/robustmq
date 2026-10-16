@@ -153,10 +153,10 @@ Enabling the `enable_upsert` option can handle duplicate data:
 
 **SQL Example:**
 ```sql
-INSERT INTO mqtt_messages (record_key, payload, timestamp) 
-VALUES (?, ?, ?) 
-ON DUPLICATE KEY UPDATE 
-    payload = VALUES(payload), 
+INSERT INTO mqtt_messages (record_key, payload, timestamp)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    payload = VALUES(payload),
     timestamp = VALUES(timestamp)
 ```
 
@@ -299,20 +299,20 @@ robust-ctl mqtt publish \
 
 ```sql
 -- Query data from the last 1 hour
-SELECT record_key, payload, FROM_UNIXTIME(timestamp/1000) as time 
-FROM mqtt_messages 
+SELECT record_key, payload, FROM_UNIXTIME(timestamp/1000) as time
+FROM mqtt_messages
 WHERE timestamp > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR)) * 1000
 ORDER BY timestamp DESC;
 
 -- Query messages for a specific record key
-SELECT payload, FROM_UNIXTIME(timestamp/1000) as time 
-FROM mqtt_messages 
+SELECT payload, FROM_UNIXTIME(timestamp/1000) as time
+FROM mqtt_messages
 WHERE record_key = 'sensor_001'
 ORDER BY timestamp DESC
 LIMIT 100;
 
 -- Query data within a specific time range
-SELECT * FROM mqtt_messages 
+SELECT * FROM mqtt_messages
 WHERE timestamp BETWEEN 1640995200000 AND 1640995300000
 ORDER BY timestamp;
 ```
@@ -321,21 +321,21 @@ ORDER BY timestamp;
 
 ```sql
 -- Count messages per hour
-SELECT 
+SELECT
     FROM_UNIXTIME(timestamp/1000, '%Y-%m-%d %H:00:00') as hour,
     COUNT(*) as message_count
-FROM mqtt_messages 
+FROM mqtt_messages
 WHERE timestamp > UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 24 HOUR)) * 1000
 GROUP BY hour
 ORDER BY hour;
 
 -- Count messages per record key
-SELECT 
+SELECT
     record_key,
     COUNT(*) as message_count,
     FROM_UNIXTIME(MIN(timestamp)/1000) as first_message,
     FROM_UNIXTIME(MAX(timestamp)/1000) as last_message
-FROM mqtt_messages 
+FROM mqtt_messages
 GROUP BY record_key
 ORDER BY message_count DESC;
 ```
@@ -363,7 +363,7 @@ PARTITION BY RANGE (timestamp) (
 2. **Regular Cleanup**
 ```sql
 -- Delete data older than 30 days
-DELETE FROM mqtt_messages 
+DELETE FROM mqtt_messages
 WHERE timestamp < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 30 DAY)) * 1000;
 ```
 
@@ -456,4 +456,3 @@ This connector fully leverages MySQL's high performance and mature stability, co
 - ✅ Custom SQL templates
 - ✅ Flexible data model
 - ✅ Comprehensive error handling
-

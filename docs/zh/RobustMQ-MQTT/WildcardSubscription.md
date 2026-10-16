@@ -111,7 +111,7 @@ sensor/floor1/room1/device1/data
    ```bash
    # 订阅所有房间的温度数据
    mqttx sub -t 'sensor/+/temperature' -h '117.72.92.117' -p 1883 -v
-   
+
    # 订阅特定设备类型的所有数据
    mqttx sub -t 'device/+/status' -h '117.72.92.117' -p 1883 -v
    ```
@@ -121,7 +121,7 @@ sensor/floor1/room1/device1/data
    ```bash
    # 订阅所有传感器数据
    mqttx sub -t 'sensor/#' -h '117.72.92.117' -p 1883 -v
-   
+
    # 订阅所有主题
    mqttx sub -t '#' -h '117.72.92.117' -p 1883 -v
    ```
@@ -132,7 +132,7 @@ sensor/floor1/room1/device1/data
    # 发布到匹配单层通配符的主题
    mqttx pub -t 'sensor/room1/temperature' -m '{"value":25.5}' -h '117.72.92.117' -p 1883
    mqttx pub -t 'sensor/room2/temperature' -m '{"value":26.0}' -h '117.72.92.117' -p 1883
-   
+
    # 发布到匹配多层通配符的主题
    mqttx pub -t 'sensor/humidity' -m '{"value":60}' -h '117.72.92.117' -p 1883
    mqttx pub -t 'sensor/floor1/room1/device1/data' -m '{"data":"test"}' -h '117.72.92.117' -p 1883

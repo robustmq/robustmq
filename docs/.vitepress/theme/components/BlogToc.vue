@@ -17,7 +17,7 @@ const tocHtml = ref('')
 const generateToc = () => {
   setTimeout(() => {
     const headers = document.querySelectorAll('.vp-doc h2, .vp-doc h3')
-    
+
     if (headers.length === 0) {
       tocHtml.value = '<p class="no-toc">暂无目录</p>'
       return
@@ -26,12 +26,12 @@ const generateToc = () => {
     let html = '<ul class="toc-list">'
     let h2Index = 0
     let h3Index = 0
-    
+
     headers.forEach((header, index) => {
       const level = header.tagName.toLowerCase()
       const text = header.textContent
       const id = header.id || `heading-${index}`
-      
+
       if (!header.id) {
         header.id = id
       }
@@ -48,7 +48,7 @@ const generateToc = () => {
       }
     })
     html += '</ul>'
-    
+
     tocHtml.value = html
   }, 200)
 }

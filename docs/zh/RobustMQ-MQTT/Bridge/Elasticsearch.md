@@ -382,5 +382,3 @@ Elasticsearch 连接器是 RobustMQ 数据集成系统的强大组件，提供�
 - **易于集成**：简单的配置即可将 MQTT 数据桥接到 Elasticsearch
 
 该连接器充分利用了 Rust 语言的性能优势和 Elasticsearch 的搜索能力，是构建现代化 IoT 数据分析和监控系统的理想选择。
-
-

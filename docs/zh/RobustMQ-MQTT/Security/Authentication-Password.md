@@ -4,7 +4,7 @@ Password 认证是当前最常用的方式，通过用户名和密码完成客�
 
 ## 配置说明
 
-Password 认证的核心是 `authn_type = "password_based"`，并在 `storage_config` 中指定数据源。  
+Password 认证的核心是 `authn_type = "password_based"`，并在 `storage_config` 中指定数据源。
 如果使用 MySQL，配置结构应与代码中的 `MysqlConfig` 对齐：
 
 ```rust

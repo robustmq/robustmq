@@ -4,8 +4,8 @@
   <img src="../../images/robustmq-logo.png" alt="RobustMQ Logo" width="300">
 </p>
 
-**Release Date**: September 29, 2025  
-**Version**: 0.2.0  
+**Release Date**: September 29, 2025
+**Version**: 0.2.0
 **Codename**: "Cloud Native Evolution"
 
 ---
@@ -248,5 +248,5 @@ git checkout v0.2.0
 
 ---
 
-**RobustMQ Team**  
+**RobustMQ Team**
 September 29, 2025

@@ -4,8 +4,8 @@
   <img src="../../images/robustmq-logo.png" alt="RobustMQ Logo" width="200">
 </p>
 
-**Release Date**: February 2025  
-**Version**: 0.3.0  
+**Release Date**: February 2025
+**Version**: 0.3.0
 **GitHub**: [https://github.com/robustmq/robustmq](https://github.com/robustmq/robustmq)
 
 > **Notice**: 0.3.0 is still in early stage and is not recommended for production use. We plan to reach production-ready status in version 0.4.0 (expected May 2025). Early testing and feedback are welcome.
@@ -176,5 +176,5 @@ See [2026 RoadMap](../OverView/RoadMap-2026.md) for details.
 
 ---
 
-**RobustMQ Team**  
+**RobustMQ Team**
 February 2025

@@ -71,4 +71,3 @@ mqttx sub -t 'sensor/temperature' -i 'robustmq_client' --no-clean -h '117.72.92.
 [2024-12-19] [10:30:15] › ✔  已订阅 sensor/temperature
 [2024-12-19] [10:30:15] › payload: {"temperature": 25.5, "humidity": 60}
 ```
-

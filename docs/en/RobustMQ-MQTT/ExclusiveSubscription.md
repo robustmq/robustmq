@@ -149,4 +149,3 @@ mqttx pub -t "$exclusive/resource/allocation" -m '{"resource_type":"cpu","amount
 3. **Connection management**: When a client disconnects, the exclusive subscription is automatically released
 4. **Error handling**: Clients should properly handle subscription failure situations
 5. **Topic design**: Design topic structures reasonably to avoid conflicts
-

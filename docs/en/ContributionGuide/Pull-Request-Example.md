@@ -64,14 +64,14 @@ Here is a complete example of the Pull Request process, specifically for fixing 
    ```shell
    # Run code quality checks (format, clippy, license)
    make codecheck
-   
+
    # Run all tests
    make test-all
-   
+
    # Or run tests separately
    make test
    make mqtt-ig-test
-   
+
    # If all these steps are successful, you can submit your Pull Request.
 
    git push origin pr-example

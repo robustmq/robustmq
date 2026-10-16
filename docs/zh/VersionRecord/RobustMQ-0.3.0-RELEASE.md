@@ -4,8 +4,8 @@
   <img src="../../images/robustmq-logo.png" alt="RobustMQ Logo" width="200">
 </p>
 
-**发布日期**：2025年2月  
-**版本**：0.3.0  
+**发布日期**：2025年2月
+**版本**：0.3.0
 **GitHub**：[https://github.com/robustmq/robustmq](https://github.com/robustmq/robustmq)
 
 > **注意**：0.3.0 仍处于早期阶段，暂不建议在生产环境使用。我们计划在 0.4.0 版本（预计 2025 年 5 月）达到生产可用标准。欢迎提前试用并反馈问题。
@@ -176,5 +176,5 @@ cargo build --release
 
 ---
 
-**RobustMQ 团队**  
+**RobustMQ 团队**
 2025年2月

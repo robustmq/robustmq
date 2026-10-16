@@ -1,6 +1,6 @@
 # Password Authentication
 
-Password authentication is the primary authentication method in current production usage.  
+Password authentication is the primary authentication method in current production usage.
 It verifies client identity using username and password.
 
 ## Configuration
@@ -30,7 +30,7 @@ Field meanings:
 - `query_acl`: SQL used to sync ACL data
 - `query_blacklist`: SQL used to sync blacklist data
 
-Password authentication does not require a fixed table schema.  
+Password authentication does not require a fixed table schema.
 The key requirement is that query results match the expected mapping contract.
 
 Supported storage backends:

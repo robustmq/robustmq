@@ -77,7 +77,7 @@ When a client has a persistent session and subscribes to a shared subscription, 
    # Subscribers in group 1
    mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
    mqttx sub -t '$share/group1/sensor/data' -h '117.72.92.117' -p 1883 -v
-   
+
    # Subscribers in group 2
    mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v
    mqttx sub -t '$share/group2/sensor/data' -h '117.72.92.117' -p 1883 -v

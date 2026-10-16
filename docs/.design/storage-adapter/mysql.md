@@ -1,6 +1,6 @@
 # schema design
 
-We will create three kinds of SQL tables. 
+We will create three kinds of SQL tables.
 
 The first kind of tables will store all records in a shard under a namespace. (i.e., we create a new table when we create a new shard under a namespace)
 
@@ -86,7 +86,7 @@ REPLACE INTO `tag_{namespace}_{shard}` (`m_offset`,`tag`) VALUES (:offset,:tag)
 
 ## batch_write
 
-Similar to the `write` operation. 
+Similar to the `write` operation.
 
 We use `exec_batch` to insert a batch of records.
 
@@ -97,7 +97,7 @@ We loop over a batch of records and call `exec_batch` to insert all tags for all
 Given `namespace`, `shard`, starting offset `offset` and the maximal number of records to fetch, we execute the following sql query:
 
 ```sql
-SELECT (offset,key,data,header,tags,ts) 
+SELECT (offset,key,data,header,tags,ts)
 FROM `record_{namespace}_{shard}`
 WHERE `offset` >= :offset
 ORDER BY `offset`
@@ -111,7 +111,7 @@ The above query will be efficient since the `offset` column is the primary key o
 First get the list of offsets:
 ```sql
 SELECT (r.offset,r.key,r.data,r.header,r.tags,r.ts)
-FROM 
+FROM
     `tags` l LEFT JOIN `record_{namespace}_{shard}` r on l.m_offset = r.offset
 WHERE l.tag = :tag and l.m_offset >= :offset and l.namespace = :namespace and l.shard = :shard
 ORDER BY l.m_offset
@@ -126,7 +126,7 @@ The above query will be efficient because:
 ## read_by_key
 
 ```sql
-SELECT (offset,key,data,header,tags,ts) 
+SELECT (offset,key,data,header,tags,ts)
 FROM `record_{namespace}_{shard}`
 WHERE key = :key and offset >= :offset
 ORDER BY offset
@@ -145,13 +145,13 @@ ORDER BY ts
 LIMIT 1
 ```
 
-The above query will be efficient since we created an index on the `ts` column and a composite index on (`ts` and `offset`), meaning we can perform range lookup 
+The above query will be efficient since we created an index on the `ts` column and a composite index on (`ts` and `offset`), meaning we can perform range lookup
 on the `ts` column and get the `offset` value without additional lookup.
 
 ## get_offset_by_group
 
 ```sql
-SELECT * 
+SELECT *
 FROM `group`
 where group = :group;
 ```

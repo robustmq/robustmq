@@ -311,7 +311,7 @@ html body * .text[data-v-4f9c455b] {
     margin-top: 24px !important; /* 移动端按钮间距 */
     padding-top: 12px !important;
   }
-  
+
   /* 移动端按钮统一进一步缩小 */
   .VPButton.brand,
   .VPButton.alt {
@@ -392,11 +392,11 @@ html body * .text[data-v-4f9c455b] {
     max-width: 260px !important;
     padding: 8px !important;
   }
-  
+
   .VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink {
     padding: 8px 12px !important;
   }
-  
+
   .VPNavBarMenuGroup:last-of-type .VPMenu .items .VPMenuLink:hover {
     transform: translateX(2px) !important;
   }
