@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: '3.8'
-
 services:
   # ==============================================================================
   # All-in-One Deployment (Recommended for development and testing)
@@ -23,6 +21,8 @@ services:
       context: ../..
       dockerfile: docker/robustmq/Dockerfile
       target: all-in-one
+      args:
+        VERSION: v0.4.11
     container_name: robustmq
     ports:
       - "1883:1883"    # MQTT TCP
@@ -36,16 +36,15 @@ services:
     volumes:
       - robustmq_data:/robustmq/data
       - robustmq_logs:/robustmq/logs
-      - ./config:/robustmq/config:ro
+      - ../../config:/robustmq/config:ro
     environment:
-      - ROBUSTMQ_ROLES=meta,broker,journal
       - ROBUSTMQ_CONFIG_PATH=/robustmq/config/server.toml
       - ROBUSTMQ_LOG_PATH=/robustmq/logs
       - ROBUSTMQ_DATA_PATH=/robustmq/data
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:58080/api/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:58080/health/node"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -61,6 +60,8 @@ services:
       context: ../..
       dockerfile: docker/robustmq/Dockerfile
       target: meta-service
+      args:
+        VERSION: v0.4.11
     container_name: robustmq-meta
     ports:
       - "1228:1228"   # gRPC
@@ -68,7 +69,7 @@ services:
     volumes:
       - meta_data:/robustmq/data
       - meta_logs:/robustmq/logs
-      - ./config:/robustmq/config:ro
+      - ../../config:/robustmq/config:ro
     environment:
       - ROBUSTMQ_CONFIG_PATH=/robustmq/config/server.toml
       - RUST_LOG=info
@@ -81,6 +82,8 @@ services:
       context: ../..
       dockerfile: docker/robustmq/Dockerfile
       target: mqtt-broker
+      args:
+        VERSION: v0.4.11
     container_name: robustmq-mqtt
     ports:
       - "1883:1883"   # MQTT TCP
@@ -91,7 +94,7 @@ services:
     volumes:
       - mqtt_data:/robustmq/data
       - mqtt_logs:/robustmq/logs
-      - ./config:/robustmq/config:ro
+      - ../../config:/robustmq/config:ro
     environment:
       - ROBUSTMQ_CONFIG_PATH=/robustmq/config/server.toml
       - RUST_LOG=info

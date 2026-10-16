@@ -167,7 +167,7 @@ Journal storage engine runtime configuration.
 
 ```toml
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
@@ -177,7 +177,7 @@ offset_enable_cache = true
 
 | Configuration | Type | Default | Description |
 |---------------|------|---------|-------------|
-| `tcp_port` | `u32` | `1778` | Storage engine TCP port |
+| `tcp_port` | `u32` | `1779` | Storage engine TCP port |
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | Maximum segment file size (bytes) |
 | `io_thread_num` | `u32` | `8` | IO processing thread count |
 | `data_path` | `array` | `[]` | Data storage path list |
@@ -371,7 +371,7 @@ max_open_files = 20000
 
 # ========== Storage Engine ==========
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 io_thread_num = 8
 expire_scan_task_num = 10

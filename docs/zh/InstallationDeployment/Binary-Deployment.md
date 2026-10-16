@@ -57,13 +57,15 @@ robust-ctl cluster status --server 192.168.1.10:58080
 
 ```bash
 # 订阅（终端 1）
-mqttx sub -h 127.0.0.1 -p 1883 -t "test/topic"
+mqttx sub -h 127.0.0.1 -p 1883 -u admin -P robustmq -t "test/topic"
 
 # 发布（终端 2）
-mqttx pub -h 127.0.0.1 -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+mqttx pub -h 127.0.0.1 -p 1883 -u admin -P robustmq \
+  -t "test/topic" -m "Hello RobustMQ!"
 ```
 
-收到消息即表示服务运行正常。Web 控制台：`http://localhost:3000`
+收到消息即表示服务运行正常。默认 Admin HTTP API 地址为
+`http://localhost:58080`，指标地址为 `http://localhost:58080/metrics`。
 
 ### 停止
 
@@ -76,9 +78,15 @@ robust-server stop
 | 服务 | 端口 |
 |------|------|
 | MQTT | 1883 |
-| HTTP API | 8083 |
+| MQTT TLS | 1885 |
+| MQTT WebSocket | 8083 |
+| MQTT WebSocket TLS | 8085 |
+| Kafka | 9092 |
+| AMQP | 5672 |
+| NATS | 4222 |
+| 存储引擎 | 1779 |
+| Admin HTTP API | 58080 |
 | Placement Center gRPC | 1228 |
-| Dashboard | 3000 |
 
 ---
 
@@ -88,9 +96,9 @@ robust-server stop
 
 ```
 config/cluster/
-├── server-1.toml   # 节点 1（grpc: 1128，mqtt: 1883）
-├── server-2.toml   # 节点 2（grpc: 1228，mqtt: 2883）
-└── server-3.toml   # 节点 3（grpc: 1328，mqtt: 3883）
+├── server-1.toml   # 节点 1（grpc: 1228，http: 58080，mqtt: 1883）
+├── server-2.toml   # 节点 2（grpc: 2228，http: 58082，mqtt: 2883）
+└── server-3.toml   # 节点 3（grpc: 3228，http: 58083，mqtt: 3883）
 ```
 
 ### 场景一：单机三节点（开发测试）
@@ -111,15 +119,18 @@ robust-server start config/cluster/server-3.toml
 ```toml
 # 节点 1（10.0.0.1）修改 config/cluster/server-1.toml 中：
 broker_ip = "10.0.0.1"
-meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
+grpc_port = 1228
+meta_addrs = { 1 = "10.0.0.1:1228", 2 = "10.0.0.2:2228", 3 = "10.0.0.3:3228" }
 
 # 节点 2（10.0.0.2）修改 config/cluster/server-2.toml 中：
 broker_ip = "10.0.0.2"
-meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
+grpc_port = 2228
+meta_addrs = { 1 = "10.0.0.1:1228", 2 = "10.0.0.2:2228", 3 = "10.0.0.3:3228" }
 
 # 节点 3（10.0.0.3）修改 config/cluster/server-3.toml 中：
 broker_ip = "10.0.0.3"
-meta_addrs = { 1 = "10.0.0.1:1128", 2 = "10.0.0.2:1228", 3 = "10.0.0.3:1328" }
+grpc_port = 3228
+meta_addrs = { 1 = "10.0.0.1:1228", 2 = "10.0.0.2:2228", 3 = "10.0.0.3:3228" }
 ```
 
 然后在各节点上启动：
@@ -152,10 +163,11 @@ robust-ctl mqtt overview --server 10.0.0.1:58080
 
 ```bash
 # 订阅（连接节点 1）
-mqttx sub -h 10.0.0.1 -p 1883 -t "test/cluster"
+mqttx sub -h 10.0.0.1 -p 1883 -u admin -P robustmq -t "test/cluster"
 
 # 发布（连接节点 2）
-mqttx pub -h 10.0.0.2 -p 1883 -t "test/cluster" -m "Hello Cluster!"
+mqttx pub -h 10.0.0.2 -p 2883 -u admin -P robustmq \
+  -t "test/cluster" -m "Hello Cluster!"
 ```
 
 节点 1 收到消息即表示集群运行正常。
@@ -171,5 +183,5 @@ robust-server stop
 | | 节点 1 | 节点 2 | 节点 3 |
 |-|--------|--------|--------|
 | **MQTT TCP** | 1883 | 2883 | 3883 |
-| **gRPC** | 1128 | 1228 | 1328 |
-| **HTTP API** | 58080 | 8082 | 8083 |
+| **gRPC** | 1228 | 2228 | 3228 |
+| **HTTP API** | 58080 | 58082 | 58083 |

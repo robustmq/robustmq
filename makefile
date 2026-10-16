@@ -2,6 +2,7 @@
 # Makefile for RobustMQ development and build tasks
 
 VERSION := $(shell grep '^version = ' Cargo.toml | head -n1 | cut -d'"' -f2)
+VERSION_FILE := $(patsubst v%,%,$(VERSION))
 
 ##@ Development
 .PHONY: run
@@ -29,8 +30,8 @@ doc: ## Generate documentation
 .PHONY: build
 build: ## Build current platform package (basic build without frontend)
 	@echo "Building current platform package..."
-	./scripts/build.sh
-	@echo "$(VERSION)" > config/version.ini
+	@printf '%s\n' "$(VERSION_FILE)" > config/version.ini
+	VERSION="$(VERSION)" ./scripts/build.sh
 	@echo "📝 Wrote version $(VERSION) to config/version.ini"
 
 .PHONY: build-full
@@ -41,14 +42,15 @@ build-full: ## Build complete package with frontend (auto-clone frontend repo, b
 	@echo "  • Build web UI with pnpm"
 	@echo "  • Compile Rust binaries in release mode"
 	@echo "  • Create package: build/robustmq-{version}-{platform}.tar.gz"
-	./scripts/build.sh --with-frontend
-	@echo "$(VERSION)" > config/version.ini
+	@printf '%s\n' "$(VERSION_FILE)" > config/version.ini
+	VERSION="$(VERSION)" ./scripts/build.sh --with-frontend
 	@echo "📝 Wrote version $(VERSION) to config/version.ini"
 
 .PHONY: build-version
 build-version: ## Build package with specific version (usage: make build-version VERSION=v0.1.30)
 	@echo "Building package with version: $(VERSION)"
-	./scripts/build.sh --version $(VERSION)
+	@printf '%s\n' "$(VERSION_FILE)" > config/version.ini
+	VERSION="$(VERSION)" ./scripts/build.sh --version "$(VERSION)"
 
 ##@ Release
 .PHONY: release
@@ -58,7 +60,8 @@ release: ## Create new GitHub release and upload package
 	@echo "  • Create GitHub release with current version"
 	@echo "  • Build and upload package for current platform"
 	@echo "  • Requires GITHUB_TOKEN environment variable"
-	./scripts/release.sh
+	@printf '%s\n' "$(VERSION_FILE)" > config/version.ini
+	VERSION="$(VERSION)" ./scripts/release.sh --version "$(VERSION)"
 
 .PHONY: release-docker
 release-docker: ## Build and push application image to GHCR
@@ -68,7 +71,8 @@ release-docker: ## Build and push application image to GHCR
 .PHONY: release-version
 release-version: ## Create new GitHub release with specific version (usage: make release-version VERSION=v0.1.30)
 	@echo "Creating GitHub release with version: $(VERSION)"
-	./scripts/release.sh --version $(VERSION)
+	@printf '%s\n' "$(VERSION_FILE)" > config/version.ini
+	VERSION="$(VERSION)" ./scripts/release.sh --version "$(VERSION)"
 
 ##@ Test
 .PHONY: test

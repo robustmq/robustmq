@@ -98,7 +98,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 | 分类 | 方法 | URI | 说明 |
 |------|------|-----|------|
 | Info | `GET` | `/` | 获取服务版本信息 |
-| Status | `GET` | `/api/status` | 集群状态查询 |
+| Status | `GET` | `/api/info` | 集群状态查询 |
 | Health | `GET` | `/health/ready` | 就绪健康检查 |
 | Health | `GET` | `/health/node` | 节点健康检查 |
 | Health | `GET` | `/health/cluster` | 集群健康检查 |
@@ -180,7 +180,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 ```
 
 ### 集群状态查询
-- **接口**: `GET /api/status`
+- **接口**: `GET /api/info`
 - **描述**: 获取集群完整状态信息，包括 RobustMQ 版本、集群名称、启动时间、Broker 节点列表以及 Meta 集群的 Raft 状态
 - **请求参数**:
 ```json
@@ -504,7 +504,7 @@ RobustMQ Admin Server 是 HTTP 管理接口服务，提供对 RobustMQ 集群的
 curl -X GET http://localhost:58080/
 
 # 获取集群状态
-curl -X GET http://localhost:58080/api/status
+curl -X GET http://localhost:58080/api/info
 
 # 带分页的列表查询
 curl "http://localhost:58080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
@@ -525,7 +525,7 @@ curl "http://localhost:58080/api/cluster/user/list?limit=10&page=1&sort_field=us
 ## 注意事项
 
 1. **请求方法**:
-   - 列表/详情查询（`/list`、`/detail`、`/api/status` 等）使用 `GET`，参数通过 query string 传递
+   - 列表/详情查询（`/list`、`/detail`、`/api/info` 等）使用 `GET`，参数通过 query string 传递
    - 创建/删除操作（`/create`、`/delete`）使用 `POST`，参数通过 JSON body 传递
 2. **请求体**: POST 接口需要设置 `Content-Type: application/json` 并传递 JSON body；GET 接口参数通过 URL query string 传递
 3. **时间格式**:

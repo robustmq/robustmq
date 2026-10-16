@@ -141,11 +141,11 @@ USER robustmq
 # Kafka: 9092
 # gRPC: 1228
 # AMQP: 5672
-EXPOSE 1883 1885 8083 8085 9092 1228 5672 8080
+EXPOSE 1883 1885 8083 8085 9092 1228 1779 4222 5672 58080 9083
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8080/api/status || curl -f http://localhost:8080/ || exit 1
+    CMD curl -f http://localhost:58080/health/node || exit 1
 
 # Default environment variables
 ENV ROBUSTMQ_CONFIG_PATH="/robustmq/config/server.toml"
@@ -167,7 +167,7 @@ CMD ["--conf=/robustmq/config/server.toml"]
 
 # MQTT Broker
 FROM runtime AS mqtt-broker
-EXPOSE 1883 1885 8083 8085 8080
+EXPOSE 1883 1885 8083 8085 4222 58080 9083
 CMD ["--conf=/robustmq/config/server.toml"]
 
 # All-in-one (default)

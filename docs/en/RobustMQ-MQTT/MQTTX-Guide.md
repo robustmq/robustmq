@@ -50,10 +50,10 @@ mqttx --version
 
 ```bash
 # Basic connection test
-mqttx conn -h localhost -p 1883 --client-id robustmq_test_client
+mqttx conn -h localhost -p 1883 -u admin -P robustmq --client-id robustmq_test_client
 
 # Authenticated connection
-mqttx conn -h localhost -p 1883 -u username -P password --client-id robustmq_auth_client
+mqttx conn -h localhost -p 1883 -u admin -P robustmq --client-id robustmq_auth_client
 
 # SSL connection test
 mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
@@ -65,13 +65,13 @@ mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
 
 ```bash
 # Publish single message
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/hello' -m 'Hello RobustMQ!'
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/hello' -m 'Hello RobustMQ!'
 
 # Publish with specific QoS
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/qos1' -m 'QoS 1 message' -q 1
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/qos1' -m 'QoS 1 message' -q 1
 
 # Publish retained message
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/retain' -m 'Retained message' -r
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/retain' -m 'Retained message' -r
 ```
 
 ### Batch Publishing
@@ -104,13 +104,13 @@ mqttx pub -h localhost -p 1883 -t 'robustmq/test/loop' -m 'Loop message' -i 2
 
 ```bash
 # Subscribe to single topic
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/hello'
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/hello'
 
 # Subscribe to wildcard topic
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/+' -q 1
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/+' -q 1
 
 # Subscribe to multi-level wildcard
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/#'
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/#'
 ```
 
 ### Advanced Subscription
@@ -498,7 +498,7 @@ done
 
 ```bash
 # Check RobustMQ service status
-curl -f http://localhost:58080/health || echo "RobustMQ service may not be running"
+curl -f http://localhost:58080/health/node || echo "RobustMQ service may not be running"
 
 # Clean test topics (if needed)
 mqttx pub -h localhost -p 1883 -t 'robustmq/test/cleanup' -m '' -r

@@ -4,6 +4,7 @@
 
 | Tool | Purpose | Required |
 |------|---------|----------|
+| `make` | Run the repository build and release targets | Required |
 | Rust (`cargo`, `rustup`) | Compile Rust code | Required |
 | `pnpm` + `git` | Build frontend (Web console) | Required for full builds |
 | `docker` | Build Docker images | Optional |
@@ -16,8 +17,8 @@
 | Command | Description |
 |---------|-------------|
 | `make build` | Build a binary package for the current platform (no frontend) |
-| `make build-full` | Build a complete package including the frontend Web console |
-| `make release` | Build a complete package and publish to GitHub Releases |
+| `make build-full` | Build a package including the frontend Web console |
+| `make release` | Build and publish a release package (requires release credentials) |
 
 The version number is read automatically from `Cargo.toml` — no need to specify it manually.
 
@@ -56,7 +57,8 @@ docker pull ghcr.io/robustmq/robustmq:v0.3.0
 To build locally:
 
 ```bash
-docker build -f docker/robustmq/Dockerfile -t robustmq:local .
+docker build -f docker/robustmq/Dockerfile --build-arg VERSION=v0.4.11 \
+  -t robustmq:local .
 ```
 
 ---

@@ -11,7 +11,7 @@ robust-server start
 Verify the broker is running:
 
 ```bash
-robust-ctl status
+robust-ctl mqtt overview
 ```
 
 ---
@@ -40,10 +40,11 @@ Open two terminals and run:
 
 ```bash
 # Terminal 1: Subscribe
-mqttx sub -h localhost -p 1883 -t "test/topic"
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t "test/topic"
 
 # Terminal 2: Publish
-mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+mqttx pub -h localhost -p 1883 -u admin -P robustmq \
+  -t "test/topic" -m "Hello RobustMQ!"
 ```
 
 If the subscriber receives the message, MQTT is working correctly.
@@ -52,13 +53,13 @@ Common options:
 
 ```bash
 # Specify QoS
-mqttx pub -h localhost -p 1883 -t "test/qos1" -m "msg" -q 1
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t "test/qos1" -m "msg" -q 1
 
 # Publish a retained message
-mqttx pub -h localhost -p 1883 -t "test/retained" -m "retained msg" -r
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t "test/retained" -m "retained msg" -r
 
 # Wildcard subscription
-mqttx sub -h localhost -p 1883 -t "test/#"
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t "test/#"
 ```
 
 ### Using robust-bench

@@ -152,14 +152,15 @@ Adding a new protocol means implementing only the Broker parsing layer. Adding a
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/robustmq/robustmq/main/scripts/install.sh | bash
-broker-server start
+robust-server start
 ```
 
 ### Multi-Protocol in Action
 
 ```bash
 # Publish via MQTT
-mqttx pub -h localhost -p 1883 -t "robustmq.multi.protocol" -m "Hello RobustMQ!"
+mqttx pub -h localhost -p 1883 -u admin -P robustmq \
+  -t "robustmq.multi.protocol" -m "Hello RobustMQ!"
 
 # Consume the same message via Kafka
 kafka-console-consumer.sh --bootstrap-server localhost:9092 \
@@ -196,9 +197,12 @@ nats request '$mq9.AI.MSG.ACK.agent.translator' \
   '{"group_name":"workers","mail_address":"agent.translator","msg_id":1}'
 ```
 
-### Web Dashboard
+### Admin HTTP API
 
-Access `http://localhost:58080` for cluster monitoring and management.
+The Admin HTTP API is available at `http://localhost:58080` by default. Metrics
+are exposed at `http://localhost:58080/metrics`. A web console is included only
+in packages built with the frontend; source-only Cargo runs do not provide the
+console assets.
 
 <div align="center">
   <img src="docs/images/web-ui.jpg" alt="Web UI" width="45%" style="margin-right: 2%;">
@@ -217,10 +221,13 @@ Access `http://localhost:58080` for cluster monitoring and management.
 ```bash
 git clone https://github.com/robustmq/robustmq.git
 cd robustmq
-cargo run --package cmd --bin broker-server
+make run
 
-make build           # Basic build
-make build-full      # With frontend
+# Build a basic release package
+make build
+
+# Build a package with the frontend Web console
+make build-full
 ```
 
 📚 **[Build Guide](https://robustmq.com/QuickGuide/Build-and-Package.html)**

@@ -11,7 +11,7 @@ robust-server start
 启动成功后验证状态：
 
 ```bash
-robust-ctl status
+robust-ctl mqtt overview
 ```
 
 ---
@@ -40,10 +40,11 @@ MQTTX CLI 是 EMQ 开源的 MQTT 命令行客户端，安装文档参考：[http
 
 ```bash
 # 终端 1：订阅
-mqttx sub -h localhost -p 1883 -t "test/topic"
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t "test/topic"
 
 # 终端 2：发布
-mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
+mqttx pub -h localhost -p 1883 -u admin -P robustmq \
+  -t "test/topic" -m "Hello RobustMQ!"
 ```
 
 订阅端收到消息则说明 MQTT 收发正常。
@@ -52,13 +53,13 @@ mqttx pub -h localhost -p 1883 -t "test/topic" -m "Hello RobustMQ!"
 
 ```bash
 # 指定 QoS
-mqttx pub -h localhost -p 1883 -t "test/qos1" -m "msg" -q 1
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t "test/qos1" -m "msg" -q 1
 
 # 发布保留消息
-mqttx pub -h localhost -p 1883 -t "test/retained" -m "retained msg" -r
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t "test/retained" -m "retained msg" -r
 
 # 通配符订阅
-mqttx sub -h localhost -p 1883 -t "test/#"
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t "test/#"
 ```
 
 ### 使用 robust-bench
