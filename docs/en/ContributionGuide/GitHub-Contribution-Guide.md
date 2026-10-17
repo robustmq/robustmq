@@ -24,7 +24,7 @@ For users and contributors, if there are new feature requirements or bug fixes, 
 
 If it is a small development task, then the process of creating an issue will be similar to users and contributors. You can  use `BugReport`, `Enhancement`, or `FeatureRequest` to associate your issue with pull requests.
 
-If it is a relatively large planned task that needs to be broken down, use `Umbrella` to associate with the corresponding issues and plan subtasks inside `Umbrella`. The specifics are as follows:
+If it is a relatively large planned task that needs design discussion or decomposition, use `Umbrella`. Track the initial checklist in the Umbrella Issue and create child Issues only when the work contains independently deliverable units. Child Issues are optional. The specifics are as follows:
 
 ![image](../../images/GithubContributionGuide-2.png)
 
@@ -45,13 +45,22 @@ For `Subtask`, use the following format:
 
 ## 2. Creating a Pull Request
 
-If the PR is associated with an ISSUE, it must include the following in the PR content:
+If a PR implements an ISSUE, use an explicit closing reference in the PR body:
 
 ```
-close #issue_number
+Closes #issue_number
 ```
 
-`close` is a fixed prefix, `#` is also a fixed prefix, and `issue_number` represents the ISSUE number associated with the PR. For example:
+For a standalone Issue, close the Issue implemented by the PR. For a child PR under an Umbrella Issue, close only the child Issue and reference the parent without closing it:
+
+```text
+Closes #child_issue_number
+Refs #parent_umbrella_issue_number
+```
+
+Do not use `Closes`, `Fixes`, or `Resolves` for the parent Umbrella Issue. The parent is closed manually after all required child Issues and acceptance criteria are complete. Use `Refs #issue_number` when a PR is related to an Issue but should not close it.
+
+The repository's merge workflow recognizes `close`, `closes`, `fix`, `fixes`, `resolve`, and `resolves` case-insensitively. The capitalization shown above is the recommended style. For example:
 
 ![image](../../images/doc-image11.png)
 
@@ -60,7 +69,7 @@ close #issue_number
 For example, if you need to submit a PR to resolve ISSUE #297, the PR content should include:
 
 ```
-close #297
+Closes #297
 ```
 
 When this PR is MERGED, the ISSUE will be automatically closed. After the PR is merged, the PR and ISSUE will look like this:

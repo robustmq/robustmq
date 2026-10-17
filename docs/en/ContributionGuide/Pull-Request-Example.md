@@ -111,8 +111,18 @@ Here is a complete example of the Pull Request process, specifically for fixing 
    ```md
    Title: fix: fix bug example
    Content: Fix bug blablabla
+
+   Closes #ISSUE_NUMBER
+   ```
+
+   For a child task under an Umbrella Issue, close only the child and reference the
+   parent without closing it:
+
+   ```md
+   Closes #CHILD_ISSUE_NUMBER
+   Refs #PARENT_UMBRELLA_ISSUE_NUMBER
    ```
 
 9. **Wait for Merge**
 
-   During this process, GitHub CI will check the code in your branch again. If the check passes, your Pull Request will be merged. Wait for the RobustMQ maintainers to review it. If approved, your Pull Request will be merged.
+   During this process, GitHub CI will check the code in your branch again. If the check passes, your Pull Request will be merged. Wait for the RobustMQ maintainers to review it. If approved, your Pull Request will be merged. The parent Umbrella Issue is closed manually after all child work is complete.
