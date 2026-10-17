@@ -14,7 +14,7 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::{check_connection_limit, read_packet};
+use crate::common::tool::{check_connection_limit, read_packet, send_protocol_error_frame};
 use crate::protocol::nats::send_nats_info;
 use broker_core::cache::NodeCacheManager;
 use common_base::task::TaskSupervisor;
@@ -142,6 +142,7 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
                                     request_channel.clone(),
                                     connection_stop_rx,
                                     network_type.clone(),
+                                    protocol.clone(),
                                 );
                             }
                             Err(e) => {
@@ -156,6 +157,7 @@ pub async fn acceptor_process(ctx: TcpAcceptorContext) {
 }
 
 // spawn connection read thread
+#[allow(clippy::too_many_arguments)]
 fn read_frame_process(
     broker_cache: Arc<NodeCacheManager>,
     mut read_frame_stream: FramedRead<io::ReadHalf<tokio::net::TcpStream>, RobustMQCodec>,
@@ -164,6 +166,7 @@ fn read_frame_process(
     request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
+    protocol: RobustMQProtocol,
 ) {
     tokio::spawn(Box::pin(async move {
         loop {
@@ -224,6 +227,13 @@ fn read_frame_process(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
                                 );
+                                send_protocol_error_frame(
+                                    &connection_manager,
+                                    connection_id,
+                                    &protocol,
+                                    &e,
+                                )
+                                .await;
                                 connection_manager.mark_close_connect(connection_id).await;
                                 break;
                             }

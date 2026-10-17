@@ -94,9 +94,14 @@ fn build_nats_info(
         auth_required: conf.nats_runtime.auth_required,
         tls_required: false,
         tls_verify: false,
+        // Advertise TLS only on connections that are already encrypted
+        // (Tls / WebSockets acceptors). The plain Tcp/WebSocket ports cannot
+        // upgrade to TLS in place — advertising `tls_available: true` there
+        // makes nats.js >= 2.29 send a TLS ClientHello into the plaintext
+        // protocol parser and kills the handshake.
         tls_available: matches!(
             network_type,
-            NetworkConnectionType::Tcp | NetworkConnectionType::WebSocket
+            NetworkConnectionType::Tls | NetworkConnectionType::WebSockets
         ),
         max_payload: conf.nats_runtime.max_payload,
         jetstream: false,
