@@ -242,11 +242,15 @@ impl ClientKeepAlive {
 
 const DISCONNECT_SEND_TIMEOUT: Duration = Duration::from_secs(1);
 
-async fn try_send_disconnect(context: &TrySendDistinctPacketContext) {
-    let protocol = context.network.protocol.clone().unwrap();
-    let response = build_mqtt_packet_wrapper(protocol.clone(), context.wrap.packet.clone());
-    let connect_id = context.connect_id;
-    let cm = &context.connection_manager;
+pub(crate) async fn send_disconnect_packet(
+    connection_manager: &Arc<ConnectionManager>,
+    network: &NetworkConnection,
+    connect_id: u64,
+    packet: protocol::mqtt::common::MqttPacket,
+) {
+    let protocol = network.protocol.clone().unwrap();
+    let response = build_mqtt_packet_wrapper(protocol.clone(), packet);
+    let cm = connection_manager;
 
     let send_fut = async {
         if cm.is_websocket(connect_id) {
@@ -270,19 +274,23 @@ async fn try_send_disconnect(context: &TrySendDistinctPacketContext) {
     };
 
     match tokio::time::timeout(DISCONNECT_SEND_TIMEOUT, send_fut).await {
-        Ok(Ok(())) => {
-            debug!("Sent DISCONNECT to connection {}", connect_id);
-        }
-        Ok(Err(e)) => {
-            debug!(
-                "Failed to send DISCONNECT to connection {}: {}",
-                connect_id, e
-            );
-        }
-        Err(_) => {
-            debug!("Timed out sending DISCONNECT to connection {}", connect_id);
-        }
+        Ok(Ok(())) => debug!("Sent DISCONNECT to connection {}", connect_id),
+        Ok(Err(e)) => debug!(
+            "Failed to send DISCONNECT to connection {}: {}",
+            connect_id, e
+        ),
+        Err(_) => debug!("Timed out sending DISCONNECT to connection {}", connect_id),
     }
+}
+
+async fn try_send_disconnect(context: &TrySendDistinctPacketContext) {
+    send_disconnect_packet(
+        &context.connection_manager,
+        &context.network,
+        context.connect_id,
+        context.wrap.packet.clone(),
+    )
+    .await;
 }
 
 async fn close_connect(context: &TrySendDistinctPacketContext) -> Result<(), MqttBrokerError> {

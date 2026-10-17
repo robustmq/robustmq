@@ -29,7 +29,7 @@ use protocol::mqtt::common::{MqttProtocol, PublishProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -101,6 +101,10 @@ pub struct MQTTCacheManager {
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, MQTTConnection>,
 
+    /// Serializes CONNECT processing for a client identifier so a newer
+    /// connection cannot be overtaken by an older CONNECT still in flight.
+    pub client_connect_locks: DashMap<String, Arc<Mutex<()>>>,
+
     // (tenant, Set<connect_id>) — index for O(1) tenant-scoped queries
     pub tenant_connection_index: DashMap<String, DashSet<u64>>,
 
@@ -128,6 +132,13 @@ pub struct MQTTCacheManager {
 }
 
 impl MQTTCacheManager {
+    pub fn client_connect_lock(&self, client_id: &str) -> Arc<Mutex<()>> {
+        self.client_connect_locks
+            .entry(client_id.to_owned())
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
+    }
+
     pub fn new(client_pool: Arc<ClientPool>, broker_cache: Arc<NodeCacheManager>) -> Self {
         MQTTCacheManager {
             client_pool,
@@ -135,6 +146,7 @@ impl MQTTCacheManager {
             session_info: DashMap::with_capacity(1024),
             tenant_session_index: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(1024),
+            client_connect_locks: DashMap::with_capacity(1024),
             tenant_connection_index: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             pkid_manager: PkidManager::new(),
@@ -505,6 +517,18 @@ mod tests {
         // get again
         let conn_info_after_remove = cache_manager.get_connection(connect_id);
         assert!(conn_info_after_remove.is_none());
+    }
+
+    #[tokio::test]
+    async fn client_connect_lock_is_shared_per_client_identifier() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+
+        let first = cache_manager.client_connect_lock("shared-client");
+        let second = cache_manager.client_connect_lock("shared-client");
+        let other = cache_manager.client_connect_lock("other-client");
+
+        assert!(Arc::ptr_eq(&first, &second));
+        assert!(!Arc::ptr_eq(&first, &other));
     }
 
     #[tokio::test]
