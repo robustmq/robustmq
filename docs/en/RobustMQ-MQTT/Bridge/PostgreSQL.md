@@ -156,12 +156,12 @@ Enabling the `enable_upsert` option can handle duplicate data:
 
 **SQL Example:**
 ```sql
-INSERT INTO mqtt_messages (client_id, topic, timestamp, payload, data) 
-VALUES ($1, $2, $3, $4, $5) 
-ON CONFLICT (client_id, topic) 
-DO UPDATE SET 
-    timestamp = EXCLUDED.timestamp, 
-    payload = EXCLUDED.payload, 
+INSERT INTO mqtt_messages (client_id, topic, timestamp, payload, data)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (client_id, topic)
+DO UPDATE SET
+    timestamp = EXCLUDED.timestamp,
+    payload = EXCLUDED.payload,
     data = EXCLUDED.data
 ```
 
@@ -288,21 +288,21 @@ robust-ctl mqtt publish \
 
 ```sql
 -- Query sensor data from the last hour
-SELECT client_id, topic, timestamp, payload 
-FROM mqtt_messages 
+SELECT client_id, topic, timestamp, payload
+FROM mqtt_messages
 WHERE timestamp > EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour')
 ORDER BY timestamp DESC;
 
 -- Query messages from a specific client
-SELECT topic, timestamp, payload 
-FROM mqtt_messages 
+SELECT topic, timestamp, payload
+FROM mqtt_messages
 WHERE client_id = 'sensor_001'
 ORDER BY timestamp DESC
 LIMIT 100;
 
 -- Query messages from a specific topic
-SELECT client_id, timestamp, payload 
-FROM mqtt_messages 
+SELECT client_id, timestamp, payload
+FROM mqtt_messages
 WHERE topic LIKE 'sensor/temperature%'
 ORDER BY timestamp DESC;
 ```
@@ -311,21 +311,21 @@ ORDER BY timestamp DESC;
 
 ```sql
 -- Count messages per hour
-SELECT 
+SELECT
     DATE_TRUNC('hour', TO_TIMESTAMP(timestamp)) as hour,
     COUNT(*) as message_count
-FROM mqtt_messages 
+FROM mqtt_messages
 WHERE timestamp > EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')
 GROUP BY hour
 ORDER BY hour;
 
 -- Count messages by topic
-SELECT 
+SELECT
     topic,
     COUNT(*) as message_count,
     MIN(TO_TIMESTAMP(timestamp)) as first_message,
     MAX(TO_TIMESTAMP(timestamp)) as last_message
-FROM mqtt_messages 
+FROM mqtt_messages
 GROUP BY topic
 ORDER BY message_count DESC;
 ```
@@ -344,7 +344,7 @@ FOR VALUES FROM (1704067200) TO (1706745600);
 2. **Regular Cleanup**
 ```sql
 -- Delete data older than 30 days
-DELETE FROM mqtt_messages 
+DELETE FROM mqtt_messages
 WHERE timestamp < EXTRACT(EPOCH FROM NOW() - INTERVAL '30 days');
 ```
 

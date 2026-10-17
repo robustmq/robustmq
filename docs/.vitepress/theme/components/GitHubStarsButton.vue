@@ -1,9 +1,9 @@
 <template>
   <div class="github-stars-wrapper">
-    <a 
-      class="github-stars-button" 
-      href="https://github.com/robustmq/robustmq" 
-      target="_blank" 
+    <a
+      class="github-stars-button"
+      href="https://github.com/robustmq/robustmq"
+      target="_blank"
       rel="noreferrer"
     >
       ⭐ GitHub Stars{{ starCount ? ` (${starCount})` : '' }}

@@ -20,6 +20,7 @@ use crate::core::content_type::payload_format_indicator_check_by_lastwill;
 use crate::core::error::MqttBrokerError;
 use crate::core::event::st_report_connected_event;
 use crate::core::flapping_detect::check_flapping_detect;
+use crate::core::keep_alive::send_disconnect_packet;
 use crate::core::last_will::save_last_will_message;
 use crate::core::limit::connection_total_num_limit;
 use crate::core::security::{security_check_connect, ConnectAuthResult};
@@ -32,8 +33,8 @@ use common_base::tools::now_second;
 use common_config::config::BrokerConfig;
 use common_metrics::mqtt::auth::{record_mqtt_auth_failed, record_mqtt_auth_success};
 use protocol::mqtt::common::{
-    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
-    LastWillProperties, Login, MqttPacket, MqttProtocol,
+    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MqttPacket, MqttProtocol,
 };
 use rate_limit::mqtt::MQTTRateLimiterManager;
 use std::cmp::min;
@@ -109,6 +110,9 @@ impl MqttService {
 
         client_id = try_decode_client_id(&client_id);
 
+        let connect_lock = self.cache_manager.client_connect_lock(&client_id);
+        let _connect_guard = connect_lock.lock().await;
+
         // build connection
         let connection = build_connection(
             &tenant.tenant_name,
@@ -182,6 +186,15 @@ impl MqttService {
                 );
             }
         }
+
+        take_over_existing_connection(
+            &self.cache_manager,
+            &self.connection_manager,
+            &client_id,
+            context.connect_id,
+        )
+        .await;
+
         // session process
         let (session, new_session) = match session_process(
             &self.protocol,
@@ -278,6 +291,43 @@ impl MqttService {
     }
 }
 
+async fn take_over_existing_connection(
+    cache_manager: &Arc<MQTTCacheManager>,
+    connection_manager: &Arc<network_server::common::connection_manager::ConnectionManager>,
+    client_id: &str,
+    new_connect_id: u64,
+) {
+    let Some(previous_connect_id) = cache_manager
+        .get_connect_id(client_id)
+        .filter(|connect_id| *connect_id != new_connect_id)
+    else {
+        return;
+    };
+
+    if let Some(previous_network) = connection_manager.get_connect(previous_connect_id) {
+        if previous_network.is_mqtt5() {
+            let packet = crate::mqtt::disconnect::build_distinct_packet(
+                cache_manager,
+                previous_connect_id,
+                &MqttProtocol::Mqtt5,
+                Some(DisconnectReasonCode::SessionTakenOver),
+                None,
+                Some("session taken over by a new connection".to_string()),
+            );
+            send_disconnect_packet(
+                connection_manager,
+                &previous_network,
+                previous_connect_id,
+                packet,
+            )
+            .await;
+        }
+    }
+
+    connection_manager.close_connect(previous_connect_id).await;
+    cache_manager.remove_connection(previous_connect_id);
+}
+
 async fn check_connection_limit(
     cache_manager: &Arc<MQTTCacheManager>,
     limit_manager: &Arc<MQTTRateLimiterManager>,
@@ -366,6 +416,76 @@ fn build_connect_ack_success_packet(
         },
         Some(properties),
     )
+}
+
+#[cfg(test)]
+mod takeover_tests {
+    use super::take_over_existing_connection;
+    use crate::core::cache::MQTTCacheManager;
+    use crate::core::tool::test_build_mqtt_cache_manager;
+    use metadata_struct::connection::{NetworkConnection, NetworkConnectionType};
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+    use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::tenant::DEFAULT_TENANT;
+    use network_server::common::connection_manager::ConnectionManager;
+    use protocol::robust::RobustMQProtocol;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn takeover_closes_previous_connection_without_removing_session() {
+        let cache_manager: Arc<MQTTCacheManager> = test_build_mqtt_cache_manager().await;
+        let connection_manager = Arc::new(ConnectionManager::new());
+        let client_id = "takeover-client";
+
+        let session = MqttSession::new(
+            DEFAULT_TENANT.to_string(),
+            client_id.to_string(),
+            60,
+            false,
+            None,
+            true,
+        );
+        cache_manager.add_session(client_id, &session);
+
+        let network = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            "127.0.0.1:1883".parse().unwrap(),
+            None,
+        );
+        let previous_connect_id = network.connection_id();
+        let mut network = network;
+        network.set_protocol(RobustMQProtocol::MQTT5);
+        connection_manager.add_connection(network);
+
+        let connection = MQTTConnection::new(ConnectionConfig {
+            tenant: DEFAULT_TENANT.to_string(),
+            connect_id: previous_connect_id,
+            client_id: client_id.to_string(),
+            receive_maximum: 10,
+            max_packet_size: 1024,
+            topic_alias_max: 10,
+            request_problem_info: 1,
+            keep_alive: 60,
+            source_ip_addr: "127.0.0.1:1883".to_string(),
+            source_ip: "127.0.0.1".to_string(),
+            clean_session: false,
+        });
+        cache_manager.add_connection(previous_connect_id, connection);
+
+        take_over_existing_connection(
+            &cache_manager,
+            &connection_manager,
+            client_id,
+            previous_connect_id + 1,
+        )
+        .await;
+
+        assert!(connection_manager
+            .get_connect(previous_connect_id)
+            .is_none());
+        assert!(cache_manager.get_connection(previous_connect_id).is_none());
+        assert!(cache_manager.get_session_info(client_id).is_some());
+    }
 }
 
 pub fn build_connect_ack_fail_packet(

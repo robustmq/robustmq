@@ -4,7 +4,7 @@ RobustMQ exposes standard health check endpoints via the HTTP Admin Server, comp
 
 ## Endpoints
 
-All endpoints are served by the Admin Server on the configured `http_port` (default `9981`).
+All endpoints are served by the Admin Server on the configured `http_port` (default `58080`).
 
 | Endpoint | K8s Probe | Description |
 |----------|-----------|-------------|
@@ -18,14 +18,14 @@ All endpoints are served by the Admin Server on the configured `http_port` (defa
 livenessProbe:
   httpGet:
     path: /health/ready
-    port: 9981
+    port: 58080
   initialDelaySeconds: 15
   periodSeconds: 10
 
 readinessProbe:
   httpGet:
     path: /health/ready
-    port: 9981
+    port: 58080
   initialDelaySeconds: 10
   periodSeconds: 5
   failureThreshold: 3

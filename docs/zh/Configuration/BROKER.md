@@ -167,7 +167,7 @@ Journal 存储引擎运行时配置。
 
 ```toml
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 io_thread_num = 8
 data_path = []
@@ -177,7 +177,7 @@ offset_enable_cache = true
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `tcp_port` | `u32` | `1778` | 存储引擎 TCP 端口 |
+| `tcp_port` | `u32` | `1779` | 存储引擎 TCP 端口 |
 | `max_segment_size` | `u32` | `1073741824` (1 GB) | 单个 Segment 文件最大大小（字节） |
 | `io_thread_num` | `u32` | `8` | IO 处理线程数 |
 | `data_path` | `array` | `[]` | 数据存储路径列表 |
@@ -385,7 +385,7 @@ max_open_files = 20000
 
 # ========== 存储引擎 ==========
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824
 io_thread_num = 8
 expire_scan_task_num = 10

@@ -33,7 +33,7 @@
 
 - 对于小型任务项目，参照用户和贡献者流程，创建 ISSUE 并关联 PR。
 
-- 对于大型或复杂任务，建议创建一个**总任务（Umbrella）** ISSUE，并在其中规划和管理子任务：
+- 对于需要设计讨论、任务拆分或多个 PR 的大型或复杂任务，建议创建一个**总任务（Umbrella）** ISSUE。先在总任务中维护初始清单，只有在任务可以独立交付时才创建子任务 ISSUE；子任务不是必需的：
 
 ![image](../../images/GithubContributionGuide-2.png)
 
@@ -58,13 +58,22 @@
 
 ### PR 关联 ISSUE 规则
 
-每个 PR 应尽可能关联对应的 ISSUE。关联方式是在 PR 内容中添加：
+如果 PR 用于实现某个 ISSUE，应在 PR 内容中使用明确的关闭引用：
 
 ```
-close #ISSUE_NUMBER
+Closes #ISSUE_NUMBER
 ```
 
-其中 `close` 和 `#` 为固定前缀，`ISSUE_NUMBER` 为对应的 ISSUE 编号。
+对于独立 ISSUE，关闭该 PR 实现的 ISSUE。对于属于 Umbrella 的子任务 PR，只关闭子任务 ISSUE，同时使用 `Refs` 引用父 ISSUE：
+
+```text
+Closes #CHILD_ISSUE_NUMBER
+Refs #PARENT_UMBRELLA_ISSUE_NUMBER
+```
+
+不要对父 Umbrella ISSUE 使用 `Closes`、`Fixes` 或 `Resolves`。父 ISSUE 应在所有子任务和验收条件完成后手动关闭。如果 PR 只是关联某个 ISSUE 但不应关闭它，请使用 `Refs #ISSUE_NUMBER`。
+
+仓库的合并工作流会不区分大小写地识别 `close`、`closes`、`fix`、`fixes`、`resolve` 和 `resolves`。上面的大小写形式是推荐写法。
 
 ![image](../../images/doc-image11.png)
 
@@ -73,7 +82,7 @@ close #ISSUE_NUMBER
 - 示例：若 PR 修复 ISSUE #297，则 PR 描述中需明确注明：
 
 ```
-close #297
+Closes #297
 ```
 
 - PR 合并后，该 ISSUE 将自动关闭。
@@ -115,9 +124,11 @@ fix: 修复登录跳转问题
 
 ### PR 提交检查
 
-在提交 PR 前，建议执行以下检查，避免因格式或 License 问题导致的 PR 提交失败：
+在提交 PR 前，建议执行以下检查，避免因格式、License 或依赖安全问题导致的 PR 提交失败：
 
 - **License 检查**：
+
+  GitHub Actions 中对应的检查为 `Code Style / license-header-check`。
 
 ```bash
 cargo install hawkeye
@@ -130,6 +141,10 @@ hawkeye format
 ```
 
 - **标题检查**：务必确认 PR 标题符合上述格式规范。
+
+  GitHub Actions 中对应的检查为 `Pull Request Checks / PR Title Checker`。
+
+- **依赖安全检查**：修改 `Cargo.toml` 或 `Cargo.lock` 时，GitHub Actions 会在 `Security Audit / Dependency Review` 中检查依赖变更；`Security Audit / security-audit` 负责漏洞、许可证、重复版本和来源检查。
 
 ### 签名
 
@@ -161,11 +176,11 @@ Signed-off-by: robustmq <robustmq@outlook.com>
 
 ### 1. License 检测失败
 
-- 使用上述 `hawkeye` 工具检查并自动修复 License 问题。
+- 如果 `Code Style / license-header-check` 失败，请使用上述 `hawkeye` 工具检查并自动修复 License 问题。
 
 ### 2. 标题格式错误
 
-- 确认标题格式符合规定，如：`feat: 新增用户登录功能`
+- 如果 `Pull Request Checks / PR Title Checker` 失败，请确认标题格式符合规定，如：`feat: 新增用户登录功能`
 - 不得出现未规范的前缀或无前缀的情况。
 
 更多细节，可参阅[提交 PR 的完整示例](./Pull-Request-Example.md)。

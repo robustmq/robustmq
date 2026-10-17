@@ -4,7 +4,7 @@ RobustMQ 通过 HTTP Admin 接口提供标准健康检查端点，可直接对�
 
 ## 接口说明
 
-所有端点均由 Admin Server 提供，默认端口为 `http_port`（默认 `9981`）。
+所有端点均由 Admin Server 提供，默认端口为 `http_port`（默认 `58080`）。
 
 | 端点 | 适用场景 | 说明 |
 |------|----------|------|
@@ -18,14 +18,14 @@ RobustMQ 通过 HTTP Admin 接口提供标准健康检查端点，可直接对�
 livenessProbe:
   httpGet:
     path: /health/ready
-    port: 9981
+    port: 58080
   initialDelaySeconds: 15
   periodSeconds: 10
 
 readinessProbe:
   httpGet:
     path: /health/ready
-    port: 9981
+    port: 58080
   initialDelaySeconds: 10
   periodSeconds: 5
   failureThreshold: 3

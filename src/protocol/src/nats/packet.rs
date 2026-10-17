@@ -58,10 +58,19 @@ pub struct ServerInfo {
 }
 
 /// CONNECT is sent by the client after receiving INFO.
+///
+/// Standard NATS clients send wildly varying subsets of these fields (e.g.
+/// nats.js omits `tls_required` and `name`, async-nats sends all of them), so
+/// every non-Option field carries `#[serde(default)]`. A missing field must
+/// fall back to its default instead of failing deserialization — a failed
+/// parse silently swallows the CONNECT frame and stalls the handshake.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClientConnect {
+    #[serde(default)]
     pub verbose: bool,
+    #[serde(default)]
     pub pedantic: bool,
+    #[serde(default)]
     pub tls_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_token: Option<String>,
@@ -69,8 +78,11 @@ pub struct ClientConnect {
     pub user: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pass: Option<String>,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub lang: String,
+    #[serde(default)]
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<u8>,

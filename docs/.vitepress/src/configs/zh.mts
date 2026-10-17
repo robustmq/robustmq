@@ -10,7 +10,7 @@ export const zhConfig: LocaleSpecificConfig<DefaultTheme.Config> = {
 
     // 中文版本的base路径
     base: '/zh/',
-    
+
     // 设置页面标题（浏览器标签页）
     title: 'RobustMQ & mq9：AI 时代的通信基础设施。很高兴有机会让你看到不一样的作品。',
 

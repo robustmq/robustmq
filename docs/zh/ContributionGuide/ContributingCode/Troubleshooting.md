@@ -10,10 +10,10 @@ kind = "tokio_console" # 注意这是区分大小写的
 bind = "127.0.0.1:5674" # 用于指定 tokio-console 服务器的地址(默认值: 127.0.0.1:6669)
 ```
 
-要从 tokio 运行时收集任务数据，还需要启用 `tokio_unstable` `cfg`。例如，可以使用以下命令结合上述配置启用 `tokio-console` 支持并运行 meta service ：
+要从 tokio 运行时收集任务数据，还需要启用 `tokio_unstable` `cfg`。当前架构使用单一 Broker 二进制，可以使用以下命令结合上述配置启用 `tokio-console` 支持并运行 Broker：
 
 ```bash
-RUSTFLAGS="--cfg tokio_unstable" cargo run --package cmd --bin meta-service
+RUSTFLAGS="--cfg tokio_unstable" cargo run --package cmd --bin broker-server -- --conf=config/server.toml
 ```
 
 然后，可以使用以下命令启动 `tokio-console` 客户端，连接到监听自定义地址的服务器：

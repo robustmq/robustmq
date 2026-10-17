@@ -41,7 +41,7 @@ fn create_test_record(data_size: usize) -> Record {
 
 fn bench_json_serialize(c: &mut Criterion) {
     let mut group = c.benchmark_group("json_serialize");
-    
+
     for size in [128, 1024, 4096, 16384].iter() {
         let record = create_test_record(*size);
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
@@ -55,7 +55,7 @@ fn bench_json_serialize(c: &mut Criterion) {
 
 fn bench_bincode_serialize(c: &mut Criterion) {
     let mut group = c.benchmark_group("bincode_serialize");
-    
+
     for size in [128, 1024, 4096, 16384].iter() {
         let record = create_test_record(*size);
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
@@ -69,7 +69,7 @@ fn bench_bincode_serialize(c: &mut Criterion) {
 
 fn bench_json_deserialize(c: &mut Criterion) {
     let mut group = c.benchmark_group("json_deserialize");
-    
+
     for size in [128, 1024, 4096, 16384].iter() {
         let record = create_test_record(*size);
         let serialized = serde_json::to_string(&record).unwrap();
@@ -84,7 +84,7 @@ fn bench_json_deserialize(c: &mut Criterion) {
 
 fn bench_bincode_deserialize(c: &mut Criterion) {
     let mut group = c.benchmark_group("bincode_deserialize");
-    
+
     for size in [128, 1024, 4096, 16384].iter() {
         let record = create_test_record(*size);
         let serialized = bincode::serialize(&record).unwrap();
@@ -99,22 +99,22 @@ fn bench_bincode_deserialize(c: &mut Criterion) {
 
 fn bench_size_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("size_comparison");
-    
+
     for size in [128, 1024, 4096, 16384].iter() {
         let record = create_test_record(*size);
-        
+
         let json_size = serde_json::to_string(&record).unwrap().len();
         let bincode_size = bincode::serialize(&record).unwrap().len();
         let savings = (1.0 - (bincode_size as f64 / json_size as f64)) * 100.0;
-        
-        println!("\nData size {}: JSON={} bytes, Bincode={} bytes, Savings={:.1}%", 
+
+        println!("\nData size {}: JSON={} bytes, Bincode={} bytes, Savings={:.1}%",
                  size, json_size, bincode_size, savings);
     }
     group.finish();
 }
 
 criterion_group!(
-    benches, 
+    benches,
     bench_json_serialize,
     bench_bincode_serialize,
     bench_json_deserialize,
@@ -122,4 +122,3 @@ criterion_group!(
     bench_size_comparison
 );
 criterion_main!(benches);
-

@@ -113,8 +113,17 @@ git push origin pr-example
 标题：fix: 修复示例Bug
 描述：修复了某某功能的具体问题，确保xxx功能正常工作。
 
-close #ISSUE_NUMBER（如果关联了 ISSUE）
+Closes #ISSUE_NUMBER
 ```
+
+如果 PR 实现的是 Umbrella 下的子任务，只关闭子任务 ISSUE，并使用 `Refs` 引用父 ISSUE：
+
+```markdown
+Closes #CHILD_ISSUE_NUMBER
+Refs #PARENT_UMBRELLA_ISSUE_NUMBER
+```
+
+父 Umbrella ISSUE 应在所有子任务完成后手动关闭。
 
 点击 **Create Pull Request** 完成创建。
 

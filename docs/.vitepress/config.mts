@@ -24,10 +24,10 @@ export default defineConfig({
 
     // 确保正确的路由配置
     cleanUrls: true,
-    
+
     // 默认语言配置
     defaultLocale: 'en',
-    
+
     // 修复布局和水合不匹配问题
     vite: {
         define: {
@@ -56,16 +56,16 @@ export default defineConfig({
             exclude: ['vitepress']
         }
     },
-    
+
     // 强制暗色模式，禁用切换
     appearance: 'force-dark',
 
     // 显示页面最后更新时间（读取 git commit 时间）
     lastUpdated: true,
-    
+
     // 禁用可能导致布局问题的功能
     mpa: false,
-    
+
     // 忽略死链接检查，特别是 localhost 链接
     ignoreDeadLinks: [
         // 忽略所有 localhost 链接

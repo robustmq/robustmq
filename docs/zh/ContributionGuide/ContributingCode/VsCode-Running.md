@@ -1,17 +1,13 @@
 # VSCode运行
 下载项目代码
 初始化环境
-进入src/cmd/src目录，可以看到
+当前架构使用一个 Broker 二进制。在仓库根目录运行：
 ```
-.
-├── journal-server
-│   └── server.rs
-├── mqtt-server
-│   └── server.rs
-└── meta-service
-    └── server.rs
+make run
 ```
 
-进入对应组件的目录，打开server.rs，会看到main函数，如下图所示，启动服务即可:
+在 VSCode 中调试时选择 `broker-server` 二进制，并将
+`--conf=config/server.toml` 作为程序参数。该 Broker 会同时启动配置中的
+`meta`、`broker` 和 `engine` 角色。终端中对应的启动命令是 `make run`：
 
 ![image](../../../images/VSCode-Running-1.png)

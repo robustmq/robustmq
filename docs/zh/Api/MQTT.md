@@ -26,8 +26,8 @@
         "extend": [],
         "node_id": 1,
         "node_ip": "192.168.1.100",
-        "grpc_addr": "192.168.1.100:9981",
-        "engine_addr": "192.168.1.100:9982",
+        "grpc_addr": "192.168.1.100:1228",
+        "engine_addr": "192.168.1.100:1779",
         "start_time": 1640995200,
         "register_time": 1640995200,
         "storage_fold": []

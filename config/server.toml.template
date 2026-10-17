@@ -81,7 +81,7 @@ max_open_files = 10000
 # [storage_runtime] - Journal storage engine
 # ============================================================================
 [storage_runtime]
-tcp_port = 1778
+tcp_port = 1779
 max_segment_size = 1073741824  # 1 GB
 io_thread_num = 8
 data_path = ["./data/engine"]

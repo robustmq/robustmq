@@ -26,13 +26,13 @@ pub fn healthy_ready_check() -> bool {
         return false;
     }
 
-    // MQTT listeners are only required on broker role nodes.
+    // MQTT TCP/TLS/WebSocket listeners are required on broker role nodes.
+    // QUIC is UDP, so it cannot be validated by the TCP probe used here.
     if is_broker_node(&config.roles)
         && (!is_local_port_listening(config.mqtt_runtime.server.tcp_port)
             || !is_local_port_listening(config.mqtt_runtime.server.tls_port)
             || !is_local_port_listening(config.mqtt_runtime.server.websocket_port)
-            || !is_local_port_listening(config.mqtt_runtime.server.websockets_port)
-            || !is_local_port_listening(config.mqtt_runtime.server.quic_port))
+            || !is_local_port_listening(config.mqtt_runtime.server.websockets_port))
     {
         return false;
     }

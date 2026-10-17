@@ -98,7 +98,7 @@ RobustMQ Admin Server is an HTTP management interface service, providing compreh
 | Category | Method | URI | Description |
 |----------|--------|-----|-------------|
 | Info | `GET` | `/` | Get service version information |
-| Status | `GET` | `/api/status` | Cluster status query |
+| Status | `GET` | `/api/info` | Cluster status query |
 | Health | `GET` | `/health/ready` | Readiness health check |
 | Health | `GET` | `/health/node` | Node health check |
 | Health | `GET` | `/health/cluster` | Cluster health check |
@@ -180,7 +180,7 @@ Most list query interfaces support the following common parameters:
 ```
 
 ### Cluster Status Query
-- **Endpoint**: `GET /api/status`
+- **Endpoint**: `GET /api/info`
 - **Description**: Get complete cluster status information, including RobustMQ version, cluster name, start time, broker node list, and Meta cluster Raft state
 - **Request Parameters**:
 ```json
@@ -504,7 +504,7 @@ The `meta` field contains the Raft consensus state information of the Meta clust
 curl -X GET http://localhost:58080/
 
 # Get cluster status
-curl -X GET http://localhost:58080/api/status
+curl -X GET http://localhost:58080/api/info
 
 # List query with pagination
 curl "http://localhost:58080/api/cluster/user/list?limit=10&page=1&sort_field=username&sort_by=asc"
@@ -525,7 +525,7 @@ curl "http://localhost:58080/api/cluster/user/list?limit=10&page=1&sort_field=us
 ## Notes
 
 1. **Request Method**:
-   - List/detail queries (`/list`, `/detail`, `/api/status`, etc.) use `GET`, with parameters passed via query string
+   - List/detail queries (`/list`, `/detail`, `/api/info`, etc.) use `GET`, with parameters passed via query string
    - Create/delete operations (`/create`, `/delete`) use `POST`, with parameters passed as JSON body
 2. **Request Body**: POST interfaces require `Content-Type: application/json` and a JSON body; GET interfaces pass parameters via URL query string
 3. **Time Format**:

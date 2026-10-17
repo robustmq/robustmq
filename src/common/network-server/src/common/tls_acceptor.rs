@@ -14,7 +14,7 @@
 
 use crate::common::channel::RequestChannel;
 use crate::common::connection_manager::ConnectionManager;
-use crate::common::tool::{check_connection_limit, read_packet};
+use crate::common::tool::{check_connection_limit, read_packet, send_protocol_error_frame};
 use crate::protocol::nats::send_nats_info;
 use broker_core::cache::NodeCacheManager;
 use common_base::error::common::CommonError;
@@ -146,7 +146,7 @@ pub async fn acceptor_tls_process(ctx: TlsAcceptorContext) -> ResultCommonError 
                                     send_nats_info(&row_broker_cache, connection.connection_id, &connection_manager,&network_type, &addr).await;
                                 }
 
-                                read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone());
+                                read_tls_frame_process(row_broker_cache.clone(), connection_manager.clone(),read_frame_stream, connection, request_channel.clone(), connection_stop_rx, network_type.clone(), protocol.clone());
                             }
                             Err(e) => {
                                 error!("{} accept failed to create connection with error message :{:?}", network_type, e);
@@ -173,6 +173,7 @@ pub(crate) fn read_tls_frame_process(
     request_channel: Arc<RequestChannel>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
+    protocol: RobustMQProtocol,
 ) {
     tokio::spawn(Box::pin(async move {
         loop {
@@ -226,6 +227,13 @@ pub(crate) fn read_tls_frame_process(
                                     "{} connection parsing packet format error message :{:?}",
                                     network_type, e
                                 );
+                                send_protocol_error_frame(
+                                    &connection_manager,
+                                    connection.connection_id,
+                                    &protocol,
+                                    &e,
+                                )
+                                .await;
                                 connection_manager.mark_close_connect(connection.connection_id).await;
                                 break;
                             }

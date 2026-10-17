@@ -24,15 +24,16 @@ To start RobustMQ with monitoring stack:
 
 ```bash
 # Start all services including monitoring
-docker-compose --profile monitoring up -d
+docker compose -f docker/robustmq/docker-compose.yml --profile monitoring up -d
 
 # Or start only monitoring services
-docker-compose --profile monitoring up -d prometheus grafana
+docker compose -f docker/robustmq/docker-compose.yml --profile monitoring up -d prometheus grafana
 ```
 
 ### Access URLs
 
 - **RobustMQ Admin**: http://localhost:58080
+- **RobustMQ metrics**: http://localhost:58080/metrics
 - **Prometheus**: http://localhost:9090
 - **Grafana**: http://localhost:3000 (admin/admin)
 

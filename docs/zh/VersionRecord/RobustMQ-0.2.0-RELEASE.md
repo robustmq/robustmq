@@ -4,8 +4,8 @@
   <img src="../../images/robustmq-logo.png" alt="RobustMQ Logo" width="300">
 </p>
 
-**发布日期**: 2025年9月29日  
-**版本**: 0.2.0  
+**发布日期**: 2025年9月29日
+**版本**: 0.2.0
 **代号**: "Cloud Native Evolution"
 
 ---
@@ -248,5 +248,5 @@ git checkout v0.2.0
 
 ---
 
-**RobustMQ 团队**  
+**RobustMQ 团队**
 2025年9月29日

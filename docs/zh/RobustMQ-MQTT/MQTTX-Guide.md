@@ -50,10 +50,10 @@ mqttx --version
 
 ```bash
 # 基础连接测试
-mqttx conn -h localhost -p 1883 --client-id robustmq_test_client
+mqttx conn -h localhost -p 1883 -u admin -P robustmq --client-id robustmq_test_client
 
 # 带认证的连接
-mqttx conn -h localhost -p 1883 -u username -P password --client-id robustmq_auth_client
+mqttx conn -h localhost -p 1883 -u admin -P robustmq --client-id robustmq_auth_client
 
 # SSL 连接测试
 mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
@@ -65,13 +65,13 @@ mqttx conn -h localhost -p 1885 --client-id robustmq_ssl_client --protocol mqtts
 
 ```bash
 # 发布单条消息
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/hello' -m 'Hello RobustMQ!'
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/hello' -m 'Hello RobustMQ!'
 
 # 指定 QoS 发布
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/qos1' -m 'QoS 1 message' -q 1
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/qos1' -m 'QoS 1 message' -q 1
 
 # 发布保留消息
-mqttx pub -h localhost -p 1883 -t 'robustmq/test/retain' -m 'Retained message' -r
+mqttx pub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/retain' -m 'Retained message' -r
 ```
 
 ### 批量发布
@@ -104,13 +104,13 @@ mqttx pub -h localhost -p 1883 -t 'robustmq/test/loop' -m 'Loop message' -i 2
 
 ```bash
 # 订阅单个主题
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/hello'
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/hello'
 
 # 订阅通配符主题
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/+' -q 1
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/+' -q 1
 
 # 订阅多级通配符
-mqttx sub -h localhost -p 1883 -t 'robustmq/test/#'
+mqttx sub -h localhost -p 1883 -u admin -P robustmq -t 'robustmq/test/#'
 ```
 
 ### 高级订阅
@@ -561,7 +561,7 @@ done
 
 ```bash
 # 检查 RobustMQ 服务状态
-curl -f http://localhost:58080/health || echo "RobustMQ 服务可能未启动"
+curl -f http://localhost:58080/health/node || echo "RobustMQ 服务可能未启动"
 
 # 清理测试主题（如果需要）
 mqttx pub -h localhost -p 1883 -t 'robustmq/test/cleanup' -m '' -r

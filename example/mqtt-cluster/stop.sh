@@ -14,7 +14,7 @@
 
 stop_cluster(){
     pids=$(ps -ef | grep broker-server | grep -v grep | awk '{print $2}')
-    
+
     if [ -n "$pids" ]; then
         for pid in $pids; do
             echo "kill broker server process: $pid"

@@ -66,10 +66,10 @@ $delayed/{DelayInterval}/{TopicName}
    ```bash
    # 15 秒后发布
    mqttx pub -t "$delayed/15/device/status" -m "online" -h '117.72.92.117' -p 1883
-   
+
    # 60 秒后发布
    mqttx pub -t "$delayed/60/system/backup" -m "backup completed" -h '117.72.92.117' -p 1883
-   
+
    # 3600 秒（1小时）后发布
    mqttx pub -t "$delayed/3600/report/daily" -m "daily report ready" -h '117.72.92.117' -p 1883
    ```

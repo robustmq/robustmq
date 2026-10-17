@@ -8,10 +8,10 @@
               <span class="clip">{{ frontmatter.hero?.text || '' }}</span>
             </h1>
             <p class="tagline">{{ frontmatter.hero?.tagline || '' }}</p>
-            
+
             <!-- 徽章放在 tagline 下面，actions 上面 -->
             <BadgeSection />
-            
+
             <div class="actions" v-if="frontmatter.hero?.actions">
               <div class="action" v-for="action in frontmatter.hero.actions" :key="action.text">
                 <VPButton
@@ -34,7 +34,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="VPFeatures" v-if="frontmatter.features">
       <div class="container">
         <div class="items">
@@ -159,12 +159,12 @@ const { frontmatter } = useData()
   .item {
     width: 33.333333%;
   }
-  
+
   .text {
     order: 1;
     width: 392px;
   }
-  
+
   .image {
     order: 2;
     margin: 0 0 0 64px;
@@ -176,7 +176,7 @@ const { frontmatter } = useData()
   .name {
     font-size: 32px;
   }
-  
+
   .tagline {
     font-size: 16px;
     line-height: 24px;

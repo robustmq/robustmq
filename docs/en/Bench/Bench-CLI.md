@@ -1,6 +1,6 @@
 # RobustMQ Bench CLI Guide
 
-`robust-bench` is the benchmark CLI for RobustMQ.  
+`robust-bench` is the benchmark CLI for RobustMQ.
 At this stage, it supports MQTT and Meta API benchmark workloads.
 
 ## 1. Command Shape

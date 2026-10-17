@@ -14,7 +14,7 @@
 
 ---
 name: Umbrella
-title: "[RPIP-*/MINOR]"
+title: "[RBIP-*/MINOR]"
 description: An umbrella issue with multiple sub-tasks
 labels: [ "kind:umbrella" ]
 body:
@@ -41,15 +41,15 @@ body:
     attributes:
       label: Task list
       description: >
-        For more details, please refer to [github docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/about-task-lists).
+        Use this checklist to track the planned work. Create child Issues only when
+        the work contains independently deliverable units; child Issues are optional.
+        For more details, please refer to [GitHub docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/about-task-lists).
       placeholder: >
-        Please create sub-tasks with the pre-create issues here and @ the assignees if you know any of them. A simple example is as follows:
-          - [ ] #1
-            - [ ] #11 @user1
-            - [ ] #12
-            - [ ] #13
-          - [ ] #2 @user2
-          - [ ] #3
+        Add the initial checklist here. Link child Issues after they are created when
+        the work needs independent ownership or delivery:
+          - [ ] Define scope and acceptance criteria
+          - [ ] #123 Implementation task
+          - [ ] #124 Integration tests
     validations:
       required: true
 

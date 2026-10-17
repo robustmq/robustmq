@@ -67,6 +67,44 @@ pub async fn read_packet(
     request_channel.send(package).await;
 }
 
+/// Send a protocol-level error frame to the client before the connection is
+/// closed on a decode failure. Each protocol has its own convention for
+/// reporting protocol errors; today only NATS is covered (`-ERR`, as
+/// required by the NATS protocol — silently dropping the connection leaves
+/// clients hanging). MQTT/Kafka/AMQP just close for now: their decode errors
+/// are still swallowed by the codec wrapper and never reach this path.
+pub async fn send_protocol_error_frame(
+    connection_manager: &Arc<ConnectionManager>,
+    connection_id: u64,
+    protocol: &protocol::robust::RobustMQProtocol,
+    error: &common_base::error::common::CommonError,
+) {
+    use protocol::nats::packet::NatsPacket;
+    use protocol::robust::{
+        NatsWrapperExtend, RobustMQPacket, RobustMQPacketWrapper, RobustMQWrapperExtend,
+    };
+
+    // Only NATS is covered today. MQTT/Kafka/AMQP decode errors are still
+    // swallowed by the codec wrapper, so they never reach this path; each
+    // protocol needs its own error-frame convention when wired up.
+    if let protocol::robust::RobustMQProtocol::NATS = protocol {
+        let wrapper = RobustMQPacketWrapper {
+            protocol: protocol.clone(),
+            extend: RobustMQWrapperExtend::NATS(NatsWrapperExtend {}),
+            packet: RobustMQPacket::NATS(NatsPacket::Err(error.to_string())),
+        };
+        if let Err(e) = connection_manager
+            .write_tcp_frame(connection_id, wrapper)
+            .await
+        {
+            debug!(
+                "Failed to send NATS -ERR before closing connection {}: {}",
+                connection_id, e
+            );
+        }
+    }
+}
+
 pub async fn check_connection_limit(
     global_limit_manager: &Arc<GlobalRateLimiterManager>,
     node_cache: &Arc<NodeCacheManager>,
