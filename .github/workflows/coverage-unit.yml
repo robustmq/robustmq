@@ -1,0 +1,272 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Unit Coverage
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/coverage-unit.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "makefile"
+      - "scripts/coverage-unit.sh"
+      - "src/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_BUILD_JOBS: 16
+
+jobs:
+  unit-coverage:
+    name: Unit Coverage (report-only)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout exact commit under test
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Initialize coverage artifact paths
+        run: |
+          echo "COVERAGE_OUTPUT_DIR=${RUNNER_TEMP}/robustmq-coverage-unit" >> "$GITHUB_ENV"
+          echo "COVERAGE_ARTIFACT_DIR=${RUNNER_TEMP}/robustmq-coverage-artifacts" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/robustmq-coverage-artifacts/reports" \
+            "$RUNNER_TEMP/robustmq-coverage-artifacts/html" \
+            "$RUNNER_TEMP/robustmq-coverage-artifacts/diagnostics"
+          printf '%s\n' "Coverage workflow initialized before setup steps." \
+            > "$RUNNER_TEMP/robustmq-coverage-artifacts/reports/README.txt"
+          printf '%s\n' "HTML coverage was not generated before the workflow stopped." \
+            > "$RUNNER_TEMP/robustmq-coverage-artifacts/html/README.txt"
+          printf '%s\n' "Coverage workflow initialized before setup steps." \
+            > "$RUNNER_TEMP/robustmq-coverage-artifacts/diagnostics/workflow-started.txt"
+
+      - name: Free disk space for instrumented build
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo apt-get clean
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: llvm-tools-preview
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            protobuf-compiler \
+            cmake \
+            pkg-config \
+            libssl-dev \
+            libsasl2-dev \
+            libcurl4-openssl-dev \
+            libzstd-dev \
+            libclang-dev
+          protoc --version
+          cmake --version
+
+      - name: Install coverage tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: |
+            cargo-llvm-cov@0.6.21
+            cargo-nextest@0.9.84
+
+      - name: Cache HuggingFace model files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub
+          key: hf-fastembed-xenova-all-minilm-l6-v2-v1-${{ runner.os }}
+          restore-keys: |
+            hf-fastembed-xenova-all-minilm-l6-v2-v1-
+
+      - name: Pre-download fastembed embedding model
+        run: |
+          pip install -q huggingface_hub
+          python3 - <<'EOF'
+          import os
+          from huggingface_hub import snapshot_download
+
+          snapshot_download(
+              repo_id="Xenova/all-MiniLM-L6-v2",
+              allow_patterns=[
+                  "onnx/model_quantized.onnx",
+                  "tokenizer.json",
+                  "config.json",
+                  "special_tokens_map.json",
+                  "tokenizer_config.json",
+              ],
+              cache_dir=os.path.expanduser("~/.cache/huggingface/hub"),
+          )
+          print("fastembed model ready")
+          EOF
+
+      - name: Prepare coverage metadata
+        run: |
+          mkdir -p "$COVERAGE_ARTIFACT_DIR/reports" \
+            "$COVERAGE_ARTIFACT_DIR/html" \
+            "$COVERAGE_ARTIFACT_DIR/diagnostics"
+
+          cat > "$COVERAGE_ARTIFACT_DIR/reports/test-command.txt" <<'EOF'
+          make coverage-unit
+
+          The command invokes scripts/coverage-unit.sh with the existing make test
+          scope: robustmq-test and grpc-clients are excluded, as is the storage-adapter
+          meta test. Coverage is report-only; no percentage threshold is enforced.
+          EOF
+
+          {
+            llvm_cov="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-cov"
+            echo "workflow: ${GITHUB_WORKFLOW}"
+            echo "event: ${GITHUB_EVENT_NAME}"
+            echo "ref: ${GITHUB_REF}"
+            echo "workflow sha: ${GITHUB_SHA}"
+            echo "checked out sha: $(git rev-parse HEAD)"
+            echo "rustc: $(rustc --version)"
+            echo "cargo: $(cargo --version)"
+            echo "llvm-cov: $($llvm_cov --version | head -n 1)"
+            echo "cargo llvm-cov: $(cargo llvm-cov --version)"
+            echo "cargo nextest: $(cargo nextest --version)"
+            echo "runner image: ubuntu-22.04"
+          } > "$COVERAGE_ARTIFACT_DIR/reports/toolchain.txt"
+
+      - name: Run local unit coverage runner
+        id: coverage
+        continue-on-error: true
+        run: make coverage-unit
+
+      - name: Stage coverage reports and diagnostics
+        if: always()
+        run: |
+          set +e
+          reports="$COVERAGE_ARTIFACT_DIR/reports"
+          diagnostics="$COVERAGE_ARTIFACT_DIR/diagnostics"
+          html="$COVERAGE_ARTIFACT_DIR/html"
+
+          if [ -d "$COVERAGE_OUTPUT_DIR" ]; then
+            for report in coverage.txt lcov.info coverage.json coverage-summary.json summary.txt; do
+              if [ -f "$COVERAGE_OUTPUT_DIR/$report" ]; then
+                cp "$COVERAGE_OUTPUT_DIR/$report" "$reports/$report"
+              fi
+            done
+            if [ -d "$COVERAGE_OUTPUT_DIR/html" ]; then
+              cp -a "$COVERAGE_OUTPUT_DIR/html/." "$html/"
+            fi
+            if [ -f "$COVERAGE_OUTPUT_DIR/run.log" ]; then
+              cp "$COVERAGE_OUTPUT_DIR/run.log" "$diagnostics/run.log"
+            fi
+          fi
+
+          {
+            echo "coverage runner outcome: ${{ steps.coverage.outcome }}"
+            echo "coverage output directory: $COVERAGE_OUTPUT_DIR"
+            echo "staged report files:"
+            find "$reports" -maxdepth 1 -type f -printf '%f\n' | sort
+            echo "staged HTML files:"
+            find "$html" -type f -printf '%P\n' | sort | head -100
+          } > "$diagnostics/workflow-context.txt"
+
+          if [ -d "$COVERAGE_OUTPUT_DIR" ]; then
+            find "$COVERAGE_OUTPUT_DIR" -maxdepth 1 -type f -printf '%f\n' | sort \
+              > "$diagnostics/coverage-output-files.txt"
+          else
+            echo "Coverage output directory was not created." \
+              > "$diagnostics/coverage-output-files.txt"
+          fi
+
+      - name: Publish report-only coverage summary
+        if: always()
+        run: |
+          reports="$COVERAGE_ARTIFACT_DIR/reports"
+          {
+            echo "## Rust Unit Coverage (report-only)"
+            echo
+            echo "This workflow measures the existing unit-test scope only. It excludes \`robustmq-test\`, \`grpc-clients\`, and the \`storage-adapter\` meta test. It does not enforce a percentage threshold."
+            echo
+            echo "- Commit under test: \`$(git rev-parse HEAD)\`"
+            echo "- Runner outcome: \`${{ steps.coverage.outcome }}\`"
+            if [ -f "$reports/coverage-summary.json" ] && command -v jq >/dev/null 2>&1; then
+              echo "- Test result: \`$(jq -r '.test_result | "\(.passed) passed, \(.failed) failed, \(.skipped) skipped"' "$reports/coverage-summary.json")\`"
+              echo "- Profiles: \`$(jq -r '.profile_count' "$reports/coverage-summary.json")\`"
+              echo "- Toolchain: \`$(jq -r '.toolchain.rustc' "$reports/coverage-summary.json")\`, \`$(jq -r '.toolchain.cargo_llvm_cov' "$reports/coverage-summary.json")\`, \`$(jq -r '.toolchain.cargo_nextest' "$reports/coverage-summary.json")\`"
+            fi
+            echo
+            if [ -f "$reports/coverage.txt" ]; then
+              echo "### Coverage values"
+              echo
+              echo '```text'
+              if ! grep -E '^[[:space:]]*TOTAL[[:space:]]' "$reports/coverage.txt"; then
+                echo "TOTAL line was not present in coverage.txt; see the downloadable report."
+              fi
+              echo '```'
+            else
+              echo "Coverage reports were not generated. Download \`coverage-unit-diagnostics\` for the failure log."
+            fi
+            echo
+            echo "### Downloadable artifacts"
+            echo
+            echo "- \`coverage-unit-reports\`: text, LCOV, JSON, metadata, toolchain, and test command"
+            echo "- \`coverage-unit-html\`: interactive HTML report"
+            echo "- \`coverage-unit-diagnostics\`: runner log and workflow diagnostics"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage reports and metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-reports
+          path: ${{ runner.temp }}/robustmq-coverage-artifacts/reports
+          if-no-files-found: warn
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-html
+          path: ${{ runner.temp }}/robustmq-coverage-artifacts/html
+          if-no-files-found: warn
+
+      - name: Upload coverage diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-diagnostics
+          path: ${{ runner.temp }}/robustmq-coverage-artifacts/diagnostics
+          if-no-files-found: warn
+
+      - name: Fail when coverage runner failed
+        if: always() && steps.coverage.outcome != 'success'
+        run: |
+          echo "The unit coverage runner did not complete successfully."
+          exit 1

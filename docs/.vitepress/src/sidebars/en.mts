@@ -434,6 +434,10 @@ const items = [
             text: "Build and Package",
             link: "/en/ContributionGuide/ContributingCode/Build-and-Package",
           },
+          {
+            text: "Unit Coverage Workflow",
+            link: "/en/ContributionGuide/ContributingCode/Coverage-Workflow",
+          },
         ],
       },
       {
