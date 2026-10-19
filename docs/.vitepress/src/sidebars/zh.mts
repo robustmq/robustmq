@@ -444,6 +444,10 @@ const items = [
             text: "编译打包",
             link: "/zh/ContributionGuide/ContributingCode/Build-and-Package",
           },
+          {
+            text: "单元测试覆盖率",
+            link: "/zh/ContributionGuide/ContributingCode/Coverage-Unit",
+          },
         ],
       },
       {

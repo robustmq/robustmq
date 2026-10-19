@@ -83,6 +83,10 @@ test: ## Run unit tests with cleanup
 		--exclude=grpc-clients \
 		--filter-expr '!(test(meta) & package(storage-adapter))'
 
+.PHONY: coverage-unit
+coverage-unit: ## Run unit tests with LLVM coverage reports
+	@./scripts/coverage-unit.sh
+
 ## Integration tests are split by protocol so each can be diagnosed
 ## independently in CI (its own 3-node cluster, its own pass/fail): core
 ## (protocol-agnostic: engine/meta/grpc-clients/mcp/etc.), mqtt, nats, mq9,
