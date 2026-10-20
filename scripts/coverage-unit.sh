@@ -202,6 +202,8 @@ import re
 import sys
 
 log = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+# CARGO_TERM_COLOR=always keeps CI logs readable but adds ANSI formatting.
+log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", log)
 match = re.search(
     r"Summary .*?\d+ tests run: (\d+) passed(?:, (\d+) failed)?(?:, (\d+) skipped)?",
     log,
@@ -246,6 +248,7 @@ if not any(
     raise SystemExit("LCOV report contains no executed source lines")
 
 test_log = pathlib.Path(sys.argv[11]).read_text(encoding="utf-8", errors="replace")
+test_log = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", test_log)
 test_result = re.search(
     r"Summary .*?\d+ tests run: (\d+) passed(?:, (\d+) failed)?(?:, (\d+) skipped)?",
     test_log,
