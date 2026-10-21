@@ -726,6 +726,27 @@ mod tests {
         assert!(codec.decode(&mut buf).unwrap().is_none());
     }
 
+    /// async-nats serializes absent optionals as explicit JSON nulls
+    /// (`"name":null`); those must deserialize into empty strings instead of
+    /// failing (which now closes the connection).
+    #[test]
+    fn test_connect_with_explicit_nulls() {
+        let mut codec = NatsCodec::new();
+        let connect = b"CONNECT {\"verbose\":false,\"pedantic\":false,\"jwt\":null,\"nkey\":null,\"sig\":null,\"name\":null,\"echo\":true,\"lang\":\"rust\",\"version\":\"0.38.0\",\"protocol\":1,\"tls_required\":false,\"user\":null,\"pass\":null,\"auth_token\":null,\"headers\":true,\"no_responders\":true}\r\n";
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(connect);
+        match codec.decode(&mut buf).unwrap() {
+            Some(NatsPacket::Connect(c)) => {
+                assert_eq!(c.name, "");
+                assert_eq!(c.lang, "rust");
+                assert_eq!(c.version, "0.38.0");
+                assert!(c.headers.unwrap());
+            }
+            other => panic!("expected Connect, got {other:?}"),
+        }
+        assert!(codec.decode(&mut buf).unwrap().is_none());
+    }
+
     fn encode(packet: NatsPacket) -> BytesMut {
         let mut codec = NatsCodec::new();
         let mut buf = BytesMut::new();
