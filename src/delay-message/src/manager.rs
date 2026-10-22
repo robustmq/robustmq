@@ -130,7 +130,7 @@ impl DelayMessageManager {
             save_delay_message(&self.storage_driver_manager, &delay_message_id, data, 1).await?;
 
         let delay_index_info = DelayMessageIndexInfo {
-            unique_id: delay_message_id.clone(),
+            unique_id: delay_message_id,
             tenant: tenant.to_string(),
             target_topic_name: target_topic.to_string(),
             offset,
@@ -145,7 +145,7 @@ impl DelayMessageManager {
         record_delay_msg_enqueue();
         record_delay_msg_enqueue_duration(start.elapsed().as_secs_f64() * 1000.0);
 
-        Ok(delay_message_id)
+        Ok(delay_index_info.unique_id)
     }
 
     /// Cancel a previously scheduled delay message by its unique_id.
@@ -332,10 +332,7 @@ mod test {
         let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
 
         let delay_info = create_test_delay_info("test_1", now_second() + 3600);
-        delay_queue.insert_at(
-            delay_info.clone(),
-            Instant::now() + Duration::from_secs(3600),
-        );
+        delay_queue.insert_at(delay_info, Instant::now() + Duration::from_secs(3600));
 
         assert_eq!(delay_queue.len(), 1);
     }
@@ -346,7 +343,7 @@ mod test {
         let mut delay_queue: DelayQueue<DelayMessageIndexInfo> = DelayQueue::new();
 
         let delay_info = create_test_delay_info("expired_test", now_second() - 10);
-        delay_queue.insert_at(delay_info.clone(), Instant::now());
+        delay_queue.insert_at(delay_info, Instant::now());
 
         assert_eq!(delay_queue.len(), 1);
     }

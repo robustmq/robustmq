@@ -117,8 +117,8 @@ async fn run_shard_loop(
                 manager.remove_message_key(&delay_message.unique_id);
                 let storage = manager.storage_driver_manager.clone();
                 let retry_manager = manager.clone();
-                let config = manager.delay_message_config.clone();
                 tokio::spawn(async move {
+                    let config = &retry_manager.delay_message_config;
                     if let Err(e) = delay_message_process(
                         &storage,
                         &delay_message,
@@ -127,7 +127,7 @@ async fn run_shard_loop(
                     .await
                     {
                         if delay_message.retry_count < config.max_retries {
-                            let mut retry = delay_message.clone();
+                            let mut retry = delay_message;
                             retry.retry_count += 1;
                             let backoff_secs = config.initial_retry_delay_sec
                                 * 2_u64.pow(retry.retry_count.saturating_sub(1));
@@ -227,7 +227,7 @@ async fn send_delay_message_to_shard(
     }
 
     let record = if let Some(record) = results.first() {
-        record.clone()
+        record
     } else {
         return Err(CommonError::CommonError(format!(
             "Failed to retrieve delay message record for unique_id={}",
@@ -235,7 +235,7 @@ async fn send_delay_message_to_shard(
         )));
     };
 
-    let send_record = build_new_record(delay_message, &record, trigger_time);
+    let send_record = build_new_record(delay_message, record, trigger_time);
 
     // send to target topic under the original tenant
     let resp = storage_driver_manager
@@ -248,7 +248,7 @@ async fn send_delay_message_to_shard(
         .await?;
 
     let write_resp = if let Some(data) = resp.first() {
-        data.clone()
+        data
     } else {
         return Err(CommonError::CommonError(format!(
             "Write response is empty when sending delay message to topic '{}'",
@@ -380,7 +380,7 @@ mod test {
             .expect("write to delay queue message topic");
 
         let delay_info = DelayMessageIndexInfo {
-            unique_id: unique_id.clone(),
+            unique_id,
             tenant: DEFAULT_TENANT.to_string(),
             target_topic_name: target_topic.to_string(),
             offset: 0,
@@ -437,7 +437,7 @@ mod test {
             initial_retry_delay_sec: 1,
         };
         let manager = Arc::new(
-            DelayMessageManager::new(client_pool.clone(), storage.clone(), 1, config)
+            DelayMessageManager::new(client_pool, storage.clone(), 1, config)
                 .await
                 .unwrap(),
         );
@@ -536,7 +536,7 @@ mod test {
             initial_retry_delay_sec: 0,
         };
         let manager = Arc::new(
-            DelayMessageManager::new(client_pool.clone(), storage.clone(), 1, config)
+            DelayMessageManager::new(client_pool, storage, 1, config)
                 .await
                 .unwrap(),
         );
