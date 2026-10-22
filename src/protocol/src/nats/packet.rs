@@ -57,13 +57,25 @@ pub struct ServerInfo {
     pub xkey: Option<String>,
 }
 
+/// Deserialize a String field that clients may send as an explicit JSON null
+/// (async-nats) or omit entirely (nats.js): both fall back to the empty string.
+fn string_or_empty<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 /// CONNECT is sent by the client after receiving INFO.
 ///
-/// Standard NATS clients send wildly varying subsets of these fields (e.g.
-/// nats.js omits `tls_required` and `name`, async-nats sends all of them), so
-/// every non-Option field carries `#[serde(default)]`. A missing field must
-/// fall back to its default instead of failing deserialization — a failed
-/// parse silently swallows the CONNECT frame and stalls the handshake.
+/// Standard NATS clients send wildly varying subsets of these fields: nats.js
+/// omits absent fields entirely, while async-nats sends them as explicit JSON
+/// `null` (e.g. `"name":null`). `#[serde(default)]` only covers the missing
+/// case; an explicit `null` still fails for non-Option types, so String fields
+/// additionally deserialize null as the empty string. A failed parse used to
+/// be silently swallowed by the codec wrapper (stalling the handshake), and is
+/// now propagated — which closes the connection — so it must not trigger on
+/// well-formed client CONNECTs.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ClientConnect {
     #[serde(default)]
@@ -78,11 +90,11 @@ pub struct ClientConnect {
     pub user: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pass: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_empty")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_empty")]
     pub lang: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "string_or_empty")]
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<u8>,
