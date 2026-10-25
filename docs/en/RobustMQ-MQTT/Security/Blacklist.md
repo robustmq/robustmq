@@ -51,7 +51,7 @@ RobustMQ's blacklist checks occur in the early stages of permission verification
 ```bash
 # Add user blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name malicious_user \
   --end-time "2024-12-31 23:59:59" \
@@ -59,7 +59,7 @@ robust-ctl mqtt blacklist create \
 
 # Add client ID blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type ClientId \
   --resource-name bad_client_001 \
   --end-time "2024-06-30 12:00:00" \
@@ -67,7 +67,7 @@ robust-ctl mqtt blacklist create \
 
 # Add IP address blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type Ip \
   --resource-name "192.168.1.100" \
   --end-time "2024-03-31 00:00:00" \
@@ -75,7 +75,7 @@ robust-ctl mqtt blacklist create \
 
 # Add username pattern matching blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type UserMatch \
   --resource-name "test.*" \
   --end-time "2024-12-31 23:59:59" \
@@ -83,7 +83,7 @@ robust-ctl mqtt blacklist create \
 
 # Add client ID pattern matching blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type ClientIdMatch \
   --resource-name "bot_.*" \
   --end-time "2024-12-31 23:59:59" \
@@ -91,7 +91,7 @@ robust-ctl mqtt blacklist create \
 
 # Add IP network segment blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type IPCIDR \
   --resource-name "10.0.0.0/24" \
   --end-time "2024-12-31 23:59:59" \
@@ -110,7 +110,7 @@ robust-ctl mqtt blacklist list
 ```bash
 # Delete specific blacklist
 robust-ctl mqtt blacklist delete \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name malicious_user
 ```
@@ -235,7 +235,7 @@ A: Set an appropriate expiration time to implement temporary blacklists:
 ```bash
 # 1-hour temporary blacklist
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name temp_user \
   --end-time "$(date -d '+1 hour' '+%Y-%m-%d %H:%M:%S')" \
@@ -258,7 +258,7 @@ robust-ctl mqtt blacklist list | \
 jq -r ".[] | select(.end_time < $current_time) | \"\\(.blacklist_type) \\(.resource_name)\"" | \
 while read blacklist_type resource_name; do
     robust-ctl mqtt blacklist delete \
-      --cluster-name robustmq-cluster \
+      --tenant robustmq-cluster \
       --blacklist-type "$blacklist_type" \
       --resource-name "$resource_name"
 done

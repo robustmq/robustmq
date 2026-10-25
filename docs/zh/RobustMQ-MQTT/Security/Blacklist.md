@@ -51,7 +51,7 @@ RobustMQ 的黑名单检查在权限验证的早期阶段进行，检查顺序�
 ```bash
 # 添加用户黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name malicious_user \
   --end-time "2024-12-31 23:59:59" \
@@ -59,7 +59,7 @@ robust-ctl mqtt blacklist create \
 
 # 添加客户端 ID 黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type ClientId \
   --resource-name bad_client_001 \
   --end-time "2024-06-30 12:00:00" \
@@ -67,7 +67,7 @@ robust-ctl mqtt blacklist create \
 
 # 添加 IP 地址黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type Ip \
   --resource-name "192.168.1.100" \
   --end-time "2024-03-31 00:00:00" \
@@ -75,7 +75,7 @@ robust-ctl mqtt blacklist create \
 
 # 添加用户名模式匹配黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type UserMatch \
   --resource-name "test.*" \
   --end-time "2024-12-31 23:59:59" \
@@ -83,7 +83,7 @@ robust-ctl mqtt blacklist create \
 
 # 添加客户端 ID 模式匹配黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type ClientIdMatch \
   --resource-name "bot_.*" \
   --end-time "2024-12-31 23:59:59" \
@@ -91,7 +91,7 @@ robust-ctl mqtt blacklist create \
 
 # 添加 IP 网段黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type IPCIDR \
   --resource-name "10.0.0.0/24" \
   --end-time "2024-12-31 23:59:59" \
@@ -110,7 +110,7 @@ robust-ctl mqtt blacklist list
 ```bash
 # 删除特定黑名单
 robust-ctl mqtt blacklist delete \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name malicious_user
 ```
@@ -206,7 +206,7 @@ A: 设置合适的过期时间即可实现临时黑名单：
 ```bash
 # 1小时临时黑名单
 robust-ctl mqtt blacklist create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --blacklist-type User \
   --resource-name temp_user \
   --end-time "$(date -d '+1 hour' '+%Y-%m-%d %H:%M:%S')" \
@@ -229,7 +229,7 @@ robust-ctl mqtt blacklist list | \
 jq -r ".[] | select(.end_time < $current_time) | \"\\(.blacklist_type) \\(.resource_name)\"" | \
 while read blacklist_type resource_name; do
     robust-ctl mqtt blacklist delete \
-      --cluster-name robustmq-cluster \
+      --tenant robustmq-cluster \
       --blacklist-type "$blacklist_type" \
       --resource-name "$resource_name"
 done

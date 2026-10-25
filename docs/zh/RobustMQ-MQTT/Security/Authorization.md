@@ -59,7 +59,7 @@ RobustMQ 的权限检查按以下顺序进行：
 ```bash
 # 允许用户 testuser 发布到 test/# 主题
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name testuser \
   --topic "test/#" \
@@ -69,7 +69,7 @@ robust-ctl mqtt acl create \
 
 # 拒绝客户端 bad_client 订阅所有主题
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type ClientId \
   --resource-name bad_client \
   --topic "*" \
@@ -79,7 +79,7 @@ robust-ctl mqtt acl create \
 
 # 允许特定 IP 地址的用户访问所有主题
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name admin \
   --topic "*" \
@@ -100,7 +100,7 @@ robust-ctl mqtt acl list
 ```bash
 # 删除特定 ACL 规则
 robust-ctl mqtt acl delete \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name testuser \
   --topic "test/#" \

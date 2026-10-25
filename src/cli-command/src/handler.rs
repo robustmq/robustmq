@@ -588,33 +588,6 @@ mod tests {
     }
 
     #[test]
-    fn legacy_acl_cluster_name_alias_is_forwarded_to_request() {
-        let cli = RobustMQCli::try_parse_from([
-            "robust-ctl",
-            "mqtt",
-            "acl",
-            "delete",
-            "--cluster-name",
-            "tenant-b",
-            "--name",
-            "acl-b",
-        ])
-        .unwrap();
-
-        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
-            panic!("expected mqtt command");
-        };
-        let super::MQTTAction::Acl(args) = args.action else {
-            panic!("expected acl action");
-        };
-
-        assert!(matches!(
-            process_acl_args(args).unwrap(),
-            MqttActionType::DeleteAcl(request) if request.tenant == "tenant-b"
-        ));
-    }
-
-    #[test]
     fn blacklist_tenant_option_is_forwarded_to_request() {
         let cli = RobustMQCli::try_parse_from([
             "robust-ctl",
@@ -648,30 +621,19 @@ mod tests {
     }
 
     #[test]
-    fn blacklist_legacy_cluster_name_alias_is_forwarded_to_request() {
-        let cli = RobustMQCli::try_parse_from([
+    fn legacy_cluster_name_option_is_rejected() {
+        let result = RobustMQCli::try_parse_from([
             "robust-ctl",
             "mqtt",
-            "blacklist",
+            "acl",
             "delete",
             "--cluster-name",
-            "tenant-d",
+            "tenant-legacy",
             "--name",
-            "blacklist-d",
-        ])
-        .unwrap();
+            "acl-legacy",
+        ]);
 
-        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
-            panic!("expected mqtt command");
-        };
-        let super::MQTTAction::Blacklist(args) = args.action else {
-            panic!("expected blacklist action");
-        };
-
-        assert!(matches!(
-            process_blacklist_args(args).unwrap(),
-            MqttActionType::DeleteBlacklist(request) if request.tenant == "tenant-d"
-        ));
+        assert!(result.is_err());
     }
 
     #[test]

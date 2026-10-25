@@ -148,7 +148,7 @@ pub enum AclActionType {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct CreateAclArgs {
-    #[arg(short = 'c', long, visible_alias = "cluster-name", required = true)]
+    #[arg(short = 'c', long, required = true)]
     pub tenant: String,
     #[arg(long, required = true)]
     pub name: String,
@@ -183,7 +183,7 @@ pub struct CreateAclArgs {
 #[derive(clap::Args, Debug)]
 #[command(next_line_help = true)]
 pub struct DeleteAclArgs {
-    #[arg(short = 'c', long, visible_alias = "cluster-name", required = true)]
+    #[arg(short = 'c', long, required = true)]
     pub tenant: String,
     #[arg(long, required = true)]
     pub name: String,
@@ -213,7 +213,7 @@ pub enum BlackListActionType {
 #[command(author = "RobustMQ", about = "action: create blacklist", long_about = None)]
 #[command(next_line_help = true)]
 pub struct CreateBlacklistArgs {
-    #[arg(short = 'c', long, visible_alias = "cluster-name", required = true)]
+    #[arg(short = 'c', long, required = true)]
     pub tenant: String,
     #[arg(long, required = true)]
     pub name: String,
@@ -235,7 +235,7 @@ pub struct CreateBlacklistArgs {
 #[command(author = "RobustMQ", about = "action: delete blacklist", long_about = None)]
 #[command(next_line_help = true)]
 pub struct DeleteBlacklistArgs {
-    #[arg(short = 'c', long, visible_alias = "cluster-name", required = true)]
+    #[arg(short = 'c', long, required = true)]
     pub tenant: String,
     #[arg(long, required = true)]
     pub name: String,
