@@ -16,11 +16,11 @@ use clap::Parser;
 use cli_command::handler::{
     handle_cluster, handle_engine, handle_mqtt, RobustMQCli, RobustMQCliCommand,
 };
-use common_base::version::logo::banner_print;
+use common_base::version::logo::banner;
 
 #[tokio::main]
 async fn main() {
-    banner_print();
+    eprintln!("{}", banner());
     let args = RobustMQCli::parse();
     match args.command {
         RobustMQCliCommand::Cluster(args) => handle_cluster(args).await,

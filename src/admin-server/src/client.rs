@@ -135,6 +135,19 @@ impl AdminHttpClient {
             });
         }
 
+        if let Ok(api_response) =
+            serde_json::from_str::<AdminServerResponse<serde_json::Value>>(&response_text)
+        {
+            if api_response.code != 0 {
+                return Err(HttpClientError::ServerError {
+                    code: api_response.code,
+                    message: api_response
+                        .error
+                        .unwrap_or_else(|| format!("Server error code: {}", api_response.code)),
+                });
+            }
+        }
+
         Ok(response_text)
     }
 
@@ -1035,5 +1048,36 @@ mod tests {
 
         let result: TestResponse = client.get_with_params("/test", &params).await.unwrap();
         assert_eq!(result.value, "hello");
+    }
+
+    #[tokio::test]
+    async fn test_post_raw_rejects_api_error_envelope() {
+        use axum::{routing::post, Json, Router};
+        use serde_json::json;
+
+        let app = Router::new().route(
+            "/test",
+            post(|| async {
+                Json(json!({
+                    "code": 100,
+                    "data": "",
+                    "error": "invalid request"
+                }))
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let client = AdminHttpClient::new(format!("http://{}", addr));
+        let result = client.post_raw("/test", &json!({})).await;
+
+        assert!(matches!(
+            result,
+            Err(HttpClientError::ServerError { code: 100, message })
+                if message == "invalid request"
+        ));
     }
 }

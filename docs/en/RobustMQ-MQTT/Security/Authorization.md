@@ -59,7 +59,7 @@ RobustMQ's permission checks proceed in the following order:
 ```bash
 # Allow user testuser to publish to test/# topic
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name testuser \
   --topic "test/#" \
@@ -69,7 +69,7 @@ robust-ctl mqtt acl create \
 
 # Deny client bad_client from subscribing to all topics
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type ClientId \
   --resource-name bad_client \
   --topic "*" \
@@ -79,7 +79,7 @@ robust-ctl mqtt acl create \
 
 # Allow users from specific IP address to access all topics
 robust-ctl mqtt acl create \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name admin \
   --topic "*" \
@@ -100,7 +100,7 @@ robust-ctl mqtt acl list
 ```bash
 # Delete specific ACL rule
 robust-ctl mqtt acl delete \
-  --cluster-name robustmq-cluster \
+  --tenant robustmq-cluster \
   --resource-type User \
   --resource-name testuser \
   --topic "test/#" \

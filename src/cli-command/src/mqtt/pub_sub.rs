@@ -37,7 +37,8 @@ pub struct SubscribeArgsRequest {
 }
 
 pub(crate) fn error_info(err: String) {
-    println!("Exception:{err}");
+    eprintln!("Exception:{err}");
+    process::exit(1);
 }
 
 pub fn connect_server5(
