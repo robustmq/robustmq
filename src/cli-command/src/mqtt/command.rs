@@ -29,6 +29,7 @@ use tokio::{select, signal};
 #[derive(Clone)]
 pub struct MqttCliCommandParam {
     pub server: String,
+    pub mqtt_server: String,
     pub output: OutputFormat,
     pub page: u32,
     pub limit: u32,
@@ -88,15 +89,19 @@ pub enum MqttActionType {
     ListFlappingDetect,
 
     // connector
-    ListConnector,
+    ListConnector(Option<String>),
     CreateConnector(admin_server::cluster::connector::CreateConnectorReq),
     DeleteConnector(admin_server::cluster::connector::DeleteConnectorReq),
 
     // schema
-    ListSchema,
+    ListSchema(Option<String>),
     CreateSchema(admin_server::cluster::schema::CreateSchemaReq),
     DeleteSchema(admin_server::cluster::schema::DeleteSchemaReq),
-    ListBindSchema,
+    ListBindSchema {
+        tenant: String,
+        schema_name: Option<String>,
+        resource_name: Option<String>,
+    },
     BindSchema(admin_server::cluster::schema::CreateSchemaBindReq),
     UnbindSchema(admin_server::cluster::schema::DeleteSchemaBindReq),
 
@@ -230,8 +235,9 @@ impl MqttBrokerCommand {
             }
 
             // connector
-            MqttActionType::ListConnector => {
-                self.list_connectors(params_clone.clone()).await;
+            MqttActionType::ListConnector(connector_name) => {
+                self.list_connectors(params_clone.clone(), connector_name)
+                    .await;
             }
             MqttActionType::CreateConnector(request) => {
                 self.create_connector(params_clone.clone(), request).await;
@@ -241,8 +247,8 @@ impl MqttBrokerCommand {
             }
 
             // schema
-            MqttActionType::ListSchema => {
-                self.list_schema(params_clone.clone()).await;
+            MqttActionType::ListSchema(schema_name) => {
+                self.list_schema(params_clone.clone(), schema_name).await;
             }
             MqttActionType::CreateSchema(request) => {
                 self.create_schema(params_clone.clone(), request).await;
@@ -251,8 +257,13 @@ impl MqttBrokerCommand {
                 self.delete_schema(params_clone.clone(), request).await;
             }
 
-            MqttActionType::ListBindSchema => {
-                self.list_bind_schema(params_clone.clone()).await;
+            MqttActionType::ListBindSchema {
+                tenant,
+                schema_name,
+                resource_name,
+            } => {
+                self.list_bind_schema(params_clone.clone(), tenant, schema_name, resource_name)
+                    .await;
             }
             MqttActionType::BindSchema(request) => {
                 self.bind_schema(params_clone.clone(), request).await;
@@ -276,7 +287,7 @@ impl MqttBrokerCommand {
         let mut lines = stdin.lines();
         // mqtt publish client
         let client_id = unique_id();
-        let addr = format!("tcp://{}", params.server);
+        let addr = format!("tcp://{}", params.mqtt_server);
         let qos = args.qos;
         let retained = args.retained;
         let cli = connect_server5(
@@ -352,7 +363,7 @@ impl MqttBrokerCommand {
 
     async fn subscribe(&self, params: MqttCliCommandParam, args: SubscribeArgsRequest) {
         let client_id = unique_id();
-        let addr = format!("tcp://{}", params.server);
+        let addr = format!("tcp://{}", params.mqtt_server);
         let cli = connect_server5(
             client_id.as_str(),
             args.username,
@@ -386,7 +397,7 @@ impl MqttBrokerCommand {
              }
             }}
         });
-        while let Some(msg) = rx.iter().next() {
+        for msg in rx.iter() {
             match msg {
                 Some(msg) => {
                     let raw = msg
@@ -1089,14 +1100,14 @@ impl MqttBrokerCommand {
     }
 
     // ------------------ connectors ----------------
-    async fn list_connectors(&self, params: MqttCliCommandParam) {
+    async fn list_connectors(&self, params: MqttCliCommandParam, connector_name: Option<String>) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for connector list
         let request = admin_server::cluster::connector::ConnectorListReq {
             tenant: None,
-            connector_name: None,
+            connector_name,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1287,14 +1298,14 @@ impl MqttBrokerCommand {
     }
 
     // ------------------ schema ----------------
-    async fn list_schema(&self, params: MqttCliCommandParam) {
+    async fn list_schema(&self, params: MqttCliCommandParam, schema_name: Option<String>) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema list
         let request = admin_server::cluster::schema::SchemaListReq {
             tenant: None,
-            name: None,
+            name: schema_name,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,
@@ -1411,15 +1422,21 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_bind_schema(&self, params: MqttCliCommandParam) {
+    async fn list_bind_schema(
+        &self,
+        params: MqttCliCommandParam,
+        tenant: String,
+        schema_name: Option<String>,
+        resource_name: Option<String>,
+    ) {
         // Create admin HTTP client
         let admin_client = AdminHttpClient::new(format!("http://{}", params.server));
 
         // Create request for schema bind list
         let request = admin_server::cluster::schema::SchemaBindListReq {
-            tenant: None,
-            resource_name: None,
-            schema_name: None,
+            tenant: Some(tenant),
+            resource_name,
+            schema_name,
             limit: Some(params.limit),
             page: Some(params.page),
             sort_field: None,

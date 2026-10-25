@@ -31,6 +31,7 @@ use metadata_struct::adapter::adapter_offset::AdapterCommitOffset;
 use std::path::PathBuf;
 
 const DEFAULT_HTTP_PORT: u32 = 58080;
+const DEFAULT_MQTT_TCP_PORT: u32 = 1883;
 
 /// Resolve the admin API server address with the following precedence:
 ///   1. `--server` flag passed by the user
@@ -58,6 +59,16 @@ fn resolve_server_addr(explicit: Option<String>) -> String {
     format!("127.0.0.1:{DEFAULT_HTTP_PORT}")
 }
 
+fn resolve_mqtt_server_addr(explicit: Option<String>) -> String {
+    if let Some(s) = explicit.filter(|s| !s.is_empty()) {
+        return s;
+    }
+    if let Some(port) = read_mqtt_tcp_port_from_config() {
+        return format!("127.0.0.1:{port}");
+    }
+    format!("127.0.0.1:{DEFAULT_MQTT_TCP_PORT}")
+}
+
 fn read_http_port_from_config() -> Option<u32> {
     for path in candidate_config_paths() {
         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -72,6 +83,35 @@ fn read_http_port_from_config() -> Option<u32> {
                         .trim();
                     if let Ok(port) = value.parse::<u32>() {
                         return Some(port);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn read_mqtt_tcp_port_from_config() -> Option<u32> {
+    for path in candidate_config_paths() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let mut in_mqtt_server = false;
+            for line in content.lines() {
+                let line = line.trim();
+                if line.starts_with('[') {
+                    in_mqtt_server = line == "[mqtt_runtime.server]";
+                    continue;
+                }
+                if in_mqtt_server {
+                    if let Some(rest) = line.strip_prefix("tcp_port") {
+                        let value = rest
+                            .trim_start_matches([' ', '\t', '='])
+                            .split('#')
+                            .next()
+                            .unwrap_or("")
+                            .trim();
+                        if let Ok(port) = value.parse::<u32>() {
+                            return Some(port);
+                        }
                     }
                 }
             }
@@ -125,6 +165,10 @@ pub struct MqttArgs {
     /// then `http_port` from config/server.toml, then 127.0.0.1:58080.
     #[arg(short, long)]
     server: Option<String>,
+    /// MQTT TCP endpoint used by publish and subscribe. Defaults to the
+    /// configured MQTT TCP port, then 127.0.0.1:1883.
+    #[arg(long)]
+    mqtt_server: Option<String>,
     #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
     output: OutputFormat,
     #[arg(long, default_value_t = 1)]
@@ -361,6 +405,7 @@ pub enum EngineOffsetAction {
 pub async fn handle_mqtt(args: MqttArgs) {
     let params = MqttCliCommandParam {
         server: resolve_server_addr(args.server),
+        mqtt_server: resolve_mqtt_server_addr(args.mqtt_server),
         output: args.output,
         page: args.page,
         limit: args.limit,
@@ -499,4 +544,205 @@ pub async fn handle_engine(args: EngineArgs) {
         action,
     };
     EngineCommand::new().start(params).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{process_acl_args, process_blacklist_args, RobustMQCli};
+    use crate::mqtt::command::MqttActionType;
+    use clap::Parser;
+
+    #[test]
+    fn acl_tenant_option_is_forwarded_to_request() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "acl",
+            "create",
+            "--tenant",
+            "tenant-a",
+            "--name",
+            "acl-a",
+            "--resource-type",
+            "ClientId",
+            "--resource-name",
+            "client-a",
+            "--action",
+            "All",
+            "--permission",
+            "Allow",
+        ])
+        .unwrap();
+
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Acl(args) = args.action else {
+            panic!("expected acl action");
+        };
+
+        assert!(matches!(
+            process_acl_args(args).unwrap(),
+            MqttActionType::CreateAcl(request) if request.tenant == "tenant-a"
+        ));
+    }
+
+    #[test]
+    fn legacy_acl_cluster_name_alias_is_forwarded_to_request() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "acl",
+            "delete",
+            "--cluster-name",
+            "tenant-b",
+            "--name",
+            "acl-b",
+        ])
+        .unwrap();
+
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Acl(args) = args.action else {
+            panic!("expected acl action");
+        };
+
+        assert!(matches!(
+            process_acl_args(args).unwrap(),
+            MqttActionType::DeleteAcl(request) if request.tenant == "tenant-b"
+        ));
+    }
+
+    #[test]
+    fn blacklist_tenant_option_is_forwarded_to_request() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "blacklist",
+            "create",
+            "--tenant",
+            "tenant-c",
+            "--name",
+            "blacklist-c",
+            "--blacklist-type",
+            "ClientId",
+            "--resource-name",
+            "client-c",
+            "--end-time",
+            "1999999999",
+        ])
+        .unwrap();
+
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Blacklist(args) = args.action else {
+            panic!("expected blacklist action");
+        };
+
+        assert!(matches!(
+            process_blacklist_args(args).unwrap(),
+            MqttActionType::CreateBlacklist(request) if request.tenant == "tenant-c"
+        ));
+    }
+
+    #[test]
+    fn blacklist_legacy_cluster_name_alias_is_forwarded_to_request() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "blacklist",
+            "delete",
+            "--cluster-name",
+            "tenant-d",
+            "--name",
+            "blacklist-d",
+        ])
+        .unwrap();
+
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Blacklist(args) = args.action else {
+            panic!("expected blacklist action");
+        };
+
+        assert!(matches!(
+            process_blacklist_args(args).unwrap(),
+            MqttActionType::DeleteBlacklist(request) if request.tenant == "tenant-d"
+        ));
+    }
+
+    #[test]
+    fn mqtt_endpoint_option_is_parsed_separately_from_admin_server() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "--server",
+            "127.0.0.1:58080",
+            "--mqtt-server",
+            "127.0.0.1:1883",
+            "overview",
+        ])
+        .unwrap();
+
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+
+        assert_eq!(args.server.as_deref(), Some("127.0.0.1:58080"));
+        assert_eq!(args.mqtt_server.as_deref(), Some("127.0.0.1:1883"));
+    }
+
+    #[test]
+    fn list_filters_are_preserved_in_command_mapping() {
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "connector",
+            "list",
+            "--connector-name",
+            "connector-a",
+        ])
+        .unwrap();
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Connector(args) = args.action else {
+            panic!("expected connector action");
+        };
+        assert!(matches!(
+            super::process_connector_args(args),
+            MqttActionType::ListConnector(Some(name)) if name == "connector-a"
+        ));
+
+        let cli = RobustMQCli::try_parse_from([
+            "robust-ctl",
+            "mqtt",
+            "schema",
+            "list-bind",
+            "--tenant",
+            "tenant-a",
+            "--schema-name",
+            "schema-a",
+            "--resource-name",
+            "topic-a",
+        ])
+        .unwrap();
+        let super::RobustMQCliCommand::Mqtt(args) = cli.command else {
+            panic!("expected mqtt command");
+        };
+        let super::MQTTAction::Schema(args) = args.action else {
+            panic!("expected schema action");
+        };
+        assert!(matches!(
+            super::process_schema_args(args),
+            MqttActionType::ListBindSchema {
+                tenant,
+                schema_name: Some(schema),
+                resource_name: Some(resource),
+            } if tenant == "tenant-a" && schema == "schema-a" && resource == "topic-a"
+        ));
+    }
 }
