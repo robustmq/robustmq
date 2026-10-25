@@ -18,16 +18,20 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_DIR="${COVERAGE_OUTPUT_DIR:-${PROJECT_ROOT}/target/coverage/unit}"
+PACKAGE="${COVERAGE_PACKAGE:-}"
 
 usage() {
     cat <<'EOF'
-Usage: scripts/coverage-unit.sh [--output-dir DIRECTORY]
+Usage: scripts/coverage-unit.sh [--output-dir DIRECTORY] [--package PACKAGE]
 
 Run the repository's unit-test scope with LLVM coverage instrumentation and
 write reports to DIRECTORY. The default is target/coverage/unit.
 
-The test scope is the same as `make test`: robustmq-test and grpc-clients are
-excluded, and the storage-adapter meta test is filtered out.
+Without --package, the test scope is the same as `make test`: robustmq-test and
+grpc-clients are excluded, and the storage-adapter meta test is filtered out.
+With --package, only the selected package's test targets are executed. Cargo
+may still compile and instrument dependency crates; the reports are labeled as
+package-scoped rather than full-workspace coverage.
 EOF
 }
 
@@ -41,6 +45,18 @@ while (($# > 0)); do
             OUTPUT_DIR="$2"
             shift 2
             ;;
+        --package|-p)
+            if (($# < 2)); then
+                echo "--package requires a package name" >&2
+                exit 2
+            fi
+            if [[ -n "$PACKAGE" && "$PACKAGE" != "$2" ]]; then
+                echo "Conflicting package selectors: ${PACKAGE} and $2" >&2
+                exit 2
+            fi
+            PACKAGE="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             exit 0
@@ -52,6 +68,23 @@ while (($# > 0)); do
             ;;
     esac
 done
+
+if [[ -n "$PACKAGE" ]]; then
+    if [[ ! "$PACKAGE" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        echo "Invalid package name: ${PACKAGE}" >&2
+        exit 2
+    fi
+    if [[ "$PACKAGE" == "robustmq-test" || "$PACKAGE" == "grpc-clients" ]]; then
+        echo "Package ${PACKAGE} is integration-only and cannot use unit coverage." >&2
+        echo "Use the corresponding integration workflow instead." >&2
+        exit 2
+    fi
+    if ! cargo metadata --no-deps --format-version 1 \
+        | python3 -c 'import json, sys; package = sys.argv[1]; metadata = json.load(sys.stdin); names = {item["name"] for item in metadata["packages"]}; raise SystemExit(0 if package in names else 1)' "$PACKAGE"; then
+        echo "Unknown workspace package: ${PACKAGE}" >&2
+        exit 2
+    fi
+fi
 
 mkdir -p -- "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd)"
@@ -114,7 +147,17 @@ unset RUSTC_WRAPPER
 mkdir -p "$CARGO_TARGET_DIR/llvm-cov-target"
 printf '%s\n' 'Signature: 8a477f597d28d172789f06886806ab4' > "$CARGO_TARGET_DIR/llvm-cov-target/CACHEDIR.TAG"
 
-TEST_SCOPE="cargo llvm-cov nextest --no-cfg-coverage --workspace --exclude=robustmq-test --exclude=grpc-clients --filter-expr !(test(meta) & package(storage-adapter)) --no-fail-fast --no-report"
+if [[ -n "$PACKAGE" ]]; then
+    SCOPE_KIND="package"
+    SCOPE_LABEL="package:${PACKAGE}"
+    TEST_SCOPE="cargo llvm-cov nextest --no-cfg-coverage --package ${PACKAGE} --filter-expr !(test(meta) & package(storage-adapter)) --no-fail-fast --no-report"
+    CARGO_SCOPE_ARGS=(--package "$PACKAGE")
+else
+    SCOPE_KIND="workspace"
+    SCOPE_LABEL="workspace"
+    TEST_SCOPE="cargo llvm-cov nextest --no-cfg-coverage --workspace --exclude=robustmq-test --exclude=grpc-clients --filter-expr !(test(meta) & package(storage-adapter)) --no-fail-fast --no-report"
+    CARGO_SCOPE_ARGS=(--workspace --exclude=robustmq-test --exclude=grpc-clients)
+fi
 TEST_STATUS=0
 
 echo "Running RobustMQ unit coverage"
@@ -126,9 +169,7 @@ echo
 set +e
 cargo llvm-cov nextest \
     --no-cfg-coverage \
-    --workspace \
-    --exclude=robustmq-test \
-    --exclude=grpc-clients \
+    "${CARGO_SCOPE_ARGS[@]}" \
     --filter-expr '!(test(meta) & package(storage-adapter))' \
     --no-fail-fast \
     --no-report
@@ -215,7 +256,7 @@ print(f"{passed} passed, {failed or 0} failed, {skipped or 0} skipped")
 PY
 )"
 
-python3 - "$OUTPUT_DIR/coverage.json" "$OUTPUT_DIR/coverage-summary.json" "$COMMIT" "$PROFILE_COUNT" "$TEST_SCOPE" "$RUST_VERSION" "$CARGO_VERSION" "$LLVM_COV_VERSION" "$NEXTEST_VERSION" "$OUTPUT_DIR/lcov.info" "$LOG_FILE" <<'PY'
+python3 - "$OUTPUT_DIR/coverage.json" "$OUTPUT_DIR/coverage-summary.json" "$COMMIT" "$PROFILE_COUNT" "$TEST_SCOPE" "$RUST_VERSION" "$CARGO_VERSION" "$LLVM_COV_VERSION" "$NEXTEST_VERSION" "$OUTPUT_DIR/lcov.info" "$LOG_FILE" "$SCOPE_KIND" "$PACKAGE" <<'PY'
 import json
 import pathlib
 import re
@@ -262,6 +303,10 @@ summary = {
     "commit": sys.argv[3],
     "profile_count": int(sys.argv[4]),
     "test_scope": sys.argv[5],
+    "scope": {
+        "kind": sys.argv[12],
+        "package": sys.argv[13] or None,
+    },
     "test_result": {
         "passed": int(passed),
         "failed": int(failed or 0),
@@ -298,6 +343,7 @@ Cargo: ${CARGO_VERSION}
 Coverage tool: ${LLVM_COV_VERSION}
 Nextest: ${NEXTEST_VERSION}
 Scope: ${TEST_SCOPE}
+Selection: ${SCOPE_LABEL}
 
 Reports:
   Text: ${OUTPUT_DIR}/coverage.txt
