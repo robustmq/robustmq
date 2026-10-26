@@ -28,6 +28,12 @@ on:
       - "scripts/coverage-unit.sh"
       - "src/**"
   workflow_dispatch:
+    inputs:
+      package:
+        description: Optional workspace package for a package-scoped coverage run
+        required: false
+        default: ""
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,6 +46,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   CARGO_BUILD_JOBS: 16
+  COVERAGE_PACKAGE: ${{ inputs.package || '' }}
 
 jobs:
   unit-coverage:
@@ -57,6 +64,12 @@ jobs:
         run: |
           echo "COVERAGE_OUTPUT_DIR=${RUNNER_TEMP}/robustmq-coverage-unit" >> "$GITHUB_ENV"
           echo "COVERAGE_ARTIFACT_DIR=${RUNNER_TEMP}/robustmq-coverage-artifacts" >> "$GITHUB_ENV"
+          if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
+            if [[ ! "$COVERAGE_PACKAGE" =~ ^[A-Za-z0-9_-]+$ ]]; then
+              echo "Invalid package name: ${COVERAGE_PACKAGE}" >&2
+              exit 2
+            fi
+          fi
           mkdir -p "$RUNNER_TEMP/robustmq-coverage-artifacts/reports" \
             "$RUNNER_TEMP/robustmq-coverage-artifacts/html" \
             "$RUNNER_TEMP/robustmq-coverage-artifacts/diagnostics"
@@ -138,13 +151,20 @@ jobs:
             "$COVERAGE_ARTIFACT_DIR/html" \
             "$COVERAGE_ARTIFACT_DIR/diagnostics"
 
-          cat > "$COVERAGE_ARTIFACT_DIR/reports/test-command.txt" <<'EOF'
-          make coverage-unit
-
-          The command invokes scripts/coverage-unit.sh with the existing make test
-          scope: robustmq-test and grpc-clients are excluded, as is the storage-adapter
-          meta test. Coverage is report-only; no percentage threshold is enforced.
-          EOF
+          {
+            if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
+              echo "make coverage-unit PACKAGE=${COVERAGE_PACKAGE}"
+              echo
+              echo "Package-scoped coverage selection: ${COVERAGE_PACKAGE}"
+              echo "Cargo may still compile and instrument dependency crates."
+            else
+              echo "make coverage-unit"
+              echo
+              echo "Workspace scope excludes robustmq-test and grpc-clients,"
+              echo "and filters the storage-adapter meta test."
+            fi
+            echo "Coverage is report-only; no percentage threshold is enforced."
+          } > "$COVERAGE_ARTIFACT_DIR/reports/test-command.txt"
 
           {
             llvm_cov="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-cov"
@@ -164,7 +184,12 @@ jobs:
       - name: Run local unit coverage runner
         id: coverage
         continue-on-error: true
-        run: make coverage-unit
+        run: |
+          if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
+            make coverage-unit PACKAGE="${COVERAGE_PACKAGE}"
+          else
+            make coverage-unit
+          fi
 
       - name: Upload unit coverage to Codecov
         id: codecov
@@ -172,7 +197,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ${{ runner.temp }}/robustmq-coverage-unit/lcov.info
-          flags: unit
+          flags: ${{ inputs.package && format('unit-package-{0}', inputs.package) || 'unit' }}
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -228,6 +253,11 @@ jobs:
             echo "- Commit under test: \`$(git rev-parse HEAD)\`"
             echo "- Runner outcome: \`${{ steps.coverage.outcome }}\`"
             echo "- Codecov upload step: \`${{ steps.codecov.outcome || 'not-run' }}\`"
+            if [ -n "${COVERAGE_PACKAGE:-}" ]; then
+              echo "- Coverage selection: package \`${COVERAGE_PACKAGE}\`"
+            else
+              echo "- Coverage selection: full workspace"
+            fi
             if [ -f "$reports/coverage-summary.json" ] && command -v jq >/dev/null 2>&1; then
               echo "- Test result: \`$(jq -r '.test_result | "\(.passed) passed, \(.failed) failed, \(.skipped) skipped"' "$reports/coverage-summary.json")\`"
               echo "- Profiles: \`$(jq -r '.profile_count' "$reports/coverage-summary.json")\`"

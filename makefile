@@ -85,7 +85,11 @@ test: ## Run unit tests with cleanup
 
 .PHONY: coverage-unit
 coverage-unit: ## Run unit tests with LLVM coverage reports
-	@./scripts/coverage-unit.sh
+	@if [ -n "$(PACKAGE)" ]; then \
+		COVERAGE_PACKAGE="$(PACKAGE)" ./scripts/coverage-unit.sh; \
+	else \
+		./scripts/coverage-unit.sh; \
+	fi
 
 ## Integration tests are split by protocol so each can be diagnosed
 ## independently in CI (its own 3-node cluster, its own pass/fail): core
