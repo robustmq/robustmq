@@ -94,6 +94,33 @@ jobs:
         with:
           components: llvm-tools-preview
 
+      - name: Select pull request coverage package
+        id: select-package
+        if: github.event_name == 'pull_request' && !inputs.package
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          package="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | python3 scripts/select-coverage-package.py)"
+          if [[ -n "$package" ]]; then
+            echo "Automatically selected package scope: $package"
+          else
+            echo "Changed paths are shared, ambiguous, or span multiple packages; using workspace scope."
+          fi
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "COVERAGE_PACKAGE=$package" >> "$GITHUB_ENV"
+
+      - name: Resolve coverage scope
+        id: resolve-scope
+        env:
+          INPUT_PACKAGE: ${{ inputs.package || '' }}
+        run: |
+          package="${COVERAGE_PACKAGE:-}"
+          if [[ -z "$package" ]]; then
+            package="$INPUT_PACKAGE"
+          fi
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -197,7 +224,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ${{ runner.temp }}/robustmq-coverage-unit/lcov.info
-          flags: ${{ inputs.package && format('unit-package-{0}', inputs.package) || 'unit' }}
+          flags: ${{ steps.resolve-scope.outputs.package && format('unit-package-{0}', steps.resolve-scope.outputs.package) || 'unit' }}
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
