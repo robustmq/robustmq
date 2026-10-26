@@ -67,3 +67,46 @@ impl StorageDriverMemoryConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::StorageDriverMemoryConfig;
+
+    #[test]
+    fn memory_modes_use_expected_capacity_limits() {
+        assert_eq!(
+            StorageDriverMemoryConfig::default().max_shard_size_limit,
+            10_000_000
+        );
+        assert_eq!(
+            StorageDriverMemoryConfig::dev_mode().max_shard_size_limit,
+            10_000
+        );
+        assert_eq!(
+            StorageDriverMemoryConfig::test_mode().max_shard_size_limit,
+            100_000
+        );
+        assert_eq!(
+            StorageDriverMemoryConfig::production_mode().max_shard_size_limit,
+            1_000_000
+        );
+        assert_eq!(
+            StorageDriverMemoryConfig::minimal_memory_mode().max_shard_size_limit,
+            5_000
+        );
+    }
+
+    #[test]
+    fn memory_modes_validate_and_keep_eviction_ratio() {
+        for config in [
+            StorageDriverMemoryConfig::default(),
+            StorageDriverMemoryConfig::dev_mode(),
+            StorageDriverMemoryConfig::test_mode(),
+            StorageDriverMemoryConfig::production_mode(),
+            StorageDriverMemoryConfig::minimal_memory_mode(),
+        ] {
+            assert_eq!(config.evict_ratio, 0.2);
+            assert_eq!(config.validate(), Ok(()));
+        }
+    }
+}

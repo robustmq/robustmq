@@ -966,6 +966,8 @@ impl Default for AdminConfig {
 
 #[cfg(test)]
 mod tests {
+    use common_base::enum_type::delay_type::DelayType;
+
     use super::*;
 
     #[test]
@@ -988,5 +990,116 @@ mod tests {
             default_max_connection_per_ip(),
             ClusterLimit::default().max_connection_per_ip
         );
+    }
+
+    #[test]
+    fn llm_config_validation_covers_platform_rules() {
+        let ollama = LLMConfig {
+            platform: Some(LLMPlatform::Ollama),
+            model: Some("llama3".to_string()),
+            base_url: Some("http://localhost:11434".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ollama.validate(), Ok(()));
+
+        let hosted = LLMConfig {
+            platform: Some(LLMPlatform::OpenAI),
+            model: Some("gpt-4o".to_string()),
+            token: Some("test-token".to_string()),
+            base_url: Some("https://api.example.com".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(hosted.validate(), Ok(()));
+    }
+
+    #[test]
+    fn llm_config_validation_rejects_invalid_values() {
+        let empty_model = LLMConfig {
+            model: Some("   ".to_string()),
+            token: Some("test-token".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            empty_model.validate(),
+            Err("model cannot be empty".to_string())
+        );
+
+        let invalid_url = LLMConfig {
+            base_url: Some("localhost:11434".to_string()),
+            token: Some("test-token".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            invalid_url.validate(),
+            Err("base_url must start with http:// or https://".to_string())
+        );
+
+        let missing_token = LLMConfig {
+            platform: Some(LLMPlatform::OpenAI),
+            model: Some("gpt-4o".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            missing_token.validate(),
+            Err("token is required for non-ollama platforms".to_string())
+        );
+    }
+
+    #[test]
+    fn broker_config_accessors_reflect_meta_and_slow_subscribe_settings() {
+        let mut config = BrokerConfig::default();
+        config.meta_addrs.insert(
+            "1".to_string(),
+            toml::Value::String("127.0.0.1:1228".to_string()),
+        );
+        config
+            .meta_addrs
+            .insert("invalid".to_string(), toml::Value::Integer(1));
+
+        assert_eq!(
+            config.get_meta_service_addr(),
+            vec!["127.0.0.1:1228".to_string()]
+        );
+        assert!(!config.is_enable_slow_subscribe_record());
+        assert_eq!(config.get_slow_subscribe_delay_type(), DelayType::Whole);
+
+        config.mqtt_runtime.slow_subscribe.enable = true;
+        config.mqtt_runtime.slow_subscribe.delay_type = DelayType::Internal;
+        assert!(config.is_enable_slow_subscribe_record());
+        assert_eq!(config.get_slow_subscribe_delay_type(), DelayType::Internal);
+    }
+
+    #[test]
+    fn mqtt_configuration_encoders_emit_expected_json() {
+        let offline = MqttOfflineMessage::default();
+        let offline_json: serde_json::Value = serde_json::from_slice(&offline.encode()).unwrap();
+        assert_eq!(offline_json["enable"], true);
+        assert_eq!(offline_json["expire_ms"], 0);
+        assert_eq!(offline_json["max_messages_num"], 0);
+
+        let schema = MqttSchema::default();
+        let schema_json: serde_json::Value = serde_json::from_slice(&schema.encode()).unwrap();
+        assert_eq!(schema_json["enable"], true);
+        assert_eq!(schema_json["strategy"], "ALL");
+
+        let protocol = MqttProtocolConfig::default();
+        let protocol_json: serde_json::Value = serde_json::from_slice(&protocol.encode()).unwrap();
+        assert_eq!(protocol_json["topic_alias_max"], 65535);
+        assert_eq!(protocol_json["client_pkid_persistent"], false);
+    }
+
+    #[test]
+    fn mqtt_detection_and_slow_subscribe_encoders_emit_expected_json() {
+        let flapping = MqttFlappingDetect::default();
+        let flapping_json: serde_json::Value = serde_json::from_slice(&flapping.encode()).unwrap();
+        assert_eq!(flapping_json["enable"], false);
+        assert_eq!(flapping_json["max_client_connections"], 15);
+
+        let slow_subscribe = MqttSlowSubscribeConfig::default();
+        let slow_subscribe_json: serde_json::Value =
+            serde_json::from_slice(&slow_subscribe.encode()).unwrap();
+        assert_eq!(slow_subscribe_json["enable"], false);
+        assert_eq!(slow_subscribe_json["record_time"], 1000);
+        assert_eq!(slow_subscribe_json["delay_type"], "Whole");
     }
 }

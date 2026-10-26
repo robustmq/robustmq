@@ -70,14 +70,15 @@ pub fn default_log() -> Log {
 /** `override_default_by_env` Cover the content based on the environment variables
 
 ```
-let toml_content = r#"
-[server]
-port = 8080
+use common_config::common::override_default_by_env;
+
+let toml_content = r#"[server]
+port=8080
 "#;
 let env_prefix = "APP";
 std::env::set_var("APP_SERVER_PORT", "8081");
-let new_toml_content =override_default_by_env(toml_content, env_prefix);
-assert_eq!(new_toml_content, "[server]\nport = 8081\n");
+let new_toml_content = override_default_by_env(toml_content.to_string(), env_prefix);
+assert_eq!(new_toml_content, "[server]\nport=8081");
 ```
 */
 pub fn override_default_by_env(toml_content: String, env_prefix: &str) -> String {
@@ -129,7 +130,29 @@ pub fn find_exist_env_for_config(toml_content: &str, env_prefix: &str) -> HashMa
 
 #[cfg(test)]
 mod tests {
-    use crate::common::AvailableFlag;
+    use crate::common::{
+        default_false, default_log, default_log_config, default_log_path,
+        find_exist_env_for_config, AvailableFlag,
+    };
+
+    #[test]
+    fn default_log_helpers_match_the_default_value() {
+        let log = default_log();
+        assert_eq!(log.log_config, default_log_config());
+        assert_eq!(log.log_path, default_log_path());
+        assert!(!default_false());
+    }
+
+    #[test]
+    fn find_exist_env_for_config_handles_nested_sections_and_comments() {
+        let config = "# ignored\nroot = 1\n[server]\nport = 1883\n[server.tls]\nenabled = true\n";
+        let env_map = find_exist_env_for_config(config, "APP");
+
+        assert_eq!(env_map.get("APP_ROOT"), Some(&1));
+        assert_eq!(env_map.get("APP_SERVER_PORT"), Some(&3));
+        assert_eq!(env_map.get("APP_SERVER_TLS_ENABLED"), Some(&5));
+        assert_eq!(env_map.len(), 3);
+    }
 
     #[test]
     fn override_default_by_env() {

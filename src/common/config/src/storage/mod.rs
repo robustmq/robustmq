@@ -47,3 +47,35 @@ impl FromStr for StorageType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::StorageType;
+
+    #[test]
+    fn storage_type_parses_supported_values() {
+        assert_eq!(
+            StorageType::from_str("EngineMemory"),
+            Ok(StorageType::EngineMemory)
+        );
+        assert_eq!(
+            StorageType::from_str("EngineSegment"),
+            Ok(StorageType::EngineSegment)
+        );
+        assert_eq!(
+            StorageType::from_str("EngineRocksDB"),
+            Ok(StorageType::EngineRocksDB)
+        );
+        assert_eq!(StorageType::from_str("Mysql"), Ok(StorageType::Mysql));
+        assert_eq!(StorageType::from_str("MinIO"), Ok(StorageType::MinIO));
+        assert_eq!(StorageType::from_str("S3"), Ok(StorageType::S3));
+    }
+
+    #[test]
+    fn storage_type_rejects_unknown_values() {
+        assert!(StorageType::from_str("memory").is_err());
+        assert!(StorageType::from_str("").is_err());
+    }
+}
