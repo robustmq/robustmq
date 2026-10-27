@@ -247,7 +247,7 @@ jobs:
       - name: Upload unit coverage to Codecov
         id: codecov
         if: steps.coverage.outcome == 'success'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: ${{ runner.temp }}/robustmq-coverage-unit/lcov.info
           flags: ${{ steps.resolve-scope.outputs.flag }}
