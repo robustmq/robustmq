@@ -30,7 +30,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: Optional workspace package for a package-scoped coverage run
+        description: Optional workspace package list for a package-scoped coverage run (comma-separated)
         required: false
         default: ""
         type: string
@@ -65,8 +65,8 @@ jobs:
           echo "COVERAGE_OUTPUT_DIR=${RUNNER_TEMP}/robustmq-coverage-unit" >> "$GITHUB_ENV"
           echo "COVERAGE_ARTIFACT_DIR=${RUNNER_TEMP}/robustmq-coverage-artifacts" >> "$GITHUB_ENV"
           if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
-            if [[ ! "$COVERAGE_PACKAGE" =~ ^[A-Za-z0-9_-]+$ ]]; then
-              echo "Invalid package name: ${COVERAGE_PACKAGE}" >&2
+            if [[ ! "$COVERAGE_PACKAGE" =~ ^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*$ ]]; then
+              echo "Invalid package selector: ${COVERAGE_PACKAGE}" >&2
               exit 2
             fi
           fi
@@ -94,7 +94,10 @@ jobs:
         with:
           components: llvm-tools-preview
 
-      - name: Select pull request coverage package
+      - name: Validate coverage package selector
+        run: python3 -m unittest scripts/test_select_coverage_package.py
+
+      - name: Select pull request coverage packages
         id: select-package
         if: github.event_name == 'pull_request' && !inputs.package
         env:
@@ -105,7 +108,7 @@ jobs:
           if [[ -n "$package" ]]; then
             echo "Automatically selected package scope: $package"
           else
-            echo "Changed paths are shared, ambiguous, or span multiple packages; using workspace scope."
+            echo "Changed paths are shared, ambiguous, or include integration-only packages; using workspace scope."
           fi
           echo "package=$package" >> "$GITHUB_OUTPUT"
           echo "COVERAGE_PACKAGE=$package" >> "$GITHUB_ENV"
@@ -120,6 +123,18 @@ jobs:
             package="$INPUT_PACKAGE"
           fi
           echo "package=$package" >> "$GITHUB_OUTPUT"
+          if [[ "$package" == *,* ]]; then
+            IFS=',' read -r -a packages <<< "$package"
+            flags=()
+            for selected_package in "${packages[@]}"; do
+              flags+=("unit-package-${selected_package}")
+            done
+            echo "flag=$(IFS=,; echo "${flags[*]}")" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$package" ]]; then
+            echo "flag=unit-package-${package}" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=unit" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install system dependencies
         run: |
@@ -224,7 +239,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: ${{ runner.temp }}/robustmq-coverage-unit/lcov.info
-          flags: ${{ steps.resolve-scope.outputs.package && format('unit-package-{0}', steps.resolve-scope.outputs.package) || 'unit' }}
+          flags: ${{ steps.resolve-scope.outputs.flag }}
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -281,7 +296,7 @@ jobs:
             echo "- Runner outcome: \`${{ steps.coverage.outcome }}\`"
             echo "- Codecov upload step: \`${{ steps.codecov.outcome || 'not-run' }}\`"
             if [ -n "${COVERAGE_PACKAGE:-}" ]; then
-              echo "- Coverage selection: package \`${COVERAGE_PACKAGE}\`"
+              echo "- Coverage selection: package(s) \`${COVERAGE_PACKAGE}\`"
             else
               echo "- Coverage selection: full workspace"
             fi

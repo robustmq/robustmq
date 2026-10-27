@@ -18,20 +18,22 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 OUTPUT_DIR="${COVERAGE_OUTPUT_DIR:-${PROJECT_ROOT}/target/coverage/unit}"
-PACKAGE="${COVERAGE_PACKAGE:-}"
+PACKAGE_SPEC="${COVERAGE_PACKAGES:-${COVERAGE_PACKAGE:-}}"
+PACKAGES=()
 
 usage() {
     cat <<'EOF'
-Usage: scripts/coverage-unit.sh [--output-dir DIRECTORY] [--package PACKAGE]
+Usage: scripts/coverage-unit.sh [--output-dir DIRECTORY] [--package PACKAGE[,PACKAGE...]]
 
 Run the repository's unit-test scope with LLVM coverage instrumentation and
 write reports to DIRECTORY. The default is target/coverage/unit.
 
 Without --package, the test scope is the same as `make test`: robustmq-test and
 grpc-clients are excluded, and the storage-adapter meta test is filtered out.
-With --package, only the selected package's test targets are executed. Cargo
-may still compile and instrument dependency crates; the reports are labeled as
-package-scoped rather than full-workspace coverage.
+With --package, only the selected package(s)' test targets are executed. Use a
+comma-separated list for multiple packages, for example
+`--package common-metrics,system-info`. Cargo may still compile and instrument
+dependency crates; the reports are labeled with the selected scope.
 EOF
 }
 
@@ -50,11 +52,11 @@ while (($# > 0)); do
                 echo "--package requires a package name" >&2
                 exit 2
             fi
-            if [[ -n "$PACKAGE" && "$PACKAGE" != "$2" ]]; then
-                echo "Conflicting package selectors: ${PACKAGE} and $2" >&2
+            if [[ -n "$PACKAGE_SPEC" && "$PACKAGE_SPEC" != "$2" ]]; then
+                echo "Conflicting package selectors: ${PACKAGE_SPEC} and $2" >&2
                 exit 2
             fi
-            PACKAGE="$2"
+            PACKAGE_SPEC="$2"
             shift 2
             ;;
         -h|--help)
@@ -69,19 +71,36 @@ while (($# > 0)); do
     esac
 done
 
-if [[ -n "$PACKAGE" ]]; then
-    if [[ ! "$PACKAGE" =~ ^[A-Za-z0-9_-]+$ ]]; then
-        echo "Invalid package name: ${PACKAGE}" >&2
+if [[ -n "$PACKAGE_SPEC" ]]; then
+    if [[ ! "$PACKAGE_SPEC" =~ ^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*$ ]]; then
+        echo "Invalid package selector: ${PACKAGE_SPEC}" >&2
         exit 2
     fi
-    if [[ "$PACKAGE" == "robustmq-test" || "$PACKAGE" == "grpc-clients" ]]; then
-        echo "Package ${PACKAGE} is integration-only and cannot use unit coverage." >&2
-        echo "Use the corresponding integration workflow instead." >&2
+    IFS=',' read -r -a PACKAGES <<< "$PACKAGE_SPEC"
+    if ((${#PACKAGES[@]} == 0)); then
+        echo "At least one package name is required" >&2
         exit 2
     fi
+    for ((package_index = 0; package_index < ${#PACKAGES[@]}; package_index++)); do
+        package="${PACKAGES[$package_index]}"
+        if [[ ! "$package" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "Invalid package name: ${package}" >&2
+            exit 2
+        fi
+        for ((previous_index = 0; previous_index < package_index; previous_index++)); do
+            if [[ "${PACKAGES[$previous_index]}" == "$package" ]]; then
+                echo "Duplicate package name: ${package}" >&2
+                exit 2
+            fi
+        done
+        if [[ "$package" == "robustmq-test" || "$package" == "grpc-clients" ]]; then
+            echo "Package ${package} is integration-only and cannot use unit coverage." >&2
+            echo "Use the corresponding integration workflow instead." >&2
+            exit 2
+        fi
+    done
     if ! cargo metadata --no-deps --format-version 1 \
-        | python3 -c 'import json, sys; package = sys.argv[1]; metadata = json.load(sys.stdin); names = {item["name"] for item in metadata["packages"]}; raise SystemExit(0 if package in names else 1)' "$PACKAGE"; then
-        echo "Unknown workspace package: ${PACKAGE}" >&2
+        | python3 -c 'import json, sys; selected = set(sys.argv[1].split(",")); metadata = json.load(sys.stdin); names = {item["name"] for item in metadata["packages"]}; missing = selected - names; print("Unknown workspace package(s): " + ", ".join(sorted(missing)), file=sys.stderr) if missing else None; raise SystemExit(bool(missing))' "$PACKAGE_SPEC"; then
         exit 2
     fi
 fi
@@ -147,11 +166,18 @@ unset RUSTC_WRAPPER
 mkdir -p "$CARGO_TARGET_DIR/llvm-cov-target"
 printf '%s\n' 'Signature: 8a477f597d28d172789f06886806ab4' > "$CARGO_TARGET_DIR/llvm-cov-target/CACHEDIR.TAG"
 
-if [[ -n "$PACKAGE" ]]; then
+if [[ -n "$PACKAGE_SPEC" ]]; then
     SCOPE_KIND="package"
-    SCOPE_LABEL="package:${PACKAGE}"
-    TEST_SCOPE="cargo llvm-cov nextest --no-cfg-coverage --package ${PACKAGE} --filter-expr !(test(meta) & package(storage-adapter)) --no-fail-fast --no-report"
-    CARGO_SCOPE_ARGS=(--package "$PACKAGE")
+    SCOPE_LABEL="package:${PACKAGE_SPEC}"
+    if ((${#PACKAGES[@]} > 1)); then
+        SCOPE_KIND="packages"
+        SCOPE_LABEL="packages:${PACKAGE_SPEC}"
+    fi
+    CARGO_SCOPE_ARGS=()
+    for package in "${PACKAGES[@]}"; do
+        CARGO_SCOPE_ARGS+=(--package "$package")
+    done
+    TEST_SCOPE="cargo llvm-cov nextest --no-cfg-coverage ${CARGO_SCOPE_ARGS[*]} --filter-expr !(test(meta) & package(storage-adapter)) --no-fail-fast --no-report"
 else
     SCOPE_KIND="workspace"
     SCOPE_LABEL="workspace"
@@ -256,7 +282,7 @@ print(f"{passed} passed, {failed or 0} failed, {skipped or 0} skipped")
 PY
 )"
 
-python3 - "$OUTPUT_DIR/coverage.json" "$OUTPUT_DIR/coverage-summary.json" "$COMMIT" "$PROFILE_COUNT" "$TEST_SCOPE" "$RUST_VERSION" "$CARGO_VERSION" "$LLVM_COV_VERSION" "$NEXTEST_VERSION" "$OUTPUT_DIR/lcov.info" "$LOG_FILE" "$SCOPE_KIND" "$PACKAGE" <<'PY'
+python3 - "$OUTPUT_DIR/coverage.json" "$OUTPUT_DIR/coverage-summary.json" "$COMMIT" "$PROFILE_COUNT" "$TEST_SCOPE" "$RUST_VERSION" "$CARGO_VERSION" "$LLVM_COV_VERSION" "$NEXTEST_VERSION" "$OUTPUT_DIR/lcov.info" "$LOG_FILE" "$SCOPE_KIND" "$PACKAGE_SPEC" <<'PY'
 import json
 import pathlib
 import re
@@ -305,7 +331,8 @@ summary = {
     "test_scope": sys.argv[5],
     "scope": {
         "kind": sys.argv[12],
-        "package": sys.argv[13] or None,
+        "package": sys.argv[13] if sys.argv[13] and "," not in sys.argv[13] else None,
+        "packages": sys.argv[13].split(",") if sys.argv[13] else [],
     },
     "test_result": {
         "passed": int(passed),
