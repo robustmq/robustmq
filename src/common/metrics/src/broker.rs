@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{gauge_metric_get, gauge_metric_set, register_gauge_metric};
+use crate::{
+    gauge_metric_get, gauge_metric_set, register_float_gauge_metric, register_gauge_metric,
+};
 use prometheus_client::encoding::EncodeLabelSet;
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -47,78 +49,78 @@ register_gauge_metric!(
     RuntimeLabel
 );
 
-register_gauge_metric!(
+register_float_gauge_metric!(
     SYSTEM_PROCESS_CPU_USAGE,
     "system_process_cpu_usage",
-    "CPU usage percentage of the current process (0-100, normalized by core count)",
+    "CPU usage percentage of the current process (0-100, floating point, normalized by core count)",
     SystemLabel
 );
 
-register_gauge_metric!(
+register_float_gauge_metric!(
     SYSTEM_PROCESS_MEMORY_USAGE,
     "system_process_memory_usage",
-    "Memory usage percentage of the current process relative to total system memory (0-100)",
+    "Memory usage percentage of the current process relative to total system memory (0-100, floating point)",
     SystemLabel
 );
 
-register_gauge_metric!(
+register_float_gauge_metric!(
     SYSTEM_CPU_USAGE,
     "system_cpu_usage",
-    "Overall system CPU usage percentage (0-100)",
+    "Overall system CPU usage percentage (0-100, floating point)",
     SystemLabel
 );
 
-register_gauge_metric!(
+register_float_gauge_metric!(
     SYSTEM_MEMORY_USAGE,
     "system_memory_usage",
-    "Overall system memory usage percentage (0-100)",
+    "Overall system memory usage percentage (0-100, floating point)",
     SystemLabel
 );
 
-pub fn record_system_process_cpu_set(value: i64) {
+pub fn record_system_process_cpu_set(value: f64) {
     let label = SystemLabel {};
     gauge_metric_set!(SYSTEM_PROCESS_CPU_USAGE, label, value);
 }
 
-pub fn record_system_process_cpu_get() -> i64 {
+pub fn record_system_process_cpu_get() -> f64 {
     let label = SystemLabel {};
-    let mut result = 0i64;
+    let mut result = 0.0f64;
     gauge_metric_get!(SYSTEM_PROCESS_CPU_USAGE, label, result);
     result
 }
 
-pub fn record_system_process_memory_set(value: i64) {
+pub fn record_system_process_memory_set(value: f64) {
     let label = SystemLabel {};
     gauge_metric_set!(SYSTEM_PROCESS_MEMORY_USAGE, label, value);
 }
 
-pub fn record_system_process_memory_get() -> i64 {
+pub fn record_system_process_memory_get() -> f64 {
     let label = SystemLabel {};
-    let mut result = 0i64;
+    let mut result = 0.0f64;
     gauge_metric_get!(SYSTEM_PROCESS_MEMORY_USAGE, label, result);
     result
 }
 
-pub fn record_system_cpu_set(value: i64) {
+pub fn record_system_cpu_set(value: f64) {
     let label = SystemLabel {};
     gauge_metric_set!(SYSTEM_CPU_USAGE, label, value);
 }
 
-pub fn record_system_cpu_get() -> i64 {
+pub fn record_system_cpu_get() -> f64 {
     let label = SystemLabel {};
-    let mut result = 0i64;
+    let mut result = 0.0f64;
     gauge_metric_get!(SYSTEM_CPU_USAGE, label, result);
     result
 }
 
-pub fn record_system_memory_set(value: i64) {
+pub fn record_system_memory_set(value: f64) {
     let label = SystemLabel {};
     gauge_metric_set!(SYSTEM_MEMORY_USAGE, label, value);
 }
 
-pub fn record_system_memory_get() -> i64 {
+pub fn record_system_memory_get() -> f64 {
     let label = SystemLabel {};
-    let mut result = 0i64;
+    let mut result = 0.0f64;
     gauge_metric_get!(SYSTEM_MEMORY_USAGE, label, result);
     result
 }
@@ -148,13 +150,13 @@ pub fn record_runtime_alive_tasks_set(runtime: &str, value: i64) {
 /// the Prometheus output immediately on startup.
 pub fn init() {
     let label = SystemLabel {};
-    gauge_metric_set!(SYSTEM_PROCESS_CPU_USAGE, label, 0);
+    gauge_metric_set!(SYSTEM_PROCESS_CPU_USAGE, label, 0.0);
     let label = SystemLabel {};
-    gauge_metric_set!(SYSTEM_PROCESS_MEMORY_USAGE, label, 0);
+    gauge_metric_set!(SYSTEM_PROCESS_MEMORY_USAGE, label, 0.0);
     let label = SystemLabel {};
-    gauge_metric_set!(SYSTEM_CPU_USAGE, label, 0);
+    gauge_metric_set!(SYSTEM_CPU_USAGE, label, 0.0);
     let label = SystemLabel {};
-    gauge_metric_set!(SYSTEM_MEMORY_USAGE, label, 0);
+    gauge_metric_set!(SYSTEM_MEMORY_USAGE, label, 0.0);
 
     for rt in &["server", "meta", "broker"] {
         let label = RuntimeLabel {
@@ -169,5 +171,19 @@ pub fn init() {
             runtime: rt.to_string(),
         };
         gauge_metric_set!(TOKIO_RUNTIME_ALIVE_TASKS, label, 0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{record_system_cpu_get, record_system_cpu_set};
+    use crate::core::server::dump_metrics;
+
+    #[test]
+    fn system_cpu_percentage_keeps_fractional_precision() {
+        record_system_cpu_set(67.42);
+
+        assert!((record_system_cpu_get() - 67.42).abs() < f64::EPSILON);
+        assert!(dump_metrics().contains("system_cpu_usage{} 67.42"));
     }
 }

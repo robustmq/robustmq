@@ -123,9 +123,9 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 The broker samples these values immediately when the collector starts, then
 every 10 seconds. The collector clamps a directly supplied interval to at
 least 100 ms, but the broker's production configuration passes 10,000 ms.
-System and process percentages are exported as
-integer hundredths of a percentage point: for example, `67.42%` is exported as
-`6742`. Divide these values by 100 when displaying a percentage in Grafana.
+System and process percentages are exported as floating-point values in the
+range 0–100: for example, `67.42%` is exported as the numeric sample `67.42`.
+Use the `percent` unit when displaying these values in Grafana.
 The `system-info` crate also exposes file-descriptor helper functions, but the
 current background collector does not publish them as Prometheus metrics.
 
@@ -133,15 +133,15 @@ current background collector does not publish them as Prometheus metrics.
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `system_cpu_usage` | Gauge | — | Overall system CPU usage; exported as hundredths of a percentage point (0–10000, so `6742` means 67.42%) |
-| `system_memory_usage` | Gauge | — | Overall system memory usage; exported as hundredths of a percentage point (0–10000, so `6742` means 67.42%) |
+| `system_cpu_usage` | Gauge | — | Overall system CPU usage percentage (0–100; for example, the sample `67.42` means 67.42%) |
+| `system_memory_usage` | Gauge | — | Overall system memory usage percentage (0–100; for example, the sample `67.42` means 67.42%) |
 
 ### Process Metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `system_process_cpu_usage` | Gauge | — | Broker process CPU usage, normalized by core count and exported as hundredths of a percentage point (0–10000) |
-| `system_process_memory_usage` | Gauge | — | Broker process memory usage relative to total system memory, exported as hundredths of a percentage point (0–10000) |
+| `system_process_cpu_usage` | Gauge | — | Broker process CPU usage percentage, normalized by core count (0–100) |
+| `system_process_memory_usage` | Gauge | — | Broker process memory usage percentage relative to total system memory (0–100) |
 
 ## Tokio Runtime Metrics
 

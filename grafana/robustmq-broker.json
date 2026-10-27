@@ -1591,7 +1591,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_process_cpu_usage / 100",
+              "expr": "system_process_cpu_usage",
               "legendFormat": "Process CPU",
               "range": true,
               "refId": "A"
@@ -1667,7 +1667,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_cpu_usage / 100",
+              "expr": "system_cpu_usage",
               "legendFormat": "System CPU",
               "range": true,
               "refId": "A"
@@ -1743,7 +1743,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_process_memory_usage / 100",
+              "expr": "system_process_memory_usage",
               "legendFormat": "Process Memory",
               "range": true,
               "refId": "A"
@@ -1819,7 +1819,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_memory_usage / 100",
+              "expr": "system_memory_usage",
               "legendFormat": "System Memory",
               "range": true,
               "refId": "A"
@@ -1924,7 +1924,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_process_cpu_usage / 100",
+              "expr": "system_process_cpu_usage",
               "legendFormat": "Process CPU",
               "range": true,
               "refId": "A"
@@ -1935,7 +1935,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_cpu_usage / 100",
+              "expr": "system_cpu_usage",
               "legendFormat": "System CPU",
               "range": true,
               "refId": "B"
@@ -2040,7 +2040,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_process_memory_usage / 100",
+              "expr": "system_process_memory_usage",
               "legendFormat": "Process Memory",
               "range": true,
               "refId": "A"
@@ -2051,7 +2051,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "system_memory_usage / 100",
+              "expr": "system_memory_usage",
               "legendFormat": "System Memory",
               "range": true,
               "refId": "B"
