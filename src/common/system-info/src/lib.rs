@@ -44,3 +44,38 @@ pub async fn start_system_info_collection(stop_send: broadcast::Sender<bool>, in
     };
     loop_select_ticket(collect, interval_ms, &stop_send).await;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn system_info_collection_runs_and_stops_with_minimum_interval() {
+        let (stop_send, _) = broadcast::channel(1);
+        let collection = start_system_info_collection(stop_send.clone(), 0);
+        tokio::pin!(collection);
+
+        tokio::select! {
+            biased;
+            _ = &mut collection => panic!("system collector stopped before receiving a signal"),
+            _ = tokio::time::sleep(std::time::Duration::from_millis(450)) => {}
+        }
+        stop_send.send(true).unwrap();
+        collection.await;
+
+        let metrics = common_metrics::core::server::dump_metrics();
+        for name in [
+            "system_process_cpu_usage",
+            "system_process_memory_usage",
+            "system_cpu_usage",
+            "system_memory_usage",
+        ] {
+            assert!(
+                metrics
+                    .lines()
+                    .any(|line| line.starts_with(&format!("{name}{{}} "))),
+                "missing sampled metric {name:?} in:\n{metrics}"
+            );
+        }
+    }
+}
