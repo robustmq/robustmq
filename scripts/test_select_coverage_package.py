@@ -59,6 +59,7 @@ class SelectCoveragePackagesTest(unittest.TestCase):
         selected = selector.select_packages(
             [
                 "docs/en/Observability/Infrastructure-Metrics.md",
+                "docs/zh/Observability/基础设施指标.md",
                 "grafana/robustmq-broker.json",
                 "src/common/system-info/src/lib.rs",
             ],
@@ -66,6 +67,20 @@ class SelectCoveragePackagesTest(unittest.TestCase):
         )
 
         self.assertEqual(selected, ["system-info"])
+
+    def test_parses_nul_delimited_non_ascii_paths(self):
+        paths = selector.parse_changed_paths(
+            "docs/zh/Observability/基础设施指标.md\0"
+            "src/common/system-info/src/lib.rs\0".encode()
+        )
+
+        self.assertEqual(
+            paths,
+            [
+                "docs/zh/Observability/基础设施指标.md",
+                "src/common/system-info/src/lib.rs",
+            ],
+        )
 
     def test_uses_workspace_fallback_for_unmapped_paths(self):
         selected = selector.select_packages(

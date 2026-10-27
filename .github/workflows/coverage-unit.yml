@@ -104,11 +104,18 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          changed_paths="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")"
-          printf '%s\n' "${changed_paths}" > "$RUNNER_TEMP/coverage-changed-paths.txt"
+          git diff --name-only -z "${BASE_SHA}" "${HEAD_SHA}" > "$RUNNER_TEMP/coverage-changed-paths.bin"
           echo "Coverage package diff: ${BASE_SHA}..${HEAD_SHA}"
-          printf '%s\n' "${changed_paths}"
-          package="$(printf '%s\n' "${changed_paths}" | python3 scripts/select-coverage-package.py)"
+          python3 - "$RUNNER_TEMP/coverage-changed-paths.bin" <<'PY'
+          import pathlib
+          import sys
+
+          paths = pathlib.Path(sys.argv[1]).read_bytes().split(b"\0")
+          for path in paths:
+              if path:
+                  print(path.decode("utf-8"))
+          PY
+          package="$(python3 scripts/select-coverage-package.py < "$RUNNER_TEMP/coverage-changed-paths.bin")"
           if [[ -n "$package" ]]; then
             echo "Automatically selected package scope: $package"
           else

@@ -91,8 +91,13 @@ def select_packages(
     return sorted(selected)
 
 
+def parse_changed_paths(data: bytes) -> list[str]:
+    """Decode git's NUL-delimited paths without locale-dependent quoting."""
+    return [path.decode("utf-8") for path in data.split(b"\0") if path]
+
+
 def main() -> int:
-    changed_paths = [line.strip() for line in sys.stdin if line.strip()]
+    changed_paths = parse_changed_paths(sys.stdin.buffer.read())
     packages = select_packages(changed_paths, workspace_packages())
     if packages:
         print(",".join(packages))
