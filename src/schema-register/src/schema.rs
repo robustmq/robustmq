@@ -197,3 +197,208 @@ impl SchemaRegisterManager {
         vec![]
     }
 }
+
+#[cfg(test)]
+mod test {
+    use apache_avro::{Schema, Writer};
+    use serde::Serialize;
+
+    use super::SchemaRegisterManager;
+    use metadata_struct::schema::{SchemaData, SchemaResourceBind, SchemaType};
+
+    fn schema_data(tenant: &str, name: &str, schema_type: SchemaType, schema: &str) -> SchemaData {
+        SchemaData {
+            tenant: tenant.to_string(),
+            name: name.to_string(),
+            schema_type,
+            desc: format!("{name} schema"),
+            schema: schema.to_string(),
+        }
+    }
+
+    fn bind(tenant: &str, schema_name: &str, resource_name: &str) -> SchemaResourceBind {
+        SchemaResourceBind {
+            tenant: tenant.to_string(),
+            schema_name: schema_name.to_string(),
+            resource_name: resource_name.to_string(),
+        }
+    }
+
+    #[derive(Serialize)]
+    struct AvroRecord {
+        id: i64,
+        name: String,
+    }
+
+    #[test]
+    fn schema_lifecycle_is_scoped_by_tenant() {
+        let manager = SchemaRegisterManager::new();
+        let schema = schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::JSON,
+            r#"{"type":"object","properties":{"id":{"type":"integer"}}}"#,
+        );
+
+        assert!(manager.get_schema("tenant-a", "user").is_none());
+        assert!(manager.get_all_schema("tenant-a").is_empty());
+        assert!(manager.get_all_schema_all_tenants().is_empty());
+
+        manager.add_schema(schema.clone());
+
+        assert_eq!(manager.get_schema("tenant-a", "user"), Some(schema.clone()));
+        assert_eq!(manager.get_all_schema("tenant-a"), vec![schema.clone()]);
+        assert_eq!(manager.get_all_schema("tenant-b"), Vec::new());
+        assert_eq!(
+            manager.get_all_schema_all_tenants(),
+            vec![("tenant-a".to_string(), schema)]
+        );
+
+        manager.remove_schema("tenant-b", "user");
+        assert!(manager.get_schema("tenant-a", "user").is_some());
+        manager.remove_schema("tenant-a", "user");
+        assert!(manager.get_schema("tenant-a", "user").is_none());
+    }
+
+    #[test]
+    fn bindings_are_duplicate_safe_and_support_reverse_lookups() {
+        let manager = SchemaRegisterManager::new();
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::JSON,
+            r#"{"type":"object"}"#,
+        ));
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "event",
+            SchemaType::JSON,
+            r#"{"type":"object"}"#,
+        ));
+
+        let user_binding = bind("tenant-a", "user", "users");
+        let event_binding = bind("tenant-a", "event", "events");
+        manager.add_bind(&user_binding);
+        manager.add_bind(&user_binding);
+        manager.add_bind(&event_binding);
+
+        assert!(manager.is_check_schema("tenant-a", "users"));
+        assert!(!manager.is_check_schema("tenant-a", "missing"));
+        assert_eq!(
+            manager.get_bind_resource_by_schema("tenant-a", "user"),
+            vec!["users"]
+        );
+        assert_eq!(
+            manager.get_bind_resource_by_schema("tenant-a", "event"),
+            vec!["events"]
+        );
+
+        assert_eq!(
+            manager
+                .get_bind_schema_by_resource("tenant-a", "users")
+                .iter()
+                .map(|schema| schema.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["user"]
+        );
+        assert_eq!(
+            manager
+                .get_bind_schema_by_resource("tenant-a", "events")
+                .iter()
+                .map(|schema| schema.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["event"]
+        );
+
+        manager.remove_bind(&user_binding);
+        assert!(!manager.is_check_schema("tenant-a", "users"));
+        assert!(manager
+            .get_bind_schema_by_resource("tenant-a", "users")
+            .is_empty());
+        assert!(manager
+            .get_bind_resource_by_schema("tenant-a", "user")
+            .is_empty());
+        assert!(manager.is_check_schema("tenant-a", "events"));
+    }
+
+    #[test]
+    fn validate_returns_true_without_a_binding() {
+        let manager = SchemaRegisterManager::new();
+        assert!(manager.validate("tenant-a", "users", b"not-json").unwrap());
+
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::JSON,
+            r#"{"type":"object"}"#,
+        ));
+        assert!(manager.validate("tenant-a", "users", b"not-json").unwrap());
+    }
+
+    #[test]
+    fn validate_uses_bound_json_schema() {
+        let manager = SchemaRegisterManager::new();
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::JSON,
+            r#"{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}"#,
+        ));
+        manager.add_bind(&bind("tenant-a", "user", "users"));
+
+        assert!(manager
+            .validate("tenant-a", "users", br#"{"name":"Ada"}"#)
+            .unwrap());
+        assert!(!manager
+            .validate("tenant-a", "users", br#"{"name":42}"#)
+            .unwrap());
+        assert!(manager.validate("tenant-a", "users", b"not-json").is_err());
+    }
+
+    #[test]
+    fn validate_uses_bound_avro_schema() {
+        let manager = SchemaRegisterManager::new();
+        let raw_schema = r#"
+            {"type":"record","name":"user","fields":[
+                {"name":"id","type":"long"},
+                {"name":"name","type":"string"}
+            ]}
+        "#;
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::AVRO,
+            raw_schema,
+        ));
+        manager.add_bind(&bind("tenant-a", "user", "users"));
+
+        let schema = Schema::parse_str(raw_schema).unwrap();
+        let mut writer = Writer::new(&schema, Vec::new());
+        writer
+            .append_ser(AvroRecord {
+                id: 1,
+                name: "Ada".to_string(),
+            })
+            .unwrap();
+        let encoded = writer.into_inner().unwrap();
+
+        assert!(manager.validate("tenant-a", "users", &encoded).unwrap());
+        assert!(manager.validate("tenant-a", "users", b"invalid").is_err());
+    }
+
+    #[test]
+    fn protobuf_bindings_follow_the_current_manager_behavior() {
+        let manager = SchemaRegisterManager::new();
+        manager.add_schema(schema_data(
+            "tenant-a",
+            "user",
+            SchemaType::PROTOBUF,
+            "syntax = \"proto3\"; message User { string name = 1; }",
+        ));
+        manager.add_bind(&bind("tenant-a", "user", "users"));
+
+        // Protobuf decoding is exposed through protobuf_validate; manager validation
+        // currently treats a protobuf binding as accepted data.
+        assert!(manager.validate("tenant-a", "users", b"arbitrary").unwrap());
+    }
+}
