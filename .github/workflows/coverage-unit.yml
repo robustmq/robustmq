@@ -102,9 +102,13 @@ jobs:
         if: github.event_name == 'pull_request' && !inputs.package
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          package="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" | python3 scripts/select-coverage-package.py)"
+          changed_paths="$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")"
+          printf '%s\n' "${changed_paths}" > "$RUNNER_TEMP/coverage-changed-paths.txt"
+          echo "Coverage package diff: ${BASE_SHA}..${HEAD_SHA}"
+          printf '%s\n' "${changed_paths}"
+          package="$(printf '%s\n' "${changed_paths}" | python3 scripts/select-coverage-package.py)"
           if [[ -n "$package" ]]; then
             echo "Automatically selected package scope: $package"
           else
