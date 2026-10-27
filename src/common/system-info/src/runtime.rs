@@ -97,3 +97,39 @@ pub async fn start_tokio_runtime_info_collection(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn runtime_snapshot_samples_metrics_and_stops() {
+        let handle = tokio::runtime::Handle::current();
+        let mut snapshot = RuntimeSnapshot::new("test-runtime".to_string(), handle.clone());
+
+        snapshot.sample();
+        snapshot.prev_busy.clear();
+        snapshot.sample();
+
+        let (stop_send, _) = broadcast::channel(1);
+        let collection = start_tokio_runtime_info_collection(
+            vec![("test-runtime".to_string(), handle)],
+            stop_send.clone(),
+            0,
+        );
+        tokio::pin!(collection);
+
+        tokio::select! {
+            biased;
+            _ = &mut collection => panic!("runtime collector stopped before receiving a signal"),
+            _ = tokio::time::sleep(Duration::from_millis(120)) => {}
+        }
+        stop_send.send(true).unwrap();
+        collection.await;
+
+        let metrics = common_metrics::core::server::dump_metrics();
+        assert!(metrics.contains("tokio_runtime_busy_ratio{runtime=\"test-runtime\"}"));
+        assert!(metrics.contains("tokio_runtime_queue_depth{runtime=\"test-runtime\"}"));
+        assert!(metrics.contains("tokio_runtime_alive_tasks{runtime=\"test-runtime\"}"));
+    }
+}

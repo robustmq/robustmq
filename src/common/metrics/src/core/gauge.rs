@@ -17,11 +17,15 @@ use prometheus_client::metrics::family::Family;
 use prometheus_client::metrics::gauge::Gauge;
 use std::fmt::Debug;
 use std::hash::Hash;
+#[cfg(target_has_atomic = "64")]
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, RwLock};
 
 use crate::core::server::metrics_register_default;
 
 pub type FamilyGauge<L> = Arc<RwLock<Family<L, Gauge>>>;
+#[cfg(target_has_atomic = "64")]
+pub type FamilyFloatGauge<L> = Arc<RwLock<Family<L, Gauge<f64, AtomicU64>>>>;
 
 #[macro_export]
 macro_rules! register_gauge_metric {
@@ -33,11 +37,35 @@ macro_rules! register_gauge_metric {
     };
 }
 
+#[cfg(target_has_atomic = "64")]
+#[macro_export]
+macro_rules! register_float_gauge_metric {
+    ($name:ident, $metric_name:expr, $help:expr,$label:ty) => {
+        static $name: std::sync::LazyLock<$crate::core::gauge::FamilyFloatGauge<$label>> =
+            std::sync::LazyLock::new(|| {
+                $crate::core::gauge::register_float_gauge_family($metric_name, $help)
+            });
+    };
+}
+
 pub fn register_int_gauge_family<L>(name: &str, help: &str) -> Arc<RwLock<Family<L, Gauge>>>
 where
     L: EncodeLabelSet + Eq + Clone + Hash + Debug + Sync + Send + 'static,
 {
     let family = Family::<L, Gauge>::default();
+    metrics_register_default().register(name, help, family.clone());
+    Arc::new(RwLock::new(family))
+}
+
+#[cfg(target_has_atomic = "64")]
+pub fn register_float_gauge_family<L>(
+    name: &str,
+    help: &str,
+) -> Arc<RwLock<Family<L, Gauge<f64, AtomicU64>>>>
+where
+    L: EncodeLabelSet + Eq + Clone + Hash + Debug + Sync + Send + 'static,
+{
+    let family = Family::<L, Gauge<f64, AtomicU64>>::default();
     metrics_register_default().register(name, help, family.clone());
     Arc::new(RwLock::new(family))
 }

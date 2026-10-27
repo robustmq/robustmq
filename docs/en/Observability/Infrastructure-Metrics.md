@@ -120,25 +120,85 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 
 ## System & Process Resource Metrics
 
-Collected every 15 seconds. All percentage values are stored as integers in the range 0–100 (centipercent), divide by 100 in Grafana to get a fraction or use the `percent` unit.
+The broker samples these values immediately when the collector starts, then
+every 10 seconds. The collector clamps a directly supplied interval to at
+least 100 ms, but the broker's production configuration passes 10,000 ms.
+System and process percentages are exported as floating-point values in the
+range 0–100: for example, `67.42%` is exported as the numeric sample `67.42`.
+Use the `percent` unit when displaying these values in Grafana.
+The `system-info` crate also exposes file-descriptor helper functions, but the
+current background collector does not publish them as Prometheus metrics.
 
 ### System-wide Metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `system_cpu_usage` | Gauge | — | Overall system CPU usage percentage (0–100) |
-| `system_memory_usage` | Gauge | — | Overall system memory usage percentage (0–100) |
+| `system_cpu_usage` | Gauge | — | Overall system CPU usage percentage (0–100; for example, the sample `67.42` means 67.42%) |
+| `system_memory_usage` | Gauge | — | Overall system memory usage percentage (0–100; for example, the sample `67.42` means 67.42%) |
 
 ### Process Metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `system_process_cpu_usage` | Gauge | — | CPU usage of the broker process, normalized by core count (0–100) |
-| `system_process_memory_usage` | Gauge | — | Memory usage of the broker process as a percentage of total system memory (0–100) |
+| `system_process_cpu_usage` | Gauge | — | Broker process CPU usage percentage, normalized by core count (0–100) |
+| `system_process_memory_usage` | Gauge | — | Broker process memory usage percentage relative to total system memory (0–100) |
 
 ## Tokio Runtime Metrics
 
-Sampled every 15 seconds using Tokio's unstable `RuntimeMetrics` API. Three runtimes are monitored: `server`, `meta`, and `broker`.
+Sampled immediately at startup and then every 10 seconds using Tokio's unstable
+`RuntimeMetrics` API. Three runtimes are monitored: `server`, `meta`, and
+`broker`. Runtime busy ratio is
+exported as a rounded integer percentage in the range 0–100 (for example,
+`67.42%` is exported as `67`); queue depth and alive-task counts are integers.
+
+### Collection Lifecycle
+
+The system and Tokio runtime collectors share the broker's common stop signal,
+but otherwise run as independent background tasks. Prometheus scraping is
+independent from collection; `/metrics` returns the latest values in the shared
+registry.
+
+```mermaid
+sequenceDiagram
+    participant Broker as BrokerServer
+    participant Stop as broker_common_stop
+    participant Supervisor as TaskSupervisor
+    participant System as system-info collector
+    participant Runtime as Tokio runtime collector
+    participant Metrics as common-metrics registry
+    participant Admin as Admin HTTP /metrics
+    participant Prom as Prometheus
+
+    Broker->>Metrics: init_metrics()
+    Broker->>Stop: create broadcast channel
+    Broker->>Supervisor: spawn system collector (10,000 ms)
+    Broker->>Supervisor: spawn runtime collector with runtime handles
+
+    par System/process collection
+        loop immediately, then every 10 seconds
+            System->>System: sample sysinfo CPU and memory
+            System->>Metrics: write four system/process gauges
+        end
+    and Tokio runtime collection
+        loop immediately, then every 10 seconds
+            Runtime->>Runtime: read RuntimeMetrics for each runtime
+            Runtime->>Metrics: write busy ratio, queue depth, alive tasks
+        end
+    and Prometheus scraping
+        loop at configured scrape interval
+            Prom->>Admin: GET /metrics
+            Admin->>Metrics: dump shared registry
+            Metrics-->>Admin: latest gauge values
+            Admin-->>Prom: Prometheus text exposition
+        end
+    end
+
+    Broker->>Stop: send(true) during shutdown
+    Stop-->>System: stop signal
+    Stop-->>Runtime: stop signal
+    System-->>Supervisor: collector returns
+    Runtime-->>Supervisor: collector returns
+```
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
@@ -554,4 +614,7 @@ groups:
 - **Collection implementation**: `src/common/system-info/src/`
   - System/process resource collection: `lib.rs`
   - Tokio runtime collection: `runtime.rs`
+- **Collector startup and shutdown**: `src/broker-server/src/daemon.rs`, `src/broker-server/src/lib.rs`
+- **Metrics endpoint**: `src/admin-server/src/server.rs`
+- **Shared Prometheus registry**: `src/common/metrics/src/core/server.rs`
 - **Grafana dashboard**: `grafana/robustmq-broker.json`

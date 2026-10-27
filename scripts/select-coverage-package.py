@@ -27,7 +27,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Select a safe package-scoped coverage target from changed repository paths."""
+"""Select safe package-scoped coverage targets from changed repository paths."""
 
 from __future__ import annotations
 
@@ -40,8 +40,11 @@ import sys
 INTEGRATION_ONLY = {"robustmq-test", "grpc-clients"}
 SELECTION_CONTROL_FILES = {
     ".github/workflows/coverage-unit.yml",
+    "scripts/coverage-unit.sh",
     "scripts/select-coverage-package.py",
+    "scripts/test_select_coverage_package.py",
 }
+NON_CODE_PREFIXES = ("docs/", "grafana/")
 
 
 def workspace_packages() -> list[tuple[str, pathlib.Path]]:
@@ -58,11 +61,15 @@ def workspace_packages() -> list[tuple[str, pathlib.Path]]:
     ]
 
 
-def select_package(
+def select_packages(
     changed_paths: list[str], packages: list[tuple[str, pathlib.Path]]
-) -> str | None:
+) -> list[str] | None:
+    """Return affected unit-test packages, or None for workspace fallback."""
     relevant_paths = [
         path for path in changed_paths if path not in SELECTION_CONTROL_FILES
+    ]
+    relevant_paths = [
+        path for path in relevant_paths if not path.startswith(NON_CODE_PREFIXES)
     ]
     if not relevant_paths:
         return None
@@ -79,19 +86,21 @@ def select_package(
             return None
         selected.add(matches[0])
 
-    if len(selected) != 1:
+    if selected & INTEGRATION_ONLY:
         return None
-    package = selected.pop()
-    if package in INTEGRATION_ONLY:
-        return None
-    return package
+    return sorted(selected)
+
+
+def parse_changed_paths(data: bytes) -> list[str]:
+    """Decode git's NUL-delimited paths without locale-dependent quoting."""
+    return [path.decode("utf-8") for path in data.split(b"\0") if path]
 
 
 def main() -> int:
-    changed_paths = [line.strip() for line in sys.stdin if line.strip()]
-    package = select_package(changed_paths, workspace_packages())
-    if package:
-        print(package)
+    changed_paths = parse_changed_paths(sys.stdin.buffer.read())
+    packages = select_packages(changed_paths, workspace_packages())
+    if packages:
+        print(",".join(packages))
     return 0
 
 
