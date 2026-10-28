@@ -48,7 +48,7 @@ $delayed/{DelayInterval}/{TopicName}
 1. **Publish delayed message**
 
    ```bash
-   mqttx pub -t "$delayed/10/sensor/temperature" -m "25.5°C" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/10/sensor/temperature' -m "25.5°C" -h '117.72.92.117' -p 1883
    ```
 
    This message will be published to the `sensor/temperature` topic after 10 seconds.
@@ -65,13 +65,13 @@ $delayed/{DelayInterval}/{TopicName}
 
    ```bash
    # Publish after 15 seconds
-   mqttx pub -t "$delayed/15/device/status" -m "online" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/15/device/status' -m "online" -h '117.72.92.117' -p 1883
 
    # Publish after 60 seconds
-   mqttx pub -t "$delayed/60/system/backup" -m "backup completed" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/60/system/backup' -m "backup completed" -h '117.72.92.117' -p 1883
 
    # Publish after 3600 seconds (1 hour)
-   mqttx pub -t "$delayed/3600/report/daily" -m "daily report ready" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/3600/report/daily' -m "daily report ready" -h '117.72.92.117' -p 1883
    ```
 
 ### Practical Application Examples
@@ -80,10 +80,10 @@ $delayed/{DelayInterval}/{TopicName}
 
 ```bash
 # Set reminder for 30 seconds later
-mqttx pub -t "$delayed/30/reminder/meeting" -m '{"title":"Meeting Reminder","time":"14:00","location":"Conference Room A"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/30/reminder/meeting' -m '{"title":"Meeting Reminder","time":"14:00","location":"Conference Room A"}' -h '117.72.92.117' -p 1883
 
 # Set reminder for 1 hour later
-mqttx pub -t "$delayed/3600/reminder/break" -m '{"title":"Break Reminder","message":"Time for a break"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/3600/reminder/break' -m '{"title":"Break Reminder","message":"Time for a break"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to reminder topics
 mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
@@ -93,10 +93,10 @@ mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # Retry after 5 seconds delay on failure
-mqttx pub -t "$delayed/5/retry/upload" -m '{"file_id":"123","retry_count":1}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/5/retry/upload' -m '{"file_id":"123","retry_count":1}' -h '117.72.92.117' -p 1883
 
 # Retry after 30 seconds delay on failure
-mqttx pub -t "$delayed/30/retry/sync" -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/30/retry/sync' -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
 
 # Subscribe to retry topics
 mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
@@ -106,9 +106,9 @@ mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # Delay multiple messages to the same time point (10 minutes later)
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"001","type":"data_analysis"}' -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"002","type":"data_analysis"}' -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"001","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"002","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to batch processing topic
 mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
@@ -118,9 +118,9 @@ mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # Control message sending rate, send one message every 2 seconds
-mqttx pub -t "$delayed/2/rate/limited" -m "message 1" -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/4/rate/limited" -m "message 2" -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/6/rate/limited" -m "message 3" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/2/rate/limited' -m "message 1" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/4/rate/limited' -m "message 2" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/6/rate/limited' -m "message 3" -h '117.72.92.117' -p 1883
 
 # Subscribe to rate-limited topic
 mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
@@ -130,10 +130,10 @@ mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # Device cooldown period, can restart after 30 minutes
-mqttx pub -t "$delayed/1800/device/cooldown" -m '{"device_id":"D001","action":"restart_allowed"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/1800/device/cooldown' -m '{"device_id":"D001","action":"restart_allowed"}' -h '117.72.92.117' -p 1883
 
 # User operation waiting period, can perform sensitive operations after 5 minutes
-mqttx pub -t "$delayed/300/user/security" -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/300/user/security' -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to business logic topics
 mqttx sub -t "device/+" -h '117.72.92.117' -p 1883 -v

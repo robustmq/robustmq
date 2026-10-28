@@ -48,7 +48,7 @@ $delayed/{DelayInterval}/{TopicName}
 1. **发布延迟消息**
 
    ```bash
-   mqttx pub -t "$delayed/10/sensor/temperature" -m "25.5°C" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/10/sensor/temperature' -m "25.5°C" -h '117.72.92.117' -p 1883
    ```
 
    这条消息将在 10 秒后发布到 `sensor/temperature` 主题。
@@ -65,13 +65,13 @@ $delayed/{DelayInterval}/{TopicName}
 
    ```bash
    # 15 秒后发布
-   mqttx pub -t "$delayed/15/device/status" -m "online" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/15/device/status' -m "online" -h '117.72.92.117' -p 1883
 
    # 60 秒后发布
-   mqttx pub -t "$delayed/60/system/backup" -m "backup completed" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/60/system/backup' -m "backup completed" -h '117.72.92.117' -p 1883
 
    # 3600 秒（1小时）后发布
-   mqttx pub -t "$delayed/3600/report/daily" -m "daily report ready" -h '117.72.92.117' -p 1883
+   mqttx pub -t '$delayed/3600/report/daily' -m "daily report ready" -h '117.72.92.117' -p 1883
    ```
 
 ### 实际应用示例
@@ -80,10 +80,10 @@ $delayed/{DelayInterval}/{TopicName}
 
 ```bash
 # 设置 30 秒后的提醒
-mqttx pub -t "$delayed/30/reminder/meeting" -m '{"title":"会议提醒","time":"14:00","location":"会议室A"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/30/reminder/meeting' -m '{"title":"会议提醒","time":"14:00","location":"会议室A"}' -h '117.72.92.117' -p 1883
 
 # 设置 1 小时后的提醒
-mqttx pub -t "$delayed/3600/reminder/break" -m '{"title":"休息提醒","message":"该休息了"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/3600/reminder/break' -m '{"title":"休息提醒","message":"该休息了"}' -h '117.72.92.117' -p 1883
 
 # 订阅提醒主题
 mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
@@ -93,10 +93,10 @@ mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # 失败后延迟 5 秒重试
-mqttx pub -t "$delayed/5/retry/upload" -m '{"file_id":"123","retry_count":1}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/5/retry/upload' -m '{"file_id":"123","retry_count":1}' -h '117.72.92.117' -p 1883
 
 # 失败后延迟 30 秒重试
-mqttx pub -t "$delayed/30/retry/sync" -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/30/retry/sync' -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
 
 # 订阅重试主题
 mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
@@ -106,9 +106,9 @@ mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # 将多个消息延迟到同一时间点（10分钟后）
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"001","type":"data_analysis"}' -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"002","type":"data_analysis"}' -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/600/batch/process" -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"001","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"002","type":"data_analysis"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
 
 # 订阅批量处理主题
 mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
@@ -118,9 +118,9 @@ mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # 控制消息发送速率，每 2 秒发送一条消息
-mqttx pub -t "$delayed/2/rate/limited" -m "message 1" -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/4/rate/limited" -m "message 2" -h '117.72.92.117' -p 1883
-mqttx pub -t "$delayed/6/rate/limited" -m "message 3" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/2/rate/limited' -m "message 1" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/4/rate/limited' -m "message 2" -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/6/rate/limited' -m "message 3" -h '117.72.92.117' -p 1883
 
 # 订阅限流主题
 mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
@@ -130,10 +130,10 @@ mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
 
 ```bash
 # 设备冷却期，30 分钟后才能重新启动
-mqttx pub -t "$delayed/1800/device/cooldown" -m '{"device_id":"D001","action":"restart_allowed"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/1800/device/cooldown' -m '{"device_id":"D001","action":"restart_allowed"}' -h '117.72.92.117' -p 1883
 
 # 用户操作等待期，5 分钟后才能执行敏感操作
-mqttx pub -t "$delayed/300/user/security" -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
+mqttx pub -t '$delayed/300/user/security' -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
 
 # 订阅业务逻辑主题
 mqttx sub -t "device/+" -h '117.72.92.117' -p 1883 -v
