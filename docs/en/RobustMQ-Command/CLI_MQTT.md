@@ -347,6 +347,9 @@ Deleted successfully!
 `schema list` accepts `--schema-name`, and `schema list-bind` requires the same
 `--tenant` used by `schema bind`.
 
+For the control-plane, broker-cache, and publish-validation flow, see the
+[Schema Registry Architecture](../Architect/Schema-Registry-Architecture).
+
 #### `robust-ctl mqtt schema list`
 
 ```bash

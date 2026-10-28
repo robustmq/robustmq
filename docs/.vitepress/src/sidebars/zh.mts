@@ -60,6 +60,7 @@ const items = [
         items: [
             { text: "架构概览", link: "/zh/Architect/Overall-Architecture" },
             { text: "Meta Service", link: "/zh/Architect/MetaService-Architecture" },
+            { text: "Schema Registry", link: "/zh/Architect/Schema-Registry-Architecture" },
             { text: "Storage Adapter", link: "/zh/Architect/StorageAdapter-Architecture" },
             { text: "Storage Engine", link: "/zh/Architect/StorageEngine-Architecture" },
             { text: "Connector", link: "/zh/Architect/Connector-Architecture" },

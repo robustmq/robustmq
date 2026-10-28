@@ -361,6 +361,9 @@ Deleted successfully!
 `schema list` 接受 `--schema-name`，`schema list-bind` 必须使用与 `schema bind`
 相同的 `--tenant`。
 
+控制面、Broker 缓存和发布校验的完整流程请参阅
+[Schema Registry 架构](../Architect/Schema-Registry-Architecture)。
+
 #### `robust-ctl mqtt schema list`
 
 ```bash
