@@ -51,12 +51,12 @@ $delayed/{DelayInterval}/{TopicName}
    mqttx pub -t '$delayed/10/sensor/temperature' -m "25.5°C" -h '117.72.92.117' -p 1883
    ```
 
-   This message will be published to the `sensor/temperature` topic after 10 seconds.
+   This message will be published to the `/sensor/temperature` topic after 10 seconds.
 
 2. **Subscribe to target topic**
 
    ```bash
-   mqttx sub -t "sensor/temperature" -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t "/sensor/temperature" -h '117.72.92.117' -p 1883 -v
    ```
 
    After waiting 10 seconds, subscribers will receive the delayed published message.
@@ -86,7 +86,7 @@ mqttx pub -t '$delayed/30/reminder/meeting' -m '{"title":"Meeting Reminder","tim
 mqttx pub -t '$delayed/3600/reminder/break' -m '{"title":"Break Reminder","message":"Time for a break"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to reminder topics
-mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/reminder/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### Retry Mechanism
@@ -99,7 +99,7 @@ mqttx pub -t '$delayed/5/retry/upload' -m '{"file_id":"123","retry_count":1}' -h
 mqttx pub -t '$delayed/30/retry/sync' -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
 
 # Subscribe to retry topics
-mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/retry/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### Batch Processing
@@ -111,7 +111,7 @@ mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"002","type":"data_ana
 mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to batch processing topic
-mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/batch/process" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### Traffic Control
@@ -123,7 +123,7 @@ mqttx pub -t '$delayed/4/rate/limited' -m "message 2" -h '117.72.92.117' -p 1883
 mqttx pub -t '$delayed/6/rate/limited' -m "message 3" -h '117.72.92.117' -p 1883
 
 # Subscribe to rate-limited topic
-mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/rate/limited" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### Business Logic Delay
@@ -136,18 +136,18 @@ mqttx pub -t '$delayed/1800/device/cooldown' -m '{"device_id":"D001","action":"r
 mqttx pub -t '$delayed/300/user/security' -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
 
 # Subscribe to business logic topics
-mqttx sub -t "device/+" -h '117.72.92.117' -p 1883 -v
-mqttx sub -t "user/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/device/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/user/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 ## Delay Time Examples
 
 | Delay Time | Example Topic | Description |
 |------------|---------------|-------------|
-| 15 seconds | `$delayed/15/sensor/data` | Publish to `sensor/data` after 15 seconds |
-| 60 seconds | `$delayed/60/system/status` | Publish to `system/status` after 1 minute |
-| 3600 seconds | `$delayed/3600/report/hourly` | Publish to `report/hourly` after 1 hour |
-| 86400 seconds | `$delayed/86400/report/daily` | Publish to `report/daily` after 1 day |
+| 15 seconds | `$delayed/15/sensor/data` | Publish to `/sensor/data` after 15 seconds |
+| 60 seconds | `$delayed/60/system/status` | Publish to `/system/status` after 1 minute |
+| 3600 seconds | `$delayed/3600/report/hourly` | Publish to `/report/hourly` after 1 hour |
+| 86400 seconds | `$delayed/86400/report/daily` | Publish to `/report/daily` after 1 day |
 
 ## Important Notes
 

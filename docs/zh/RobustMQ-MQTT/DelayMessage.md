@@ -51,12 +51,12 @@ $delayed/{DelayInterval}/{TopicName}
    mqttx pub -t '$delayed/10/sensor/temperature' -m "25.5°C" -h '117.72.92.117' -p 1883
    ```
 
-   这条消息将在 10 秒后发布到 `sensor/temperature` 主题。
+   这条消息将在 10 秒后发布到 `/sensor/temperature` 主题。
 
 2. **订阅目标主题**
 
    ```bash
-   mqttx sub -t "sensor/temperature" -h '117.72.92.117' -p 1883 -v
+   mqttx sub -t "/sensor/temperature" -h '117.72.92.117' -p 1883 -v
    ```
 
    等待 10 秒后，订阅者会收到延迟发布的消息。
@@ -86,7 +86,7 @@ mqttx pub -t '$delayed/30/reminder/meeting' -m '{"title":"会议提醒","time":"
 mqttx pub -t '$delayed/3600/reminder/break' -m '{"title":"休息提醒","message":"该休息了"}' -h '117.72.92.117' -p 1883
 
 # 订阅提醒主题
-mqttx sub -t "reminder/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/reminder/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### 重试机制
@@ -99,7 +99,7 @@ mqttx pub -t '$delayed/5/retry/upload' -m '{"file_id":"123","retry_count":1}' -h
 mqttx pub -t '$delayed/30/retry/sync' -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
 
 # 订阅重试主题
-mqttx sub -t "retry/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/retry/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### 批量处理
@@ -111,7 +111,7 @@ mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"002","type":"data_ana
 mqttx pub -t '$delayed/600/batch/process' -m '{"batch_id":"003","type":"data_analysis"}' -h '117.72.92.117' -p 1883
 
 # 订阅批量处理主题
-mqttx sub -t "batch/process" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/batch/process" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### 流量控制
@@ -123,7 +123,7 @@ mqttx pub -t '$delayed/4/rate/limited' -m "message 2" -h '117.72.92.117' -p 1883
 mqttx pub -t '$delayed/6/rate/limited' -m "message 3" -h '117.72.92.117' -p 1883
 
 # 订阅限流主题
-mqttx sub -t "rate/limited" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/rate/limited" -h '117.72.92.117' -p 1883 -v
 ```
 
 #### 业务逻辑延迟
@@ -136,18 +136,18 @@ mqttx pub -t '$delayed/1800/device/cooldown' -m '{"device_id":"D001","action":"r
 mqttx pub -t '$delayed/300/user/security' -m '{"user_id":"U001","operation":"sensitive_allowed"}' -h '117.72.92.117' -p 1883
 
 # 订阅业务逻辑主题
-mqttx sub -t "device/+" -h '117.72.92.117' -p 1883 -v
-mqttx sub -t "user/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/device/+" -h '117.72.92.117' -p 1883 -v
+mqttx sub -t "/user/+" -h '117.72.92.117' -p 1883 -v
 ```
 
 ## 延迟时间示例
 
 | 延迟时间 | 示例主题 | 说明 |
 |----------|----------|------|
-| 15 秒 | `$delayed/15/sensor/data` | 15 秒后发布到 `sensor/data` |
-| 60 秒 | `$delayed/60/system/status` | 1 分钟后发布到 `system/status` |
-| 3600 秒 | `$delayed/3600/report/hourly` | 1 小时后发布到 `report/hourly` |
-| 86400 秒 | `$delayed/86400/report/daily` | 1 天后发布到 `report/daily` |
+| 15 秒 | `$delayed/15/sensor/data` | 15 秒后发布到 `/sensor/data` |
+| 60 秒 | `$delayed/60/system/status` | 1 分钟后发布到 `/system/status` |
+| 3600 秒 | `$delayed/3600/report/hourly` | 1 小时后发布到 `/report/hourly` |
+| 86400 秒 | `$delayed/86400/report/daily` | 1 天后发布到 `/report/daily` |
 
 ## 注意事项
 
