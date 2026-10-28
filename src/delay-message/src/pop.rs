@@ -313,12 +313,16 @@ fn build_new_record(
 mod test {
     use super::*;
     use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
+    use bytes::Bytes;
     use common_config::config::DelayMessageConfig;
     use common_config::default::{
         default_delay_message_initial_retry_delay_sec, default_delay_message_max_retries,
     };
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::delay_info::DelayMessageIndexInfo;
+    use metadata_struct::storage::record::{
+        StorageHeader, StorageRecordMetadata, StorageRecordProtocolData,
+    };
     use metadata_struct::tenant::DEFAULT_TENANT;
     use std::time::Duration;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
@@ -350,6 +354,65 @@ mod test {
             };
             assert_eq!(backoff, expected);
         }
+    }
+
+    #[test]
+    fn test_build_new_record_preserves_metadata_and_adds_trigger_header() {
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "metadata-test".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target-topic".to_string(),
+            offset: 7,
+            target_timestamp: 8,
+            retry_count: 0,
+        };
+        let record = StorageRecord {
+            metadata: StorageRecordMetadata {
+                header: Some(vec![StorageHeader {
+                    name: "source".to_string(),
+                    value: "mqtt".to_string(),
+                }]),
+                key: Some(Bytes::from_static(b"message-key")),
+                tags: Some(vec!["tag-a".to_string(), "tag-b".to_string()]),
+                ..Default::default()
+            },
+            protocol_data: Some(StorageRecordProtocolData::default()),
+            data: Bytes::from_static(b"payload"),
+        };
+
+        let result = build_new_record(&delay_info, &record, 1234);
+        assert_eq!(result.topic, "target-topic");
+        assert_eq!(result.data, Bytes::from_static(b"payload"));
+        assert_eq!(result.key(), Some(b"message-key".as_ref()));
+        assert_eq!(result.tags(), &["tag-a", "tag-b"]);
+        assert_eq!(result.header().len(), 2);
+        assert_eq!(result.header()[0].name, "source");
+        assert_eq!(result.header()[1].name, DELAY_MESSAGE_SAVE_MS);
+        assert_eq!(result.header()[1].value, "1234");
+        assert!(result.protocol_data.is_some());
+    }
+
+    #[test]
+    fn test_build_new_record_adds_trigger_header_without_optional_metadata() {
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "metadata-empty".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target-topic".to_string(),
+            offset: 0,
+            target_timestamp: 0,
+            retry_count: 0,
+        };
+        let record = StorageRecord {
+            metadata: StorageRecordMetadata::default(),
+            protocol_data: None,
+            data: Bytes::from_static(b"payload"),
+        };
+
+        let result = build_new_record(&delay_info, &record, 9);
+        assert_eq!(result.header().len(), 1);
+        assert_eq!(result.header()[0].name, DELAY_MESSAGE_SAVE_MS);
+        assert!(result.key.is_none());
+        assert!(result.tags.is_none());
     }
 
     #[tokio::test]
@@ -391,6 +454,24 @@ mod test {
         let result = delay_message_process(&storage, &delay_info, now_second()).await;
 
         assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delay_message_process_returns_err_when_payload_is_missing() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "missing-payload".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target".to_string(),
+            offset: 19,
+            target_timestamp: now_second(),
+            retry_count: 0,
+        };
+
+        let result = delay_message_process(&storage, &delay_info, now_second()).await;
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
 

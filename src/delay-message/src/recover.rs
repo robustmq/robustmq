@@ -194,3 +194,117 @@ fn update_offsets_from_records(
         );
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bytes::Bytes;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
+
+    async fn test_manager() -> Arc<DelayMessageManager> {
+        Arc::new(
+            DelayMessageManager::new(
+                Arc::new(ClientPool::new(1)),
+                test_build_storage_driver_manager().await.unwrap(),
+                1,
+                common_config::config::DelayMessageConfig::default(),
+            )
+            .await
+            .unwrap(),
+        )
+    }
+
+    fn record(offset: u64, shard: &str, data: Vec<u8>) -> StorageRecord {
+        StorageRecord {
+            metadata: StorageRecordMetadata {
+                offset,
+                shard: shard.to_string(),
+                ..Default::default()
+            },
+            protocol_data: None,
+            data: Bytes::from(data),
+        }
+    }
+
+    #[test]
+    fn updates_offsets_per_shard_using_highest_next_offset() {
+        let records = vec![
+            record(4, "shard-a", vec![]),
+            record(2, "shard-b", vec![]),
+            record(1, "shard-a", vec![]),
+            record(9, "shard-b", vec![]),
+        ];
+        let mut offsets = HashMap::from([(String::from("shard-a"), 7)]);
+        update_offsets_from_records(&records, &mut offsets);
+        assert_eq!(offsets.get("shard-a"), Some(&7));
+        assert_eq!(offsets.get("shard-b"), Some(&10));
+    }
+
+    #[tokio::test]
+    async fn read_batch_resets_retry_count_on_success() {
+        let manager = test_manager().await;
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_INDEX_TOPIC);
+        let mut retry_count = 2;
+        let result = read_delay_index_batch(
+            &manager,
+            &HashMap::new(),
+            &AdapterReadConfig::default(),
+            &mut retry_count,
+        )
+        .await;
+        assert!(result.is_some());
+        assert_eq!(retry_count, 0);
+    }
+
+    #[tokio::test]
+    async fn read_batch_aborts_after_max_retries() {
+        let manager = test_manager().await;
+        let mut retry_count = MAX_READ_RETRY - 1;
+        let result = read_delay_index_batch(
+            &manager,
+            &HashMap::new(),
+            &AdapterReadConfig::default(),
+            &mut retry_count,
+        )
+        .await;
+        assert!(result.is_none());
+        assert_eq!(retry_count, MAX_READ_RETRY);
+    }
+
+    #[tokio::test]
+    async fn invalid_index_record_is_ignored() {
+        let manager = test_manager().await;
+        let mut total = 0;
+        assert!(
+            !process_delay_index_record(&manager, &record(3, "shard", vec![1, 2, 3]), &mut total)
+                .await
+        );
+        assert_eq!(total, 0);
+    }
+
+    #[tokio::test]
+    async fn future_index_record_requires_registered_pop_channel() {
+        let manager = test_manager().await;
+        let info = DelayMessageIndexInfo {
+            unique_id: "future-recovery".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target".to_string(),
+            offset: 3,
+            target_timestamp: now_second() + 3600,
+            retry_count: 0,
+        };
+        let data = common_base::utils::serialize::serialize(&info).unwrap();
+        let mut total = 0;
+        assert!(!process_delay_index_record(&manager, &record(3, "shard", data), &mut total).await);
+        assert_eq!(total, 0);
+    }
+
+    #[tokio::test]
+    async fn recovery_with_empty_index_topic_completes() {
+        let manager = test_manager().await;
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_INDEX_TOPIC);
+        recover_delay_queue(&manager).await;
+    }
+}
