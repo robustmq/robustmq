@@ -285,3 +285,84 @@ mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity
   ]
 }
 ```
+
+## MQTT 告警规则
+
+以下 Prometheus 规则示例使用当前实现实际暴露的指标名。仓库还提供了更完整的告警规则文件 [`grafana/robustmq-alerts.yml`](../../../grafana/robustmq-alerts.yml)；配置方法请参阅 [Grafana 配置指南](Grafana配置指南.md)。这些片段用于说明 MQTT 专用告警条件，并不替代完整规则文件。
+
+### 连接告警
+
+```yaml
+- alert: RobustMQHighConnectionFailureRate
+  expr: (sum(rate(mqtt_connection_failed_total[5m])) / clamp_min(sum(rate(mqtt_connection_success_total[5m])) + sum(rate(mqtt_connection_failed_total[5m])), 1e-9)) > 0.1
+  for: 2m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 连接失败率过高"
+    description: "MQTT 连接失败占比为 {{ $value | humanizePercentage }}。"
+
+- alert: RobustMQHighConnectionCount
+  expr: mqtt_connections_count > 5000
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 连接数过高"
+    description: "当前 MQTT 连接数：{{ $value }}"
+```
+
+### 性能与错误告警
+
+Histogram bucket 按 `le` 聚合，并保留可用的 `network` 和 `packet` 标签，以便告警指出受影响的传输类型和数据包类型。
+
+```yaml
+- alert: RobustMQHighMqttPacketProcessingLatency
+  expr: histogram_quantile(0.95, sum by (le, network, packet) (rate(mqtt_packet_process_duration_ms_bucket[5m]))) > 100
+  for: 3m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 数据包处理延迟过高"
+    description: "{{ $labels.network }} 上 {{ $labels.packet }} 的 P95 延迟为 {{ $value }}ms。"
+
+- alert: RobustMQPacketErrors
+  expr: sum by (network) (rate(mqtt_packets_received_error_total[5m])) > 1
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 数据包错误率过高"
+    description: "{{ $labels.network }} 每秒发生 {{ $value }} 次数据包错误。"
+```
+
+### 认证与容量告警
+
+```yaml
+- alert: RobustMQHighMqttAuthenticationFailureRatio
+  expr: (sum(rate(mqtt_auth_failed_total[5m])) / clamp_min(sum(rate(mqtt_auth_success_total[5m])) + sum(rate(mqtt_auth_failed_total[5m])), 1e-9)) > 0.2
+  for: 1m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 认证失败占比过高"
+    description: "认证失败占比为 {{ $value | humanizePercentage }}。"
+
+- alert: RobustMQDelayQueueNearFull
+  expr: (mqtt_delay_queue_total_capacity > 0) and ((mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity) > 0.9)
+  for: 2m
+  labels:
+    severity: critical
+  annotations:
+    summary: "MQTT 延迟队列接近满载"
+    description: "分片 {{ $labels.shard_no }} 的容量使用率为 {{ $value | humanizePercentage }}。"
+
+- alert: RobustMQTooManyRetainedMessages
+  expr: mqtt_retained_count > 100000
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "MQTT 保留消息过多"
+    description: "当前保留消息数：{{ $value }}"
+```

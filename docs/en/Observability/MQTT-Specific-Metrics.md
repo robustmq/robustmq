@@ -285,3 +285,84 @@ Histogram buckets must be aggregated by `le` before calculating a percentile.
   ]
 }
 ```
+
+## MQTT Alert Rules
+
+The Prometheus rule examples below use metric names exposed by the current implementation. The repository also provides a broader alert rules file at [`grafana/robustmq-alerts.yml`](../../../grafana/robustmq-alerts.yml); see the [Grafana Configuration Guide](Grafana-Configuration-Guide.md) for setup. These snippets show MQTT-specific alert conditions and are not a replacement for the complete file.
+
+### Connection Alerts
+
+```yaml
+- alert: RobustMQHighConnectionFailureRate
+  expr: (sum(rate(mqtt_connection_failed_total[5m])) / clamp_min(sum(rate(mqtt_connection_success_total[5m])) + sum(rate(mqtt_connection_failed_total[5m])), 1e-9)) > 0.1
+  for: 2m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High MQTT connection failure rate"
+    description: "MQTT connection failure ratio is {{ $value | humanizePercentage }}."
+
+- alert: RobustMQHighConnectionCount
+  expr: mqtt_connections_count > 5000
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High MQTT connection count"
+    description: "Current MQTT connections: {{ $value }}"
+```
+
+### Performance and Error Alerts
+
+Histogram buckets are aggregated by `le` and grouped by the available `network` and `packet` labels so the alert identifies the affected transport and packet type.
+
+```yaml
+- alert: RobustMQHighMqttPacketProcessingLatency
+  expr: histogram_quantile(0.95, sum by (le, network, packet) (rate(mqtt_packet_process_duration_ms_bucket[5m]))) > 100
+  for: 3m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High MQTT packet processing latency"
+    description: "P95 latency is {{ $value }}ms for {{ $labels.packet }} on {{ $labels.network }}."
+
+- alert: RobustMQPacketErrors
+  expr: sum by (network) (rate(mqtt_packets_received_error_total[5m])) > 1
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High MQTT packet error rate"
+    description: "Packet errors are {{ $value }} per second on {{ $labels.network }}."
+```
+
+### Authentication and Capacity Alerts
+
+```yaml
+- alert: RobustMQHighMqttAuthenticationFailureRatio
+  expr: (sum(rate(mqtt_auth_failed_total[5m])) / clamp_min(sum(rate(mqtt_auth_success_total[5m])) + sum(rate(mqtt_auth_failed_total[5m])), 1e-9)) > 0.2
+  for: 1m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High MQTT authentication failure ratio"
+    description: "Authentication failure ratio is {{ $value | humanizePercentage }}."
+
+- alert: RobustMQDelayQueueNearFull
+  expr: (mqtt_delay_queue_total_capacity > 0) and ((mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity) > 0.9)
+  for: 2m
+  labels:
+    severity: critical
+  annotations:
+    summary: "MQTT delay queue near capacity"
+    description: "Shard {{ $labels.shard_no }} is using {{ $value | humanizePercentage }} of capacity."
+
+- alert: RobustMQTooManyRetainedMessages
+  expr: mqtt_retained_count > 100000
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Too many MQTT retained messages"
+    description: "Current retained message count: {{ $value }}"
+```

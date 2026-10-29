@@ -85,63 +85,62 @@ The dashboard uses a template variable `${DS_PROMETHEUS}` for the Prometheus dat
 
 | Metric | Description | Alert Threshold |
 |--------|-------------|-----------------|
-| `broker_connections_num` | Current active connections | > 5000 (warning) |
-| `broker_connections_max` | Peak connections reached | Track capacity planning |
-| `request_total_ms` | End-to-end latency | 95th percentile > 100ms |
-| `request_handler_ms` | Handler processing time | 95th percentile > 50ms |
-| `network_queue_num` | Queue depth | > 1000 (warning) |
+| `mqtt_connections_count` | Current active MQTT connections | > 5000 (warning) |
+| `handler_total_ms` | End-to-end handler latency | P95 > 100ms |
+| `handler_apply_ms` | Handler command.apply() latency | Track latency trends |
+| `handler_queue_size` | Handler queue depth | > 1000 (warning) |
 
 ### MQTT Packet Metrics
 
 | Metric | Description | Labels |
 |--------|-------------|--------|
-| `packets_received` | Total packets received | `network` |
-| `packets_sent` | Total packets sent | `network`, `qos` |
-| `packets_*_received` | Specific packet type received | `network` |
-| `packets_*_sent` | Specific packet type sent | `network`, `qos` |
-| `bytes_received` | Bytes received | `network` |
-| `bytes_sent` | Bytes sent | `network`, `qos` |
+| `mqtt_packets_received_total` | Total packets received | `network` |
+| `mqtt_packets_sent_total` | Total packets sent | `network`, `qos` |
+| `mqtt_packets_*_received_total` | Specific packet type received | `network` |
+| `mqtt_packets_*_sent_total` | Specific packet type sent | `network`, `qos` |
+| `mqtt_bytes_received_total` | Bytes received | `network` |
+| `mqtt_bytes_sent_total` | Bytes sent | `network`, `qos` |
 
 ### Error Metrics
 
 | Metric | Description | Labels |
 |--------|-------------|--------|
-| `packets_received_error` | Malformed packets | `network` |
-| `packets_connack_auth_error` | Authentication failures | `network` |
-| `packets_connack_error` | Connection errors | `network` |
+| `mqtt_packets_received_error_total` | Malformed packets | `network` |
+| `mqtt_packets_connack_auth_error_total` | Authentication failures | `network` |
+| `mqtt_packets_connack_error_total` | Connection errors | `network` |
 
 ### Message Handling Metrics
 
 | Metric | Description | Labels |
 |--------|-------------|--------|
-| `retain_packets_received` | Retained messages received | `qos` |
-| `retain_packets_sent` | Retained messages sent | `qos` |
-| `messages_dropped_no_subscribers` | Messages dropped (no subscribers) | `qos` |
-| `messages_dropped_discard` | Messages dropped (discard policy) | `qos` |
+| `mqtt_retain_packets_received_total` | Retained messages received | `qos` |
+| `mqtt_retain_packets_sent_total` | Retained messages sent | `qos` |
+| `mqtt_messages_dropped_no_subscribers_total` | Messages dropped (no subscribers) | — |
+| `mqtt_connector_messages_discarded_total` | Connector messages dropped (discard policy) | `tenant`, `connector_type`, `connector_name`, `strategy` |
 
 ## 🚨 Recommended Alerts
 
 ### High Priority Alerts
 ```yaml
 # High connection count
-- alert: HighConnectionCount
-  expr: broker_connections_num > 5000
+- alert: RobustMQHighConnectionCount
+  expr: mqtt_connections_count > 5000
   labels:
     severity: warning
   annotations:
     summary: "High number of active connections"
 
 # High latency
-- alert: HighLatency
-  expr: histogram_quantile(0.95, rate(request_total_ms_bucket[5m])) > 100
+- alert: RobustMQHighRequestLatency
+  expr: histogram_quantile(0.95, sum by (le, network) (rate(handler_total_ms_bucket[5m]))) > 100
   labels:
     severity: warning
   annotations:
     summary: "High request latency detected"
 
 # Authentication failures
-- alert: AuthenticationFailures
-  expr: rate(packets_connack_auth_error[5m]) > 10
+- alert: RobustMQAuthenticationFailures
+  expr: sum by (network) (rate(mqtt_packets_connack_auth_error_total[5m])) > 10
   labels:
     severity: critical
   annotations:
@@ -151,16 +150,16 @@ The dashboard uses a template variable `${DS_PROMETHEUS}` for the Prometheus dat
 ### Medium Priority Alerts
 ```yaml
 # Queue depth
-- alert: HighQueueDepth
-  expr: network_queue_num > 1000
+- alert: RobustMQHighQueueDepth
+  expr: handler_queue_size{label="handler"} > 1000
   labels:
     severity: warning
   annotations:
     summary: "High network queue depth"
 
 # Message drops
-- alert: MessageDrops
-  expr: rate(messages_dropped_no_subscribers[5m]) > 100
+- alert: RobustMQHighMessageDrops
+  expr: rate(mqtt_messages_dropped_no_subscribers_total[5m]) > 100
   labels:
     severity: warning
   annotations:
