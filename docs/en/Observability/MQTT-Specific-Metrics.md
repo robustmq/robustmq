@@ -208,6 +208,80 @@ rate(mqtt_packets_publish_received_total[5m])
 rate(mqtt_packets_publish_sent_total[5m])
 rate(mqtt_auth_failed_total[5m]) /
   (rate(mqtt_auth_success_total[5m]) + rate(mqtt_auth_failed_total[5m]))
-histogram_quantile(0.95, rate(mqtt_packet_process_duration_ms_bucket[5m]))
+histogram_quantile(0.95, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))
 mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity
+```
+
+## Grafana Dashboard Configuration
+
+The repository includes an importable dashboard at [`grafana/robustmq-broker.json`](../../../grafana/robustmq-broker.json). For setup and import instructions, see the [Grafana Configuration Guide](Grafana-Configuration-Guide.md). The examples below are panel query snippets, not a complete dashboard JSON document.
+
+### Connection Overview Panel
+
+```json
+{
+  "title": "MQTT Connection Overview",
+  "targets": [
+    {
+      "expr": "mqtt_connections_count",
+      "legendFormat": "Current Connections"
+    },
+    {
+      "expr": "rate(mqtt_connection_success_total[5m])",
+      "legendFormat": "Connection Success Rate/sec"
+    },
+    {
+      "expr": "rate(mqtt_connection_failed_total[5m])",
+      "legendFormat": "Connection Failure Rate/sec"
+    }
+  ]
+}
+```
+
+### Message Throughput Panel
+
+The packet and byte counters have network labels. The `sum by (network)` aggregation combines sent QoS series while preserving the transport type in the legend.
+
+```json
+{
+  "title": "MQTT Message Throughput",
+  "targets": [
+    {
+      "expr": "sum by (network) (rate(mqtt_packets_publish_received_total[5m]))",
+      "legendFormat": "PUBLISH Received/sec ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_packets_publish_sent_total[5m]))",
+      "legendFormat": "PUBLISH Sent/sec ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_bytes_received_total[5m]))",
+      "legendFormat": "Bytes Received/sec ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_bytes_sent_total[5m]))",
+      "legendFormat": "Bytes Sent/sec ({{network}})"
+    }
+  ]
+}
+```
+
+### Performance Monitoring Panel
+
+Histogram buckets must be aggregated by `le` before calculating a percentile.
+
+```json
+{
+  "title": "MQTT Performance Monitoring",
+  "targets": [
+    {
+      "expr": "histogram_quantile(0.95, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))",
+      "legendFormat": "P95 Processing Duration (ms)"
+    },
+    {
+      "expr": "histogram_quantile(0.99, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))",
+      "legendFormat": "P99 Processing Duration (ms)"
+    }
+  ]
+}
 ```

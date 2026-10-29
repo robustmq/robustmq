@@ -208,6 +208,80 @@ rate(mqtt_packets_publish_received_total[5m])
 rate(mqtt_packets_publish_sent_total[5m])
 rate(mqtt_auth_failed_total[5m]) /
   (rate(mqtt_auth_success_total[5m]) + rate(mqtt_auth_failed_total[5m]))
-histogram_quantile(0.95, rate(mqtt_packet_process_duration_ms_bucket[5m]))
+histogram_quantile(0.95, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))
 mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity
+```
+
+## Grafana 仪表板配置
+
+仓库提供了可直接导入的仪表板文件 [`grafana/robustmq-broker.json`](../../../grafana/robustmq-broker.json)。配置和导入步骤请参阅 [Grafana 配置指南](Grafana配置指南.md)。下面的示例是面板查询片段，不是完整的仪表板 JSON 文件。
+
+### 连接概览面板
+
+```json
+{
+  "title": "MQTT 连接概览",
+  "targets": [
+    {
+      "expr": "mqtt_connections_count",
+      "legendFormat": "当前连接数"
+    },
+    {
+      "expr": "rate(mqtt_connection_success_total[5m])",
+      "legendFormat": "连接成功率/秒"
+    },
+    {
+      "expr": "rate(mqtt_connection_failed_total[5m])",
+      "legendFormat": "连接失败率/秒"
+    }
+  ]
+}
+```
+
+### 消息吞吐量面板
+
+协议包和字节 Counter 都带有 `network` 标签。`sum by (network)` 会合并发送方向的 QoS 序列，同时在图例中保留网络类型。
+
+```json
+{
+  "title": "MQTT 消息吞吐量",
+  "targets": [
+    {
+      "expr": "sum by (network) (rate(mqtt_packets_publish_received_total[5m]))",
+      "legendFormat": "接收 PUBLISH/秒 ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_packets_publish_sent_total[5m]))",
+      "legendFormat": "发送 PUBLISH/秒 ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_bytes_received_total[5m]))",
+      "legendFormat": "接收字节/秒 ({{network}})"
+    },
+    {
+      "expr": "sum by (network) (rate(mqtt_bytes_sent_total[5m]))",
+      "legendFormat": "发送字节/秒 ({{network}})"
+    }
+  ]
+}
+```
+
+### 性能监控面板
+
+计算分位数前必须按 `le` 聚合 Histogram bucket。
+
+```json
+{
+  "title": "MQTT 性能监控",
+  "targets": [
+    {
+      "expr": "histogram_quantile(0.95, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))",
+      "legendFormat": "P95 处理耗时（毫秒）"
+    },
+    {
+      "expr": "histogram_quantile(0.99, sum by (le) (rate(mqtt_packet_process_duration_ms_bucket[5m])))",
+      "legendFormat": "P99 处理耗时（毫秒）"
+    }
+  ]
+}
 ```
