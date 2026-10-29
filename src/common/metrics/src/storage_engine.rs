@@ -20,7 +20,7 @@ use prometheus_client::encoding::EncodeLabelSet;
 
 // ── Labels ──────────────────────────────────────────────────────────────────
 
-/// `operation` — one of: "write", "read_offset", "read_key", "read_tag"
+/// `operation` identifies the storage operation being measured.
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 pub struct StorageEngineLabel {
     pub operation: &'static str,
@@ -79,6 +79,7 @@ pub fn init() {
         "get_offset_by_timestamp",
         "get_offset_by_group",
         "commit_offset",
+        "delete_records_before",
     ] {
         counter_metric_touch!(
             STORAGE_ENGINE_OPS_TOTAL,
@@ -92,5 +93,68 @@ pub fn init() {
             STORAGE_ENGINE_OPS_DURATION_MS,
             StorageEngineLabel { operation: op }
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_storage_operations_and_failures() {
+        record_storage_engine_ops("coverage");
+        record_storage_engine_ops_fail("coverage");
+        record_storage_engine_ops_duration("coverage", 12.5);
+
+        let label = StorageEngineLabel {
+            operation: "coverage",
+        };
+        assert_eq!(
+            STORAGE_ENGINE_OPS_TOTAL
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            1
+        );
+        assert_eq!(
+            STORAGE_ENGINE_OPS_FAIL_TOTAL
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            1
+        );
+    }
+
+    #[test]
+    fn init_preregisters_all_storage_operations() {
+        init();
+
+        for operation in [
+            "write",
+            "read_offset",
+            "commit_offset",
+            "delete_records_before",
+        ] {
+            let label = StorageEngineLabel { operation };
+            assert!(STORAGE_ENGINE_OPS_TOTAL
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+            assert!(STORAGE_ENGINE_OPS_FAIL_TOTAL
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+            assert!(STORAGE_ENGINE_OPS_DURATION_MS
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+        }
     }
 }

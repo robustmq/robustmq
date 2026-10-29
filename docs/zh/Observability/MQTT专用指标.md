@@ -1,367 +1,213 @@
 # MQTT 专用指标
 
-RobustMQ 提供了全面的 MQTT 协议专用监控指标，涵盖数据包处理、连接管理、认证授权、消息发布、会话管理等各个方面。这些指标帮助运维人员深入了解 MQTT 服务的运行状态和性能表现。
+RobustMQ 通过 Prometheus `/metrics` 端点暴露 MQTT 协议、连接、消息、延迟队列和 Connector 指标。下表使用 Prometheus 实际暴露的指标名。Rust 中注册 Counter 时不写 `_total`，`prometheus-client` 会在暴露时自动追加该后缀。
 
-## 数据包指标 (Packets)
+## 协议包指标
 
-### 接收数据包统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_packets_received` | Gauge | `network` | MQTT 数据包接收总数 |
-| `mqtt_packets_connect_received` | Gauge | `network` | CONNECT 数据包接收数 |
-| `mqtt_packets_publish_received` | Gauge | `network` | PUBLISH 数据包接收数 |
-| `mqtt_packets_connack_received` | Gauge | `network` | CONNACK 数据包接收数 |
-| `mqtt_packets_puback_received` | Gauge | `network` | PUBACK 数据包接收数 |
-| `mqtt_packets_pubrec_received` | Gauge | `network` | PUBREC 数据包接收数 |
-| `mqtt_packets_pubrel_received` | Gauge | `network` | PUBREL 数据包接收数 |
-| `mqtt_packets_pubcomp_received` | Gauge | `network` | PUBCOMP 数据包接收数 |
-| `mqtt_packets_subscribe_received` | Gauge | `network` | SUBSCRIBE 数据包接收数 |
-| `mqtt_packets_unsubscribe_received` | Gauge | `network` | UNSUBSCRIBE 数据包接收数 |
-| `mqtt_packets_pingreq_received` | Gauge | `network` | PINGREQ 数据包接收数 |
-| `mqtt_packets_disconnect_received` | Gauge | `network` | DISCONNECT 数据包接收数 |
-| `mqtt_packets_auth_received` | Gauge | `network` | AUTH 数据包接收数 |
-
-### 发送数据包统计
+### 接收数据包
 
 | 指标名称 | 类型 | 标签 | 描述 |
 |---------|------|------|------|
-| `mqtt_packets_sent` | Gauge | `network`, `qos` | MQTT 数据包发送总数 |
-| `mqtt_packets_connack_sent` | Gauge | `network`, `qos` | CONNACK 数据包发送数 |
-| `mqtt_packets_publish_sent` | Gauge | `network`, `qos` | PUBLISH 数据包发送数 |
-| `mqtt_packets_puback_sent` | Gauge | `network`, `qos` | PUBACK 数据包发送数 |
-| `mqtt_packets_pubrec_sent` | Gauge | `network`, `qos` | PUBREC 数据包发送数 |
-| `mqtt_packets_pubrel_sent` | Gauge | `network`, `qos` | PUBREL 数据包发送数 |
-| `mqtt_packets_pubcomp_sent` | Gauge | `network`, `qos` | PUBCOMP 数据包发送数 |
-| `mqtt_packets_suback_sent` | Gauge | `network`, `qos` | SUBACK 数据包发送数 |
-| `mqtt_packets_unsuback_sent` | Gauge | `network`, `qos` | UNSUBACK 数据包发送数 |
-| `mqtt_packets_pingresp_sent` | Gauge | `network`, `qos` | PINGRESP 数据包发送数 |
-| `mqtt_packets_disconnect_sent` | Gauge | `network`, `qos` | DISCONNECT 数据包发送数 |
+| `mqtt_packets_received_total` | Counter | `network` | MQTT 接收包总数 |
+| `mqtt_packets_connect_received_total` | Counter | `network` | CONNECT 包接收数 |
+| `mqtt_packets_publish_received_total` | Counter | `network` | PUBLISH 包接收数 |
+| `mqtt_packets_connack_received_total` | Counter | `network` | CONNACK 包接收数 |
+| `mqtt_packets_puback_received_total` | Counter | `network` | PUBACK 包接收数 |
+| `mqtt_packets_pubrec_received_total` | Counter | `network` | PUBREC 包接收数 |
+| `mqtt_packets_pubrel_received_total` | Counter | `network` | PUBREL 包接收数 |
+| `mqtt_packets_pubcomp_received_total` | Counter | `network` | PUBCOMP 包接收数 |
+| `mqtt_packets_subscribe_received_total` | Counter | `network` | SUBSCRIBE 包接收数 |
+| `mqtt_packets_unsubscribe_received_total` | Counter | `network` | UNSUBSCRIBE 包接收数 |
+| `mqtt_packets_pingreq_received_total` | Counter | `network` | PINGREQ 包接收数 |
+| `mqtt_packets_disconnect_received_total` | Counter | `network` | DISCONNECT 包接收数 |
+| `mqtt_packets_auth_received_total` | Counter | `network` | AUTH 包接收数 |
+| `mqtt_packets_received_error_total` | Counter | `network` | 接收或解码时被拒绝的数据包数 |
+| `mqtt_packets_connack_auth_error_total` | Counter | `network` | 授权失败的 CONNACK 包数 |
+| `mqtt_packets_connack_error_total` | Counter | `network` | 返回错误结果的 CONNACK 包数 |
+| `mqtt_bytes_received_total` | Counter | `network` | MQTT 接收字节总数 |
 
-### 字节统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_bytes_received` | Gauge | `network` | MQTT 接收字节总数 |
-| `mqtt_bytes_sent` | Gauge | `network`, `qos` | MQTT 发送字节总数 |
-
-### 错误统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_packets_received_error` | Gauge | `network` | MQTT 错误数据包接收数 |
-| `mqtt_packets_connack_auth_error` | Gauge | `network` | CONNACK 认证错误数据包数 |
-| `mqtt_packets_connack_error` | Gauge | `network` | CONNACK 错误数据包数 |
-
-### 保留消息和丢弃消息
+### 发送数据包
 
 | 指标名称 | 类型 | 标签 | 描述 |
 |---------|------|------|------|
-| `mqtt_retain_packets_received` | Gauge | `qos` | 保留消息接收数 |
-| `mqtt_retain_packets_sent` | Gauge | `qos` | 保留消息发送数 |
-| `mqtt_messages_dropped_no_subscribers` | Gauge | `qos` | 因无订阅者丢弃的消息数 |
+| `mqtt_packets_sent_total` | Counter | `network`, `qos` | MQTT 发送包总数 |
+| `mqtt_packets_connack_sent_total` | Counter | `network`, `qos` | CONNACK 包发送数 |
+| `mqtt_packets_publish_sent_total` | Counter | `network`, `qos` | PUBLISH 包发送数 |
+| `mqtt_packets_puback_sent_total` | Counter | `network`, `qos` | PUBACK 包发送数 |
+| `mqtt_packets_pubrec_sent_total` | Counter | `network`, `qos` | PUBREC 包发送数 |
+| `mqtt_packets_pubrel_sent_total` | Counter | `network`, `qos` | PUBREL 包发送数 |
+| `mqtt_packets_pubcomp_sent_total` | Counter | `network`, `qos` | PUBCOMP 包发送数 |
+| `mqtt_packets_suback_sent_total` | Counter | `network`, `qos` | SUBACK 包发送数 |
+| `mqtt_packets_unsuback_sent_total` | Counter | `network`, `qos` | UNSUBACK 包发送数 |
+| `mqtt_packets_pingresp_sent_total` | Counter | `network`, `qos` | PINGRESP 包发送数 |
+| `mqtt_packets_disconnect_sent_total` | Counter | `network`, `qos` | DISCONNECT 包发送数 |
+| `mqtt_packets_auth_sent_total` | Counter | `network`, `qos` | AUTH 包发送数；AUTH 不是 PUBLISH，因此 `qos` 为 `-1` |
+| `mqtt_bytes_sent_total` | Counter | `network`, `qos` | MQTT 发送字节总数 |
+| `mqtt_retain_packets_received_total` | Counter | `qos` | 保留消息接收数 |
+| `mqtt_retain_packets_sent_total` | Counter | `qos` | 保留消息发送数 |
 
-**标签说明：**
-- `network`: 网络类型（tcp, websocket, quic）
-- `qos`: QoS 级别（0, 1, 2, -1 表示非 PUBLISH 包）
+### 跨网络汇总
 
-## 连接事件指标 (Events)
+以下无标签 Counter 汇总所有网络类型的协议包和字节数。
 
-### 连接统计
+| 指标名称 | 类型 | 描述 |
+|---------|------|------|
+| `mqtt_total_bytes_received_total` | Counter | 所有网络类型接收的 MQTT 字节数 |
+| `mqtt_total_bytes_sent_total` | Counter | 所有网络类型发送的 MQTT 字节数 |
+| `mqtt_total_packets_received_total` | Counter | 所有网络类型接收的 MQTT 包数 |
+| `mqtt_total_packets_sent_total` | Counter | 所有网络类型发送的 MQTT 包数 |
+| `mqtt_total_packets_connect_total` | Counter | 接收的 CONNECT 包数 |
+| `mqtt_total_packets_connack_total` | Counter | 发送的 CONNACK 包数 |
+| `mqtt_total_packets_publish_received_total` | Counter | 接收的 PUBLISH 包数 |
+| `mqtt_total_packets_publish_sent_total` | Counter | 发送的 PUBLISH 包数 |
+| `mqtt_total_packets_puback_received_total` | Counter | 接收的 PUBACK 包数 |
+| `mqtt_total_packets_puback_sent_total` | Counter | 发送的 PUBACK 包数 |
+| `mqtt_total_packets_pubrec_received_total` | Counter | 接收的 PUBREC 包数 |
+| `mqtt_total_packets_pubrec_sent_total` | Counter | 发送的 PUBREC 包数 |
+| `mqtt_total_packets_pubrel_received_total` | Counter | 接收的 PUBREL 包数 |
+| `mqtt_total_packets_pubrel_sent_total` | Counter | 发送的 PUBREL 包数 |
+| `mqtt_total_packets_pubcomp_received_total` | Counter | 接收的 PUBCOMP 包数 |
+| `mqtt_total_packets_pubcomp_sent_total` | Counter | 发送的 PUBCOMP 包数 |
+| `mqtt_total_packets_subscribe_total` | Counter | 接收的 SUBSCRIBE 包数 |
+| `mqtt_total_packets_suback_total` | Counter | 发送的 SUBACK 包数 |
+| `mqtt_total_packets_unsubscribe_total` | Counter | 接收的 UNSUBSCRIBE 包数 |
+| `mqtt_total_packets_unsuback_total` | Counter | 发送的 UNSUBACK 包数 |
+| `mqtt_total_packets_pingreq_total` | Counter | 接收的 PINGREQ 包数 |
+| `mqtt_total_packets_pingresp_total` | Counter | 发送的 PINGRESP 包数 |
+| `mqtt_total_packets_disconnect_received_total` | Counter | 接收的 DISCONNECT 包数 |
+| `mqtt_total_packets_disconnect_sent_total` | Counter | 发送的 DISCONNECT 包数 |
+| `mqtt_total_packets_auth_total` | Counter | 接收的 AUTH 包数 |
+| `mqtt_total_packets_auth_sent_total` | Counter | 发送的 AUTH 包数 |
 
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_connection_success` | Counter | - | MQTT 连接成功次数 |
-| `mqtt_connection_failed` | Counter | - | MQTT 连接失败次数 |
-| `mqtt_disconnect_success` | Counter | - | MQTT 主动断开成功次数 |
-| `mqtt_connection_expired` | Counter | - | MQTT 连接过期断开次数 |
-
-### 订阅统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_subscribe_success` | Counter | - | MQTT 成功订阅主题次数 |
-| `mqtt_subscribe_failed` | Counter | - | MQTT 订阅失败次数 |
-| `mqtt_unsubscribe_success` | Counter | - | MQTT 成功取消订阅主题次数 |
-
-### 客户端连接计数
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `client_connections` | Counter | `client_id` | 特定客户端的连接次数 |
-
-## 认证授权指标 (Auth)
-
-### 认证统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_auth_success` | Counter | - | MQTT 登录认证成功次数 |
-| `mqtt_auth_failed` | Counter | - | MQTT 登录认证失败次数 |
-
-### 授权统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_acl_success` | Counter | - | MQTT ACL 权限检查通过次数 |
-| `mqtt_acl_failed` | Counter | - | MQTT ACL 权限检查失败次数 |
-
-### 安全防护
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_blacklist_blocked` | Counter | - | MQTT 黑名单拦截次数 |
-
-## 会话管理指标 (Session)
+### 协议包耗时
 
 | 指标名称 | 类型 | 标签 | 描述 |
 |---------|------|------|------|
-| `mqtt_session_created` | Counter | - | MQTT 会话创建次数 |
-| `mqtt_session_deleted` | Counter | - | MQTT 会话删除次数 |
+| `mqtt_packet_process_duration_ms` | Histogram | `network`, `packet` | MQTT 协议包处理耗时（毫秒） |
+| `mqtt_packet_send_duration_ms` | Histogram | `network`, `packet` | MQTT 协议包发送耗时（毫秒） |
 
-## 实时统计指标 (Statistics)
+`network` 的取值为 `Tcp`、`Tls`、`Websocket`、`Websockets`、`Quic`；无法获取连接类型时为 `Unknown`。PUBLISH 包的 `qos` 为 `0`、`1` 或 `2`，非 PUBLISH 包为 `-1`。`packet` 使用小写值，例如 `connect`、`publish` 和 `subscribe`。
 
-### 当前状态统计
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_connections_count` | Gauge | - | 当前 MQTT 连接数量 |
-| `mqtt_sessions_count` | Gauge | - | 当前 MQTT 会话数量 |
-| `mqtt_topics_count` | Gauge | - | 当前主题数量 |
-| `mqtt_subscribers_count` | Gauge | - | 当前订阅者数量 |
-| `mqtt_subscriptions_shared_count` | Gauge | - | 当前共享订阅数量 |
-| `mqtt_retained_count` | Gauge | - | 当前保留消息数量 |
-
-### 延时队列监控
+## 连接与认证指标
 
 | 指标名称 | 类型 | 标签 | 描述 |
 |---------|------|------|------|
-| `mqtt_delay_queue_total_capacity` | Gauge | `shard_no` | 延时队列总容量 |
-| `mqtt_delay_queue_used_capacity` | Gauge | `shard_no` | 延时队列已使用容量 |
-| `mqtt_delay_queue_remaining_capacity` | Gauge | `shard_no` | 延时队列剩余容量 |
+| `client_connections_total` | Counter | `tenant`, `client_id` | 客户端连接尝试次数，不论结果如何 |
+| `mqtt_connection_success_total` | Counter | — | MQTT 连接成功次数 |
+| `mqtt_connection_failed_total` | Counter | — | MQTT 连接失败次数 |
+| `mqtt_disconnect_success_total` | Counter | — | MQTT 断开成功次数 |
+| `mqtt_connection_expired_total` | Counter | — | MQTT 连接过期次数 |
+| `mqtt_auth_success_total` | Counter | — | MQTT 认证成功次数 |
+| `mqtt_auth_failed_total` | Counter | — | MQTT 认证失败次数 |
+| `mqtt_acl_success_total` | Counter | — | MQTT ACL 检查通过次数 |
+| `mqtt_acl_failed_total` | Counter | — | MQTT ACL 检查失败次数 |
+| `mqtt_blacklist_blocked_total` | Counter | — | MQTT 黑名单拦截次数 |
+| `mqtt_subscribe_success_total` | Counter | — | 订阅成功次数 |
+| `mqtt_subscribe_failed_total` | Counter | — | 订阅失败次数 |
+| `mqtt_unsubscribe_success_total` | Counter | — | 取消订阅成功次数 |
 
-**标签说明：**
-- `shard_no`: 分片编号
-
-## 消息发布指标 (Publish)
-
-| 指标名称 | 类型 | 标签 | 描述 |
-|---------|------|------|------|
-| `mqtt_messages_delayed` | Gauge | - | 存储的延迟发布消息数量 |
-| `mqtt_messages_received` | Gauge | - | 接收来自客户端的消息数量 |
-| `mqtt_messages_sent` | Gauge | - | 发送给客户端的消息数量 |
-
-## 性能指标 (Time)
-
-### 处理耗时
+## 会话与消息指标
 
 | 指标名称 | 类型 | 标签 | 描述 |
 |---------|------|------|------|
-| `mqtt_packet_process_duration_ms` | Histogram | `network`, `packet` | MQTT 数据包处理耗时（毫秒） |
-| `mqtt_packet_send_duration_ms` | Histogram | `network`, `packet` | MQTT 数据包发送耗时（毫秒） |
+| `mqtt_session_created_total` | Counter | — | MQTT 会话创建数 |
+| `mqtt_session_deleted_total` | Counter | — | MQTT 会话删除数 |
+| `session_messages_in_total` | Counter | `tenant`, `client_id` | 按会话统计的接收消息数 |
+| `session_messages_out_total` | Counter | `tenant`, `client_id` | 按会话统计的发送消息数 |
+| `connection_messages_in_total` | Counter | `connection_id` | 按连接统计的接收消息数 |
+| `connection_messages_out_total` | Counter | `connection_id` | 按连接统计的发送消息数 |
+| `mqtt_messages_received_total` | Counter | — | 从客户端接收的消息数 |
+| `mqtt_messages_sent_total` | Counter | — | 向客户端发送的消息数 |
+| `mqtt_message_bytes_received_total` | Counter | — | 从客户端接收的消息字节数 |
+| `mqtt_message_bytes_sent_total` | Counter | — | 向客户端发送的消息字节数 |
+| `mqtt_messages_delayed_total` | Counter | — | 延迟发布消息数 |
+| `mqtt_messages_dropped_no_subscribers_total` | Counter | — | 因无订阅者丢弃的消息数 |
 
-**标签说明：**
-- `network`: 网络类型（tcp, websocket, quic）
-- `packet`: 数据包类型（CONNECT, PUBLISH, SUBSCRIBE 等）
+## 资源统计
+
+| 指标名称 | 类型 | 标签 | 描述 |
+|---------|------|------|------|
+| `mqtt_connections_count` | Gauge | — | 当前 MQTT 连接数 |
+| `mqtt_sessions_count` | Gauge | — | 当前 MQTT 会话数 |
+| `mqtt_topics_count` | Gauge | — | 当前 MQTT 主题数 |
+| `mqtt_subscribers_count` | Gauge | — | 当前 MQTT 订阅者数 |
+| `mqtt_subscriptions_exclusive_count` | Gauge | — | 当前独占订阅数 |
+| `mqtt_subscriptions_shared_count` | Gauge | — | 当前共享订阅数 |
+| `mqtt_subscriptions_shared_group_count` | Gauge | — | 当前共享订阅组数 |
+| `mqtt_retained_count` | Gauge | — | 当前保留消息数 |
+| `mqtt_delay_queue_total_capacity` | Gauge | `shard_no` | 延迟队列总容量 |
+| `mqtt_delay_queue_used_capacity` | Gauge | `shard_no` | 延迟队列已用容量 |
+| `mqtt_delay_queue_remaining_capacity` | Gauge | `shard_no` | 延迟队列剩余容量 |
+
+## Topic 与订阅指标
+
+| 指标名称 | 类型 | 标签 | 描述 |
+|---------|------|------|------|
+| `topic_messages_written_total` | Counter | `tenant`, `topic` | 写入 Topic 的消息数 |
+| `topic_bytes_written_total` | Counter | `tenant`, `topic` | 写入 Topic 的字节数 |
+| `topic_messages_sent_total` | Counter | `tenant`, `topic` | 从 Topic 发送的消息数 |
+| `topic_bytes_sent_total` | Counter | `tenant`, `topic` | 从 Topic 发送的字节数 |
+| `subscribe_messages_sent_total` | Counter | `tenant`, `client_id`, `path`, `status` | 向订阅路径发送的消息数 |
+| `subscribe_topic_messages_sent_total` | Counter | `tenant`, `client_id`, `path`, `topic_name`, `status` | 向订阅路径和主题发送的消息数 |
+| `subscribe_bytes_sent_total` | Counter | `tenant`, `client_id`, `path`, `status` | 向订阅路径发送的字节数 |
+| `subscribe_topic_bytes_sent_total` | Counter | `tenant`, `client_id`, `path`, `topic_name`, `status` | 向订阅路径和主题发送的字节数 |
+
+订阅 `status` 的取值为 `success` 和 `failed`。
+
+## 延迟消息与 Connector 指标
+
+| 指标名称 | 类型 | 标签 | 描述 |
+|---------|------|------|------|
+| `delay_msg_enqueue_total` | Counter | — | 延迟消息入队数 |
+| `delay_msg_deliver_total` | Counter | — | 延迟消息投递数 |
+| `delay_msg_deliver_fail_total` | Counter | — | 延迟消息投递失败数 |
+| `delay_msg_recover_total` | Counter | — | 启动时恢复的延迟消息数 |
+| `delay_msg_recover_expired_total` | Counter | — | 恢复时发现的过期消息数 |
+| `delay_message_retry_total` | Counter | `status` | 延迟消息重试次数，`status` 为 `success` 或 `failed` |
+| `delay_message_retry_count_total` | Counter | `attempt` | 按数字重试次数统计 |
+| `delay_message_reenqueued_total` | Counter | — | 投递失败后重新入队的消息数 |
+| `delay_message_dead_letter_total` | Counter | — | 发送到死信队列的消息数 |
+| `delay_msg_enqueue_duration_ms` | Histogram | — | 延迟消息入队耗时 |
+| `delay_msg_deliver_duration_ms` | Histogram | — | 延迟消息投递耗时 |
+| `delay_task_created_total` | Counter | — | 创建的延迟任务数 |
+| `delay_task_executed_total` | Counter | `task_type` | 成功执行的延迟任务数 |
+| `delay_task_execute_failed_total` | Counter | `task_type` | 延迟任务执行失败数 |
+| `delay_task_schedule_latency_seconds` | Histogram | `task_type` | 实际执行时间与目标时间的差值 |
+| `mqtt_connector_messages_sent_success_total` | Counter | `tenant`, `connector_type`, `connector_name` | Connector 成功发送的消息数 |
+| `mqtt_connector_messages_sent_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Connector 发送失败的消息数 |
+| `mqtt_connector_send_duration_ms` | Histogram | `tenant`, `connector_type`, `connector_name` | Connector 发送耗时 |
+| `mqtt_connector_retry_total` | Counter | `tenant`, `connector_type`, `connector_name`, `strategy` | Connector 重试次数 |
+| `mqtt_connector_messages_discarded_total` | Counter | `tenant`, `connector_type`, `connector_name`, `strategy` | 按终态策略丢弃的消息数 |
+| `mqtt_connector_dlq_messages_total` | Counter | `tenant`, `connector_type`, `connector_name`, `result` | 按结果统计的死信写入尝试数 |
+| `mqtt_connector_offset_commit_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Connector offset 提交失败数 |
+| `mqtt_connector_source_read_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Connector 源读取失败数 |
+| `mqtt_connector_up` | Gauge | `tenant`, `connector_type`, `connector_name` | Connector 状态：1 运行，0 停止 |
+| `mqtt_connector_messages_sent_success_agg_total` | Counter | — | 所有 Connector 成功发送总数 |
+| `mqtt_connector_messages_sent_failure_agg_total` | Counter | — | 所有 Connector 发送失败总数 |
+| `mqtt_connector_send_duration_ms_agg` | Histogram | — | 所有 Connector 的聚合发送耗时 |
 
 ## 使用示例
 
-### 记录指标
-
 ```rust
-use common_metrics::mqtt::*;
+use common_metrics::mqtt::{auth, event, time};
+use metadata_struct::connection::NetworkConnectionType;
 
-// 记录连接成功
 event::record_mqtt_connection_success();
-
-// 记录认证失败
 auth::record_mqtt_auth_failed();
-
-// 记录数据包处理耗时
-time::record_mqtt_packet_process_duration(
-    NetworkConnectionType::Tcp, 
-    "PUBLISH".to_string(), 
-    15.5
+time::record_packet_process_duration(
+    &NetworkConnectionType::Tcp,
+    "publish",
+    15.5,
 );
-
-// 设置当前连接数
-statistics::record_mqtt_connections_set(100);
-
-// 增加保留消息计数
-statistics::record_mqtt_retained_inc();
 ```
 
-### Prometheus 查询示例
+PromQL 示例：
 
-```text
-# MQTT 连接成功率
-mqtt_connection_success / (mqtt_connection_success + mqtt_connection_failed) * 100
-
-# MQTT 数据包处理平均耗时
-rate(mqtt_packet_process_duration_ms_sum[5m]) / rate(mqtt_packet_process_duration_ms_count[5m])
-
-# 当前活跃连接数
-mqtt_connections_count
-
-# PUBLISH 数据包 QPS
-rate(mqtt_packets_publish_received[5m])
-
-# 认证失败率
-rate(mqtt_auth_failed[5m]) / rate(mqtt_auth_success[5m] + mqtt_auth_failed[5m]) * 100
-
-# 延时队列使用率
-mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity * 100
+```promql
+rate(mqtt_packets_publish_received_total[5m])
+rate(mqtt_packets_publish_sent_total[5m])
+rate(mqtt_auth_failed_total[5m]) /
+  (rate(mqtt_auth_success_total[5m]) + rate(mqtt_auth_failed_total[5m]))
+histogram_quantile(0.95, rate(mqtt_packet_process_duration_ms_bucket[5m]))
+mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity
 ```
-
-### Grafana 仪表板配置
-
-#### 连接概览面板
-```json
-{
-  "title": "MQTT 连接概览",
-  "targets": [
-    {
-      "expr": "mqtt_connections_count",
-      "legendFormat": "当前连接数"
-    },
-    {
-      "expr": "rate(mqtt_connection_success[5m])",
-      "legendFormat": "连接成功率/秒"
-    },
-    {
-      "expr": "rate(mqtt_connection_failed[5m])",
-      "legendFormat": "连接失败率/秒"
-    }
-  ]
-}
-```
-
-#### 消息吞吐量面板
-```json
-{
-  "title": "MQTT 消息吞吐量",
-  "targets": [
-    {
-      "expr": "rate(mqtt_packets_publish_received[5m])",
-      "legendFormat": "接收 PUBLISH/秒"
-    },
-    {
-      "expr": "rate(mqtt_packets_publish_sent[5m])",
-      "legendFormat": "发送 PUBLISH/秒"
-    },
-    {
-      "expr": "rate(mqtt_bytes_received[5m])",
-      "legendFormat": "接收字节/秒"
-    },
-    {
-      "expr": "rate(mqtt_bytes_sent[5m])",
-      "legendFormat": "发送字节/秒"
-    }
-  ]
-}
-```
-
-#### 性能监控面板
-```json
-{
-  "title": "MQTT 性能监控",
-  "targets": [
-    {
-      "expr": "histogram_quantile(0.95, rate(mqtt_packet_process_duration_ms_bucket[5m]))",
-      "legendFormat": "P95 处理耗时"
-    },
-    {
-      "expr": "histogram_quantile(0.99, rate(mqtt_packet_process_duration_ms_bucket[5m]))",
-      "legendFormat": "P99 处理耗时"
-    }
-  ]
-}
-```
-
-## 告警规则
-
-### 连接告警
-```yaml
-- alert: MQTTHighConnectionFailureRate
-  expr: rate(mqtt_connection_failed[5m]) / rate(mqtt_connection_success[5m] + mqtt_connection_failed[5m]) > 0.1
-  for: 2m
-  labels:
-    severity: warning
-  annotations:
-    summary: "MQTT 连接失败率过高"
-    description: "MQTT 连接失败率超过 10%"
-
-- alert: MQTTTooManyConnections
-  expr: mqtt_connections_count > 10000
-  for: 1m
-  labels:
-    severity: critical
-  annotations:
-    summary: "MQTT 连接数过多"
-    description: "当前 MQTT 连接数: {{ $value }}"
-```
-
-### 性能告警
-```yaml
-- alert: MQTTHighLatency
-  expr: histogram_quantile(0.95, rate(mqtt_packet_process_duration_ms_bucket[5m])) > 100
-  for: 3m
-  labels:
-    severity: warning
-  annotations:
-    summary: "MQTT 处理延迟过高"
-    description: "95% 的 MQTT 数据包处理耗时超过 100ms"
-
-- alert: MQTTHighErrorRate
-  expr: rate(mqtt_packets_received_error[5m]) / rate(mqtt_packets_received[5m]) > 0.05
-  for: 2m
-  labels:
-    severity: critical
-  annotations:
-    summary: "MQTT 错误率过高"
-    description: "MQTT 数据包错误率超过 5%"
-```
-
-### 认证告警
-```yaml
-- alert: MQTTHighAuthFailureRate
-  expr: rate(mqtt_auth_failed[5m]) / rate(mqtt_auth_success[5m] + mqtt_auth_failed[5m]) > 0.2
-  for: 1m
-  labels:
-    severity: warning
-  annotations:
-    summary: "MQTT 认证失败率过高"
-    description: "MQTT 认证失败率超过 20%"
-
-- alert: MQTTFrequentBlacklistBlocks
-  expr: rate(mqtt_blacklist_blocked[5m]) > 10
-  for: 1m
-  labels:
-    severity: warning
-  annotations:
-    summary: "MQTT 黑名单拦截频繁"
-    description: "黑名单拦截频率: {{ $value }}/秒"
-```
-
-### 容量告警
-```yaml
-- alert: MQTTDelayQueueFull
-  expr: mqtt_delay_queue_used_capacity / mqtt_delay_queue_total_capacity > 0.9
-  for: 2m
-  labels:
-    severity: critical
-  annotations:
-    summary: "MQTT 延时队列接近满载"
-    description: "分片 {{ $labels.shard_no }} 延时队列使用率: {{ $value | humanizePercentage }}"
-
-- alert: MQTTTooManyRetainedMessages
-  expr: mqtt_retained_count > 100000
-  for: 5m
-  labels:
-    severity: warning
-  annotations:
-    summary: "MQTT 保留消息过多"
-    description: "当前保留消息数量: {{ $value }}"
-```
-
-通过这些 MQTT 专用指标，运维团队可以深入了解 MQTT 服务的各个方面，确保服务的高可用性和优异性能。

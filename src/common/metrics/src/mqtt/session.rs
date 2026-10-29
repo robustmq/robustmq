@@ -153,12 +153,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn initializes_session_counters_and_handles_first_message_labels() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        init();
+
+        let event_label = NetworkLabel {};
+        let created_before = MQTT_SESSION_CREATED
+            .read()
+            .unwrap()
+            .get(&event_label)
+            .unwrap()
+            .get();
+        let deleted_before = MQTT_SESSION_DELETED
+            .read()
+            .unwrap()
+            .get(&event_label)
+            .unwrap()
+            .get();
+        record_mqtt_session_created();
+        record_mqtt_session_deleted();
+        assert_eq!(
+            MQTT_SESSION_CREATED
+                .read()
+                .unwrap()
+                .get(&event_label)
+                .unwrap()
+                .get(),
+            created_before + 1
+        );
+        assert_eq!(
+            MQTT_SESSION_DELETED
+                .read()
+                .unwrap()
+                .get(&event_label)
+                .unwrap()
+                .get(),
+            deleted_before + 1
+        );
+
+        assert_eq!(get_session_messages_in("coverage", "new-client"), 0);
+        assert_eq!(get_session_messages_out("coverage", "new-client"), 0);
+        assert_eq!(get_connection_messages_in(u64::MAX), 0);
+        assert_eq!(get_connection_messages_out(u64::MAX), 0);
+    }
+
+    #[test]
     fn test_session_message_metrics() {
         record_session_messages_in("default", "client001");
-        let _count = get_session_messages_in("default", "client001");
+        assert_eq!(get_session_messages_in("default", "client001"), 1);
 
         record_session_messages_out("default", "client001");
-        let _count = get_session_messages_out("default", "client001");
+        assert_eq!(get_session_messages_out("default", "client001"), 1);
     }
 
     #[test]
@@ -183,10 +228,10 @@ mod tests {
     #[test]
     fn test_connection_message_metrics() {
         record_connection_messages_in(12345);
-        let _count = get_connection_messages_in(12345);
+        assert_eq!(get_connection_messages_in(12345), 1);
 
         record_connection_messages_out(12345);
-        let _count = get_connection_messages_out(12345);
+        assert_eq!(get_connection_messages_out(12345), 1);
     }
 
     #[test]

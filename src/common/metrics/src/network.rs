@@ -13,12 +13,20 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc_by, gauge_metric_set, histogram_metric_observe, histogram_metric_touch,
+    counter_metric_inc_by, counter_metric_touch, gauge_metric_inc_by, gauge_metric_set,
+    histogram_metric_observe, histogram_metric_touch, register_counter_metric,
     register_gauge_metric, register_histogram_metric_ms_with_default_buckets,
 };
 use metadata_struct::connection::NetworkConnectionType;
 
-const ALL_NETWORK_TYPES: &[&str] = &["Tcp", "Tls", "WebSocket", "WebSockets", "QUIC"];
+// Derive pre-registration labels from the enum so startup and runtime cannot diverge.
+const ALL_NETWORK_TYPES: &[NetworkConnectionType] = &[
+    NetworkConnectionType::Tcp,
+    NetworkConnectionType::Tls,
+    NetworkConnectionType::WebSocket,
+    NetworkConnectionType::WebSockets,
+    NetworkConnectionType::QUIC,
+];
 use prometheus_client::encoding::EncodeLabelSet;
 
 // ── Labels ──────────────────────────────────────────────────────────────────
@@ -85,32 +93,32 @@ register_gauge_metric!(
     QueueLabel
 );
 
-// ── Handler counters (gauge used as counter) ────────────────────────────────
+// ── Handler counters ───────────────────────────────────────────────────────
 
-register_gauge_metric!(
+register_counter_metric!(
     HANDLER_REQUESTS_TOTAL,
-    "handler_requests_total",
+    "handler_requests",
     "Total number of requests processed by handlers",
     NetworkLabel
 );
 
-register_gauge_metric!(
+register_counter_metric!(
     HANDLER_SLOW_REQUESTS_TOTAL,
-    "handler_slow_requests_total",
+    "handler_slow_requests",
     "Total number of slow requests (exceeding threshold)",
     NetworkLabel
 );
 
-register_gauge_metric!(
+register_counter_metric!(
     HANDLER_TIMEOUT_TOTAL,
-    "handler_timeout_total",
+    "handler_timeout",
     "Total number of handler apply timeouts (requests exceeding the hard deadline)",
     NetworkLabel
 );
 
-register_gauge_metric!(
+register_counter_metric!(
     WRITE_TIMEOUT_TOTAL,
-    "write_timeout_total",
+    "write_timeout",
     "Total number of write timeouts: socket send blocked beyond the deadline, connection closed",
     NetworkLabel
 );
@@ -129,9 +137,9 @@ struct HandlerIndexLabel {
     handler: String,
 }
 
-register_gauge_metric!(
+register_counter_metric!(
     HANDLER_INSTANCE_REQUESTS_TOTAL,
-    "handler_instance_requests_total",
+    "handler_instance_requests",
     "Total requests processed by each individual handler thread",
     HandlerIndexLabel
 );
@@ -201,28 +209,28 @@ pub fn metrics_handler_request_count(network: &NetworkConnectionType) {
     let label = NetworkLabel {
         network: network.to_string(),
     };
-    gauge_metric_inc_by!(HANDLER_REQUESTS_TOTAL, label, 1);
+    counter_metric_inc_by!(HANDLER_REQUESTS_TOTAL, label, 1);
 }
 
 pub fn metrics_handler_slow_request_count(network: &NetworkConnectionType) {
     let label = NetworkLabel {
         network: network.to_string(),
     };
-    gauge_metric_inc_by!(HANDLER_SLOW_REQUESTS_TOTAL, label, 1);
+    counter_metric_inc_by!(HANDLER_SLOW_REQUESTS_TOTAL, label, 1);
 }
 
 pub fn metrics_handler_timeout_count(network: &NetworkConnectionType) {
     let label = NetworkLabel {
         network: network.to_string(),
     };
-    gauge_metric_inc_by!(HANDLER_TIMEOUT_TOTAL, label, 1);
+    counter_metric_inc_by!(HANDLER_TIMEOUT_TOTAL, label, 1);
 }
 
 pub fn metrics_handler_instance_request_count(handler_index: usize) {
     let label = HandlerIndexLabel {
         handler: handler_index.to_string(),
     };
-    gauge_metric_inc_by!(HANDLER_INSTANCE_REQUESTS_TOTAL, label, 1);
+    counter_metric_inc_by!(HANDLER_INSTANCE_REQUESTS_TOTAL, label, 1);
 }
 
 pub fn metrics_handler_instance_apply_ms(handler_index: usize, ms: f64) {
@@ -236,7 +244,7 @@ pub fn metrics_write_timeout_count(network: &NetworkConnectionType) {
     let label = NetworkLabel {
         network: network.to_string(),
     };
-    gauge_metric_inc_by!(WRITE_TIMEOUT_TOTAL, label, 1);
+    counter_metric_inc_by!(WRITE_TIMEOUT_TOTAL, label, 1);
 }
 
 pub fn metrics_write_client_ms(network: &NetworkConnectionType, ms: f64) {
@@ -246,26 +254,26 @@ pub fn metrics_write_client_ms(network: &NetworkConnectionType, ms: f64) {
     histogram_metric_observe!(WRITE_CLIENT_MS, ms, label);
 }
 
-/// Pre-register all network metrics (Gauges + Histograms) for every known
+/// Pre-register all network metrics (Counters, gauges, and histograms) for every known
 /// `NetworkConnectionType` so they appear in `/metrics` on startup.
 pub fn init() {
     for net in ALL_NETWORK_TYPES {
         let label = NetworkLabel {
             network: net.to_string(),
         };
-        gauge_metric_set!(HANDLER_REQUESTS_TOTAL, label, 0);
+        counter_metric_touch!(HANDLER_REQUESTS_TOTAL, label);
         let label = NetworkLabel {
             network: net.to_string(),
         };
-        gauge_metric_set!(HANDLER_SLOW_REQUESTS_TOTAL, label, 0);
+        counter_metric_touch!(HANDLER_SLOW_REQUESTS_TOTAL, label);
         let label = NetworkLabel {
             network: net.to_string(),
         };
-        gauge_metric_set!(HANDLER_TIMEOUT_TOTAL, label, 0);
+        counter_metric_touch!(HANDLER_TIMEOUT_TOTAL, label);
         let label = NetworkLabel {
             network: net.to_string(),
         };
-        gauge_metric_set!(WRITE_TIMEOUT_TOTAL, label, 0);
+        counter_metric_touch!(WRITE_TIMEOUT_TOTAL, label);
         histogram_metric_touch!(
             WRITE_CLIENT_MS,
             NetworkLabel {
@@ -335,4 +343,117 @@ pub fn record_broker_thread_num(
         thread_type: "handler".to_string(),
     };
     gauge_metric_inc_by!(BROKER_ACTIVE_THREAD_NUM, handler_label, handler as i64);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_queue_state_handler_metrics_and_thread_counts() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        init();
+        metrics_handler_queue_state(7, 5);
+
+        let network = NetworkConnectionType::QUIC;
+        let network_label = NetworkLabel {
+            network: network.to_string(),
+        };
+        assert_eq!(
+            HANDLER_REQUESTS_TOTAL
+                .read()
+                .unwrap()
+                .get(&network_label)
+                .unwrap()
+                .get(),
+            0
+        );
+
+        let queue_label = QueueLabel {
+            label: "handler".to_string(),
+        };
+        assert_eq!(
+            HANDLER_QUEUE_SIZE
+                .read()
+                .unwrap()
+                .get(&queue_label)
+                .unwrap()
+                .get(),
+            7
+        );
+        assert_eq!(
+            HANDLER_QUEUE_REMAINING
+                .read()
+                .unwrap()
+                .get(&queue_label)
+                .unwrap()
+                .get(),
+            0
+        );
+
+        metrics_handler_queue_wait_ms(&network, 1.0);
+        metrics_handler_apply_ms(&network, 2.0);
+        metrics_handler_write_ms(&network, 3.0);
+        metrics_handler_total_ms(&network, 4.0);
+        metrics_handler_request_count(&network);
+        metrics_handler_slow_request_count(&network);
+        metrics_handler_timeout_count(&network);
+        metrics_handler_instance_request_count(9876);
+        metrics_handler_instance_apply_ms(9876, 5.0);
+        metrics_write_timeout_count(&network);
+        metrics_write_client_ms(&network, 6.0);
+        record_broker_thread_num(&network, (2, 3));
+
+        for metric in [
+            &*HANDLER_REQUESTS_TOTAL,
+            &*HANDLER_SLOW_REQUESTS_TOTAL,
+            &*HANDLER_TIMEOUT_TOTAL,
+            &*WRITE_TIMEOUT_TOTAL,
+        ] {
+            assert!(metric.read().unwrap().get(&network_label).unwrap().get() >= 1);
+        }
+
+        for (thread_type, expected) in [("accept", 2), ("handler", 3)] {
+            let label = BrokerThreadLabel {
+                network: network.to_string(),
+                thread_type: thread_type.to_string(),
+            };
+            assert_eq!(
+                BROKER_ACTIVE_THREAD_NUM
+                    .read()
+                    .unwrap()
+                    .get(&label)
+                    .unwrap()
+                    .get(),
+                expected
+            );
+        }
+
+        let handler_label = HandlerIndexLabel {
+            handler: "9876".to_string(),
+        };
+        assert!(
+            HANDLER_INSTANCE_REQUESTS_TOTAL
+                .read()
+                .unwrap()
+                .get(&handler_label)
+                .unwrap()
+                .get()
+                >= 1
+        );
+        assert!(HANDLER_INSTANCE_APPLY_MS
+            .read()
+            .unwrap()
+            .get(&handler_label)
+            .is_some());
+        for histogram in [
+            &*HANDLER_QUEUE_WAIT_MS,
+            &*HANDLER_APPLY_MS,
+            &*HANDLER_WRITE_MS,
+            &*HANDLER_TOTAL_MS,
+            &*WRITE_CLIENT_MS,
+        ] {
+            assert!(histogram.read().unwrap().get(&network_label).is_some());
+        }
+    }
 }

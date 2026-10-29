@@ -293,14 +293,14 @@ GET /api/cluster/config/get?broker_id=2
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `enable` | bool | `false` | Whether to enable system monitoring |
-| `os_cpu_high_watermark` | f32 | `0.7` | CPU usage high watermark (0~1) |
-| `os_memory_high_watermark` | f32 | `0.8` | Memory usage high watermark (0~1) |
+| `os_cpu_high_watermark` | f32 | `70.0` | CPU usage high watermark (percentage, 0~100) |
+| `os_memory_high_watermark` | f32 | `80.0` | Memory usage high watermark (percentage, 0~100) |
 | `system_topic_interval_ms` | u64 | `60000` | System topic publish interval (ms) |
 
 ```json
 {
   "config_type": "MqttSystemMonitor",
-  "config": "{\"enable\":true,\"os_cpu_high_watermark\":0.7,\"os_memory_high_watermark\":0.8,\"system_topic_interval_ms\":60000}"
+  "config": "{\"enable\":true,\"os_cpu_high_watermark\":70.0,\"os_memory_high_watermark\":80.0,\"system_topic_interval_ms\":60000}"
 }
 ```
 

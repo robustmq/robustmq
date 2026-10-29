@@ -15,6 +15,25 @@
 pub fn histogram_default_ms() -> Vec<f64> {
     vec![
         1.0, 5.0, 10.0, 30.0, 50.0, 100.0, 200.0, 500.0, 700.0, 1000.0, 1500.0, 2000.0, 5000.0,
-        10000.0, 200000.0, 30000.0, 60000.0,
+        10000.0, 30000.0, 60000.0, 200000.0,
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::histogram_default_ms;
+
+    #[test]
+    fn default_duration_buckets_are_strictly_increasing() {
+        let buckets = histogram_default_ms();
+
+        assert_eq!(
+            buckets,
+            vec![
+                1.0, 5.0, 10.0, 30.0, 50.0, 100.0, 200.0, 500.0, 700.0, 1000.0, 1500.0, 2000.0,
+                5000.0, 10000.0, 30000.0, 60000.0, 200000.0,
+            ]
+        );
+        assert!(buckets.windows(2).all(|bounds| bounds[0] < bounds[1]));
+    }
 }

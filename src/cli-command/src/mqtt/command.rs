@@ -1012,12 +1012,22 @@ impl MqttBrokerCommand {
                 }
                 println!("system alarm list result:");
                 let mut table = Table::new();
-                table.set_titles(row!["name", "message", "create_time"]);
+                table.set_titles(row![
+                    "node_id",
+                    "node_ip",
+                    "name",
+                    "message",
+                    "create_time",
+                    "activated"
+                ]);
                 for alarm in page_data.data {
                     table.add_row(row![
+                        alarm.node_id,
+                        alarm.node_ip,
                         alarm.name,
                         alarm.message,
                         alarm.create_time,
+                        alarm.activated,
                     ]);
                 }
                 // output cmd

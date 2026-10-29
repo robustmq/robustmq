@@ -148,4 +148,22 @@ mod tests {
         let final_count = record_mqtt_messages_received_get();
         assert!(final_count >= initial_count);
     }
+
+    #[test]
+    fn records_sent_bytes_delayed_and_dropped_messages() {
+        let sent_before = record_mqtt_messages_sent_get();
+        let dropped_before = record_messages_dropped_no_subscribers_get();
+
+        record_mqtt_messages_sent_inc();
+        record_mqtt_message_bytes_sent(128);
+        record_mqtt_messages_delayed_inc();
+        record_mqtt_message_bytes_received(256);
+        record_messages_dropped_no_subscribers_incr();
+
+        assert_eq!(record_mqtt_messages_sent_get(), sent_before + 1);
+        assert_eq!(
+            record_messages_dropped_no_subscribers_get(),
+            dropped_before + 1
+        );
+    }
 }

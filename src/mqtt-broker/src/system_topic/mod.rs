@@ -18,9 +18,9 @@ use crate::core::topic::try_init_topic;
 use crate::storage::message::MessageStorage;
 use crate::system_topic::stats::route::report_broker_stat_routes;
 use bytes::Bytes;
-use common_base::error::ResultCommonError;
+use common_base::error::{common::CommonError, ResultCommonError};
 use common_base::tools::{get_local_ip, loop_select_ticket, now_millis};
-use common_config::broker::broker_config;
+use common_config::{broker::broker_config, config::BrokerConfig};
 use grpc_clients::pool::ClientPool;
 use metadata_struct::storage::adapter_record::AdapterWriteRecord;
 use metadata_struct::tenant::DEFAULT_TENANT;
@@ -188,11 +188,15 @@ pub(crate) fn build_system_topic_payload<T: Serialize>(
 ) -> Result<String, serde_json::Error> {
     let payload = SystemTopicEnvelope {
         node_id: broker_config().broker_id,
-        node_ip: get_local_ip(),
+        node_ip: resolve_node_ip(broker_config()),
         ts: now_millis(),
         value,
     };
     serde_json::to_string(&payload)
+}
+
+fn resolve_node_ip(config: &BrokerConfig) -> String {
+    config.broker_ip.clone().unwrap_or_else(get_local_ip)
 }
 
 pub(crate) async fn report_system_data<F, Fut, T>(
@@ -206,20 +210,38 @@ pub(crate) async fn report_system_data<F, Fut, T>(
     Fut: std::future::Future<Output = T>,
     T: Serialize,
 {
+    if let Err(e) = try_report_system_data(
+        client_pool,
+        metadata_cache,
+        storage_driver_manager,
+        topic_const,
+        data_generator,
+    )
+    .await
+    {
+        warn!(
+            "Failed to report system topic data to {}: {:?}",
+            topic_const, e
+        );
+    }
+}
+
+pub(crate) async fn try_report_system_data<F, Fut, T>(
+    client_pool: &Arc<ClientPool>,
+    metadata_cache: &Arc<MQTTCacheManager>,
+    storage_driver_manager: &Arc<StorageDriverManager>,
+    topic_const: &str,
+    data_generator: F,
+) -> ResultCommonError
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = T>,
+    T: Serialize,
+{
     let topic_name = replace_topic_name(topic_const.to_string());
     let value = data_generator().await;
-    let data = match build_system_topic_payload(value) {
-        Ok(data) => data,
-        Err(e) => {
-            warn!(
-                "Failed to serialize system topic payload for topic {}: {:?}",
-                topic_name, e
-            );
-            return;
-        }
-    };
-
-    if let Err(e) = write_topic_data(
+    let data = build_system_topic_payload(value)?;
+    write_topic_data(
         storage_driver_manager,
         metadata_cache,
         client_pool,
@@ -227,12 +249,8 @@ pub(crate) async fn report_system_data<F, Fut, T>(
         Bytes::from(data),
     )
     .await
-    {
-        warn!(
-            "Failed to write system topic data to topic {}: {:?}",
-            topic_name, e
-        );
-    }
+    .map_err(|e| CommonError::CommonError(e.to_string()))?;
+    Ok(())
 }
 
 pub(crate) fn replace_topic_name(mut topic_name: String) -> String {
@@ -388,5 +406,14 @@ mod test {
             serde_json::from_str(&String::from_utf8_lossy(&payload)).unwrap();
         assert_eq!(payload.value, "test_data");
         assert_eq!(payload.node_id, broker_config().broker_id);
+        assert_eq!(payload.node_ip, broker_config().broker_ip.clone().unwrap());
+    }
+
+    #[test]
+    fn test_resolve_node_ip_prefers_configured_broker_ip() {
+        let mut config = default_broker_config();
+        config.broker_ip = Some("192.0.2.10".to_string());
+
+        assert_eq!(super::resolve_node_ip(&config), "192.0.2.10");
     }
 }

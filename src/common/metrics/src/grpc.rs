@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc, histogram_metric_observe, register_counter_metric,
+    counter_metric_inc, histogram_metric_observe, register_counter_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
@@ -81,7 +81,7 @@ pub fn record_grpc_request(service: &str, method: &str, status_code: &str, durat
         method: method.to_string(),
     };
 
-    gauge_metric_inc!(GRPC_REQUESTS_TOTAL, method_label);
+    counter_metric_inc!(GRPC_REQUESTS_TOTAL, method_label);
     histogram_metric_observe!(GRPC_REQUEST_DURATION_MS, duration_ms, method_label);
 
     if status_code != "OK" {
@@ -90,7 +90,7 @@ pub fn record_grpc_request(service: &str, method: &str, status_code: &str, durat
             method: method.to_string(),
             status_code: status_code.to_string(),
         };
-        gauge_metric_inc!(GRPC_ERRORS_TOTAL, error_label);
+        counter_metric_inc!(GRPC_ERRORS_TOTAL, error_label);
     }
 }
 
@@ -161,5 +161,59 @@ mod tests {
         assert!(parse_grpc_path("/service").is_err());
         assert!(parse_grpc_path("").is_err());
         assert!(parse_grpc_path("/service/").is_err());
+    }
+
+    #[test]
+    fn extracts_known_unknown_and_missing_status_codes() {
+        let mut headers = axum::http::HeaderMap::new();
+        assert_eq!(extract_grpc_status_code(&headers), "OK");
+
+        headers.insert("grpc-status", "3".parse().unwrap());
+        assert_eq!(extract_grpc_status_code(&headers), "INVALID_ARGUMENT");
+
+        headers.insert("grpc-status", "99".parse().unwrap());
+        assert_eq!(extract_grpc_status_code(&headers), "UNKNOWN");
+    }
+
+    #[test]
+    fn records_client_and_server_calls_with_error_labels() {
+        record_grpc_client_call("coverage.Service", "ClientCall", 1.25);
+        record_grpc_request("coverage.Service", "ServerCall", "OK", 2.5);
+        record_grpc_request("coverage.Service", "ServerCall", "INVALID_ARGUMENT", 3.75);
+
+        let client = GrpcMethodLabel {
+            service: "coverage.Service".to_string(),
+            method: "ClientCall".to_string(),
+        };
+        let server = GrpcMethodLabel {
+            service: "coverage.Service".to_string(),
+            method: "ServerCall".to_string(),
+        };
+        let error = GrpcErrorLabel {
+            service: "coverage.Service".to_string(),
+            method: "ServerCall".to_string(),
+            status_code: "INVALID_ARGUMENT".to_string(),
+        };
+
+        assert!(GRPC_CLIENT_CALL_DURATION_MS
+            .read()
+            .unwrap()
+            .get(&client)
+            .is_some());
+        assert!(
+            GRPC_REQUESTS_TOTAL
+                .read()
+                .unwrap()
+                .get(&server)
+                .unwrap()
+                .get()
+                >= 2
+        );
+        assert!(GRPC_REQUEST_DURATION_MS
+            .read()
+            .unwrap()
+            .get(&server)
+            .is_some());
+        assert!(GRPC_ERRORS_TOTAL.read().unwrap().get(&error).unwrap().get() >= 1);
     }
 }

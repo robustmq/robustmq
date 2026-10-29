@@ -90,3 +90,42 @@ pub fn record_delay_task_schedule_latency(task_type: &str, latency_s: f64) {
 pub fn init() {
     counter_metric_touch!(DELAY_TASK_CREATED_TOTAL, DelayTaskLabel {});
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_task_creation_execution_failures_and_latency() {
+        record_delay_task_created();
+        record_delay_task_executed("snapshot");
+        record_delay_task_execute_failed("snapshot");
+        record_delay_task_schedule_latency("snapshot", 0.75);
+
+        assert_eq!(
+            DELAY_TASK_CREATED_TOTAL
+                .read()
+                .unwrap()
+                .get(&DelayTaskLabel {})
+                .unwrap()
+                .get(),
+            1
+        );
+        for metric in [
+            &*DELAY_TASK_EXECUTED_TOTAL,
+            &*DELAY_TASK_EXECUTE_FAILED_TOTAL,
+        ] {
+            assert_eq!(
+                metric
+                    .read()
+                    .unwrap()
+                    .get(&DelayTaskTypeLabel {
+                        task_type: "snapshot".to_string(),
+                    })
+                    .unwrap()
+                    .get(),
+                1
+            );
+        }
+    }
+}

@@ -112,13 +112,12 @@ mod tests {
         // Test write metrics
         record_topic_messages_written("default", "test/topic1");
         record_topic_bytes_written("default", "test/topic1", 1024);
+        assert_eq!(get_topic_messages_written("default", "test/topic1"), 1);
 
         // Test send metrics
         record_topic_messages_sent("default", "test/topic2");
         record_topic_bytes_sent("default", "test/topic2", 2048);
-
-        // Verify metrics are recorded (actual values would need registry access)
-        // This is a basic smoke test to ensure functions execute without panic
+        assert_eq!(get_topic_messages_sent("default", "test/topic2"), 1);
     }
 
     #[test]

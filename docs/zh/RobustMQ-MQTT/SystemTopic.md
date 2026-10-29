@@ -2,29 +2,19 @@
 
 ## 概述
 
-RobustMQ MQTT Broker 通过 `$SYS/` 系统主题发布运行状态、统计数据和事件。客户端可像订阅普通 MQTT 主题一样订阅这些系统主题。
+RobustMQ MQTT Broker 通过 `$SYS/` 主题发布运行状态、聚合统计、客户端
+事件和系统告警。这些主题和普通 MQTT 主题一样，受 Broker 系统主题 ACL
+规则控制。
 
-系统主题由 Broker 定期发布（默认每 **60 秒**，可通过 `mqtt_runtime.system_monitor.system_topic_interval_ms` 调整），部分主题为事件触发即时发布（如客户端连接/断开）。
+周期性报告在系统主题监控线程启动后发送，并按配置的间隔重复发送（默认
+为 60 秒，可通过 `mqtt_runtime.system_monitor.system_topic_interval_ms`
+调整）。客户端事件发生后进入事件流并写入；告警检查按 60 秒间隔执行。
 
-> 注意：系统主题以 `$SYS/` 开头，默认情况下非管理员客户端无法订阅，请按需配置 ACL。
+## 主题和消息格式
 
----
-
-## 主题设计（当前版本）
-
-系统主题已改为**固定 Topic 名称**，不再按节点或客户端维度拆分路径：
-
-- 不再使用 `${node}`
-- 事件主题不再使用 `${clientid}`
-- 节点信息放在 Payload 中（`node_id`、`node_ip`）
-
-这样可以避免 Topic 基数随节点数/客户端数膨胀。
-
----
-
-## Payload 统一格式
-
-除少量历史兼容数据外，系统主题消息统一采用以下外层结构：
+当前实现使用固定的主题名称，不会把节点 ID 或客户端 ID 拼接到主题路径
+中。报告来源节点通过统一的消息封装提供。`node_ip` 优先使用配置中的
+`broker_ip`，未配置时回退到本机 IP 检测结果：
 
 ```json
 {
@@ -35,174 +25,63 @@ RobustMQ MQTT Broker 通过 `$SYS/` 系统主题发布运行状态、统计数�
 }
 ```
 
-字段说明：
-
-- `node_id`: Broker ID
-- `node_ip`: Broker IP
-- `ts`: 生成时间（毫秒）
-- `value`: 业务值（统计值、事件对象、告警对象等）
-
----
+`value` 包含下文说明的具体报告对象。`$SYS/brokers` 是例外，其 `value`
+是集群节点列表。
 
 ## Broker 基础信息
 
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers` | 当前集群节点列表 |
-| `$SYS/brokers/version` | Broker 版本 |
-| `$SYS/brokers/uptime` | Broker 运行时长 |
-| `$SYS/brokers/datetime` | Broker 当前时间 |
-| `$SYS/brokers/sysdescr` | 操作系统信息 |
+| 主题 | value 内容 |
+|------|------------|
+| `$SYS/brokers` | 集群节点列表 |
+| `$SYS/brokers/info` | `version`、`uptime`、`datetime` 和 `os_info` |
 
----
+## 统计数据
 
-## 统计数据（Stats）
+每个报告都在 `value` 中携带一个 JSON 对象，当前实现不会再发布独立的
+`/count` 或 `/max` 子主题。
 
-### 连接
+| 主题 | value 字段 |
+|------|------------|
+| `$SYS/brokers/stats/connections` | `count`、`max`、`sessions` |
+| `$SYS/brokers/stats/routes` | `count`、`max` |
+| `$SYS/brokers/stats/subscriptions` | `count`、`max`、`exclusive_count`、`shared_count`、`shared_group_count` |
+| `$SYS/brokers/stats/topics` | `count`、`max` |
 
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/stats/connections/count` | 当前连接数 |
-| `$SYS/brokers/stats/connections/max` | 历史最大连接数（当前实现以会话数近似） |
+## 指标数据
 
-### Topic
+每个报告都在 `value` 中携带一个聚合 JSON 对象，当前实现不会为每个字段
+发布独立的子主题。
 
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/stats/topics/count` | 当前 Topic 数量 |
-| `$SYS/brokers/stats/topics/max` | 历史最大 Topic 数量 |
+| 主题 | value 字段 |
+|------|------------|
+| `$SYS/brokers/metrics/bytes` | `received`、`sent` |
+| `$SYS/brokers/metrics/messages` | `received`、`sent`、`expired`、`retained`、`dropped`、`forward`、各 QoS 的接收/发送字段、`qos2_expired`、`qos2_dropped` |
+| `$SYS/brokers/metrics/packets` | `received`、`sent`、CONNECT/CONNACK、PUBLISH、PUBACK、PUBREC、PUBREL、PUBCOMP、SUBSCRIBE/SUBACK、UNSUBSCRIBE/UNSUBACK、PINGREQ/PINGRESP、DISCONNECT 和 AUTH 字段 |
 
-### 路由
-
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/stats/routes/count` | 当前路由数量 |
-| `$SYS/brokers/stats/routes/max` | 历史最大路由数量 |
-
-### 订阅
-
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/stats/subscribers/count` | 当前独占订阅者数量 |
-| `$SYS/brokers/stats/subscribers/max` | 历史最大独占订阅者数量 |
-| `$SYS/brokers/stats/subscriptions/count` | 当前总订阅数（独占 + 共享） |
-| `$SYS/brokers/stats/subscriptions/max` | 历史最大总订阅数 |
-| `$SYS/brokers/stats/subscriptions/shared/count` | 当前共享订阅数 |
-| `$SYS/brokers/stats/subscriptions/shared/max` | 历史最大共享订阅数 |
-| `$SYS/brokers/stats/suboptions/count` | 当前订阅选项总数 |
-| `$SYS/brokers/stats/suboptions/max` | 历史最大订阅选项数 |
-
----
-
-## 指标数据（Metrics）
-
-### 字节
-
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/metrics/bytes/received` | 累计接收字节数 |
-| `$SYS/brokers/metrics/bytes/sent` | 累计发送字节数 |
-
-### 消息
-
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/metrics/messages/received` | 累计接收消息数 |
-| `$SYS/brokers/metrics/messages/sent` | 累计发送消息数 |
-| `$SYS/brokers/metrics/messages/dropped` | 累计丢弃消息数 |
-| `$SYS/brokers/metrics/messages/retained` | 当前保留消息数 |
-| `$SYS/brokers/metrics/messages/expired` | 累计过期消息数 |
-| `$SYS/brokers/metrics/messages/forward` | 累计转发消息数 |
-| `$SYS/brokers/metrics/messages/qos0/received` | 累计 QoS0 接收消息数 |
-| `$SYS/brokers/metrics/messages/qos0/sent` | 累计 QoS0 发送消息数 |
-| `$SYS/brokers/metrics/messages/qos1/received` | 累计 QoS1 接收消息数 |
-| `$SYS/brokers/metrics/messages/qos1/sent` | 累计 QoS1 发送消息数 |
-| `$SYS/brokers/metrics/messages/qos2/received` | 累计 QoS2 接收消息数 |
-| `$SYS/brokers/metrics/messages/qos2/sent` | 累计 QoS2 发送消息数 |
-| `$SYS/brokers/metrics/messages/qos2/expired` | 累计 QoS2 过期消息数 |
-| `$SYS/brokers/metrics/messages/qos2/dropped` | 累计 QoS2 丢弃消息数 |
-
-### 报文（Packets）
-
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/metrics/packets/received` | 累计接收报文数 |
-| `$SYS/brokers/metrics/packets/sent` | 累计发送报文数 |
-| `$SYS/brokers/metrics/packets/connect` | 累计 CONNECT 报文数 |
-| `$SYS/brokers/metrics/packets/connack` | 累计 CONNACK 报文数 |
-| `$SYS/brokers/metrics/packets/publish/received` | 累计接收 PUBLISH 报文数 |
-| `$SYS/brokers/metrics/packets/publish/sent` | 累计发送 PUBLISH 报文数 |
-| `$SYS/brokers/metrics/packets/puback/received` | 累计接收 PUBACK 报文数 |
-| `$SYS/brokers/metrics/packets/puback/sent` | 累计发送 PUBACK 报文数 |
-| `$SYS/brokers/metrics/packets/puback/missed` | 累计 PUBACK 超时未确认数 |
-| `$SYS/brokers/metrics/packets/pubrec/received` | 累计接收 PUBREC 报文数 |
-| `$SYS/brokers/metrics/packets/pubrec/sent` | 累计发送 PUBREC 报文数 |
-| `$SYS/brokers/metrics/packets/pubrec/missed` | 累计 PUBREC 超时未确认数 |
-| `$SYS/brokers/metrics/packets/pubrel/received` | 累计接收 PUBREL 报文数 |
-| `$SYS/brokers/metrics/packets/pubrel/sent` | 累计发送 PUBREL 报文数 |
-| `$SYS/brokers/metrics/packets/pubrel/missed` | 累计 PUBREL 超时未确认数 |
-| `$SYS/brokers/metrics/packets/pubcomp/received` | 累计接收 PUBCOMP 报文数 |
-| `$SYS/brokers/metrics/packets/pubcomp/sent` | 累计发送 PUBCOMP 报文数 |
-| `$SYS/brokers/metrics/packets/pubcomp/missed` | 累计 PUBCOMP 超时未确认数 |
-| `$SYS/brokers/metrics/packets/subscribe` | 累计 SUBSCRIBE 报文数 |
-| `$SYS/brokers/metrics/packets/suback` | 累计 SUBACK 报文数 |
-| `$SYS/brokers/metrics/packets/unsubscribe` | 累计 UNSUBSCRIBE 报文数 |
-| `$SYS/brokers/metrics/packets/unsuback` | 累计 UNSUBACK 报文数 |
-| `$SYS/brokers/metrics/packets/pingreq` | 累计 PINGREQ 报文数 |
-| `$SYS/brokers/metrics/packets/pingresp` | 累计 PINGRESP 报文数 |
-| `$SYS/brokers/metrics/packets/disconnect/received` | 累计接收 DISCONNECT 报文数 |
-| `$SYS/brokers/metrics/packets/disconnect/sent` | 累计发送 DISCONNECT 报文数 |
-| `$SYS/brokers/metrics/packets/auth` | 累计 AUTH 报文数 |
-
----
+报文报告包含 QoS 确认报文族的 `*_missed` 字段。当前实现会将这些字段
+报告为 0。
 
 ## 客户端事件
 
-以下主题在事件发生时即时触发：
-
-| 主题 | 触发时机 |
-|------|----------|
-| `$SYS/brokers/clients/connected` | 客户端连接成功 |
-| `$SYS/brokers/clients/disconnected` | 客户端断开连接 |
-| `$SYS/brokers/clients/subscribed` | 客户端订阅成功 |
-| `$SYS/brokers/clients/unsubscribed` | 客户端取消订阅 |
-
-### connected 消息示例
-
-```json
-{
-  "node_id": 1,
-  "node_ip": "127.0.0.1",
-  "ts": 1700000000000,
-  "value": {
-    "username": "user1",
-    "ts": 1700000000000,
-    "sockport": 54321,
-    "proto_ver": 4,
-    "proto_name": "MQTT",
-    "keepalive": 60,
-    "ipaddress": "192.168.1.100",
-    "expiry_interval": 0,
-    "connected_at": 1700000000000,
-    "connack": 0,
-    "clientid": "my-client-001",
-    "clean_start": true
-  }
-}
-```
-
----
+客户端连接、断开、订阅和取消订阅事件统一写入 `$SYS/events` 主题。事件
+消费者会批量处理（每次最多写入 100 个事件），每个事件都使用统一的消息
+封装。客户端 ID 和节点信息位于消息内容中，不位于主题路径中。
 
 ## 系统告警
 
-| 主题 | 说明 |
-|------|------|
-| `$SYS/brokers/alarms/alert` | 新告警触发时发布 |
-| `$SYS/brokers/alarms/clear` | 告警恢复/清除时发布 |
+当前实现的告警主题为：
 
-告警消息同样封装在 `value` 中，更多字段说明见 [系统告警](./SystemAlarm.md)。
+| 主题 | 触发条件 |
+|------|----------|
+| `$SYS/brokers/alarms/alert` | 上报节点的 Broker 进程 CPU 或内存使用率超过配置的高水位线 |
 
----
+当前没有 `$SYS/brokers/alarms/clear` 发布逻辑。告警主题在每次 60 秒检查中，
+只有 Broker 进程 CPU 或内存使用率超过配置阈值时才发布活动告警
+（`activated: true`）。达到或低于阈值时不发布告警消息。
+
+监控逻辑是无状态的，不会发布 `activated: false` 恢复消息。如果活动告警的内部
+写入失败，下一次轮询会重试；系统不会跟踪 MQTT 客户端的投递确认。活动告警事件
+仍会为现有告警历史 API 和 CLI 持久化。
 
 ## 订阅示例
 
@@ -210,9 +89,9 @@ RobustMQ MQTT Broker 通过 `$SYS/` 系统主题发布运行状态、统计数�
 # 订阅所有系统主题
 mqttx sub -t '$SYS/#' -h 127.0.0.1 -p 1883
 
-# 订阅所有统计数据
+# 订阅聚合统计数据
 mqttx sub -t '$SYS/brokers/stats/#' -h 127.0.0.1 -p 1883
 
-# 订阅所有客户端连接事件（跨节点汇总）
-mqttx sub -t '$SYS/brokers/clients/connected' -h 127.0.0.1 -p 1883
+# 订阅所有客户端事件
+mqttx sub -t '$SYS/events' -h 127.0.0.1 -p 1883
 ```

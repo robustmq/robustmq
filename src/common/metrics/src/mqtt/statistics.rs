@@ -246,6 +246,7 @@ mod tests {
 
     #[test]
     fn test_mqtt_connections_set_and_get() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         // Test initial value (should be 0)
         let initial_count = record_mqtt_connections_get();
         assert_eq!(initial_count, 0);
@@ -269,5 +270,59 @@ mod tests {
         record_mqtt_connections_set(-10);
         let negative_count = record_mqtt_connections_get();
         assert_eq!(negative_count, -10);
+    }
+
+    #[test]
+    fn records_all_mqtt_statistics_and_delay_queue_values() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        record_mqtt_sessions_set(12);
+        record_mqtt_topics_set(13);
+        record_mqtt_subscribers_set(14);
+        record_mqtt_subscriptions_exclusive_set(15);
+        record_mqtt_subscriptions_shared_set(16);
+        record_mqtt_subscriptions_shared_group_set(17);
+        record_mqtt_retained_inc();
+        record_mqtt_retained_dec();
+        record_mqtt_delay_queue_total_capacity_set(8123, 100);
+        record_mqtt_delay_queue_used_capacity_set(8123, 40);
+        record_mqtt_delay_queue_remaining_capacity_set(8123, 60);
+
+        assert_eq!(record_mqtt_sessions_get(), 12);
+        assert_eq!(record_mqtt_topics_get(), 13);
+        assert_eq!(record_mqtt_subscriptions_exclusive_get(), 15);
+        assert_eq!(record_mqtt_subscriptions_shared_get(), 16);
+        assert_eq!(record_mqtt_subscriptions_shared_group_get(), 17);
+        assert_eq!(record_mqtt_retained_get(), 0);
+
+        let label = DelayQueueLabel {
+            shard_no: "8123".to_string(),
+        };
+        assert_eq!(
+            MQTT_DELAY_QUEUE_TOTAL_CAPACITY
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            100
+        );
+        assert_eq!(
+            MQTT_DELAY_QUEUE_USED_CAPACITY
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            40
+        );
+        assert_eq!(
+            MQTT_DELAY_QUEUE_REMAINING_CAPACITY
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            60
+        );
     }
 }
