@@ -89,11 +89,18 @@ expire_scan_task_num = 10
 offset_enable_cache = true
 
 # ============================================================================
-# [delay_task] - delayed message processing queues
+# [delay_task] - internal delayed tasks (for example, session and will expiry)
 # ============================================================================
 [delay_task]
 delay_task_queue_num = 100
 delay_task_handler_concurrency = 100
+
+# ============================================================================
+# [delay_message] - delayed message delivery retries
+# ============================================================================
+[delay_message]
+max_retries = 3
+initial_retry_delay_sec = 2
 
 # ============================================================================
 # [broker_network] - shared network threads + TLS (used by every protocol)

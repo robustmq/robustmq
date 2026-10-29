@@ -192,7 +192,9 @@ offset_enable_cache = true
 
 ### [delay_task]
 
-Delayed message processing task queue configuration.
+Internal delayed-task queue configuration. This subsystem schedules broker tasks
+such as MQTT session expiration and Last Will message handling; it is separate
+from MQTT delayed-message delivery.
 
 ```toml
 [delay_task]
@@ -204,6 +206,23 @@ delay_task_handler_concurrency = 100
 |---------------|------|---------|-------------|
 | `delay_task_queue_num` | `usize` | `100` | Number of delay task queues |
 | `delay_task_handler_concurrency` | `usize` | `100` | Delay task handler concurrency |
+
+### [delay_message]
+
+MQTT and MQ9 delayed-message delivery retry configuration. When delivery to the
+target topic fails, the broker retries with exponential backoff using these
+settings. With the defaults, retry delays are approximately 2, 4, and 8 seconds.
+
+```toml
+[delay_message]
+max_retries = 3
+initial_retry_delay_sec = 2
+```
+
+| Configuration | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `max_retries` | `u32` | `3` | Maximum delivery retry attempts after the initial attempt |
+| `initial_retry_delay_sec` | `u64` | `2` | Initial retry delay in seconds; each subsequent retry doubles the delay |
 
 ---
 
@@ -377,10 +396,15 @@ io_thread_num = 8
 expire_scan_task_num = 10
 offset_enable_cache = true
 
-# ========== Delay Task ==========
+# ========== Internal Delay Task ==========
 [delay_task]
 delay_task_queue_num = 100
 delay_task_handler_concurrency = 100
+
+# ========== Delayed Message Delivery ==========
+[delay_message]
+max_retries = 3
+initial_retry_delay_sec = 2
 
 # ========== Broker Network ==========
 [broker_network]

@@ -24,7 +24,6 @@ use metadata_struct::storage::adapter_record::{AdapterWriteRecord, RecordHeader}
 
 const DELAY_PUBLISH_MESSAGE_PREFIXED: &str = "$delayed/";
 const MAX_DELAY_SECONDS: u64 = 42949669;
-const TIMESTAMP_THRESHOLD: u64 = 1_000_000_000;
 
 #[derive(Debug, Clone)]
 pub struct DelayPublishTopic {
@@ -42,7 +41,7 @@ pub fn is_delay_topic(topic: &str) -> bool {
 /// Decodes a delayed publish topic into its components.
 ///
 /// Format: `$delayed/{DelayInterval}/{TopicName}`
-/// - DelayInterval: Delay time in seconds or Unix timestamp
+/// - DelayInterval: Delay time in seconds
 /// - TopicName: Target topic name
 ///
 /// Returns `DelayPublishTopic` with parsed delay timestamp and target topic.
@@ -61,16 +60,7 @@ pub fn decode_delay_topic(topic: &str) -> Result<DelayPublishTopic, MqttBrokerEr
         .parse::<u64>()
         .map_err(|_| MqttBrokerError::NotConformDeferredTopic(topic.to_string()))?;
 
-    let is_absolute = delay_timestamp > TIMESTAMP_THRESHOLD;
-
-    if is_absolute {
-        if delay_timestamp < now_second() {
-            return Err(MqttBrokerError::NotConformDeferredTopic(format!(
-                "Timestamp {} is in the past",
-                delay_timestamp
-            )));
-        }
-    } else if delay_timestamp > MAX_DELAY_SECONDS {
+    if delay_timestamp > MAX_DELAY_SECONDS {
         return Err(MqttBrokerError::DelayIntervalTooLarge(delay_timestamp));
     }
 
@@ -104,7 +94,7 @@ pub async fn save_delay_message(
     delay_info: &DelayPublishTopic,
 ) -> Result<Option<String>, MqttBrokerError> {
     let recv_time = now_second();
-    let trigger_time = now_second() + delay_info.delay_timestamp;
+    let trigger_time = recv_time + delay_info.delay_timestamp;
 
     let headers = vec![
         RecordHeader {
@@ -165,6 +155,6 @@ mod test {
         assert!(decode_delay_topic("$delayed/abc/topic").is_err());
         assert!(decode_delay_topic("$delayed/60/").is_err());
         assert!(decode_delay_topic(&format!("$delayed/{}/test", MAX_DELAY_SECONDS + 1)).is_err());
-        assert!(decode_delay_topic(&format!("$delayed/{}/test", now_second() - 3600)).is_err());
+        assert!(decode_delay_topic("$delayed/1800000000/test").is_err());
     }
 }

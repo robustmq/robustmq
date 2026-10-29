@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{delete_delay_index_info, delete_delay_message};
+use crate::delay::{delete_delay_index_info, delete_delay_message, save_delay_index_info};
 use crate::manager::{DelayMessageManager, ShardCmd, DELAY_MESSAGE_SAVE_MS};
 use broker_core::inner_topic::DELAY_QUEUE_MESSAGE_TOPIC;
 use common_base::error::common::CommonError;
@@ -115,49 +115,56 @@ async fn run_shard_loop(
             Some(expired) = delay_queue.next() => {
                 let delay_message = expired.into_inner();
                 manager.remove_message_key(&delay_message.unique_id);
-                let storage = manager.storage_driver_manager.clone();
-                let retry_manager = manager.clone();
-                tokio::spawn(async move {
-                    let config = &retry_manager.delay_message_config;
-                    if let Err(e) = delay_message_process(
-                        &storage,
-                        &delay_message,
-                        now_second(),
-                    )
-                    .await
-                    {
-                        if delay_message.retry_count < config.max_retries {
-                            let mut retry = delay_message;
-                            retry.retry_count += 1;
-                            let backoff_secs = config.initial_retry_delay_sec
-                                * 2_u64.pow(retry.retry_count.saturating_sub(1));
-                            record_delay_msg_retry(false);
-                            record_delay_msg_retry_count(retry.retry_count);
-                            warn!(
-                                "Delay message delivery failed (attempt {}/{}), retrying in {}s: unique_id={}, target={}, error={}",
-                                retry.retry_count, config.max_retries, backoff_secs,
-                                retry.unique_id, retry.target_topic_name, e
-                            );
-                            retry_manager
-                                .reenqueue_for_retry(retry, Duration::from_secs(backoff_secs))
-                                .await;
-                        } else {
-                            record_delay_msg_retry(false);
-                            record_delay_msg_retry_count(delay_message.retry_count);
-                            error!(
-                                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
-                                delay_message.retry_count, delay_message.unique_id,
-                                delay_message.target_topic_name, e
-                            );
-                            let _ = delete_delay_index_info(&storage, &delay_message).await;
-                            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
-                        }
-                    } else if delay_message.retry_count > 0 {
-                        record_delay_msg_retry(true);
-                    }
-                });
+                tokio::spawn(process_expired_delay_message(manager.clone(), delay_message));
             }
         }
+    }
+}
+
+/// Delivers an expired message and applies the configured retry policy on failure.
+/// This is shared by normal queue expiry and startup recovery of already-expired records.
+pub(crate) async fn process_expired_delay_message(
+    manager: Arc<DelayMessageManager>,
+    delay_message: DelayMessageIndexInfo,
+) {
+    let storage = manager.storage_driver_manager.clone();
+    let config = &manager.delay_message_config;
+    if let Err(e) = delay_message_process(&storage, &delay_message, now_second()).await {
+        if delay_message.retry_count < config.max_retries {
+            let mut retry = delay_message;
+            retry.retry_count += 1;
+            let backoff_secs =
+                config.initial_retry_delay_sec * 2_u64.pow(retry.retry_count.saturating_sub(1));
+            record_delay_msg_retry(false);
+            record_delay_msg_retry_count(retry.retry_count);
+            warn!(
+                "Delay message delivery failed (attempt {}/{}), retrying in {}s: unique_id={}, target={}, error={}",
+                retry.retry_count, config.max_retries, backoff_secs,
+                retry.unique_id, retry.target_topic_name, e
+            );
+            if let Err(persist_error) = save_delay_index_info(&storage, &retry, 1).await {
+                error!(
+                    "Failed to persist delay message retry count; retry not scheduled: unique_id={}, retry_count={}, error={}",
+                    retry.unique_id, retry.retry_count, persist_error
+                );
+                return;
+            }
+            manager
+                .reenqueue_for_retry(retry, Duration::from_secs(backoff_secs))
+                .await;
+        } else {
+            record_delay_msg_retry(false);
+            record_delay_msg_retry_count(delay_message.retry_count);
+            error!(
+                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
+                delay_message.retry_count, delay_message.unique_id,
+                delay_message.target_topic_name, e
+            );
+            let _ = delete_delay_index_info(&storage, &delay_message).await;
+            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
+        }
+    } else if delay_message.retry_count > 0 {
+        record_delay_msg_retry(true);
     }
 }
 

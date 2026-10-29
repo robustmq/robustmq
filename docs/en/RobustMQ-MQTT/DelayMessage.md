@@ -27,19 +27,28 @@ $delayed/{DelayInterval}/{TopicName}
 **Parameter Description**:
 
 - `$delayed`: Messages using `$delayed` as the topic prefix will be considered as messages that need delayed publishing
+- `{DelayInterval}`: An integer delay in seconds
 - `{TopicName}`: The target topic name for the MQTT message
 
 **Important Notes**:
 
 - If `{DelayInterval}` cannot be parsed as an integer, the server will discard the message
-- Delayed messages are stored on the server until the delay time is reached
+- The delay must not exceed `42,949,669` seconds (about 497 days)
+- A delayed message is queued only when offline-message storage is enabled or the target topic has subscribers; otherwise, with offline storage disabled and no subscribers, the publish is rejected
 
 ## Characteristics of Delayed Publishing
 
 - **Precise time control**: Can precisely control the publishing time of messages
-- **Persistent storage**: Delayed messages are persistently stored, ensuring normal execution after server restart
+- **Persistent storage**: Accepted delayed messages are persisted and recovered after a server restart
 - **High reliability**: Supports QoS levels to ensure reliable message delivery
 - **Flexible configuration**: Supports delayed publishing to any topic
+
+Delayed delivery currently provides **at-least-once delivery**. The broker writes
+the message to the target topic before deleting its delayed-message records. If
+the broker stops after the target write succeeds but before those records are
+deleted, recovery may deliver the same message again. Consumers should therefore
+handle delayed messages idempotently. Atomic delivery cleanup and broker-side
+deduplication are separate future improvements.
 
 ## Using Delayed Publishing via MQTTX
 
@@ -89,18 +98,26 @@ mqttx pub -t '$delayed/3600/reminder/break' -m '{"title":"Break Reminder","messa
 mqttx sub -t "/reminder/+" -h '117.72.92.117' -p 1883 -v
 ```
 
-#### Retry Mechanism
+#### Broker-Side Delivery Retries
 
 ```bash
-# Retry after 5 seconds delay on failure
-mqttx pub -t '$delayed/5/retry/upload' -m '{"file_id":"123","retry_count":1}' -h '117.72.92.117' -p 1883
+# Schedule a message for delivery to /upload after 5 seconds
+mqttx pub -t '$delayed/5/upload' -m '{"file_id":"123"}' -h '117.72.92.117' -p 1883
 
-# Retry after 30 seconds delay on failure
-mqttx pub -t '$delayed/30/retry/sync' -m '{"data_id":"456","retry_count":2}' -h '117.72.92.117' -p 1883
-
-# Subscribe to retry topics
-mqttx sub -t "/retry/+" -h '117.72.92.117' -p 1883 -v
+# Subscribe to the target topic
+mqttx sub -t "/upload" -h '117.72.92.117' -p 1883 -v
 ```
+
+The broker retries delivery to the same target topic if its write fails. The
+`[delay_message]` configuration controls the maximum number of retries and
+exponential backoff. By default, there are up to 3 retries after the initial
+delivery attempt, with delays of approximately 2, 4, and 8 seconds. If all
+attempts fail, the broker deletes the delayed message; it does not publish it to
+a dead-letter topic. This mechanism retries broker-side delivery failures, not
+application-level processing failures reported by subscribers. The retry count
+is persisted, so a broker restart does not reset the configured retry limit.
+The remaining backoff duration is not persisted, so recovery may retry a pending
+message immediately after restart.
 
 #### Batch Processing
 
@@ -151,8 +168,10 @@ mqttx sub -t "/user/+" -h '117.72.92.117' -p 1883 -v
 
 ## Important Notes
 
-1. **Time format**: Delay time must be an integer in seconds
+1. **Time format**: The delay value must be an integer in seconds and is measured from the time the broker accepts the message
 2. **Topic format**: Must use the `$delayed/{DelayInterval}/{TopicName}` format
-3. **Message persistence**: Delayed messages are persistently stored and can execute normally after server restart
-4. **QoS support**: Delayed publishing supports MQTT QoS levels
-5. **Error handling**: Messages will be discarded if the delay time format is incorrect
+3. **Message persistence**: Delayed messages are persisted when offline-message storage is enabled or the target topic has subscribers. If offline storage is disabled and there are no subscribers, the publish is rejected and the message is not scheduled
+4. **QoS support**: Delayed publishing supports MQTT QoS levels. MQTT 5 QoS 1 and QoS 2 publishers receive a negative acknowledgement when this policy rejects the message. For QoS 0, and for MQTT 3/4 where acknowledgements cannot carry a failure reason, the broker disconnects the publisher rather than sending a success acknowledgement
+5. **Delivery retries**: Broker-side delivery failures are retried according to `[delay_message]`; messages are deleted after retries are exhausted, without dead-letter routing
+6. **Delivery guarantee**: Delayed delivery is at-least-once. A broker restart during target-topic delivery can cause duplicate delivery, so consumers should use idempotent processing
+7. **Error handling**: Messages will be rejected if the delay time format is incorrect or if delayed-message storage is disabled by the no-subscriber policy

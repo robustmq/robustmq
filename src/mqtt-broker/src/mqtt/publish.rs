@@ -25,6 +25,7 @@ use crate::core::pkid_manager::{PkidAckEnum, ReceiveQosPkidData};
 use crate::core::qos::{get_temporary_qos2_message, persistent_save_qos2_message};
 use crate::core::security::security_is_allow_publish;
 use crate::core::topic::{get_topic_name, try_init_topic};
+use crate::mqtt::disconnect::build_distinct_packet;
 use common_base::tools::now_second;
 use common_metrics::mqtt::publish::record_mqtt_messages_delayed_inc;
 use metadata_struct::mqtt::connection::MQTTConnection;
@@ -73,19 +74,18 @@ impl MqttService {
         {
             Ok(data) => data,
             Err(e) => {
-                let (pub_rec_reason, pub_ack_reason) = match &e {
-                    MqttBrokerError::NotAclAuth(_) | MqttBrokerError::NotBlacklistAuth => {
-                        (PubRecReason::NotAuthorized, PubAckReason::NotAuthorized)
-                    }
-                    MqttBrokerError::SchemaValidationFailed(_, _) => (
-                        PubRecReason::PayloadFormatInvalid,
-                        PubAckReason::PayloadFormatInvalid,
-                    ),
-                    _ => (
-                        PubRecReason::UnspecifiedError,
-                        PubAckReason::UnspecifiedError,
-                    ),
-                };
+                if should_disconnect_for_publish_error(&self.protocol, &publish.qos, &e) {
+                    return Some(build_distinct_packet(
+                        &self.cache_manager,
+                        connection.connect_id,
+                        &self.protocol,
+                        Some(protocol::mqtt::common::DisconnectReasonCode::ImplementationSpecificError),
+                        None,
+                        Some(e.to_string()),
+                    ));
+                }
+
+                let (pub_rec_reason, pub_ack_reason) = publish_error_reasons(&e);
                 return Some(build_pub_ack_fail(
                     &self.cache_manager,
                     connection.connect_id,
@@ -367,6 +367,37 @@ impl MqttService {
             Vec::new(),
         )
     }
+}
+
+fn publish_error_reasons(error: &MqttBrokerError) -> (PubRecReason, PubAckReason) {
+    match error {
+        MqttBrokerError::NotAclAuth(_) | MqttBrokerError::NotBlacklistAuth => {
+            (PubRecReason::NotAuthorized, PubAckReason::NotAuthorized)
+        }
+        MqttBrokerError::SchemaValidationFailed(_, _) => (
+            PubRecReason::PayloadFormatInvalid,
+            PubAckReason::PayloadFormatInvalid,
+        ),
+        MqttBrokerError::DelayedMessageRejectedNoSubscribers(_) => (
+            PubRecReason::ImplementationSpecificError,
+            PubAckReason::ImplementationSpecificError,
+        ),
+        _ => (
+            PubRecReason::UnspecifiedError,
+            PubAckReason::UnspecifiedError,
+        ),
+    }
+}
+
+fn should_disconnect_for_publish_error(
+    protocol: &MqttProtocol,
+    qos: &QoS,
+    error: &MqttBrokerError,
+) -> bool {
+    matches!(
+        error,
+        MqttBrokerError::DelayedMessageRejectedNoSubscribers(_)
+    ) && (!protocol.is_mqtt5() || *qos == QoS::AtMostOnce)
 }
 
 fn build_pub_ack_fail(
@@ -740,5 +771,44 @@ mod tests {
 
         let result = publish_validator(&cache_manager, &connection, &publish, &None).await;
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn delayed_message_rejection_uses_implementation_specific_reason() {
+        let error = MqttBrokerError::DelayedMessageRejectedNoSubscribers("/events".to_string());
+
+        assert_eq!(
+            publish_error_reasons(&error),
+            (
+                PubRecReason::ImplementationSpecificError,
+                PubAckReason::ImplementationSpecificError
+            )
+        );
+    }
+
+    #[test]
+    fn disconnect_when_delayed_publish_cannot_return_a_failure_acknowledgement() {
+        let error = MqttBrokerError::DelayedMessageRejectedNoSubscribers("/events".to_string());
+
+        assert!(should_disconnect_for_publish_error(
+            &MqttProtocol::Mqtt5,
+            &QoS::AtMostOnce,
+            &error
+        ));
+        assert!(should_disconnect_for_publish_error(
+            &MqttProtocol::Mqtt4,
+            &QoS::AtLeastOnce,
+            &error
+        ));
+        assert!(!should_disconnect_for_publish_error(
+            &MqttProtocol::Mqtt5,
+            &QoS::AtLeastOnce,
+            &error
+        ));
+        assert!(!should_disconnect_for_publish_error(
+            &MqttProtocol::Mqtt5,
+            &QoS::AtLeastOnce,
+            &MqttBrokerError::CommonError("other failure".to_string())
+        ));
     }
 }
