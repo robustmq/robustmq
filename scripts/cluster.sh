@@ -47,7 +47,17 @@ start() {
         fi
 
         echo "Starting server-${i}..."
-        "$ROOT_DIR/target/debug/broker-server" --conf "$conf" > "$log" 2>&1 &
+        run_args=(
+            run
+            --manifest-path "$ROOT_DIR/Cargo.toml"
+            --package cmd
+            --bin broker-server
+        )
+        if [[ -n "${BROKER_FEATURES:-}" ]]; then
+            run_args+=(--features "$BROKER_FEATURES")
+        fi
+        run_args+=(-- --conf "$conf")
+        cargo "${run_args[@]}" > "$log" 2>&1 &
         echo "server-${i} started (log: $log)"
     done
 
@@ -66,6 +76,11 @@ start() {
     done
 
     echo "Cluster did not become ready in time. Check logs in $LOG_DIR"
+    for i in 1 2 3; do
+        local log="$LOG_DIR/server-${i}.log"
+        echo "--- server-${i} log (last 80 lines) ---"
+        tail -n 80 "$log" 2>/dev/null || true
+    done
     exit 1
 }
 
