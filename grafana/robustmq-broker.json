@@ -9362,7 +9362,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum by (connector_type) (rate(mqtt_connector_messages_sent_success[1m]))",
+              "expr": "sum by (connector_type) (rate(mqtt_connector_messages_sent_success_total[1m]))",
               "legendFormat": "success/{{connector_type}}",
               "range": true,
               "refId": "A"
@@ -9373,7 +9373,7 @@
                 "uid": "dfdi3tx61jshsa"
               },
               "editorMode": "code",
-              "expr": "sum by (connector_type) (rate(mqtt_connector_messages_sent_failure[1m]))",
+              "expr": "sum by (connector_type) (rate(mqtt_connector_messages_sent_failure_total[1m]))",
               "legendFormat": "failure/{{connector_type}}",
               "range": true,
               "refId": "B"

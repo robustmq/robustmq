@@ -24,6 +24,14 @@ use crate::{
     register_counter_metric,
 };
 
+const ALL_NETWORK_TYPES: &[NetworkConnectionType] = &[
+    NetworkConnectionType::Tcp,
+    NetworkConnectionType::Tls,
+    NetworkConnectionType::WebSocket,
+    NetworkConnectionType::WebSockets,
+    NetworkConnectionType::QUIC,
+];
+
 // Empty label for total (cross-network) counters
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
 struct TotalLabel {}
@@ -178,6 +186,12 @@ register_counter_metric!(
     "Total MQTT AUTH packets received",
     TotalLabel
 );
+register_counter_metric!(
+    MQTT_TOTAL_PACKETS_AUTH_SENT,
+    "mqtt_total_packets_auth_sent",
+    "Total MQTT AUTH packets sent",
+    TotalLabel
+);
 
 macro_rules! total_get {
     ($metric:ident) => {{
@@ -262,6 +276,9 @@ pub fn record_mqtt_total_packets_disconnect_sent_get() -> u64 {
 }
 pub fn record_mqtt_total_packets_auth_get() -> u64 {
     total_get!(MQTT_TOTAL_PACKETS_AUTH)
+}
+pub fn record_mqtt_total_packets_auth_sent_get() -> u64 {
+    total_get!(MQTT_TOTAL_PACKETS_AUTH_SENT)
 }
 
 #[derive(Eq, Hash, Clone, EncodeLabelSet, Debug, PartialEq)]
@@ -455,6 +472,13 @@ register_counter_metric!(
 );
 
 register_counter_metric!(
+    MQTT_PACKETS_AUTH_SENT,
+    "mqtt_packets_auth_sent",
+    "Number of MQTT AUTH packets sent",
+    NetworkQosLabel
+);
+
+register_counter_metric!(
     MQTT_BYTES_RECEIVED,
     "mqtt_bytes_received",
     "Number of MQTT bytes received",
@@ -635,7 +659,10 @@ pub fn record_packet_send_metrics(packet_wrapper: &MqttPacketWrapper, network_ty
             counter_metric_inc!(MQTT_PACKETS_DISCONNECT_SENT, label_qos);
             counter_metric_inc!(MQTT_TOTAL_PACKETS_DISCONNECT_SENT, total);
         }
-        MqttPacket::Auth(_, _) => counter_metric_inc!(MQTT_PACKETS_CONNACK_SENT, label_qos),
+        MqttPacket::Auth(_, _) => {
+            counter_metric_inc!(MQTT_PACKETS_AUTH_SENT, label_qos);
+            counter_metric_inc!(MQTT_TOTAL_PACKETS_AUTH_SENT, total);
+        }
         _ => unreachable!("This branch only matches for packets could not be sent"),
     }
 }
@@ -679,9 +706,10 @@ pub fn init() {
     counter_metric_touch!(MQTT_TOTAL_PACKETS_DISCONNECT_RECEIVED, TotalLabel {});
     counter_metric_touch!(MQTT_TOTAL_PACKETS_DISCONNECT_SENT, TotalLabel {});
     counter_metric_touch!(MQTT_TOTAL_PACKETS_AUTH, TotalLabel {});
+    counter_metric_touch!(MQTT_TOTAL_PACKETS_AUTH_SENT, TotalLabel {});
 
     // NetworkLabel counters — pre-register for each known network type
-    for net in &["Tcp", "Tls", "WebSocket", "WebSockets", "QUIC"] {
+    for net in ALL_NETWORK_TYPES {
         let label = NetworkLabel {
             network: net.to_string(),
         };
@@ -810,6 +838,11 @@ pub fn init() {
             counter_metric_touch!(MQTT_PACKETS_DISCONNECT_SENT, label);
             let label = NetworkQosLabel {
                 network: net.to_string(),
+                qos: "-1".to_string(),
+            };
+            counter_metric_touch!(MQTT_PACKETS_AUTH_SENT, label);
+            let label = NetworkQosLabel {
+                network: net.to_string(),
                 qos: qos.to_string(),
             };
             counter_metric_touch!(MQTT_BYTES_SENT, label);
@@ -837,26 +870,28 @@ mod test {
     use common_base::tools::get_addr_by_local_hostname;
     use prometheus_client::encoding::text::encode;
 
-    #[tokio::test]
-    async fn test_gauge() {
+    #[test]
+    fn test_gauge() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         let family = MQTT_PACKETS_RECEIVED.clone();
-        let mut tasks = vec![];
-        for tid in 0..100 {
-            let family = family.clone();
-            let task = tokio::spawn(async move {
-                let family = family.write().unwrap();
-                let gauge = family.get_or_create(&NetworkLabel {
-                    network: format!("network-{tid}"),
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let mut tasks = vec![];
+            for tid in 0..100 {
+                let family = family.clone();
+                let task = tokio::spawn(async move {
+                    let family = family.write().unwrap();
+                    let gauge = family.get_or_create(&NetworkLabel {
+                        network: format!("network-{tid}"),
+                    });
+                    gauge.inc();
                 });
-                gauge.inc();
-            });
-            tasks.push(task);
-        }
+                tasks.push(task);
+            }
 
-        // 逐个 `await` 任务
-        while let Some(task) = tasks.pop() {
-            let _ = task.await;
-        }
+            while let Some(task) = tasks.pop() {
+                let _ = task.await;
+            }
+        });
 
         let family = family.read().unwrap();
 
@@ -877,6 +912,7 @@ mod test {
 
     #[tokio::test]
     async fn test_gauge_metrics() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         record_received_error_metrics(NetworkConnectionType::Tcp);
         let label = NetworkLabel {
             network: "tcp".to_string(),
@@ -897,10 +933,11 @@ mod test {
     }
 
     use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
-    use protocol::mqtt::common::{MqttPacket, Publish, UnsubAck};
+    use protocol::mqtt::common::{ConnAck, Connect, MqttPacket, Publish, UnsubAck};
 
     #[test]
     fn calc_mqtt_packet_size_test() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         let unsub_ack = UnsubAck {
             pkid: 1,
             reasons: Vec::new(),
@@ -918,6 +955,7 @@ mod test {
 
     #[test]
     fn calc_mqtt_packet_test() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         let mp: MqttPacket = MqttPacket::Publish(
             Publish {
                 dup: false,
@@ -936,6 +974,8 @@ mod test {
             None,
         );
         let ty = NetworkConnectionType::Tcp;
+        let received_before = record_mqtt_total_packets_received_get();
+        let publish_before = record_mqtt_total_packets_publish_received_get();
         record_packet_received_metrics(&nc, &mp, &ty);
         let label = NetworkLabel {
             network: ty.to_string(),
@@ -943,12 +983,350 @@ mod test {
         let pr = MQTT_PACKETS_RECEIVED.clone();
         {
             let rs1 = pr.read().unwrap().get_or_create(&label).get();
-            assert_eq!(rs1, 1);
+            assert_eq!(rs1, received_before + 1);
         }
         let ps = MQTT_PACKETS_PUBLISH_RECEIVED.clone();
         {
             let rs2 = ps.read().unwrap().get_or_create(&label).get();
-            assert_eq!(rs2, 1);
+            assert_eq!(rs2, publish_before + 1);
         }
+    }
+
+    #[test]
+    fn records_receive_metrics_for_each_supported_packet_kind() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        let connection = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            get_addr_by_local_hostname(1883).parse().unwrap(),
+            None,
+        );
+        let network = NetworkConnectionType::Tcp;
+        let packets = [
+            MqttPacket::ConnAck(
+                ConnAck {
+                    session_present: false,
+                    code: ConnectReturnCode::Success,
+                },
+                None,
+            ),
+            MqttPacket::Publish(Publish::new("topic", "payload", false), None),
+            MqttPacket::PubAck(
+                protocol::mqtt::common::PubAck {
+                    pkid: 1,
+                    reason: None,
+                },
+                None,
+            ),
+            MqttPacket::PubRec(
+                protocol::mqtt::common::PubRec {
+                    pkid: 1,
+                    reason: None,
+                },
+                None,
+            ),
+            MqttPacket::PubRel(
+                protocol::mqtt::common::PubRel {
+                    pkid: 1,
+                    reason: None,
+                },
+                None,
+            ),
+            MqttPacket::PubComp(
+                protocol::mqtt::common::PubComp {
+                    pkid: 1,
+                    reason: None,
+                },
+                None,
+            ),
+            MqttPacket::PingReq(protocol::mqtt::common::PingReq),
+            MqttPacket::Disconnect(
+                protocol::mqtt::common::Disconnect { reason_code: None },
+                None,
+            ),
+            MqttPacket::Auth(protocol::mqtt::common::Auth { reason: None }, None),
+            MqttPacket::Subscribe(
+                protocol::mqtt::common::Subscribe {
+                    packet_identifier: 1,
+                    filters: Vec::new(),
+                },
+                None,
+            ),
+            MqttPacket::Unsubscribe(
+                protocol::mqtt::common::Unsubscribe {
+                    pkid: 1,
+                    filters: Vec::new(),
+                },
+                None,
+            ),
+        ];
+
+        for packet in &packets {
+            record_packet_received_metrics(&connection, packet, &network);
+        }
+
+        assert!(record_mqtt_total_packets_received_get() >= packets.len() as u64);
+        assert!(
+            MQTT_PACKETS_CONNACK_RECEIVED
+                .read()
+                .unwrap()
+                .get(&NetworkLabel {
+                    network: network.to_string(),
+                })
+                .unwrap()
+                .get()
+                >= 1
+        );
+        assert!(record_mqtt_total_packets_publish_received_get() >= 1);
+        assert!(record_mqtt_total_packets_puback_received_get() >= 1);
+        assert!(record_mqtt_total_packets_pubrec_received_get() >= 1);
+        assert!(record_mqtt_total_packets_pubrel_received_get() >= 1);
+        assert!(record_mqtt_total_packets_pubcomp_received_get() >= 1);
+        assert!(record_mqtt_total_packets_pingreq_get() >= 1);
+        assert!(record_mqtt_total_packets_disconnect_received_get() >= 1);
+        assert!(record_mqtt_total_packets_auth_get() >= 1);
+        assert!(record_mqtt_total_packets_subscribe_get() >= 1);
+        assert!(record_mqtt_total_packets_unsubscribe_get() >= 1);
+    }
+
+    #[test]
+    fn records_send_metrics_for_ack_publish_and_error_packets() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        let connack_before = record_mqtt_total_packets_connack_get();
+        let auth_before = record_mqtt_total_packets_auth_sent_get();
+        let wrappers = [
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::ConnAck(
+                    ConnAck {
+                        session_present: false,
+                        code: ConnectReturnCode::NotAuthorized,
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::Publish(Publish::new("topic", "payload", false), None),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::PubAck(
+                    protocol::mqtt::common::PubAck {
+                        pkid: 1,
+                        reason: Some(protocol::mqtt::common::PubAckReason::Success),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::PubRec(
+                    protocol::mqtt::common::PubRec {
+                        pkid: 1,
+                        reason: Some(protocol::mqtt::common::PubRecReason::Success),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::PubRel(
+                    protocol::mqtt::common::PubRel {
+                        pkid: 1,
+                        reason: Some(protocol::mqtt::common::PubRelReason::Success),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::PubComp(
+                    protocol::mqtt::common::PubComp {
+                        pkid: 1,
+                        reason: Some(protocol::mqtt::common::PubCompReason::Success),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::SubAck(
+                    protocol::mqtt::common::SubAck {
+                        pkid: 1,
+                        return_codes: Vec::new(),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::UnsubAck(
+                    protocol::mqtt::common::UnsubAck {
+                        pkid: 1,
+                        reasons: Vec::new(),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::PingResp(protocol::mqtt::common::PingResp),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::Disconnect(
+                    protocol::mqtt::common::Disconnect {
+                        reason_code: Some(
+                            protocol::mqtt::common::DisconnectReasonCode::NormalDisconnection,
+                        ),
+                    },
+                    None,
+                ),
+            },
+            MqttPacketWrapper {
+                protocol_version: 5,
+                packet: MqttPacket::Auth(
+                    protocol::mqtt::common::Auth {
+                        reason: Some(protocol::mqtt::common::AuthReason::Success),
+                    },
+                    None,
+                ),
+            },
+        ];
+
+        for wrapper in &wrappers {
+            record_packet_send_metrics(wrapper, "coverage".to_string());
+        }
+
+        assert!(record_mqtt_total_packets_sent_get() >= wrappers.len() as u64);
+        assert_eq!(record_mqtt_total_packets_connack_get(), connack_before + 1);
+        assert_eq!(record_mqtt_total_packets_auth_sent_get(), auth_before + 1);
+        assert_eq!(
+            MQTT_PACKETS_AUTH_SENT
+                .read()
+                .unwrap()
+                .get(&NetworkQosLabel {
+                    network: "coverage".to_string(),
+                    qos: "-1".to_string(),
+                })
+                .unwrap()
+                .get(),
+            1
+        );
+        assert!(record_mqtt_total_packets_publish_sent_get() >= 1);
+        assert!(record_mqtt_total_packets_puback_sent_get() >= 1);
+        assert!(record_mqtt_total_packets_pubrec_sent_get() >= 1);
+        assert!(record_mqtt_total_packets_pubrel_sent_get() >= 1);
+        assert!(record_mqtt_total_packets_pubcomp_sent_get() >= 1);
+        assert!(record_mqtt_total_packets_suback_get() >= 1);
+        assert!(record_mqtt_total_packets_unsuback_get() >= 1);
+        assert!(record_mqtt_total_packets_pingresp_get() >= 1);
+        assert!(record_mqtt_total_packets_disconnect_sent_get() >= 1);
+    }
+
+    #[test]
+    fn init_preregisters_canonical_network_labels() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        init();
+
+        for network in ALL_NETWORK_TYPES {
+            let label = NetworkLabel {
+                network: network.to_string(),
+            };
+            assert!(MQTT_PACKETS_RECEIVED.read().unwrap().get(&label).is_some());
+        }
+
+        for legacy_label in ["WebSocket", "WebSockets", "QUIC"] {
+            let label = NetworkLabel {
+                network: legacy_label.to_string(),
+            };
+            assert!(MQTT_PACKETS_RECEIVED.read().unwrap().get(&label).is_none());
+        }
+
+        assert!(MQTT_PACKETS_AUTH_SENT
+            .read()
+            .unwrap()
+            .get(&NetworkQosLabel {
+                network: NetworkConnectionType::Tcp.to_string(),
+                qos: "-1".to_string(),
+            })
+            .is_some());
+    }
+
+    #[test]
+    fn records_connect_and_retain_metrics_and_reads_packet_totals() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        let connection = NetworkConnection::new(
+            NetworkConnectionType::Tcp,
+            get_addr_by_local_hostname(1883).parse().unwrap(),
+            None,
+        );
+        let mut connection = connection;
+        connection.set_protocol(protocol::robust::RobustMQProtocol::MQTT5);
+        let connect = MqttPacket::Connect(
+            5,
+            Connect {
+                keep_alive: 60,
+                client_id: "coverage-client".to_string(),
+                clean_session: true,
+            },
+            None,
+            None,
+            None,
+            None,
+        );
+
+        let received_bytes_before = record_mqtt_total_bytes_received_get();
+        let packets_before = record_mqtt_total_packets_received_get();
+        let connect_before = record_mqtt_total_packets_connect_get();
+        record_packet_received_metrics(&connection, &connect, &NetworkConnectionType::Tcp);
+
+        let packet_size = calc_mqtt_packet_size(MqttPacketWrapper {
+            protocol_version: 5,
+            packet: connect,
+        }) as u64;
+        assert!(record_mqtt_total_bytes_received_get() >= received_bytes_before + packet_size);
+        assert_eq!(record_mqtt_total_packets_received_get(), packets_before + 1);
+        assert_eq!(record_mqtt_total_packets_connect_get(), connect_before + 1);
+
+        let sent_bytes_before = record_mqtt_total_bytes_sent_get();
+        let sent_packet = MqttPacketWrapper {
+            protocol_version: 5,
+            packet: MqttPacket::ConnAck(
+                ConnAck {
+                    session_present: false,
+                    code: ConnectReturnCode::Success,
+                },
+                None,
+            ),
+        };
+        let sent_packet_size = calc_mqtt_packet_size(sent_packet.clone()) as u64;
+        record_packet_send_metrics(&sent_packet, NetworkConnectionType::Tcp.to_string());
+        assert!(record_mqtt_total_bytes_sent_get() >= sent_bytes_before + sent_packet_size);
+
+        record_retain_recv_metrics(QoS::AtLeastOnce);
+        record_retain_sent_metrics(QoS::ExactlyOnce);
+        assert_eq!(
+            MQTT_RETAIN_PACKETS_RECEIVED
+                .read()
+                .unwrap()
+                .get(&QosLabel {
+                    qos: "1".to_string()
+                })
+                .unwrap()
+                .get(),
+            1
+        );
+        assert_eq!(
+            MQTT_RETAIN_PACKETS_SENT
+                .read()
+                .unwrap()
+                .get(&QosLabel {
+                    qos: "2".to_string()
+                })
+                .unwrap()
+                .get(),
+            1
+        );
     }
 }

@@ -216,14 +216,23 @@ The project provides `grafana/robustmq-alerts.yml` with the following rules:
 
 | Alert | Severity | Condition | Description |
 |-------|----------|-----------|-------------|
+| RobustMQHighConnectionCount | Warning | Connections > 5000 for 5m | High active connection count |
+| RobustMQHighConnectionFailureRate | Warning | Connection failure ratio > 10% for 2m | Frequent connection failures |
 | RobustMQBrokerDown | Critical | `up == 0` | Broker instance unreachable |
 | RobustMQHighRequestLatency | Warning | P95 latency > 100ms for 10m | Elevated request latency |
 | RobustMQCriticalRequestLatency | Critical | P95 latency > 500ms for 5m | Severe request latency |
-| RobustMQAuthenticationFailures | Critical | Auth failures > 10/s for 2m | Frequent authentication failures |
+| RobustMQHighMqttPacketProcessingLatency | Warning | MQTT packet P95 latency > 100ms for 3m | Elevated MQTT packet processing latency |
+| RobustMQAuthenticationFailures | Critical | CONNACK auth errors > 10/s for 2m | Frequent authentication failures |
+| RobustMQHighMqttAuthenticationFailureRatio | Warning | Auth failure ratio > 20% for 1m | High MQTT authentication failure ratio |
 | RobustMQConnectionErrors | Warning | Connection errors > 5/s for 5m | Frequent connection errors |
+| RobustMQPacketErrors | Warning | Packet errors > 1/s for 5m | Frequent packet errors |
 | RobustMQHighQueueDepth | Warning | Queue depth > 1000 for 5m | Queue backlog |
 | RobustMQCriticalQueueDepth | Critical | Queue depth > 5000 for 2m | Severe queue backlog |
 | RobustMQHighMessageDrops | Warning | Message drops > 100/s for 5m | Frequent no-subscriber drops |
+| RobustMQHighConnectorDiscardRate | Warning | Connector discards > 50/s for 5m | Frequent terminal-strategy discards |
+| RobustMQLowThroughput | Info | Packet rate < 1/s for 15m | Low received packet throughput |
+| RobustMQDelayQueueNearFull | Critical | Delay queue usage > 90% for 2m | Delay queue near capacity |
+| RobustMQTooManyRetainedMessages | Warning | Retained messages > 100,000 for 5m | High retained-message count |
 | RobustMQHighThreadUtilization | Warning | Active threads > 50 for 10m | High thread count |
 
 ### Alertmanager Configuration

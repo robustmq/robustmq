@@ -173,4 +173,29 @@ mod tests {
             1
         );
     }
+
+    #[test]
+    fn records_connection_subscription_and_disconnect_events() {
+        event::init();
+        event::record_mqtt_connection_success();
+        event::record_mqtt_connection_failed();
+        event::record_mqtt_disconnect_success();
+        event::record_mqtt_connection_expired();
+        event::record_mqtt_subscribe_success();
+        event::record_mqtt_unsubscribe_success();
+        event::record_mqtt_subscribe_failed();
+
+        let label = super::EventLabel {};
+        for metric in [
+            &*super::MQTT_CONNECTION_SUCCESS,
+            &*super::MQTT_CONNECTION_FAILED,
+            &*super::MQTT_DISCONNECT_SUCCESS,
+            &*super::MQTT_CONNECTION_EXPIRED,
+            &*super::MQTT_SUBSCRIBE_SUCCESS,
+            &*super::MQTT_UNSUBSCRIBE_SUCCESS,
+            &*super::MQTT_SUBSCRIBE_FAILED,
+        ] {
+            assert!(metric.read().unwrap().get(&label).unwrap().get() >= 1);
+        }
+    }
 }

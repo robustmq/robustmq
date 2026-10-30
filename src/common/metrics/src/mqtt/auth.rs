@@ -85,3 +85,44 @@ pub fn init() {
     counter_metric_touch!(MQTT_ACL_FAILED, AuthLabel {});
     counter_metric_touch!(MQTT_BLACKLIST_BLOCKED, AuthLabel {});
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_auth_acl_and_blacklist_results() {
+        record_mqtt_auth_success();
+        record_mqtt_auth_failed();
+        record_mqtt_acl_success();
+        record_mqtt_acl_failed();
+        record_mqtt_blacklist_blocked();
+
+        let label = AuthLabel {};
+        for metric in [
+            &*MQTT_AUTH_SUCCESS,
+            &*MQTT_AUTH_FAILED,
+            &*MQTT_ACL_SUCCESS,
+            &*MQTT_ACL_FAILED,
+            &*MQTT_BLACKLIST_BLOCKED,
+        ] {
+            assert!(metric.read().unwrap().get(&label).unwrap().get() >= 1);
+        }
+    }
+
+    #[test]
+    fn init_preregisters_empty_auth_counters() {
+        init();
+
+        let label = AuthLabel {};
+        for metric in [
+            &*MQTT_AUTH_SUCCESS,
+            &*MQTT_AUTH_FAILED,
+            &*MQTT_ACL_SUCCESS,
+            &*MQTT_ACL_FAILED,
+            &*MQTT_BLACKLIST_BLOCKED,
+        ] {
+            assert!(metric.read().unwrap().get(&label).is_some());
+        }
+    }
+}

@@ -5,7 +5,7 @@ RobustMQ提供了系统告警功能，用于监控和管理MQTT服务器的运�
 
 当前RobustMQ的功能内容有以下部分：
 
-- 监控系统的CPU和内存使用情况
+- 监控每个节点上 Broker 进程的 CPU 和内存使用情况
 - 获取和查询详细的告警信息
 - 配置告警信息
 
@@ -15,25 +15,64 @@ RobustMQ提供了系统告警功能，用于监控和管理MQTT服务器的运�
 
 | 告警                  | 描述      |
 |---------------------|---------|
-| system_memory_usage | 系统内存使用率 |
-| cpu_high_usage      | CPU高使用率 |
-| cpu_low_usage       | CPU低使用率 |
+| HighMemoryUsage | 当前节点的 Broker 进程内存使用率超过 `os_memory_high_watermark` |
+| HighCpuUsage | 当前节点的 Broker 进程 CPU 使用率超过 `os_cpu_high_watermark` |
 
 ## 获取告警信息
 
-当前RobustMQ支持通过MQTT协议获取系统告警信息。用户可以订阅以下主题来接收告警消息：
-`$SYS/brokers/${node}/alarms/activate`以及`$SYS/brokers/${node}/alarms/deactivate`。
-其中`${node}`是节点的名称, `activate`是激活的告警，`deactivate`是未激活的告警。
-告警消息的格式如下：
+当当前节点的 Broker 进程 CPU 或内存使用率超过配置的高水位线时，RobustMQ
+会向固定主题 `$SYS/brokers/alarms/alert` 发布告警。旧文档中的
+`${node}` 主题路径形式不是当前实现实际发布的形式。告警仍通过统一封装中的
+`node_id` 和 `node_ip` 标识受影响的节点，因此消费者可以确定具体机器。
+主题只报告每次检查中超过配置阈值的结果。每条活动告警的
+`activated` 都是 `true`。当使用率达到或低于阈值时，该次检查不会发布告警；
+不会发布 `activated: false` 的恢复消息，也没有单独的 deactivate 或 clear 主题。
+
+### 当前设计决策
+
+告警激活状态直接根据每次 CPU/内存采样计算：`current_usage > 配置水位`。
+系统不保存内存中的告警状态。只要使用率持续超过阈值，每 60 秒检查就发布一条
+活动告警；达到或低于阈值时，该次检查不发布消息。这样监控逻辑保持无状态，
+Broker 重启后下一次采样即可按正常流程处理。
+
+如果 Broker 无法将活动告警写入内部系统主题，下一次 60 秒检查会自然重试。
+这里确认的是 Broker 内部写入成功，不代表每个 MQTT 客户端都返回了投递确认。
+
+当前每次活动告警仍会持久化一条事件记录，以支持现有的
+`/api/mqtt/system-alarm/list` 接口和 `robust-ctl mqtt system-alarm list` 命令
+查看历史。若后续改为完全不持久化
+告警，就需要同时移除或重新设计现有历史查询接口和 CLI，这是单独的后续决策。
 
 ```json
 {
-  "name": "system_memory_usage",
-  "message": "system_memory_usage is 80%, but config is 70%",
-  "activate_at": 1700000000,
-  "activated": false
+  "node_id": 1,
+  "node_ip": "127.0.0.1",
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
 }
 ```
+
+以上是包含实际字段和值的示例消息。`node_id`、`node_ip`、使用率和时间戳
+会根据产生告警的 Broker 实例而变化。
+
+MQTT 封装消息包含用于标识产生告警机器的字段；持久化后的告警/API 记录也会
+在记录顶层提供相同字段，方便历史排查：
+
+| 字段 | 含义 |
+|------|------|
+| `node_id` | 执行告警检查并发布告警的 RobustMQ 节点 ID |
+| `node_ip` | 该 Broker 节点配置的 `broker_ip`；未配置时使用本机 IP 回退值 |
+| `ts` | 系统主题封装消息的生成时间戳 |
+| `value` | 告警详情，包括告警名称、消息、激活时间和激活状态 |
+
+判断具体哪台机器需要处理时，应使用 `node_id` 作为稳定的节点身份，使用
+`node_ip` 作为网络地址。这些字段由发布告警的 Broker 自动生成，不是由
+MQTT 客户端提供的。
 
 ## 告警项的配置
 
@@ -41,74 +80,31 @@ RobustMQ允许用户配置告警项的阈值和状态。用户可以通过修改
 
 ### 通过配置文件来进行配置
 
-::: tip
-⚠️注意: 当前暂时不支持设置定时检查CPU利用率和内存使用率的功能，默认现在`60S`一次。
-:::
-
-用户可以在RobustMQ的配置文件中设置告警项的阈值和状态。以下是一个示例配置：
+系统监控默认关闭。启用后，告警循环每 60 秒检查一次 CPU 和内存使用率，
+可以使用以下配置：
 
 ```toml
-[system_monitor]
+[mqtt_runtime.system_monitor]
 enable = true
-os_cpu_check_interval_ms = 60000
 os_cpu_high_watermark = 70.0
-os_cpu_low_watermark = 50.0
-os_memory_check_interval_ms = 60
 os_memory_high_watermark = 80.0
 ```
 
 ### 通过`Cli`来进行配置
 
-用户可以使用RobustMQ的命令行接口（CLI）来配置告警项。以下是一些常用的命令示例：
-
-#### 设置当前的配置
+可以使用 CLI 查看已持久化的告警记录：
 
 ```bash
-# 开启系统告警并设置CPU高使用率告警阈值
-./bin/robustmq-cli mqtt set --enable=true --cpu-high-watermark 80.0
-# 设置CPU低使用率告警阈值
-./bin/robustmq-cli mqtt set --cpu-low-watermark 60.0
+robust-ctl mqtt system-alarm list
 ```
 
-最终可能产生类似如下的显示效果
+一条内存告警记录持久化后的示例输出：
 
 ```text
-// 这里只是一个显示效果，实际与命令使用的参数有关
-Set system alarm config successfully! Current Config:
-+-----------------------+-------+
-| Config Options        | Value |
-+=======================+=======+
-| enable                | true  |
-+-----------------------+-------+
-| memory-high-watermark | 80    |
-+-----------------------+-------+
-| cpu-high-watermark    | 81.2  |
-+-----------------------+-------+
-| cpu-low-watermark     | 55    |
-+-----------------------+-------+
-| cpu-check-interval-ms | 60000 |
-+-----------------------+-------+
-
-```
-
-#### 获取当前产生的告警
-
-```bash
-./bin/robustmq-cli mqtt system-alarm list
-```
-
-最终可能产生类似如下的显示效果
-
-```text
-// 这里只是一个显示效果，实际与命令使用的参数有关
 system alarm list result:
-+--------------+------------------------------------------------+-------------+-----------+
-| name         | message                                        | activate_at | activated |
-+==============+================================================+=============+===========+
-| MemoryUsage  | MemoryUsage is 0.6325722%, but config is 80%   | 1749774914  | false     |
-+--------------+------------------------------------------------+-------------+-----------+
-| LowCpuUsage  | LowCpuUsage is 0.39186627%, but config is 50%  | 1749774914  | true      |
-+--------------+------------------------------------------------+-------------+-----------+
-| HighCpuUsage | HighCpuUsage is 0.39186627%, but config is 70% | 1749774914  | false     |
-+--------------+------------------------------------------------+-------------+-----------+
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
+| node_id | node_ip     | name            | message                                        | create_time | activated |
++=========+=============+=================+================================================+=============+===========+
+| 1       | 127.0.0.1   | HighMemoryUsage | HighMemoryUsage is 85.2%, but config is 80%    | 1749774914  | true      |
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
 ```

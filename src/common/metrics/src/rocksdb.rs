@@ -115,3 +115,35 @@ pub fn metrics_rocksdb_list_ms(source: &str, ms: f64) {
     };
     counter_metric_inc!(ROCKSDB_OPERATION_COUNT, count_label);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_each_rocksdb_operation() {
+        let source = "coverage";
+        metrics_rocksdb_save_ms(source, 1.0);
+        metrics_rocksdb_get_ms(source, 2.0);
+        metrics_rocksdb_exist_ms(source, 3.0);
+        metrics_rocksdb_delete_ms(source, 4.0);
+        metrics_rocksdb_delete_range_ms(source, 5.0);
+        metrics_rocksdb_list_ms(source, 6.0);
+
+        for operation in ["save", "get", "exist", "delete", "delete_range", "list"] {
+            let label = RocksdbLabel {
+                source: source.to_string(),
+                operation: operation.to_string(),
+            };
+            assert_eq!(
+                ROCKSDB_OPERATION_COUNT
+                    .read()
+                    .unwrap()
+                    .get(&label)
+                    .unwrap()
+                    .get(),
+                1
+            );
+        }
+    }
+}

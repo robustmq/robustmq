@@ -387,4 +387,51 @@ mod tests {
         record_rpc_failure("offset", "vote");
         record_rpc_duration("mqtt", "install_snapshot", 25.8);
     }
+
+    #[test]
+    fn initializes_configured_shards_and_records_batch_metrics() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        init_raft_shards_metrics(2, 3);
+
+        for machine in ["offset_1", "data_2"] {
+            let label = RaftLabel {
+                machine: machine.to_string(),
+            };
+            assert!(RAFT_APPLY_LAG.read().unwrap().get(&label).is_some());
+            assert!(RAFT_LAST_LOG_INDEX.read().unwrap().get(&label).is_some());
+            assert!(RAFT_LAST_APPLIED.read().unwrap().get(&label).is_some());
+        }
+
+        record_log_append_batch_duration("coverage_raft", 12.0);
+        record_apply_batch_duration("coverage_raft", 13.0);
+        record_raft_apply_lag("coverage_raft", 8, 3);
+
+        let label = RaftLabel {
+            machine: "coverage_raft".to_string(),
+        };
+        assert_eq!(RAFT_APPLY_LAG.read().unwrap().get(&label).unwrap().get(), 5);
+        assert_eq!(
+            RAFT_LAST_LOG_INDEX
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            8
+        );
+        assert_eq!(
+            RAFT_LAST_APPLIED.read().unwrap().get(&label).unwrap().get(),
+            3
+        );
+
+        record_raft_apply_lag("coverage_raft", 3, 8);
+        assert_eq!(RAFT_APPLY_LAG.read().unwrap().get(&label).unwrap().get(), 0);
+
+        let exposition = crate::core::server::dump_metrics();
+        assert!(exposition
+            .contains("raft_log_append_batch_duration_ms_count{machine=\"coverage_raft\"} 1"));
+        assert!(
+            exposition.contains("raft_apply_batch_duration_ms_count{machine=\"coverage_raft\"} 1")
+        );
+    }
 }

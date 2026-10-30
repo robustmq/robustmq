@@ -59,3 +59,31 @@ pub fn record_packet_send_duration(
     };
     histogram_metric_observe!(MQTT_PACKET_SEND_DURATION_MS, duration_ms, label);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_packet_process_and_send_duration_by_label() {
+        record_packet_process_duration(&NetworkConnectionType::Tcp, "publish", 2.5);
+        record_packet_send_duration(NetworkConnectionType::Tcp, "puback".to_string(), 3.5);
+
+        assert!(MQTT_PACKET_PROCESS_DURATION_MS
+            .read()
+            .unwrap()
+            .get(&NetworkLabel {
+                network: "Tcp".to_string(),
+                packet: "publish".to_string(),
+            })
+            .is_some());
+        assert!(MQTT_PACKET_SEND_DURATION_MS
+            .read()
+            .unwrap()
+            .get(&NetworkLabel {
+                network: "Tcp".to_string(),
+                packet: "puback".to_string(),
+            })
+            .is_some());
+    }
+}

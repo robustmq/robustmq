@@ -216,14 +216,23 @@ curl -X POST http://localhost:3000/api/dashboards/db \
 
 | 告警 | 级别 | 条件 | 说明 |
 |------|------|------|------|
+| RobustMQHighConnectionCount | Warning | 连接数 > 5000 持续 5m | 活跃连接数过高 |
+| RobustMQHighConnectionFailureRate | Warning | 连接失败占比 > 10% 持续 2m | 连接失败频繁 |
 | RobustMQBrokerDown | Critical | `up == 0` | Broker 实例不可达 |
 | RobustMQHighRequestLatency | Warning | P95 延迟 > 100ms 持续 10m | 请求处理延迟偏高 |
 | RobustMQCriticalRequestLatency | Critical | P95 延迟 > 500ms 持续 5m | 请求处理延迟严重 |
-| RobustMQAuthenticationFailures | Critical | 认证失败 > 10/s 持续 2m | 认证失败频繁 |
+| RobustMQHighMqttPacketProcessingLatency | Warning | MQTT 数据包 P95 延迟 > 100ms 持续 3m | MQTT 数据包处理延迟偏高 |
+| RobustMQAuthenticationFailures | Critical | CONNACK 认证错误 > 10/s 持续 2m | 认证失败频繁 |
+| RobustMQHighMqttAuthenticationFailureRatio | Warning | 认证失败占比 > 20% 持续 1m | MQTT 认证失败占比过高 |
 | RobustMQConnectionErrors | Warning | 连接错误 > 5/s 持续 5m | 连接错误频繁 |
+| RobustMQPacketErrors | Warning | 数据包错误 > 1/s 持续 5m | 数据包错误频繁 |
 | RobustMQHighQueueDepth | Warning | 队列积压 > 1000 持续 5m | 队列积压 |
 | RobustMQCriticalQueueDepth | Critical | 队列积压 > 5000 持续 2m | 队列严重积压 |
 | RobustMQHighMessageDrops | Warning | 消息丢弃 > 100/s 持续 5m | 无订阅者消息丢弃频繁 |
+| RobustMQHighConnectorDiscardRate | Warning | Connector 丢弃 > 50/s 持续 5m | 终态策略丢弃频繁 |
+| RobustMQLowThroughput | Info | 数据包速率 < 1/s 持续 15m | 接收数据包吞吐量过低 |
+| RobustMQDelayQueueNearFull | Critical | 延迟队列使用率 > 90% 持续 2m | 延迟队列接近满载 |
+| RobustMQTooManyRetainedMessages | Warning | 保留消息 > 100,000 持续 5m | 保留消息数量过高 |
 | RobustMQHighThreadUtilization | Warning | 活跃线程 > 50 持续 10m | 线程数过高 |
 
 ### Alertmanager 配置

@@ -239,8 +239,17 @@ mod tests {
 
     #[test]
     fn test_subscribe_messages_metrics() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         record_subscribe_messages_sent("default", "client001", "sensor/+", true);
-        let _count = get_subscribe_messages_sent("default", "client001", "sensor/+", true);
+        record_subscribe_messages_sent("default", "client001", "sensor/+", false);
+        assert_eq!(
+            get_subscribe_messages_sent("default", "client001", "sensor/+", true),
+            1
+        );
+        assert_eq!(
+            get_subscribe_messages_sent("default", "client001", "sensor/+", false),
+            1
+        );
 
         record_subscribe_topic_messages_sent(
             "default",
@@ -249,19 +258,48 @@ mod tests {
             "sensor/temperature",
             true,
         );
-        let _count = get_subscribe_topic_messages_sent(
+        record_subscribe_topic_messages_sent(
             "default",
             "client001",
             "sensor/+",
             "sensor/temperature",
-            true,
+            false,
+        );
+        assert_eq!(
+            get_subscribe_topic_messages_sent(
+                "default",
+                "client001",
+                "sensor/+",
+                "sensor/temperature",
+                true,
+            ),
+            1
+        );
+        assert_eq!(
+            get_subscribe_topic_messages_sent(
+                "default",
+                "client001",
+                "sensor/+",
+                "sensor/temperature",
+                false,
+            ),
+            1
         );
     }
 
     #[test]
     fn test_subscribe_bytes_metrics() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         record_subscribe_bytes_sent("default", "client001", "sensor/+", 1024, true);
-        let _bytes = get_subscribe_bytes_sent("default", "client001", "sensor/+", true);
+        record_subscribe_bytes_sent("default", "client001", "sensor/+", 512, false);
+        assert_eq!(
+            get_subscribe_bytes_sent("default", "client001", "sensor/+", true),
+            1024
+        );
+        assert_eq!(
+            get_subscribe_bytes_sent("default", "client001", "sensor/+", false),
+            512
+        );
 
         record_subscribe_topic_bytes_sent(
             "default",
@@ -271,12 +309,33 @@ mod tests {
             2048,
             true,
         );
-        let _bytes = get_subscribe_topic_bytes_sent(
+        record_subscribe_topic_bytes_sent(
             "default",
             "client001",
             "sensor/+",
             "sensor/temperature",
-            true,
+            256,
+            false,
+        );
+        assert_eq!(
+            get_subscribe_topic_bytes_sent(
+                "default",
+                "client001",
+                "sensor/+",
+                "sensor/temperature",
+                true,
+            ),
+            2048
+        );
+        assert_eq!(
+            get_subscribe_topic_bytes_sent(
+                "default",
+                "client001",
+                "sensor/+",
+                "sensor/temperature",
+                false,
+            ),
+            256
         );
     }
 

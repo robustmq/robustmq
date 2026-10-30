@@ -58,13 +58,13 @@ RobustMQ exports the following types of metrics:
 mqtt_connections_count
 
 # MQTT packet receive rate
-rate(mqtt_packets_received[5m])
+rate(mqtt_packets_received_total[5m])
 
 # Request processing latency P95
-histogram_quantile(0.95, rate(request_total_ms_bucket[5m]))
+histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))
 
 # Authentication failure rate
-rate(mqtt_auth_failed[5m])
+rate(mqtt_auth_failed_total[5m])
 ```
 
 ## Troubleshooting

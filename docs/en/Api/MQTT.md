@@ -1189,8 +1189,10 @@
 #### 12.1 System Alarm List
 - **Endpoint**: `GET /api/mqtt/system-alarm/list`
 - **Description**: Query system alarm list
+- **State**: `activated` is `true` for each persisted sample that exceeds its configured threshold; samples at or below the threshold are not recorded.
+- **Node identity**: `node_id` and `node_ip` identify the broker that recorded the alarm.
 - **Request Parameters**: Supports common pagination and filtering parameters
-- **Response Data Structure**:
+- **Example response**: One persisted memory-alarm record.
 ```json
 {
   "code": 0,
@@ -1198,12 +1200,15 @@
   "data": {
     "data": [
       {
-        "name": "High Memory Usage",
-        "message": "Memory usage exceeded 80% threshold",
-        "create_time": 1640995200
+        "node_id": 1,
+        "node_ip": "127.0.0.1",
+        "name": "HighMemoryUsage",
+        "message": "HighMemoryUsage is 85.2%, but config is 80%",
+        "create_time": 1749774914,
+        "activated": true
       }
     ],
-    "total_count": 3
+    "total_count": 1
   }
 }
 ```

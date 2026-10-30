@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    gauge_metric_inc, histogram_metric_observe, register_counter_metric,
+    counter_metric_inc, histogram_metric_observe, register_counter_metric,
     register_histogram_metric_ms_with_default_buckets,
 };
 use prometheus_client::encoding::EncodeLabelSet;
@@ -64,7 +64,7 @@ pub fn record_http_request(method: &str, uri: &str, status_code: u16, duration_m
         uri: uri.to_string(),
     };
 
-    gauge_metric_inc!(HTTP_REQUESTS_TOTAL, method_label);
+    counter_metric_inc!(HTTP_REQUESTS_TOTAL, method_label);
     histogram_metric_observe!(HTTP_REQUEST_DURATION_MS, duration_ms, method_label);
 
     if status_code >= 400 {
@@ -73,7 +73,7 @@ pub fn record_http_request(method: &str, uri: &str, status_code: u16, duration_m
             uri: uri.to_string(),
             status_code: status_code.to_string(),
         };
-        gauge_metric_inc!(HTTP_ERRORS_TOTAL, error_label);
+        counter_metric_inc!(HTTP_ERRORS_TOTAL, error_label);
     }
 }
 
@@ -96,5 +96,37 @@ mod tests {
             status_code: "500".to_string(),
         };
         assert_eq!(error_label.status_code, "500");
+    }
+
+    #[test]
+    fn records_success_and_error_http_requests() {
+        record_http_request("GET", "/coverage/success", 200, 1.5);
+        record_http_request("POST", "/coverage/error", 503, 2.5);
+
+        let success = HttpMethodLabel {
+            method: "GET".to_string(),
+            uri: "/coverage/success".to_string(),
+        };
+        assert!(
+            HTTP_REQUESTS_TOTAL
+                .read()
+                .unwrap()
+                .get(&success)
+                .unwrap()
+                .get()
+                >= 1
+        );
+        assert!(HTTP_REQUEST_DURATION_MS
+            .read()
+            .unwrap()
+            .get(&success)
+            .is_some());
+
+        let error = HttpErrorLabel {
+            method: "POST".to_string(),
+            uri: "/coverage/error".to_string(),
+            status_code: "503".to_string(),
+        };
+        assert!(HTTP_ERRORS_TOTAL.read().unwrap().get(&error).unwrap().get() >= 1);
     }
 }

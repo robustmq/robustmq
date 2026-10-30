@@ -74,13 +74,38 @@ pub fn record_send_metrics(
     network_type: Option<NetworkConnectionType>,
     start: u128,
 ) {
-    if let Some(network) = network_type.clone() {
+    if let Some(network) = network_type.as_ref() {
         record_packet_send_duration(
-            network,
+            network.clone(),
             mqtt_packet_to_string(packet),
             (now_millis() - start) as f64,
         );
     }
 
-    record_packet_send_metrics(wrapper, format!("{:?}", network_type));
+    record_packet_send_metrics(wrapper, network_metric_label(network_type.as_ref()));
+}
+
+fn network_metric_label(network_type: Option<&NetworkConnectionType>) -> String {
+    network_type
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "Unknown".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::network_metric_label;
+    use metadata_struct::connection::NetworkConnectionType;
+
+    #[test]
+    fn network_metric_labels_use_canonical_display_values() {
+        assert_eq!(
+            network_metric_label(Some(&NetworkConnectionType::Tcp)),
+            "Tcp"
+        );
+        assert_eq!(
+            network_metric_label(Some(&NetworkConnectionType::WebSocket)),
+            "Websocket"
+        );
+        assert_eq!(network_metric_label(None), "Unknown");
+    }
 }

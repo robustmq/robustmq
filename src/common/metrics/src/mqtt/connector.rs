@@ -76,35 +76,35 @@ register_histogram_metric_ms_with_default_buckets!(
 
 register_counter_metric!(
     MQTT_CONNECTOR_RETRY_TOTAL,
-    "mqtt_connector_retry_total",
+    "mqtt_connector_retry",
     "Total retries executed by connector",
     ConnectorStrategyLabel
 );
 
 register_counter_metric!(
     MQTT_CONNECTOR_MESSAGES_DISCARDED_TOTAL,
-    "mqtt_connector_messages_discarded_total",
+    "mqtt_connector_messages_discarded",
     "Total number of messages discarded by connector terminal strategy",
     ConnectorStrategyLabel
 );
 
 register_counter_metric!(
     MQTT_CONNECTOR_DLQ_MESSAGES_TOTAL,
-    "mqtt_connector_dlq_messages_total",
+    "mqtt_connector_dlq_messages",
     "Total number of messages attempted to write into DLQ by connector",
     ConnectorResultLabel
 );
 
 register_counter_metric!(
     MQTT_CONNECTOR_OFFSET_COMMIT_FAILURE_TOTAL,
-    "mqtt_connector_offset_commit_failure_total",
+    "mqtt_connector_offset_commit_failure",
     "Total number of offset commit failures by connector",
     ConnectorLabel
 );
 
 register_counter_metric!(
     MQTT_CONNECTOR_SOURCE_READ_FAILURE_TOTAL,
-    "mqtt_connector_source_read_failure_total",
+    "mqtt_connector_source_read_failure",
     "Total number of source read failures by connector",
     ConnectorLabel
 );
@@ -324,6 +324,7 @@ mod tests {
 
     #[test]
     fn test_connector_metrics_with_label() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         let tenant = "default";
         let connector_type = "kafka".to_string();
         let connector_name = "test_connector".to_string();
@@ -393,6 +394,7 @@ mod tests {
 
     #[test]
     fn test_connector_metrics_aggregate() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         record_connector_messages_sent_success(
             "default",
             "kafka".to_string(),
@@ -442,6 +444,69 @@ mod tests {
             "s3".to_string(),
             "connector_3".to_string(),
             150.0,
+        );
+    }
+
+    #[test]
+    fn connector_getters_create_zero_series_and_report_labelled_totals() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        let (tenant, connector_type, connector_name) = ("coverage", "test", "getters");
+
+        assert_eq!(
+            get_connector_messages_sent_success(tenant, connector_type, connector_name),
+            0
+        );
+        assert_eq!(
+            get_connector_messages_sent_failure(tenant, connector_type, connector_name),
+            0
+        );
+
+        let success_before = get_connector_messages_sent_success_total();
+        let failure_before = get_connector_messages_sent_failure_total();
+        record_connector_messages_sent_success(
+            tenant,
+            connector_type.to_string(),
+            connector_name.to_string(),
+            4,
+        );
+        record_connector_messages_sent_failure(
+            tenant,
+            connector_type.to_string(),
+            connector_name.to_string(),
+            2,
+        );
+        set_connector_up(
+            tenant,
+            connector_type.to_string(),
+            connector_name.to_string(),
+            false,
+        );
+
+        assert_eq!(
+            get_connector_messages_sent_success(tenant, connector_type, connector_name),
+            4
+        );
+        assert_eq!(
+            get_connector_messages_sent_failure(tenant, connector_type, connector_name),
+            2
+        );
+        assert_eq!(
+            get_connector_messages_sent_success_total(),
+            success_before + 4
+        );
+        assert_eq!(
+            get_connector_messages_sent_failure_total(),
+            failure_before + 2
+        );
+
+        let label = ConnectorLabel {
+            tenant: tenant.to_string(),
+            connector_type: connector_type.to_string(),
+            connector_name: connector_name.to_string(),
+        };
+        assert_eq!(
+            MQTT_CONNECTOR_UP.read().unwrap().get(&label).unwrap().get(),
+            0
         );
     }
 }

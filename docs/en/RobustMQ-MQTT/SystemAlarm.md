@@ -7,7 +7,7 @@ status changes.
 
 The current features of RobustMQ include:
 
-- Monitoring system CPU and memory usage
+- Monitoring the broker process CPU and memory usage on each node
 - Retrieving and querying detailed alarm information
 - Configuring alarm information
 
@@ -18,26 +18,73 @@ potential issues, and ensure the stability and reliability of the system.
 
 | Alarm               | Description              |
 |---------------------|--------------------------|
-| system_memory_usage | System memory usage rate |
-| cpu_high_usage      | High CPU usage rate      |
-| cpu_low_usage       | Low CPU usage rate       |
+| HighMemoryUsage     | This node's broker process memory usage exceeds `os_memory_high_watermark` |
+| HighCpuUsage        | This node's broker process CPU usage exceeds `os_cpu_high_watermark` |
 
 ### Retrieving Alarm Information
 
-RobustMQ currently supports retrieving system alarm information via the MQTT protocol. Users can subscribe to the
-following topics to receive alarm messages:
-`$SYS/brokers/${node}/alarms/activate` and `$SYS/brokers/${node}/alarms/deactivate`.
-Here, `${node}` is the name of the node, `activate` refers to active alarms, and `deactivate` refers to inactive alarms.
-The format of the alarm message is as follows:
+RobustMQ publishes an alarm report to the fixed `$SYS/brokers/alarms/alert` topic
+when that node's broker process CPU or memory usage exceeds its configured
+high-water mark. The older `${node}` topic-path form is not emitted by the
+current implementation. Node attribution is retained in the common envelope,
+so consumers can identify the affected machine from `node_id` and `node_ip`.
+The topic reports the result of each check that exceeds the configured
+threshold. Every active report has `activated: true`. When usage is at or below
+the threshold, no alarm message is published; there is no `activated: false`
+recovery message and no separate deactivate or clear topic.
+
+#### Current Design Decision
+
+Alarm activation is computed directly from each CPU/memory sample as
+`current_usage > configured_watermark`. There is no in-memory alarm state. When
+the value remains above the threshold, an active report is emitted on every
+60-second check; when it is at or below the threshold, that check emits nothing.
+This keeps the monitor stateless and makes a broker restart equivalent to the
+next normal sample.
+
+If the broker cannot write an active report to the internal system topic, the
+same 60-second polling behavior naturally retries it. This confirms the broker's
+internal write, not delivery acknowledgement from each individual MQTT
+subscriber.
+
+Each active report is currently also persisted so the existing
+`/api/mqtt/system-alarm/list` endpoint and `robust-ctl mqtt system-alarm list`
+command can show alarm history. Making alarms fully transient would
+remove or redesign the existing history API and CLI, so that is a separate
+follow-up decision.
 
 ```json
 {
-  "name": "system_memory_usage",
-  "message": "system_memory_usage is 80%, but config is 70%",
-  "activate_at": 1700000000,
-  "activated": false
+  "node_id": 1,
+  "node_ip": "127.0.0.1",
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
 }
 ```
+
+This is a populated sample message. The `node_id`, `node_ip`, usage values, and
+timestamps vary with the broker that generated the alarm.
+
+The MQTT envelope includes the fields identifying the machine that raised the
+alarm. The persisted alarm/API record exposes the same fields at the record's
+top level for historical diagnosis:
+
+| Field | Meaning |
+|-------|---------|
+| `node_id` | RobustMQ broker ID for the node that evaluated and emitted the alarm |
+| `node_ip` | Configured `broker_ip` for that broker node, or the local-IP fallback when `broker_ip` is omitted |
+| `ts` | Timestamp when the system-topic envelope was created |
+| `value` | Alarm details, including the alarm name, message, activation timestamp, and activation state |
+
+Use `node_id` as the stable node identity and `node_ip` as the network address
+when determining which machine requires attention. These fields are generated
+by the broker that publishes the alert; they are not supplied by the MQTT
+client.
 
 ### Alarm Configuration
 
@@ -46,77 +93,31 @@ RobustMQ allows users to configure alarm thresholds and statuses. Users can modi
 
 #### Configuration via Configuration File
 
-::: tip
-⚠️ Note: Currently, the function to set the interval for checking CPU utilization and memory usage is not supported. The
-default interval is now `60 seconds`.
-:::
-
-Users can set the alarm thresholds and statuses in the RobustMQ configuration file. Here is an example configuration:
+The system monitor is disabled by default. When enabled, the alarm loop checks
+CPU and memory usage every 60 seconds. Configure it as follows:
 
 ```toml
-[system_monitor]
+[mqtt_runtime.system_monitor]
 enable = true
-os_cpu_check_interval_ms = 60000
 os_cpu_high_watermark = 70.0
-os_cpu_low_watermark = 50.0
-os_memory_check_interval_ms = 60
 os_memory_high_watermark = 80.0
 ```
 
 #### Configuration via `Cli`
 
-Users can use the command-line interface (CLI) of RobustMQ to configure alarm items. Here are some common command
-examples:
-
-##### Setting Current Configuration
+Users can inspect persisted alarm records with the CLI:
 
 ```bash
-# Enable system alarms and set the CPU high usage alarm threshold
-./bin/robustmq-cli mqtt set --enable=true --cpu-high-watermark 80.0
-# Set the CPU low usage alarm threshold
-./bin/robustmq-cli mqtt set --cpu-low-watermark 60.0
+robust-ctl mqtt system-alarm list
 ```
 
-The final display effect may be similar to the following (actual results may vary depending on the command parameters
-used):
+Example output for one persisted memory-alarm record:
 
 ```text
-// This is just a display example, and the actual result depends on the command parameters used
-Set system alarm config successfully! Current Config:
-+-----------------------+-------+
-| Config Options        | Value |
-+=======================+=======+
-| enable                | true  |
-+-----------------------+-------+
-| memory-high-watermark | 80    |
-+-----------------------+-------+
-| cpu-high-watermark    | 81.2  |
-+-----------------------+-------+
-| cpu-low-watermark     | 55    |
-+-----------------------+-------+
-| cpu-check-interval-ms | 60000 |
-+-----------------------+-------+
-```
-
-##### Retrieving Current Alarms
-
-```bash
-./bin/robustmq-cli mqtt system-alarm list
-```
-
-The final display effect may be similar to the following (actual results may vary depending on the command parameters
-used):
-
-```text
-// This is just a display example, and the actual result depends on the command parameters used
 system alarm list result:
-+--------------+------------------------------------------------+-------------+-----------+
-| name         | message                                        | activate_at | activated |
-+==============+================================================+=============+===========+
-| MemoryUsage  | MemoryUsage is 0.6325722%, but config is 80%   | 1749774914  | false     |
-+--------------+------------------------------------------------+-------------+-----------+
-| LowCpuUsage  | LowCpuUsage is 0.39186627%, but config is 50%  | 1749774914  | true      |
-+--------------+------------------------------------------------+-------------+-----------+
-| HighCpuUsage | HighCpuUsage is 0.39186627%, but config is 70% | 1749774914  | false     |
-+--------------+------------------------------------------------+-------------+-----------+
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
+| node_id | node_ip     | name            | message                                        | create_time | activated |
++=========+=============+=================+================================================+=============+===========+
+| 1       | 127.0.0.1   | HighMemoryUsage | HighMemoryUsage is 85.2%, but config is 80%    | 1749774914  | true      |
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
 ```

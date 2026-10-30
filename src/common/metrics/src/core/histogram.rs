@@ -33,12 +33,13 @@ pub enum BucketType {
     ///
     /// example:
     /// ```
-    /// # use common_base::register_histogram_metric!
+    /// # use common_metrics::core::server::NoLabelSet;
+    /// # use common_metrics::register_histogram_metric;
     /// register_histogram_metric!(
     ///     FOO,
     ///     "foo.metrics",
     ///     "foo metrics help",
-    ///     FooLabel,
+    ///     NoLabelSet,
     ///     [1.0 ,2.0, 3.0]
     /// );
     /// ```
@@ -49,15 +50,16 @@ pub enum BucketType {
     ///
     /// example:
     /// ```
-    /// # use common_base::register_histogram_metric!
+    /// # use common_metrics::core::server::NoLabelSet;
+    /// # use common_metrics::register_histogram_metric;
     /// register_histogram_metric!(
     ///     FOO,
     ///     "foo.metrics",
     ///     "foo metrics help",
-    ///     FooLabel,
+    ///     NoLabelSet,
     ///     1.0,
     ///     2.0,
-    ///     12,
+    ///     12
     /// );
     /// ```
     ExponentialBuckets {
@@ -117,11 +119,13 @@ macro_rules! register_histogram_metric {
 ///
 /// # Example
 /// ```
-/// register_histogram_metric_with_ms_default_buckets!(
+/// # use common_metrics::core::server::NoLabelSet;
+/// # use common_metrics::register_histogram_metric_ms_with_default_buckets;
+/// register_histogram_metric_ms_with_default_buckets!(
 ///     HTTP_REQUEST_DURATION,
 ///     "http_request_duration_ms",
 ///     "Duration of HTTP requests in milliseconds",
-///     HttpLabel
+///     NoLabelSet
 /// );
 /// ```
 #[macro_export]
@@ -183,7 +187,7 @@ macro_rules! histogram_metric_observe {
 }
 
 /// Default bucket configuration for request duration metrics (exponential buckets)
-/// start=1.0, factor=2.0, length=10 generates buckets: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+/// start=1.0, factor=2.0, length=20 generates buckets from 1 through 524288.
 pub const DEFAULT_REQUEST_DURATION_BUCKETS: BucketType = BucketType::ExponentialBuckets {
     start: 1.0,
     factor: 2.0,

@@ -113,6 +113,8 @@ mod tests {
 
         for i in 0..5u64 {
             let event = SystemAlarmEventMessage {
+                node_id: 1,
+                node_ip: "127.0.0.1".to_string(),
                 name: format!("alarm_{}", i),
                 message: format!("message_{}", i),
                 create_time: 1000 + i,
@@ -123,6 +125,8 @@ mod tests {
 
         let list = storage.list_system_event().await.unwrap();
         assert_eq!(list.len(), 5);
+        assert_eq!(list[0].node_id, 1);
+        assert_eq!(list[0].node_ip, "127.0.0.1");
     }
 
     #[tokio::test]

@@ -35,9 +35,12 @@ pub struct SystemAlarmListReq {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SystemAlarmListRow {
+    pub node_id: u64,
+    pub node_ip: String,
     pub name: String,
     pub message: String,
     pub create_time: u64,
+    pub activated: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -112,9 +115,12 @@ pub async fn system_alarm_list(
     let results = data_list
         .iter()
         .map(|entry| SystemAlarmListRow {
+            node_id: entry.node_id,
+            node_ip: entry.node_ip.clone(),
             name: entry.name.clone(),
             message: entry.message.clone(),
             create_time: entry.create_time,
+            activated: entry.activated,
         })
         .collect();
 
@@ -131,6 +137,8 @@ pub async fn system_alarm_list(
 impl Queryable for SystemAlarmListRow {
     fn get_field_str(&self, field: &str) -> Option<String> {
         match field {
+            "node_id" => Some(self.node_id.to_string()),
+            "node_ip" => Some(self.node_ip.clone()),
             "name" => Some(self.name.clone()),
             "message" => Some(self.message.clone()),
             _ => None,

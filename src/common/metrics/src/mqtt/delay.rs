@@ -86,7 +86,7 @@ register_counter_metric!(
 
 register_counter_metric!(
     DELAY_MSG_RETRY_TOTAL,
-    "delay_message_retry_total",
+    "delay_message_retry",
     "Total number of delay message retry attempts, labeled by outcome",
     DelayRetryLabel
 );
@@ -100,14 +100,14 @@ register_counter_metric!(
 
 register_counter_metric!(
     DELAY_MSG_REENQUEUED_TOTAL,
-    "delay_message_reenqueued_total",
+    "delay_message_reenqueued",
     "Total number of delay messages re-enqueued after retry exhaustion",
     DelayLabel
 );
 
 register_counter_metric!(
     DELAY_MSG_DEAD_LETTER_TOTAL,
-    "delay_message_dead_letter_total",
+    "delay_message_dead_letter",
     "Total number of delay messages sent to dead letter queue",
     DelayLabel
 );
@@ -205,4 +205,72 @@ pub fn init() {
     );
     counter_metric_touch!(DELAY_MSG_REENQUEUED_TOTAL, DelayLabel {});
     counter_metric_touch!(DELAY_MSG_DEAD_LETTER_TOTAL, DelayLabel {});
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn records_delay_message_lifecycle_and_retry_outcomes() {
+        record_delay_msg_enqueue();
+        record_delay_msg_deliver();
+        record_delay_msg_deliver_fail();
+        record_delay_msg_recover();
+        record_delay_msg_recover_expired();
+        record_delay_msg_retry(true);
+        record_delay_msg_retry(false);
+        record_delay_msg_retry_count(3);
+        record_delay_msg_reenqueued();
+        record_delay_msg_dead_letter();
+        record_delay_msg_enqueue_duration(12.0);
+        record_delay_msg_deliver_duration(13.0);
+
+        let label = DelayLabel {};
+        for metric in [
+            &*DELAY_MSG_ENQUEUE_TOTAL,
+            &*DELAY_MSG_DELIVER_TOTAL,
+            &*DELAY_MSG_DELIVER_FAIL_TOTAL,
+            &*DELAY_MSG_RECOVER_TOTAL,
+            &*DELAY_MSG_RECOVER_EXPIRED_TOTAL,
+            &*DELAY_MSG_REENQUEUED_TOTAL,
+            &*DELAY_MSG_DEAD_LETTER_TOTAL,
+        ] {
+            assert_eq!(metric.read().unwrap().get(&label).unwrap().get(), 1);
+        }
+
+        assert_eq!(
+            DELAY_MSG_RETRY_TOTAL
+                .read()
+                .unwrap()
+                .get(&DelayRetryLabel {
+                    status: STATUS_SUCCESS.to_string(),
+                })
+                .unwrap()
+                .get(),
+            1
+        );
+        assert_eq!(
+            DELAY_MSG_RETRY_TOTAL
+                .read()
+                .unwrap()
+                .get(&DelayRetryLabel {
+                    status: STATUS_FAILED.to_string(),
+                })
+                .unwrap()
+                .get(),
+            1
+        );
+        assert_eq!(
+            DELAY_MSG_RETRY_COUNT
+                .read()
+                .unwrap()
+                .get(&DelayRetryCountLabel {
+                    attempt: "3".to_string(),
+                })
+                .unwrap()
+                .get(),
+            1
+        );
+    }
 }

@@ -176,14 +176,95 @@ pub fn init() {
 
 #[cfg(test)]
 mod tests {
-    use super::{record_system_cpu_get, record_system_cpu_set};
-    use crate::core::server::dump_metrics;
+    use super::*;
 
     #[test]
     fn system_cpu_percentage_keeps_fractional_precision() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
         record_system_cpu_set(67.42);
 
-        assert!((record_system_cpu_get() - 67.42).abs() < f64::EPSILON);
-        assert!(dump_metrics().contains("system_cpu_usage{} 67.42"));
+        assert!((record_system_cpu_get() - 67.42).abs() < 1e-9);
+        let metrics = crate::core::server::dump_metrics();
+        let sample = metrics
+            .lines()
+            .find(|line| line.starts_with("system_cpu_usage"))
+            .expect("system CPU metric should be encoded");
+        let encoded_value: f64 = sample
+            .split_whitespace()
+            .last()
+            .expect("metric sample should contain a value")
+            .parse()
+            .expect("metric value should be numeric");
+        assert!((encoded_value - 67.42).abs() < 1e-9, "{sample}");
+    }
+
+    #[test]
+    fn records_system_and_runtime_gauges() {
+        let _guard = crate::METRIC_TEST_LOCK.lock().unwrap();
+        init();
+        record_system_process_cpu_set(11.0);
+        record_system_process_memory_set(22.0);
+        record_system_cpu_set(33.0);
+        record_system_memory_set(44.0);
+        record_runtime_busy_ratio_set("coverage", 55);
+        record_runtime_queue_depth_set("coverage", 66);
+        record_runtime_alive_tasks_set("coverage", 77);
+
+        assert_eq!(record_system_process_cpu_get(), 11.0);
+        assert_eq!(record_system_process_memory_get(), 22.0);
+        assert_eq!(record_system_cpu_get(), 33.0);
+        assert_eq!(record_system_memory_get(), 44.0);
+
+        let label = RuntimeLabel {
+            runtime: "coverage".to_string(),
+        };
+        assert_eq!(
+            TOKIO_RUNTIME_BUSY_RATIO
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            55
+        );
+        assert_eq!(
+            TOKIO_RUNTIME_QUEUE_DEPTH
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            66
+        );
+        assert_eq!(
+            TOKIO_RUNTIME_ALIVE_TASKS
+                .read()
+                .unwrap()
+                .get(&label)
+                .unwrap()
+                .get(),
+            77
+        );
+
+        for runtime in ["server", "meta", "broker"] {
+            let label = RuntimeLabel {
+                runtime: runtime.to_string(),
+            };
+            assert!(TOKIO_RUNTIME_BUSY_RATIO
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+            assert!(TOKIO_RUNTIME_QUEUE_DEPTH
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+            assert!(TOKIO_RUNTIME_ALIVE_TASKS
+                .read()
+                .unwrap()
+                .get(&label)
+                .is_some());
+        }
     }
 }

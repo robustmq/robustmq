@@ -1189,8 +1189,10 @@
 #### 12.1 系统告警列表
 - **接口**: `GET /api/mqtt/system-alarm/list`
 - **描述**: 查询系统告警列表
+- **状态**：`activated` 为 `true` 表示本次采样超过配置阈值；达到或低于阈值的采样不会记录。
+- **节点标识**：`node_id` 和 `node_ip` 表示记录该告警的 Broker 节点。
 - **请求参数**: 支持通用分页和过滤参数
-- **响应数据结构**:
+- **示例响应**：包含一条已持久化的内存告警记录。
 ```json
 {
   "code": 0,
@@ -1198,12 +1200,15 @@
   "data": {
     "data": [
       {
-        "name": "High Memory Usage",
-        "message": "Memory usage exceeded 80% threshold",
-        "create_time": 1640995200
+        "node_id": 1,
+        "node_ip": "127.0.0.1",
+        "name": "HighMemoryUsage",
+        "message": "HighMemoryUsage is 85.2%, but config is 80%",
+        "create_time": 1749774914,
+        "activated": true
       }
     ],
-    "total_count": 3
+    "total_count": 1
   }
 }
 ```

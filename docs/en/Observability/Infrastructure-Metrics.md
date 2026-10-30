@@ -14,6 +14,7 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `handler_queue_wait_ms` | Histogram | `network` | Time a request spent waiting in the handler queue (ms) |
 | `handler_apply_ms` | Histogram | `network` | Time spent in command.apply() processing the request (ms) |
 | `handler_write_ms` | Histogram | `network` | Time spent writing the response back to the client (ms) |
+| `write_client_ms` | Histogram | `network` | Time spent writing a response to the client socket (ms) |
 
 ### Queue Metrics
 
@@ -26,8 +27,10 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `handler_requests_total` | Gauge | `network` | Total number of requests processed by handlers |
-| `handler_slow_requests_total` | Gauge | `network` | Total number of slow requests (exceeding threshold) |
+| `handler_requests_total` | Counter | `network` | Total number of requests processed by handlers |
+| `handler_slow_requests_total` | Counter | `network` | Total number of slow requests (exceeding threshold) |
+| `handler_timeout_total` | Counter | `network` | Total number of handler apply timeouts |
+| `write_timeout_total` | Counter | `network` | Total number of response-write timeouts |
 
 ### Thread Metrics
 
@@ -35,12 +38,19 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 |-------------|------|--------|-------------|
 | `broker_active_thread_num` | Gauge | `network`, `thread_type` | Number of active threads by type |
 
+### Per-handler Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `handler_instance_requests_total` | Counter | `handler` | Total requests processed by each handler thread |
+| `handler_instance_apply_ms` | Histogram | `handler` | `command.apply()` latency per handler thread (ms) |
+
 **Label Descriptions:**
 
 | Label | Values | Description |
 |-------|--------|-------------|
-| `network` | `TCP`, `WebSocket`, `QUIC` | Network connection type |
-| `thread_type` | `accept`, `handler`, `response` | Thread type |
+| `network` | `Tcp`, `Tls`, `Websocket`, `Websockets`, `Quic`, `Unknown` | Network connection type; `Unknown` means the connection type was unavailable when recording the metric |
+| `thread_type` | `accept`, `handler` | Thread type |
 | `label` | Custom string | Queue label identifying a specific queue instance |
 
 ## gRPC Server Metrics
@@ -82,9 +92,19 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `rocksdb_operation_count_total` | Counter | `source`, `operation` | Number of RocksDB operations |
 | `rocksdb_operation_ms` | Histogram | `source`, `operation` | RocksDB operation duration (ms) |
 
+### Storage Engine Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `storage_engine_ops_total` | Counter | `operation` | Total storage-engine operations |
+| `storage_engine_ops_fail_total` | Counter | `operation` | Total failed storage-engine operations |
+| `storage_engine_ops_duration_ms` | Histogram | `operation` | Storage-engine operation duration (ms) |
+
+**Storage operation values:** `write`, `read_offset`, `read_key`, `read_tag`, `create_shard`, `delete_shard`, `delete_by_key`, `delete_by_offset`, `get_offset_by_timestamp`, `get_offset_by_group`, `commit_offset`, `delete_records_before`
+
 **Label Descriptions:**
 - `source`: Data source (e.g., metadata, session, message)
-- `operation`: Operation type (save, get, delete, list)
+- `operation`: For RocksDB metrics, one of `save`, `get`, `exist`, `delete`, `delete_range`, `list`; for Storage Engine metrics, use the operation values listed above.
 
 ## Raft Consensus Layer Metrics
 
@@ -96,6 +116,8 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `raft_write_success_total` | Counter | `machine` | Total successful Raft writes |
 | `raft_write_failures_total` | Counter | `machine` | Total failed Raft writes |
 | `raft_write_duration_ms` | Histogram | `machine` | Raft write operation duration (ms) |
+| `raft_apply_batch_duration_ms` | Histogram | `machine` | Duration of a single Raft apply batch (ms) |
+| `raft_log_append_batch_duration_ms` | Histogram | `machine` | Duration of a single Raft log-append batch (ms) |
 
 ### RPC Metrics
 
@@ -238,7 +260,7 @@ Real-time counts of various system resources.
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `client_connections_total` | Counter | `client_id` | Client connection attempts (regardless of success) |
+| `client_connections_total` | Counter | `tenant`, `client_id` | Client connection attempts (regardless of success) |
 | `mqtt_connection_success_total` | Counter | — | Successful MQTT connections |
 | `mqtt_connection_failed_total` | Counter | — | Failed MQTT connections |
 | `mqtt_disconnect_success_total` | Counter | — | MQTT disconnections |
@@ -263,8 +285,8 @@ Real-time counts of various system resources.
 |-------------|------|--------|-------------|
 | `mqtt_session_created_total` | Counter | — | MQTT sessions created |
 | `mqtt_session_deleted_total` | Counter | — | MQTT sessions deleted |
-| `session_messages_in_total` | Counter | `client_id` | Messages received per session |
-| `session_messages_out_total` | Counter | `client_id` | Messages sent per session |
+| `session_messages_in_total` | Counter | `tenant`, `client_id` | Messages received per session |
+| `session_messages_out_total` | Counter | `tenant`, `client_id` | Messages sent per session |
 | `connection_messages_in_total` | Counter | `connection_id` | Messages received per connection |
 | `connection_messages_out_total` | Counter | `connection_id` | Messages sent per connection |
 
@@ -283,19 +305,19 @@ Real-time counts of various system resources.
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `topic_messages_written_total` | Counter | `topic` | Messages written to topic |
-| `topic_bytes_written_total` | Counter | `topic` | Bytes written to topic |
-| `topic_messages_sent_total` | Counter | `topic` | Messages sent from topic |
-| `topic_bytes_sent_total` | Counter | `topic` | Bytes sent from topic |
+| `topic_messages_written_total` | Counter | `tenant`, `topic` | Messages written to topic |
+| `topic_bytes_written_total` | Counter | `tenant`, `topic` | Bytes written to topic |
+| `topic_messages_sent_total` | Counter | `tenant`, `topic` | Messages sent from topic |
+| `topic_bytes_sent_total` | Counter | `tenant`, `topic` | Bytes sent from topic |
 
 ### Per-Subscription Metrics
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `subscribe_messages_sent_total` | Counter | `client_id`, `path`, `status` | Messages sent per subscription path |
-| `subscribe_topic_messages_sent_total` | Counter | `client_id`, `path`, `topic_name`, `status` | Messages sent per subscription path + topic |
-| `subscribe_bytes_sent_total` | Counter | `client_id`, `path`, `status` | Bytes sent per subscription path |
-| `subscribe_topic_bytes_sent_total` | Counter | `client_id`, `path`, `topic_name`, `status` | Bytes sent per subscription path + topic |
+| `subscribe_messages_sent_total` | Counter | `tenant`, `client_id`, `path`, `status` | Messages sent per subscription path |
+| `subscribe_topic_messages_sent_total` | Counter | `tenant`, `client_id`, `path`, `topic_name`, `status` | Messages sent per subscription path + topic |
+| `subscribe_bytes_sent_total` | Counter | `tenant`, `client_id`, `path`, `status` | Bytes sent per subscription path |
+| `subscribe_topic_bytes_sent_total` | Counter | `tenant`, `client_id`, `path`, `topic_name`, `status` | Bytes sent per subscription path + topic |
 
 ### Packet Statistics (Received)
 
@@ -334,9 +356,43 @@ Real-time counts of various system resources.
 | `mqtt_packets_unsuback_sent_total` | Counter | `network`, `qos` | UNSUBACK packets sent |
 | `mqtt_packets_pingresp_sent_total` | Counter | `network`, `qos` | PINGRESP packets sent |
 | `mqtt_packets_disconnect_sent_total` | Counter | `network`, `qos` | DISCONNECT packets sent |
+| `mqtt_packets_auth_sent_total` | Counter | `network`, `qos` | AUTH packets sent; `qos` is `-1` because AUTH is not a PUBLISH packet |
 | `mqtt_bytes_sent_total` | Counter | `network`, `qos` | Total MQTT bytes sent |
 | `mqtt_retain_packets_received_total` | Counter | `qos` | Retained messages received |
 | `mqtt_retain_packets_sent_total` | Counter | `qos` | Retained messages sent |
+
+### Cross-network Packet Totals
+
+These counters aggregate MQTT packet and byte totals across all network types and have no labels.
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `mqtt_total_bytes_received_total` | Counter | — | Total MQTT bytes received across all network types |
+| `mqtt_total_bytes_sent_total` | Counter | — | Total MQTT bytes sent across all network types |
+| `mqtt_total_packets_received_total` | Counter | — | Total MQTT packets received across all network types |
+| `mqtt_total_packets_sent_total` | Counter | — | Total MQTT packets sent across all network types |
+| `mqtt_total_packets_connect_total` | Counter | — | Total MQTT CONNECT packets received |
+| `mqtt_total_packets_connack_total` | Counter | — | Total MQTT CONNACK packets sent |
+| `mqtt_total_packets_publish_received_total` | Counter | — | Total MQTT PUBLISH packets received |
+| `mqtt_total_packets_publish_sent_total` | Counter | — | Total MQTT PUBLISH packets sent |
+| `mqtt_total_packets_puback_received_total` | Counter | — | Total MQTT PUBACK packets received |
+| `mqtt_total_packets_puback_sent_total` | Counter | — | Total MQTT PUBACK packets sent |
+| `mqtt_total_packets_pubrec_received_total` | Counter | — | Total MQTT PUBREC packets received |
+| `mqtt_total_packets_pubrec_sent_total` | Counter | — | Total MQTT PUBREC packets sent |
+| `mqtt_total_packets_pubrel_received_total` | Counter | — | Total MQTT PUBREL packets received |
+| `mqtt_total_packets_pubrel_sent_total` | Counter | — | Total MQTT PUBREL packets sent |
+| `mqtt_total_packets_pubcomp_received_total` | Counter | — | Total MQTT PUBCOMP packets received |
+| `mqtt_total_packets_pubcomp_sent_total` | Counter | — | Total MQTT PUBCOMP packets sent |
+| `mqtt_total_packets_subscribe_total` | Counter | — | Total MQTT SUBSCRIBE packets received |
+| `mqtt_total_packets_suback_total` | Counter | — | Total MQTT SUBACK packets sent |
+| `mqtt_total_packets_unsubscribe_total` | Counter | — | Total MQTT UNSUBSCRIBE packets received |
+| `mqtt_total_packets_unsuback_total` | Counter | — | Total MQTT UNSUBACK packets sent |
+| `mqtt_total_packets_pingreq_total` | Counter | — | Total MQTT PINGREQ packets received |
+| `mqtt_total_packets_pingresp_total` | Counter | — | Total MQTT PINGRESP packets sent |
+| `mqtt_total_packets_disconnect_received_total` | Counter | — | Total MQTT DISCONNECT packets received |
+| `mqtt_total_packets_disconnect_sent_total` | Counter | — | Total MQTT DISCONNECT packets sent |
+| `mqtt_total_packets_auth_total` | Counter | — | Total MQTT AUTH packets received |
+| `mqtt_total_packets_auth_sent_total` | Counter | — | Total MQTT AUTH packets sent |
 
 ### Packet Processing Duration
 
@@ -364,6 +420,10 @@ Real-time counts of various system resources.
 | `delay_msg_deliver_fail_total` | Counter | — | Total delivery failures |
 | `delay_msg_recover_total` | Counter | — | Total messages recovered from storage on startup |
 | `delay_msg_recover_expired_total` | Counter | — | Total expired messages found during recovery |
+| `delay_message_retry_total` | Counter | `status` | Delay-message retry attempts (`success` or `failed`) |
+| `delay_message_retry_count_total` | Counter | `attempt` | Delay-message retry attempts grouped by attempt number |
+| `delay_message_reenqueued_total` | Counter | — | Delay messages re-enqueued after retry exhaustion |
+| `delay_message_dead_letter_total` | Counter | — | Delay messages sent to the dead-letter queue |
 
 ### Latency Distribution
 
@@ -372,28 +432,37 @@ Real-time counts of various system resources.
 | `delay_msg_enqueue_duration_ms` | Histogram | — | Message enqueue duration (ms) |
 | `delay_msg_deliver_duration_ms` | Histogram | — | Message delivery duration (ms) |
 
+### Delay Task Metrics
+
+| Metric Name | Type | Labels | Description |
+|-------------|------|--------|-------------|
+| `delay_task_created_total` | Counter | — | Total delay tasks created |
+| `delay_task_executed_total` | Counter | `task_type` | Total delay tasks executed successfully |
+| `delay_task_execute_failed_total` | Counter | `task_type` | Total delay-task execution failures |
+| `delay_task_schedule_latency_seconds` | Histogram | `task_type` | Difference between actual execution time and target delay (seconds) |
+
 ## Connector Metrics
 
 ### Per-Connector
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `mqtt_connector_messages_sent_success` | Counter | `connector_type`, `connector_name` | Messages successfully sent by connector |
-| `mqtt_connector_messages_sent_failure` | Counter | `connector_type`, `connector_name` | Messages failed to send by connector |
-| `mqtt_connector_send_duration_ms` | Histogram | `connector_type`, `connector_name` | Message send latency distribution by connector (ms) |
-| `mqtt_connector_retry_total` | Counter | `connector_type`, `connector_name`, `strategy` | Total retry attempts by connector |
-| `mqtt_connector_messages_discarded_total` | Counter | `connector_type`, `connector_name`, `strategy` | Messages discarded by connector terminal strategy |
-| `mqtt_connector_dlq_messages_total` | Counter | `connector_type`, `connector_name`, `result` | Messages attempted to write to DLQ by connector (result=success/failure) |
-| `mqtt_connector_offset_commit_failure_total` | Counter | `connector_type`, `connector_name` | Total offset commit failures by connector |
-| `mqtt_connector_source_read_failure_total` | Counter | `connector_type`, `connector_name` | Total source topic read failures by connector |
-| `mqtt_connector_up` | Gauge | `connector_type`, `connector_name` | Connector thread status (1=running, 0=stopped) |
+| `mqtt_connector_messages_sent_success_total` | Counter | `tenant`, `connector_type`, `connector_name` | Messages successfully sent by connector |
+| `mqtt_connector_messages_sent_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Messages failed to send by connector |
+| `mqtt_connector_send_duration_ms` | Histogram | `tenant`, `connector_type`, `connector_name` | Message send latency distribution by connector (ms) |
+| `mqtt_connector_retry_total` | Counter | `tenant`, `connector_type`, `connector_name`, `strategy` | Total retry attempts by connector |
+| `mqtt_connector_messages_discarded_total` | Counter | `tenant`, `connector_type`, `connector_name`, `strategy` | Messages discarded by connector terminal strategy |
+| `mqtt_connector_dlq_messages_total` | Counter | `tenant`, `connector_type`, `connector_name`, `result` | Messages attempted to write to DLQ by connector (result=success/failure) |
+| `mqtt_connector_offset_commit_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Total offset commit failures by connector |
+| `mqtt_connector_source_read_failure_total` | Counter | `tenant`, `connector_type`, `connector_name` | Total source topic read failures by connector |
+| `mqtt_connector_up` | Gauge | `tenant`, `connector_type`, `connector_name` | Connector thread status (1=running, 0=stopped) |
 
 ### Aggregate
 
 | Metric Name | Type | Labels | Description |
 |-------------|------|--------|-------------|
-| `mqtt_connector_messages_sent_success_agg` | Counter | — | Total messages successfully sent by all connectors |
-| `mqtt_connector_messages_sent_failure_agg` | Counter | — | Total messages failed to send by all connectors |
+| `mqtt_connector_messages_sent_success_agg_total` | Counter | — | Total messages successfully sent by all connectors |
+| `mqtt_connector_messages_sent_failure_agg_total` | Counter | — | Total messages failed to send by all connectors |
 | `mqtt_connector_send_duration_ms_agg` | Histogram | — | Aggregate send duration across all connectors (ms) |
 
 ## Usage Examples

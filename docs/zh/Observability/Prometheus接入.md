@@ -58,13 +58,13 @@ RobustMQ 导出以下类型的指标：
 mqtt_connections_count
 
 # MQTT 数据包接收速率
-rate(mqtt_packets_received[5m])
+rate(mqtt_packets_received_total[5m])
 
 # 请求处理延迟 P95
-histogram_quantile(0.95, rate(request_total_ms_bucket[5m]))
+histogram_quantile(0.95, rate(handler_total_ms_bucket[5m]))
 
 # 认证失败率
-rate(mqtt_auth_failed[5m])
+rate(mqtt_auth_failed_total[5m])
 ```
 
 ## 故障排查

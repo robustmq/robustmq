@@ -293,14 +293,14 @@ GET /api/cluster/config/get?broker_id=2
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `enable` | bool | `false` | 是否启用系统监控 |
-| `os_cpu_high_watermark` | f32 | `0.7` | CPU 使用率高水位（0~1） |
-| `os_memory_high_watermark` | f32 | `0.8` | 内存使用率高水位（0~1） |
+| `os_cpu_high_watermark` | f32 | `70.0` | CPU 使用率高水位（百分比，0~100） |
+| `os_memory_high_watermark` | f32 | `80.0` | 内存使用率高水位（百分比，0~100） |
 | `system_topic_interval_ms` | u64 | `60000` | 系统 Topic 上报间隔（ms） |
 
 ```json
 {
   "config_type": "MqttSystemMonitor",
-  "config": "{\"enable\":true,\"os_cpu_high_watermark\":0.7,\"os_memory_high_watermark\":0.8,\"system_topic_interval_ms\":60000}"
+  "config": "{\"enable\":true,\"os_cpu_high_watermark\":70.0,\"os_memory_high_watermark\":80.0,\"system_topic_interval_ms\":60000}"
 }
 ```
 
