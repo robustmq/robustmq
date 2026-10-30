@@ -218,9 +218,9 @@ amq-protocol = "7.2.3"
 cookie-factory = "0.3.3"
 nom = { version = "7.0", features = ["std"] }
 elasticsearch = { version = "8.19.0-alpha.1", default-features = false }
-paho-mqtt = { version = "0.13.3", default-features = false, features = [
-    "bundled",
-] }
+# `bundled` (builds Paho C via cmake) is enabled per-target in member crates so a
+# host can opt into linking a system libpaho with `--cfg robustmq_system_paho`.
+paho-mqtt = { version = "0.13.3", default-features = false }
 clickhouse = "0.14.2"
 scylla = "0.15"
 
