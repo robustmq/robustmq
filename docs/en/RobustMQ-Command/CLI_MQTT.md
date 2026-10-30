@@ -491,12 +491,15 @@ slow subscribe list result:
 robust-ctl mqtt system-alarm list
 ```
 
+Example output after a memory alarm has been persisted:
+
 ```text
 system alarm list result:
-+------+---------+-------------+-----------+
-| node_id | node_ip | name | message | create_time | activated |
-+=========+=========+======+=========+=============+===========+
-+---------+---------+------+---------+-------------+-----------+
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
+| node_id | node_ip     | name            | message                                        | create_time | activated |
++=========+=============+=================+================================================+=============+===========+
+| 1       | 127.0.0.1   | HighMemoryUsage | HighMemoryUsage is 85.2%, but config is 80%    | 1749774914  | true      |
++---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
 ```
 
 ### 3.10 MQTT publish and subscribe

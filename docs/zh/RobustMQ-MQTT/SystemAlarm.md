@@ -47,15 +47,18 @@ Broker 重启后下一次采样即可按正常流程处理。
 {
   "node_id": 1,
   "node_ip": "127.0.0.1",
-  "ts": 1700000000000,
+  "ts": 1749774914000,
   "value": {
     "name": "HighMemoryUsage",
-    "message": "HighMemoryUsage is 85%, but config is 80%",
-    "activate_at": 1700000000,
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
     "activated": true
   }
 }
 ```
+
+以上是包含实际字段和值的示例消息。`node_id`、`node_ip`、使用率和时间戳
+会根据产生告警的 Broker 实例而变化。
 
 MQTT 封装消息包含用于标识产生告警机器的字段；持久化后的告警/API 记录也会
 在记录顶层提供相同字段，方便历史排查：
@@ -95,10 +98,9 @@ os_memory_high_watermark = 80.0
 robust-ctl mqtt system-alarm list
 ```
 
-最终可能产生类似如下的显示效果
+一条内存告警记录持久化后的示例输出：
 
 ```text
-// 这里只是一个显示效果，实际与命令使用的参数有关
 system alarm list result:
 +---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
 | node_id | node_ip     | name            | message                                        | create_time | activated |

@@ -23,13 +23,19 @@ falls back to local-IP detection when it is omitted:
 {
   "node_id": 1,
   "node_ip": "127.0.0.1",
-  "ts": 1700000000000,
-  "value": {}
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
 }
 ```
 
-`value` contains the report-specific object described below. The cluster topic
-`$SYS/brokers` is the exception: its value is the cluster node list.
+The populated payload above is an alarm report example. Other system topics use
+their own report-specific object under `value`; the cluster topic `$SYS/brokers`
+is the exception because its value is the cluster node list.
 
 ## Broker Information
 
@@ -89,6 +95,22 @@ The monitor is stateless and does not publish `activated: false` recovery
 messages. If an internal active-report write fails, the next polling interval
 retries it; subscriber delivery acknowledgements are not tracked. Active events
 are still persisted for the existing alarm-history API and CLI.
+
+Example message received on `$SYS/brokers/alarms/alert`:
+
+```json
+{
+  "node_id": 1,
+  "node_ip": "127.0.0.1",
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
+}
+```
 
 ## Subscription Examples
 

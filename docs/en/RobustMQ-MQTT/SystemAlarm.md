@@ -57,15 +57,18 @@ follow-up decision.
 {
   "node_id": 1,
   "node_ip": "127.0.0.1",
-  "ts": 1700000000000,
+  "ts": 1749774914000,
   "value": {
     "name": "HighMemoryUsage",
-    "message": "HighMemoryUsage is 85%, but config is 80%",
-    "activate_at": 1700000000,
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
     "activated": true
   }
 }
 ```
+
+This is a populated sample message. The `node_id`, `node_ip`, usage values, and
+timestamps vary with the broker that generated the alarm.
 
 The MQTT envelope includes the fields identifying the machine that raised the
 alarm. The persisted alarm/API record exposes the same fields at the record's
@@ -108,11 +111,9 @@ Users can inspect persisted alarm records with the CLI:
 robust-ctl mqtt system-alarm list
 ```
 
-The final display effect may be similar to the following (actual results may vary depending on the command parameters
-used):
+Example output for one persisted memory-alarm record:
 
 ```text
-// This is just a display example, and the actual result depends on the command parameters used
 system alarm list result:
 +---------+-------------+-----------------+------------------------------------------------+-------------+-----------+
 | node_id | node_ip     | name            | message                                        | create_time | activated |

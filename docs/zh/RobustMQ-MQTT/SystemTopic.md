@@ -20,13 +20,18 @@ RobustMQ MQTT Broker 通过 `$SYS/` 主题发布运行状态、聚合统计、�
 {
   "node_id": 1,
   "node_ip": "127.0.0.1",
-  "ts": 1700000000000,
-  "value": {}
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
 }
 ```
 
-`value` 包含下文说明的具体报告对象。`$SYS/brokers` 是例外，其 `value`
-是集群节点列表。
+上面的完整消息是系统告警报告示例。其他系统主题会在 `value` 中放置各自的
+报告对象；`$SYS/brokers` 是例外，其 `value` 是集群节点列表。
 
 ## Broker 基础信息
 
@@ -82,6 +87,22 @@ RobustMQ MQTT Broker 通过 `$SYS/` 主题发布运行状态、聚合统计、�
 监控逻辑是无状态的，不会发布 `activated: false` 恢复消息。如果活动告警的内部
 写入失败，下一次轮询会重试；系统不会跟踪 MQTT 客户端的投递确认。活动告警事件
 仍会为现有告警历史 API 和 CLI 持久化。
+
+在 `$SYS/brokers/alarms/alert` 收到的示例消息：
+
+```json
+{
+  "node_id": 1,
+  "node_ip": "127.0.0.1",
+  "ts": 1749774914000,
+  "value": {
+    "name": "HighMemoryUsage",
+    "message": "HighMemoryUsage is 85.2%, but config is 80%",
+    "activate_at": 1749774914,
+    "activated": true
+  }
+}
+```
 
 ## 订阅示例
 
