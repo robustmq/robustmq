@@ -90,10 +90,6 @@ frequency = 'never'  # Don't generate reports (reduces disk I/O)
 
 # Test execution settings
 [env]
-# Use cmake builder for aws-lc-sys to bypass the cc-based memcmp compiler bug
-# detection which incorrectly fails on Apple Clang 17 when CARGO_ENCODED_RUSTFLAGS
-# contains --cfg flags that clang doesn't understand as C compiler arguments.
-AWS_LC_SYS_CMAKE_BUILDER = "1"
 # Let the Rust test harness choose local CPU parallelism. Override with RUST_TEST_THREADS if needed.
 # Reduce test output verbosity
 RUST_TEST_NOCAPTURE = "0"

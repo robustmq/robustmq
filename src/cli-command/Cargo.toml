@@ -32,8 +32,12 @@ serde.workspace = true
 chrono.workspace = true
 metadata-struct.workspace = true
 
-[target.'cfg(not(windows))'.dependencies]
+[target.'cfg(all(not(windows), not(robustmq_system_paho)))'.dependencies]
+paho-mqtt = { workspace = true, features = ["bundled", "ssl"] }
+
+# Link a system-installed libpaho (no cmake); enable with `--cfg robustmq_system_paho`.
+[target.'cfg(all(not(windows), robustmq_system_paho))'.dependencies]
 paho-mqtt = { workspace = true, features = ["ssl"] }
 
 [target.'cfg(windows)'.dependencies]
-paho-mqtt = { workspace = true }
+paho-mqtt = { workspace = true, features = ["bundled"] }

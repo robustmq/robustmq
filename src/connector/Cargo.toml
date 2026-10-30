@@ -60,11 +60,17 @@ rule-engine.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 rdkafka = { workspace = true }
+
+[target.'cfg(all(not(windows), not(robustmq_system_paho)))'.dependencies]
+paho-mqtt = { workspace = true, features = ["bundled", "ssl"] }
+
+# Link a system-installed libpaho (no cmake); enable with `--cfg robustmq_system_paho`.
+[target.'cfg(all(not(windows), robustmq_system_paho))'.dependencies]
 paho-mqtt = { workspace = true, features = ["ssl"] }
 
 [target.'cfg(windows)'.dependencies]
 rdkafka = { workspace = true, features = ["cmake-build"] }
-paho-mqtt = { workspace = true }
+paho-mqtt = { workspace = true, features = ["bundled"] }
 
 [dev-dependencies]
 tempfile.workspace = true
