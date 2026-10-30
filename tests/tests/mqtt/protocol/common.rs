@@ -236,6 +236,17 @@ where
     let res = cli.subscribe(sub_topic, sub_qos);
     assert!(res.is_ok());
 
+    consume_data_with_timeout(rx, timeout, call_fn)
+}
+
+pub fn consume_data_with_timeout<T>(
+    rx: paho_mqtt::Receiver<Option<Message>>,
+    timeout: Duration,
+    call_fn: T,
+) -> Result<(), String>
+where
+    T: Fn(Message) -> bool,
+{
     let start = Instant::now();
     let poll_interval = Duration::from_secs(1);
     loop {
