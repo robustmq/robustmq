@@ -27,6 +27,14 @@ class SelectCoveragePackagesTest(unittest.TestCase):
     def setUp(self):
         self.packages = [
             (
+                "delay-message",
+                pathlib.Path.cwd() / "src/delay-message",
+            ),
+            (
+                "mqtt-broker",
+                pathlib.Path.cwd() / "src/mqtt-broker",
+            ),
+            (
                 "common-metrics",
                 pathlib.Path.cwd() / "src/common/metrics",
             ),
@@ -84,19 +92,157 @@ class SelectCoveragePackagesTest(unittest.TestCase):
 
     def test_uses_workspace_fallback_for_unmapped_paths(self):
         selected = selector.select_packages(
-            ["Cargo.toml", "src/common/system-info/src/lib.rs"], self.packages
+            ["Cargo.toml", "src/not-a-workspace-package/generated.rs"], self.packages
         )
 
         self.assertIsNone(selected)
 
-    def test_uses_workspace_fallback_for_integration_only_package(self):
+    def test_skips_integration_only_package(self):
         selected = selector.select_packages(["tests/Cargo.toml"], self.packages)
+
+        self.assertEqual(selected, [])
+
+    def test_ignores_integration_only_paths_when_unit_packages_changed(self):
+        selected = selector.select_packages(
+            [
+                "src/delay-message/src/delay.rs",
+                "src/mqtt-broker/src/mqtt/publish.rs",
+                "tests/tests/mqtt/protocol/lastwill_message_test.rs",
+                "tests/tests/mqtt/protocol/common.rs",
+            ],
+            self.packages,
+        )
+
+        self.assertEqual(selected, ["delay-message", "mqtt-broker"])
+
+    def test_skips_integration_only_changes(self):
+        selected = selector.select_packages(
+            [
+                "tests/tests/mqtt/protocol/lastwill_message_test.rs",
+                "tests/tests/mqtt/protocol/common.rs",
+            ],
+            self.packages,
+        )
+
+        self.assertEqual(selected, [])
+
+    def test_skips_when_only_non_code_files_changed(self):
+        selected = selector.select_packages(
+            ["docs/en/Observability/Infrastructure-Metrics.md"], self.packages
+        )
+
+        self.assertEqual(selected, [])
+
+    def test_ignores_coverage_control_files_with_package_changes(self):
+        selected = selector.select_packages(
+            [
+                "scripts/select-coverage-package.py",
+                "src/common/system-info/src/lib.rs",
+            ],
+            self.packages,
+        )
+
+        self.assertEqual(selected, ["system-info"])
+
+    def test_ignores_config_and_script_changes_with_package_changes(self):
+        selected = selector.select_packages(
+            [
+                "scripts/cluster.sh",
+                "config/server.toml.template",
+                "src/common/system-info/src/lib.rs",
+            ],
+            self.packages,
+        )
+
+        self.assertEqual(selected, ["system-info"])
+
+    def test_skips_when_only_config_and_script_files_change(self):
+        selected = selector.select_packages(
+            ["scripts/cluster.sh", "config/server.toml.template"], self.packages
+        )
+
+        self.assertEqual(selected, [])
+
+    def test_current_delay_message_pr_scope(self):
+        changed_paths = [
+            "Cargo.toml",
+            "Cargo.lock",
+            ".github/workflows/security-audit.yml",
+            ".github/workflows/coverage-unit.yml",
+            "config/certs/ca.pem",
+            "config/certs/cert.pem",
+            "config/certs/key.pem",
+            "config/server.toml.template",
+            "docs/en/Configuration/BROKER.md",
+            "docs/en/RobustMQ-MQTT/DelayMessage.md",
+            "docs/zh/Configuration/BROKER.md",
+            "docs/zh/RobustMQ-MQTT/DelayMessage.md",
+            "scripts/cluster.sh",
+            "scripts/ig-test.sh",
+            "scripts/select-coverage-package.py",
+            "scripts/test_select_coverage_package.py",
+            "src/delay-message/src/delay.rs",
+            "src/delay-message/src/manager.rs",
+            "src/delay-message/src/pop.rs",
+            "src/delay-message/src/recover.rs",
+            "src/mqtt-broker/src/core/delay_message.rs",
+            "src/mqtt-broker/src/core/error.rs",
+            "src/mqtt-broker/src/core/offline_message.rs",
+            "src/mqtt-broker/src/mqtt/publish.rs",
+            "tests/tests/mqtt/protocol/common.rs",
+            "tests/tests/mqtt/protocol/lastwill_message_test.rs",
+        ]
+
+        selected = selector.select_packages(changed_paths, self.packages)
+
+        self.assertEqual(selected, ["delay-message", "mqtt-broker"])
+
+    def test_uses_workspace_fallback_for_workspace_manifest_changes(self):
+        for path in (
+            "Cargo.toml",
+            "Cargo.lock",
+            "rust-toolchain.toml",
+            "makefile",
+        ):
+            with self.subTest(path=path):
+                selected = selector.select_packages([path], self.packages)
+                self.assertIsNone(selected)
+
+    def test_package_changes_take_precedence_over_workspace_files(self):
+        selected = selector.select_packages(
+            ["Cargo.toml", "Cargo.lock", "src/common/system-info/src/lib.rs"],
+            self.packages,
+        )
+
+        self.assertEqual(selected, ["system-info"])
+
+    def test_known_package_change_with_unmapped_path_uses_workspace_scope(self):
+        selected = selector.select_packages(
+            [
+                "src/common/system-info/src/lib.rs",
+                "src/generated-workspace-file.rs",
+            ],
+            self.packages,
+        )
 
         self.assertIsNone(selected)
 
-    def test_uses_workspace_fallback_when_only_non_code_files_changed(self):
+    def test_workspace_packages_are_all_mappable(self):
+        package_roots = selector.workspace_packages()
+        self.assertGreater(len(package_roots), 0)
+        for package_name, package_root in package_roots:
+            relative_root = package_root.relative_to(pathlib.Path.cwd())
+            selected = selector.select_packages(
+                [str(relative_root / "src/lib.rs")], package_roots
+            )
+            if package_name in selector.INTEGRATION_ONLY:
+                self.assertEqual(selected, [])
+            else:
+                self.assertEqual(selected, [package_name])
+
+    def test_uses_workspace_fallback_for_unmapped_source_paths(self):
         selected = selector.select_packages(
-            ["docs/en/Observability/Infrastructure-Metrics.md"], self.packages
+            ["src/not-a-workspace-package/generated.rs"], self.packages
         )
 
         self.assertIsNone(selected)

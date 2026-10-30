@@ -116,13 +116,24 @@ jobs:
                   print(path.decode("utf-8"))
           PY
           package="$(python3 scripts/select-coverage-package.py < "$RUNNER_TEMP/coverage-changed-paths.bin")"
-          if [[ -n "$package" ]]; then
-            echo "Automatically selected package scope: $package"
-          else
-            echo "Changed paths are shared, ambiguous, or include integration-only packages; using workspace scope."
-          fi
-          echo "package=$package" >> "$GITHUB_OUTPUT"
-          echo "COVERAGE_PACKAGE=$package" >> "$GITHUB_ENV"
+          case "$package" in
+            workspace)
+              echo "Changed paths are shared or ambiguous; using workspace scope."
+              echo "package=" >> "$GITHUB_OUTPUT"
+              echo "COVERAGE_PACKAGE=" >> "$GITHUB_ENV"
+              ;;
+            skip)
+              echo "Changed paths only affect documentation, coverage controls, or integration-only tests; skipping unit coverage."
+              echo "package=" >> "$GITHUB_OUTPUT"
+              echo "COVERAGE_PACKAGE=" >> "$GITHUB_ENV"
+              echo "COVERAGE_SKIP_UNIT=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Automatically selected package scope: $package"
+              echo "package=$package" >> "$GITHUB_OUTPUT"
+              echo "COVERAGE_PACKAGE=$package" >> "$GITHUB_ENV"
+              ;;
+          esac
 
       - name: Resolve coverage scope
         id: resolve-scope
@@ -205,7 +216,11 @@ jobs:
             "$COVERAGE_ARTIFACT_DIR/diagnostics"
 
           {
-            if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
+            if [[ "${COVERAGE_SKIP_UNIT:-false}" == "true" ]]; then
+              echo "Unit coverage skipped: no unit-testable package changed."
+              echo
+              echo "The changed paths are covered by integration workflows or do not affect Rust package code."
+            elif [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
               echo "make coverage-unit PACKAGE=${COVERAGE_PACKAGE}"
               echo
               echo "Package-scoped coverage selection: ${COVERAGE_PACKAGE}"
@@ -237,6 +252,7 @@ jobs:
       - name: Run local unit coverage runner
         id: coverage
         continue-on-error: true
+        if: env.COVERAGE_SKIP_UNIT != 'true'
         run: |
           if [[ -n "${COVERAGE_PACKAGE:-}" ]]; then
             make coverage-unit PACKAGE="${COVERAGE_PACKAGE}"
@@ -278,6 +294,7 @@ jobs:
 
           {
             echo "coverage runner outcome: ${{ steps.coverage.outcome }}"
+            echo "coverage selection skipped: ${COVERAGE_SKIP_UNIT:-false}"
             echo "Codecov upload outcome: ${{ steps.codecov.outcome || 'not-run' }}"
             echo "coverage output directory: $COVERAGE_OUTPUT_DIR"
             echo "staged report files:"
@@ -306,7 +323,9 @@ jobs:
             echo "- Commit under test: \`$(git rev-parse HEAD)\`"
             echo "- Runner outcome: \`${{ steps.coverage.outcome }}\`"
             echo "- Codecov upload step: \`${{ steps.codecov.outcome || 'not-run' }}\`"
-            if [ -n "${COVERAGE_PACKAGE:-}" ]; then
+            if [ "${COVERAGE_SKIP_UNIT:-false}" = "true" ]; then
+              echo "- Coverage selection: skipped (no unit-testable package changed)"
+            elif [ -n "${COVERAGE_PACKAGE:-}" ]; then
               echo "- Coverage selection: package(s) \`${COVERAGE_PACKAGE}\`"
             else
               echo "- Coverage selection: full workspace"
@@ -361,7 +380,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Fail when coverage runner failed
-        if: always() && steps.coverage.outcome != 'success'
+        if: always() && env.COVERAGE_SKIP_UNIT != 'true' && steps.coverage.outcome != 'success'
         run: |
           echo "The unit coverage runner did not complete successfully."
           exit 1

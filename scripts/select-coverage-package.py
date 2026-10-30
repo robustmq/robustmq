@@ -38,13 +38,15 @@ import sys
 
 
 INTEGRATION_ONLY = {"robustmq-test", "grpc-clients"}
-SELECTION_CONTROL_FILES = {
-    ".github/workflows/coverage-unit.yml",
-    "scripts/coverage-unit.sh",
-    "scripts/select-coverage-package.py",
-    "scripts/test_select_coverage_package.py",
-}
 NON_CODE_PREFIXES = ("docs/", "grafana/")
+IGNORED_PREFIXES = (".github/", "config/", "scripts/")
+WORKSPACE_FILES = {
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "Makefile",
+    "makefile",
+}
 
 
 def workspace_packages() -> list[tuple[str, pathlib.Path]]:
@@ -64,17 +66,18 @@ def workspace_packages() -> list[tuple[str, pathlib.Path]]:
 def select_packages(
     changed_paths: list[str], packages: list[tuple[str, pathlib.Path]]
 ) -> list[str] | None:
-    """Return affected unit-test packages, or None for workspace fallback."""
+    """Return affected unit-test packages, None for workspace, or [] to skip."""
     relevant_paths = [
-        path for path in changed_paths if path not in SELECTION_CONTROL_FILES
-    ]
-    relevant_paths = [
-        path for path in relevant_paths if not path.startswith(NON_CODE_PREFIXES)
+        path
+        for path in changed_paths
+        if not path.startswith(NON_CODE_PREFIXES)
+        and not path.startswith(IGNORED_PREFIXES)
     ]
     if not relevant_paths:
-        return None
+        return []
 
     selected: set[str] = set()
+    has_workspace_file = False
     for changed_path in relevant_paths:
         path = pathlib.Path(changed_path)
         matches = [
@@ -83,10 +86,19 @@ def select_packages(
             if path.is_relative_to(root.relative_to(pathlib.Path.cwd()))
         ]
         if len(matches) != 1:
+            if changed_path in WORKSPACE_FILES:
+                has_workspace_file = True
+                continue
             return None
-        selected.add(matches[0])
+        package = matches[0]
+        if package not in INTEGRATION_ONLY:
+            selected.add(package)
 
-    if selected & INTEGRATION_ONLY:
+    # A package-specific source change is the narrowest useful unit-coverage
+    # scope even when Cargo manifests or the lockfile also changed.
+    if selected:
+        return sorted(selected)
+    if has_workspace_file:
         return None
     return sorted(selected)
 
@@ -99,8 +111,12 @@ def parse_changed_paths(data: bytes) -> list[str]:
 def main() -> int:
     changed_paths = parse_changed_paths(sys.stdin.buffer.read())
     packages = select_packages(changed_paths, workspace_packages())
-    if packages:
+    if packages is None:
+        print("workspace")
+    elif packages:
         print(",".join(packages))
+    else:
+        print("skip")
     return 0
 
 
