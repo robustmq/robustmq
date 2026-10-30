@@ -123,7 +123,7 @@ jobs:
               echo "COVERAGE_PACKAGE=" >> "$GITHUB_ENV"
               ;;
             skip)
-              echo "Changed paths only affect documentation, coverage controls, or integration-only tests; skipping unit coverage."
+              echo "No unit-testable src/ package changed; skipping unit coverage."
               echo "package=" >> "$GITHUB_OUTPUT"
               echo "COVERAGE_PACKAGE=" >> "$GITHUB_ENV"
               echo "COVERAGE_SKIP_UNIT=true" >> "$GITHUB_ENV"

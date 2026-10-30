@@ -38,24 +38,6 @@ import sys
 
 
 INTEGRATION_ONLY = {"robustmq-test", "grpc-clients"}
-NON_CODE_PREFIXES = ("docs/", "grafana/", "config/certs/")
-IGNORED_FILES = {
-    ".github/workflows/coverage-unit.yml",
-    ".github/workflows/security-audit.yml",
-    "config/server.toml.template",
-    "scripts/cluster.sh",
-    "scripts/coverage-unit.sh",
-    "scripts/ig-test.sh",
-    "scripts/select-coverage-package.py",
-    "scripts/test_select_coverage_package.py",
-}
-WORKSPACE_FILES = {
-    "Cargo.toml",
-    "Cargo.lock",
-    "rust-toolchain.toml",
-    "Makefile",
-    "makefile",
-}
 
 
 def workspace_packages() -> list[tuple[str, pathlib.Path]]:
@@ -76,39 +58,36 @@ def select_packages(
     changed_paths: list[str], packages: list[tuple[str, pathlib.Path]]
 ) -> list[str] | None:
     """Return affected unit-test packages, None for workspace, or [] to skip."""
-    relevant_paths = [
-        path
-        for path in changed_paths
-        if not path.startswith(NON_CODE_PREFIXES) and path not in IGNORED_FILES
-    ]
-    if not relevant_paths:
-        return []
-
     selected: set[str] = set()
-    has_workspace_file = False
-    for changed_path in relevant_paths:
+    for changed_path in changed_paths:
         path = pathlib.Path(changed_path)
+        # Workspace tests are selected from Rust crate changes only. Docs,
+        # configs, scripts, workflows, root manifests, and integration tests
+        # live outside src/ and must not expand a run to the whole workspace.
+        if not path.parts or path.parts[0] != "src":
+            continue
+
         matches = [
-            name
+            (name, root)
             for name, root in packages
             if path.is_relative_to(root.relative_to(pathlib.Path.cwd()))
         ]
-        if len(matches) != 1:
-            if changed_path in WORKSPACE_FILES:
-                has_workspace_file = True
-                continue
-            return None
-        package = matches[0]
-        if package not in INTEGRATION_ONLY:
-            selected.add(package)
+        if matches:
+            # Pick the deepest package root in case a workspace has nested crates.
+            package, _ = max(matches, key=lambda match: len(match[1].parts))
+            if package not in INTEGRATION_ONLY:
+                selected.add(package)
+            continue
+
+        # A source path outside every known Cargo package is ambiguous. Keep
+        # the conservative workspace fallback for this exceptional case.
+        return None
 
     # A package-specific source change is the narrowest useful unit-coverage
     # scope even when Cargo manifests or the lockfile also changed.
     if selected:
         return sorted(selected)
-    if has_workspace_file:
-        return None
-    return sorted(selected)
+    return []
 
 
 def parse_changed_paths(data: bytes) -> list[str]:

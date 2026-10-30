@@ -90,9 +90,9 @@ class SelectCoveragePackagesTest(unittest.TestCase):
             ],
         )
 
-    def test_uses_workspace_fallback_for_unmapped_paths(self):
+    def test_unmapped_src_path_uses_workspace_fallback(self):
         selected = selector.select_packages(
-            ["Cargo.toml", "src/not-a-workspace-package/generated.rs"], self.packages
+            ["src/not-a-workspace-package/generated.rs"], self.packages
         )
 
         self.assertIsNone(selected)
@@ -156,15 +156,18 @@ class SelectCoveragePackagesTest(unittest.TestCase):
 
         self.assertEqual(selected, ["system-info"])
 
-    def test_unknown_config_or_script_path_uses_workspace_scope(self):
+    def test_non_src_paths_do_not_expand_coverage_scope(self):
         for path in (
             "config/new-build-config.toml",
             "scripts/new-test-runner.sh",
             ".github/workflows/new-workflow.yml",
+            "Cargo.toml",
+            "Cargo.lock",
+            "rust-toolchain.toml",
         ):
             with self.subTest(path=path):
                 selected = selector.select_packages([path], self.packages)
-                self.assertIsNone(selected)
+                self.assertEqual(selected, [])
 
     def test_skips_when_only_config_and_script_files_change(self):
         selected = selector.select_packages(
@@ -207,17 +210,6 @@ class SelectCoveragePackagesTest(unittest.TestCase):
 
         self.assertEqual(selected, ["delay-message", "mqtt-broker"])
 
-    def test_uses_workspace_fallback_for_workspace_manifest_changes(self):
-        for path in (
-            "Cargo.toml",
-            "Cargo.lock",
-            "rust-toolchain.toml",
-            "makefile",
-        ):
-            with self.subTest(path=path):
-                selected = selector.select_packages([path], self.packages)
-                self.assertIsNone(selected)
-
     def test_package_changes_take_precedence_over_workspace_files(self):
         selected = selector.select_packages(
             ["Cargo.toml", "Cargo.lock", "src/common/system-info/src/lib.rs"],
@@ -249,13 +241,6 @@ class SelectCoveragePackagesTest(unittest.TestCase):
                 self.assertEqual(selected, [])
             else:
                 self.assertEqual(selected, [package_name])
-
-    def test_uses_workspace_fallback_for_unmapped_source_paths(self):
-        selected = selector.select_packages(
-            ["src/not-a-workspace-package/generated.rs"], self.packages
-        )
-
-        self.assertIsNone(selected)
 
 
 if __name__ == "__main__":
