@@ -24,7 +24,17 @@ start() {
     mkdir -p "$LOG_DIR"
 
     echo "Building broker-server..."
-    cargo build --package cmd --bin broker-server --manifest-path "$ROOT_DIR/Cargo.toml"
+    cargo_args=(
+        build
+        --package cmd
+        --bin broker-server
+        --manifest-path "$ROOT_DIR/Cargo.toml"
+    )
+    if [[ -n "${BROKER_FEATURES:-}" ]]; then
+        echo "Enabling broker features: $BROKER_FEATURES"
+        cargo_args+=(--features "$BROKER_FEATURES")
+    fi
+    cargo "${cargo_args[@]}"
 
     for i in 1 2 3; do
         local conf="$ROOT_DIR/config/cluster/server-${i}.toml"
@@ -36,7 +46,17 @@ start() {
         fi
 
         echo "Starting server-${i}..."
-        cargo run --manifest-path "$ROOT_DIR/Cargo.toml" --package cmd --bin broker-server -- --conf "$conf" > "$log" 2>&1 &
+        run_args=(
+            run
+            --manifest-path "$ROOT_DIR/Cargo.toml"
+            --package cmd
+            --bin broker-server
+        )
+        if [[ -n "${BROKER_FEATURES:-}" ]]; then
+            run_args+=(--features "$BROKER_FEATURES")
+        fi
+        run_args+=(-- --conf "$conf")
+        cargo "${run_args[@]}" > "$log" 2>&1 &
         echo "server-${i} started (log: $log)"
     done
 

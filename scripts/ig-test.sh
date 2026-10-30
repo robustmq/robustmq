@@ -89,6 +89,13 @@ trap cleanup EXIT
 
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
+    # Core and MQ9 suites include agent-search integration tests. Build the
+    # broker with the optional search feature only for those suites so the
+    # other protocol jobs retain their smaller default build.
+    if [[ "$SUITE" == "core" || "$SUITE" == "mq9" ]]; then
+        export BROKER_FEATURES="vector-search"
+    fi
+
     echo "Checking if required ports are available..."
     echo "=========================================="
 
