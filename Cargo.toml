@@ -200,7 +200,7 @@ opendal = { version = "0.57", default-features = false, features = [
     "services-s3",
     "executors-tokio",
 ] }
-zstd = { version = "0.13", default-features = false }
+zstd = { version = "0.14.3", default-features = false }
 twox-hash = "2.1.2"
 memmap2 = "0.9.10"
 
