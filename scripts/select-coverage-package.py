@@ -38,13 +38,6 @@ import sys
 
 
 INTEGRATION_ONLY = {"robustmq-test", "grpc-clients"}
-SELECTION_CONTROL_FILES = {
-    ".github/workflows/coverage-unit.yml",
-    "scripts/coverage-unit.sh",
-    "scripts/select-coverage-package.py",
-    "scripts/test_select_coverage_package.py",
-}
-NON_CODE_PREFIXES = ("docs/", "grafana/")
 
 
 def workspace_packages() -> list[tuple[str, pathlib.Path]]:
@@ -64,31 +57,37 @@ def workspace_packages() -> list[tuple[str, pathlib.Path]]:
 def select_packages(
     changed_paths: list[str], packages: list[tuple[str, pathlib.Path]]
 ) -> list[str] | None:
-    """Return affected unit-test packages, or None for workspace fallback."""
-    relevant_paths = [
-        path for path in changed_paths if path not in SELECTION_CONTROL_FILES
-    ]
-    relevant_paths = [
-        path for path in relevant_paths if not path.startswith(NON_CODE_PREFIXES)
-    ]
-    if not relevant_paths:
-        return None
-
+    """Return affected unit-test packages, None for workspace, or [] to skip."""
     selected: set[str] = set()
-    for changed_path in relevant_paths:
+    for changed_path in changed_paths:
         path = pathlib.Path(changed_path)
+        # Workspace tests are selected from Rust crate changes only. Docs,
+        # configs, scripts, workflows, root manifests, and integration tests
+        # live outside src/ and must not expand a run to the whole workspace.
+        if not path.parts or path.parts[0] != "src":
+            continue
+
         matches = [
-            name
+            (name, root)
             for name, root in packages
             if path.is_relative_to(root.relative_to(pathlib.Path.cwd()))
         ]
-        if len(matches) != 1:
-            return None
-        selected.add(matches[0])
+        if matches:
+            # Pick the deepest package root in case a workspace has nested crates.
+            package, _ = max(matches, key=lambda match: len(match[1].parts))
+            if package not in INTEGRATION_ONLY:
+                selected.add(package)
+            continue
 
-    if selected & INTEGRATION_ONLY:
+        # A source path outside every known Cargo package is ambiguous. Keep
+        # the conservative workspace fallback for this exceptional case.
         return None
-    return sorted(selected)
+
+    # A package-specific source change is the narrowest useful unit-coverage
+    # scope even when Cargo manifests or the lockfile also changed.
+    if selected:
+        return sorted(selected)
+    return []
 
 
 def parse_changed_paths(data: bytes) -> list[str]:
@@ -99,8 +98,12 @@ def parse_changed_paths(data: bytes) -> list[str]:
 def main() -> int:
     changed_paths = parse_changed_paths(sys.stdin.buffer.read())
     packages = select_packages(changed_paths, workspace_packages())
-    if packages:
+    if packages is None:
+        print("workspace")
+    elif packages:
         print(",".join(packages))
+    else:
+        print("skip")
     return 0
 
 

@@ -16,8 +16,8 @@
 mod tests {
     use crate::mqtt::protocol::{
         common::{
-            broker_addr_by_type, build_client_id, connect_server, distinct_conn, ssl_by_type,
-            subscribe_data_by_qos, ws_by_type,
+            broker_addr_by_type, build_client_id, connect_server, consume_data_with_timeout,
+            distinct_conn, ssl_by_type, ws_by_type,
         },
         ClientTestProperties,
     };
@@ -62,6 +62,8 @@ mod tests {
             ..Default::default()
         };
         let sub_cli = connect_server(&sub_client_properties);
+        let sub_rx = sub_cli.start_consuming();
+        assert!(sub_cli.subscribe(&will_topic, qos).is_ok());
 
         // create connection and disconnect to trigger will
         let client_properties = ClientTestProperties {
@@ -87,7 +89,7 @@ mod tests {
             bl0 && ct == content_type
         };
 
-        let res = subscribe_data_by_qos(&sub_cli, &will_topic, qos, call_fn);
+        let res = consume_data_with_timeout(sub_rx, Duration::from_secs(60), call_fn);
         assert!(res.is_ok());
         distinct_conn(sub_cli);
     }

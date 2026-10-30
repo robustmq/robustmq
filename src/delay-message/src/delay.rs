@@ -119,4 +119,104 @@ pub(crate) async fn delete_delay_index_info(
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+    use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
+
+    fn delay_info(unique_id: &str) -> DelayMessageIndexInfo {
+        DelayMessageIndexInfo {
+            unique_id: unique_id.to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target".to_string(),
+            offset: 0,
+            target_timestamp: 42,
+            retry_count: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn saves_and_deletes_delay_message_and_index() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        let unique_id = "delay-storage-roundtrip";
+        let _offset = save_delay_message(
+            &storage,
+            unique_id,
+            AdapterWriteRecord::new("source", b"payload".to_vec()),
+            1,
+        )
+        .await
+        .unwrap();
+
+        let info = delay_info(unique_id);
+        save_delay_index_info(&storage, &info, 1).await.unwrap();
+
+        let message = storage
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_MESSAGE_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        assert_eq!(message.get(unique_id.as_bytes()).unwrap().len(), 1);
+        let index = storage
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_INDEX_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        assert_eq!(index.get(unique_id.as_bytes()).unwrap().len(), 1);
+
+        delete_delay_index_info(&storage, &info).await.unwrap();
+        delete_delay_message(&storage, unique_id).await.unwrap();
+        let after_message = storage
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_MESSAGE_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        assert!(after_message
+            .get(unique_id.as_bytes())
+            .is_none_or(Vec::is_empty));
+        let after_index = storage
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_INDEX_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        assert!(after_index
+            .get(unique_id.as_bytes())
+            .is_none_or(Vec::is_empty));
+    }
+
+    #[tokio::test]
+    async fn saving_delay_message_requires_registered_topic() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        let result = save_delay_message(
+            &storage,
+            "missing-topic",
+            AdapterWriteRecord::new("source", b"payload".to_vec()),
+            1,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn saving_delay_index_requires_registered_topic() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        let result = save_delay_index_info(&storage, &delay_info("missing-index-topic"), 1).await;
+        assert!(result.is_err());
+    }
+}

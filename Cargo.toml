@@ -187,7 +187,7 @@ jsonwebtoken = { version = "10.0.0", default-features = false, features = [
 # ====================
 # Database & Storage
 # ====================
-rocksdb = { version = "0.22.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
+rocksdb = { version = "0.24.0", default-features = false, features = ["multi-threaded-cf", "lz4", "zstd"] }
 mysql = { version = "27.0.0", default-features = false }
 redis = { version = "1.2.0", default-features = false, features = ["r2d2", "tokio-comp", "connection-manager"] }
 mongodb = { version = "2.8", default-features = false, features = ["tokio-runtime"] }
@@ -200,7 +200,7 @@ opendal = { version = "0.57", default-features = false, features = [
     "services-s3",
     "executors-tokio",
 ] }
-zstd = { version = "0.13", default-features = false }
+zstd = { version = "0.14.3", default-features = false }
 twox-hash = "2.1.2"
 memmap2 = "0.9.10"
 

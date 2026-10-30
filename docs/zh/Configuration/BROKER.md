@@ -192,7 +192,8 @@ offset_enable_cache = true
 
 ### [delay_task]
 
-延迟消息处理任务队列配置。
+内部延迟任务队列配置。该子系统用于调度 MQTT 会话过期、遗嘱消息处理等
+Broker 内部任务，与 MQTT 延迟消息投递功能相互独立。
 
 ```toml
 [delay_task]
@@ -204,6 +205,22 @@ delay_task_handler_concurrency = 100
 |--------|------|--------|------|
 | `delay_task_queue_num` | `usize` | `100` | 延迟任务队列数量 |
 | `delay_task_handler_concurrency` | `usize` | `100` | 延迟任务处理并发数 |
+
+### [delay_message]
+
+MQTT 和 MQ9 延迟消息投递的重试配置。当消息投递到目标主题失败时，Broker
+会根据以下配置使用指数退避进行重试。使用默认配置时，重试间隔约为 2、4、8 秒。
+
+```toml
+[delay_message]
+max_retries = 3
+initial_retry_delay_sec = 2
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `max_retries` | `u32` | `3` | 初次投递失败后的最大重试次数 |
+| `initial_retry_delay_sec` | `u64` | `2` | 初始重试延迟（秒），后续每次重试间隔翻倍 |
 
 ---
 
@@ -391,10 +408,15 @@ io_thread_num = 8
 expire_scan_task_num = 10
 offset_enable_cache = true
 
-# ========== 延迟任务 ==========
+# ========== 内部延迟任务 ==========
 [delay_task]
 delay_task_queue_num = 100
 delay_task_handler_concurrency = 100
+
+# ========== 延迟消息投递 ==========
+[delay_message]
+max_retries = 3
+initial_retry_delay_sec = 2
 
 # ========== Broker 网络 ==========
 [broker_network]

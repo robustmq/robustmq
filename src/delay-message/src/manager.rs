@@ -314,6 +314,10 @@ impl DelayMessageManager {
 mod test {
     use super::*;
     use common_base::tools::now_second;
+    use common_config::config::DelayMessageConfig;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::tenant::DEFAULT_TENANT;
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
 
     fn create_test_delay_info(unique_id: &str, target_timestamp: u64) -> DelayMessageIndexInfo {
         DelayMessageIndexInfo {
@@ -359,5 +363,98 @@ mod test {
         }
 
         assert_eq!(delay_queue.len(), 5);
+    }
+
+    async fn test_manager() -> Arc<DelayMessageManager> {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        Arc::new(
+            DelayMessageManager::new(
+                Arc::new(ClientPool::new(1)),
+                storage,
+                1,
+                DelayMessageConfig::default(),
+            )
+            .await
+            .unwrap(),
+        )
+    }
+
+    #[tokio::test]
+    async fn test_send_to_delay_queue_requires_shard_channel() {
+        let manager = test_manager().await;
+        let result = manager
+            .send_to_delay_queue(&create_test_delay_info("missing-shard", now_second()))
+            .await;
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("cmd channel not found"));
+    }
+
+    #[tokio::test]
+    async fn test_send_to_delay_queue_reports_dropped_pop_thread() {
+        let manager = test_manager().await;
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.register_shard_cmd_tx(0, tx);
+        tokio::spawn(async move {
+            if let Some(ShardCmd::Insert(_, _, key_tx)) = rx.recv().await {
+                drop(key_tx);
+            }
+        });
+        tokio::task::yield_now().await;
+
+        let result = manager
+            .send_to_delay_queue(&create_test_delay_info("dropped-pop", now_second()))
+            .await;
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("dropped before replying"));
+    }
+
+    #[tokio::test]
+    async fn test_cancel_is_idempotent_for_missing_message() {
+        let manager = test_manager().await;
+        manager.cancel("already-delivered").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_cancel_removes_queue_and_persistent_records() {
+        use crate::pop::spawn_delay_message_pop_threads;
+        use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
+        use common_base::task::TaskSupervisor;
+
+        let manager = test_manager().await;
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_INDEX_TOPIC);
+        let supervisor = Arc::new(TaskSupervisor::new());
+        spawn_delay_message_pop_threads(&manager, &supervisor, 1);
+
+        let unique_id = manager
+            .send(
+                DEFAULT_TENANT,
+                "target",
+                now_second() + 3600,
+                AdapterWriteRecord::new("source", b"payload".to_vec()),
+            )
+            .await
+            .unwrap();
+        assert!(manager.is_message_in_queue(&unique_id));
+
+        manager.cancel(&unique_id).await.unwrap();
+        assert!(!manager.is_message_in_queue(&unique_id));
+        let after_message = manager
+            .storage_driver_manager
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_MESSAGE_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        assert!(after_message
+            .get(unique_id.as_bytes())
+            .is_none_or(Vec::is_empty));
+        manager.stop().await.unwrap();
     }
 }

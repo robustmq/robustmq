@@ -89,6 +89,13 @@ trap cleanup EXIT
 
 # Start broker if needed
 if [ "$START_BROKER" == "true" ]; then
+    # MQ9 owns the optional agent-search integration tests. Keep the core
+    # protocol-agnostic suite on the default broker build so it does not
+    # require downloading a large embedding model.
+    if [[ "$SUITE" == "mq9" ]]; then
+        export BROKER_FEATURES="vector-search"
+    fi
+
     echo "Checking if required ports are available..."
     echo "=========================================="
 
@@ -274,6 +281,7 @@ case "$SUITE" in
           --package grpc-clients \
           --package robustmq-test \
           -E 'package(grpc-clients)
+              and not test(/^meta::agent_test::tests::test_agent_search_vector_and_fts$/)
               or binary_id(robustmq-test::config_test)
               or binary_id(robustmq-test::group_gc)
               or binary_id(robustmq-test::mcp_test)

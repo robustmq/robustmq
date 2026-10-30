@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::manager::DelayMessageManager;
-use crate::pop::delay_message_process;
+use crate::pop::process_expired_delay_message;
 use broker_core::inner_topic::DELAY_QUEUE_INDEX_TOPIC;
 use common_base::tools::now_second;
 use common_base::utils::serialize::{self};
@@ -28,6 +28,12 @@ use tracing::{error, info, warn};
 
 const MAX_READ_RETRY: u32 = 3;
 const PROGRESS_LOG_INTERVAL: u64 = 1000;
+
+enum ReadBatch {
+    Data(Vec<metadata_struct::storage::record::StorageRecord>),
+    Retry,
+    Abort,
+}
 
 pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessageManager>) {
     info!("Starting delay queue recovery from persistent storage");
@@ -51,8 +57,9 @@ pub(crate) async fn recover_delay_queue(delay_message_manager: &Arc<DelayMessage
         )
         .await
         {
-            Some(data) => data,
-            None => return,
+            ReadBatch::Data(data) => data,
+            ReadBatch::Retry => continue,
+            ReadBatch::Abort => return,
         };
 
         if data.is_empty() {
@@ -85,7 +92,7 @@ async fn read_delay_index_batch(
     offsets: &HashMap<String, u64>,
     read_config: &AdapterReadConfig,
     retry_count: &mut u32,
-) -> Option<Vec<metadata_struct::storage::record::StorageRecord>> {
+) -> ReadBatch {
     match delay_message_manager
         .storage_driver_manager
         .read_by_offset(
@@ -98,7 +105,7 @@ async fn read_delay_index_batch(
     {
         Ok(data) => {
             *retry_count = 0;
-            Some(data)
+            ReadBatch::Data(data)
         }
         Err(e) => {
             *retry_count += 1;
@@ -112,11 +119,11 @@ async fn read_delay_index_batch(
                     "Failed to recover delay queue after {} retries, aborting recovery",
                     MAX_READ_RETRY
                 );
-                return None;
+                return ReadBatch::Abort;
             }
 
             tokio::time::sleep(Duration::from_secs(1)).await;
-            None
+            ReadBatch::Retry
         }
     }
 }
@@ -169,17 +176,10 @@ async fn handle_expired_delay_message(
         now - delay_info.target_timestamp
     );
 
-    let manager = delay_message_manager.clone();
-    tokio::spawn(async move {
-        if let Err(e) =
-            delay_message_process(&manager.storage_driver_manager, &delay_info, now_second()).await
-        {
-            error!(
-                "Failed to send expired delay message (offset: {}): {:?}",
-                delay_info.offset, e
-            );
-        }
-    });
+    tokio::spawn(process_expired_delay_message(
+        delay_message_manager.clone(),
+        delay_info,
+    ));
 }
 
 fn update_offsets_from_records(
@@ -192,5 +192,223 @@ fn update_offsets_from_records(
             record.metadata.shard.clone(),
             current_offset.max(record.metadata.offset + 1),
         );
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bytes::Bytes;
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
+    use metadata_struct::storage::record::{StorageRecord, StorageRecordMetadata};
+    use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
+
+    async fn test_manager() -> Arc<DelayMessageManager> {
+        Arc::new(
+            DelayMessageManager::new(
+                Arc::new(ClientPool::new(1)),
+                test_build_storage_driver_manager().await.unwrap(),
+                1,
+                common_config::config::DelayMessageConfig::default(),
+            )
+            .await
+            .unwrap(),
+        )
+    }
+
+    fn record(offset: u64, shard: &str, data: Vec<u8>) -> StorageRecord {
+        StorageRecord {
+            metadata: StorageRecordMetadata {
+                offset,
+                shard: shard.to_string(),
+                ..Default::default()
+            },
+            protocol_data: None,
+            data: Bytes::from(data),
+        }
+    }
+
+    #[test]
+    fn updates_offsets_per_shard_using_highest_next_offset() {
+        let records = vec![
+            record(4, "shard-a", vec![]),
+            record(2, "shard-b", vec![]),
+            record(1, "shard-a", vec![]),
+            record(9, "shard-b", vec![]),
+        ];
+        let mut offsets = HashMap::from([(String::from("shard-a"), 7)]);
+        update_offsets_from_records(&records, &mut offsets);
+        assert_eq!(offsets.get("shard-a"), Some(&7));
+        assert_eq!(offsets.get("shard-b"), Some(&10));
+    }
+
+    #[tokio::test]
+    async fn read_batch_resets_retry_count_on_success() {
+        let manager = test_manager().await;
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_INDEX_TOPIC);
+        let mut retry_count = 2;
+        let result = read_delay_index_batch(
+            &manager,
+            &HashMap::new(),
+            &AdapterReadConfig::default(),
+            &mut retry_count,
+        )
+        .await;
+        assert!(matches!(result, ReadBatch::Data(_)));
+        assert_eq!(retry_count, 0);
+    }
+
+    #[tokio::test]
+    async fn read_batch_aborts_after_max_retries() {
+        let manager = test_manager().await;
+        let mut retry_count = MAX_READ_RETRY - 1;
+        let result = read_delay_index_batch(
+            &manager,
+            &HashMap::new(),
+            &AdapterReadConfig::default(),
+            &mut retry_count,
+        )
+        .await;
+        assert!(matches!(result, ReadBatch::Abort));
+        assert_eq!(retry_count, MAX_READ_RETRY);
+    }
+
+    #[tokio::test]
+    async fn read_batch_returns_retry_before_abort() {
+        let manager = test_manager().await;
+        let mut retry_count = 0;
+        let result = read_delay_index_batch(
+            &manager,
+            &HashMap::new(),
+            &AdapterReadConfig::default(),
+            &mut retry_count,
+        )
+        .await;
+
+        assert!(matches!(result, ReadBatch::Retry));
+        assert_eq!(retry_count, 1);
+    }
+
+    #[tokio::test]
+    async fn invalid_index_record_is_ignored() {
+        let manager = test_manager().await;
+        let mut total = 0;
+        assert!(
+            !process_delay_index_record(&manager, &record(3, "shard", vec![1, 2, 3]), &mut total)
+                .await
+        );
+        assert_eq!(total, 0);
+    }
+
+    #[tokio::test]
+    async fn future_index_record_requires_registered_pop_channel() {
+        let manager = test_manager().await;
+        let info = DelayMessageIndexInfo {
+            unique_id: "future-recovery".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target".to_string(),
+            offset: 3,
+            target_timestamp: now_second() + 3600,
+            retry_count: 0,
+        };
+        let data = common_base::utils::serialize::serialize(&info).unwrap();
+        let mut total = 0;
+        assert!(!process_delay_index_record(&manager, &record(3, "shard", data), &mut total).await);
+        assert_eq!(total, 0);
+    }
+
+    #[tokio::test]
+    async fn recovery_with_empty_index_topic_completes() {
+        let manager = test_manager().await;
+        test_add_topic(&manager.storage_driver_manager, DELAY_QUEUE_INDEX_TOPIC);
+        recover_delay_queue(&manager).await;
+    }
+
+    #[tokio::test]
+    async fn expired_message_recovery_requeues_failed_delivery_for_retry() {
+        use crate::delay::{save_delay_index_info, save_delay_message};
+        use crate::pop::spawn_delay_message_pop_threads;
+        use broker_core::inner_topic::DELAY_QUEUE_MESSAGE_TOPIC;
+        use common_base::task::TaskSupervisor;
+        use common_config::config::DelayMessageConfig;
+
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+
+        let manager = Arc::new(
+            DelayMessageManager::new(
+                Arc::new(ClientPool::new(1)),
+                storage.clone(),
+                1,
+                DelayMessageConfig {
+                    max_retries: 2,
+                    initial_retry_delay_sec: 60,
+                },
+            )
+            .await
+            .unwrap(),
+        );
+        let supervisor = Arc::new(TaskSupervisor::new());
+        spawn_delay_message_pop_threads(&manager, &supervisor, 1);
+
+        let unique_id = "expired-recovery-retry";
+        let offset = save_delay_message(
+            &storage,
+            unique_id,
+            AdapterWriteRecord::new(DELAY_QUEUE_MESSAGE_TOPIC, b"payload".to_vec()),
+            1,
+        )
+        .await
+        .unwrap();
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: unique_id.to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "missing-target".to_string(),
+            offset,
+            target_timestamp: now_second().saturating_sub(1),
+            retry_count: 0,
+        };
+        save_delay_index_info(&storage, &delay_info, 1)
+            .await
+            .unwrap();
+
+        let index_record = record(
+            0,
+            DELAY_QUEUE_INDEX_TOPIC,
+            serialize::serialize(&delay_info).unwrap(),
+        );
+        let mut recovered = 0;
+        assert!(!process_delay_index_record(&manager, &index_record, &mut recovered).await);
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !manager.is_message_in_queue(unique_id) {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("failed recovery delivery should be re-enqueued for retry");
+
+        let persisted_index = storage
+            .read_by_keys(
+                DEFAULT_TENANT,
+                DELAY_QUEUE_INDEX_TOPIC,
+                &[unique_id.as_bytes()],
+            )
+            .await
+            .unwrap();
+        let persisted_info: DelayMessageIndexInfo = serialize::deserialize(
+            &persisted_index
+                .get(unique_id.as_bytes())
+                .expect("retry index should remain persisted")
+                .first()
+                .expect("retry index should contain a record")
+                .data,
+        )
+        .unwrap();
+        assert_eq!(persisted_info.retry_count, 1);
+
+        manager.stop().await.unwrap();
     }
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::delay::{delete_delay_index_info, delete_delay_message};
+use crate::delay::{delete_delay_index_info, delete_delay_message, save_delay_index_info};
 use crate::manager::{DelayMessageManager, ShardCmd, DELAY_MESSAGE_SAVE_MS};
 use broker_core::inner_topic::DELAY_QUEUE_MESSAGE_TOPIC;
 use common_base::error::common::CommonError;
@@ -115,49 +115,56 @@ async fn run_shard_loop(
             Some(expired) = delay_queue.next() => {
                 let delay_message = expired.into_inner();
                 manager.remove_message_key(&delay_message.unique_id);
-                let storage = manager.storage_driver_manager.clone();
-                let retry_manager = manager.clone();
-                tokio::spawn(async move {
-                    let config = &retry_manager.delay_message_config;
-                    if let Err(e) = delay_message_process(
-                        &storage,
-                        &delay_message,
-                        now_second(),
-                    )
-                    .await
-                    {
-                        if delay_message.retry_count < config.max_retries {
-                            let mut retry = delay_message;
-                            retry.retry_count += 1;
-                            let backoff_secs = config.initial_retry_delay_sec
-                                * 2_u64.pow(retry.retry_count.saturating_sub(1));
-                            record_delay_msg_retry(false);
-                            record_delay_msg_retry_count(retry.retry_count);
-                            warn!(
-                                "Delay message delivery failed (attempt {}/{}), retrying in {}s: unique_id={}, target={}, error={}",
-                                retry.retry_count, config.max_retries, backoff_secs,
-                                retry.unique_id, retry.target_topic_name, e
-                            );
-                            retry_manager
-                                .reenqueue_for_retry(retry, Duration::from_secs(backoff_secs))
-                                .await;
-                        } else {
-                            record_delay_msg_retry(false);
-                            record_delay_msg_retry_count(delay_message.retry_count);
-                            error!(
-                                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
-                                delay_message.retry_count, delay_message.unique_id,
-                                delay_message.target_topic_name, e
-                            );
-                            let _ = delete_delay_index_info(&storage, &delay_message).await;
-                            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
-                        }
-                    } else if delay_message.retry_count > 0 {
-                        record_delay_msg_retry(true);
-                    }
-                });
+                tokio::spawn(process_expired_delay_message(manager.clone(), delay_message));
             }
         }
+    }
+}
+
+/// Delivers an expired message and applies the configured retry policy on failure.
+/// This is shared by normal queue expiry and startup recovery of already-expired records.
+pub(crate) async fn process_expired_delay_message(
+    manager: Arc<DelayMessageManager>,
+    delay_message: DelayMessageIndexInfo,
+) {
+    let storage = manager.storage_driver_manager.clone();
+    let config = &manager.delay_message_config;
+    if let Err(e) = delay_message_process(&storage, &delay_message, now_second()).await {
+        if delay_message.retry_count < config.max_retries {
+            let mut retry = delay_message;
+            retry.retry_count += 1;
+            let backoff_secs =
+                config.initial_retry_delay_sec * 2_u64.pow(retry.retry_count.saturating_sub(1));
+            record_delay_msg_retry(false);
+            record_delay_msg_retry_count(retry.retry_count);
+            warn!(
+                "Delay message delivery failed (attempt {}/{}), retrying in {}s: unique_id={}, target={}, error={}",
+                retry.retry_count, config.max_retries, backoff_secs,
+                retry.unique_id, retry.target_topic_name, e
+            );
+            if let Err(persist_error) = save_delay_index_info(&storage, &retry, 1).await {
+                error!(
+                    "Failed to persist delay message retry count; retry not scheduled: unique_id={}, retry_count={}, error={}",
+                    retry.unique_id, retry.retry_count, persist_error
+                );
+                return;
+            }
+            manager
+                .reenqueue_for_retry(retry, Duration::from_secs(backoff_secs))
+                .await;
+        } else {
+            record_delay_msg_retry(false);
+            record_delay_msg_retry_count(delay_message.retry_count);
+            error!(
+                "Delay message delivery failed after {} attempts, dropping: unique_id={}, target={}, error={}",
+                delay_message.retry_count, delay_message.unique_id,
+                delay_message.target_topic_name, e
+            );
+            let _ = delete_delay_index_info(&storage, &delay_message).await;
+            let _ = delete_delay_message(&storage, &delay_message.unique_id).await;
+        }
+    } else if delay_message.retry_count > 0 {
+        record_delay_msg_retry(true);
     }
 }
 
@@ -313,12 +320,16 @@ fn build_new_record(
 mod test {
     use super::*;
     use broker_core::inner_topic::{DELAY_QUEUE_INDEX_TOPIC, DELAY_QUEUE_MESSAGE_TOPIC};
+    use bytes::Bytes;
     use common_config::config::DelayMessageConfig;
     use common_config::default::{
         default_delay_message_initial_retry_delay_sec, default_delay_message_max_retries,
     };
     use metadata_struct::adapter::adapter_record::AdapterWriteRecord;
     use metadata_struct::delay_info::DelayMessageIndexInfo;
+    use metadata_struct::storage::record::{
+        StorageHeader, StorageRecordMetadata, StorageRecordProtocolData,
+    };
     use metadata_struct::tenant::DEFAULT_TENANT;
     use std::time::Duration;
     use storage_adapter::storage::{test_add_topic, test_build_storage_driver_manager};
@@ -350,6 +361,65 @@ mod test {
             };
             assert_eq!(backoff, expected);
         }
+    }
+
+    #[test]
+    fn test_build_new_record_preserves_metadata_and_adds_trigger_header() {
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "metadata-test".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target-topic".to_string(),
+            offset: 7,
+            target_timestamp: 8,
+            retry_count: 0,
+        };
+        let record = StorageRecord {
+            metadata: StorageRecordMetadata {
+                header: Some(vec![StorageHeader {
+                    name: "source".to_string(),
+                    value: "mqtt".to_string(),
+                }]),
+                key: Some(Bytes::from_static(b"message-key")),
+                tags: Some(vec!["tag-a".to_string(), "tag-b".to_string()]),
+                ..Default::default()
+            },
+            protocol_data: Some(StorageRecordProtocolData::default()),
+            data: Bytes::from_static(b"payload"),
+        };
+
+        let result = build_new_record(&delay_info, &record, 1234);
+        assert_eq!(result.topic, "target-topic");
+        assert_eq!(result.data, Bytes::from_static(b"payload"));
+        assert_eq!(result.key(), Some(b"message-key".as_ref()));
+        assert_eq!(result.tags(), &["tag-a", "tag-b"]);
+        assert_eq!(result.header().len(), 2);
+        assert_eq!(result.header()[0].name, "source");
+        assert_eq!(result.header()[1].name, DELAY_MESSAGE_SAVE_MS);
+        assert_eq!(result.header()[1].value, "1234");
+        assert!(result.protocol_data.is_some());
+    }
+
+    #[test]
+    fn test_build_new_record_adds_trigger_header_without_optional_metadata() {
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "metadata-empty".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target-topic".to_string(),
+            offset: 0,
+            target_timestamp: 0,
+            retry_count: 0,
+        };
+        let record = StorageRecord {
+            metadata: StorageRecordMetadata::default(),
+            protocol_data: None,
+            data: Bytes::from_static(b"payload"),
+        };
+
+        let result = build_new_record(&delay_info, &record, 9);
+        assert_eq!(result.header().len(), 1);
+        assert_eq!(result.header()[0].name, DELAY_MESSAGE_SAVE_MS);
+        assert!(result.key.is_none());
+        assert!(result.tags.is_none());
     }
 
     #[tokio::test]
@@ -391,6 +461,24 @@ mod test {
         let result = delay_message_process(&storage, &delay_info, now_second()).await;
 
         assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_delay_message_process_returns_err_when_payload_is_missing() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        test_add_topic(&storage, DELAY_QUEUE_MESSAGE_TOPIC);
+        test_add_topic(&storage, DELAY_QUEUE_INDEX_TOPIC);
+        let delay_info = DelayMessageIndexInfo {
+            unique_id: "missing-payload".to_string(),
+            tenant: DEFAULT_TENANT.to_string(),
+            target_topic_name: "target".to_string(),
+            offset: 19,
+            target_timestamp: now_second(),
+            retry_count: 0,
+        };
+
+        let result = delay_message_process(&storage, &delay_info, now_second()).await;
         assert!(result.unwrap_err().to_string().contains("not found"));
     }
 

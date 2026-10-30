@@ -65,6 +65,30 @@ pub struct SaveMessageContext {
 }
 
 pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>, MqttBrokerError> {
+    // A delayed publish must not be reported as accepted when policy prevents queuing it.
+    let offline_message_disabled = !context
+        .cache_manager
+        .node_cache
+        .get_cluster_config()
+        .mqtt_runtime
+        .offline_message
+        .enable;
+    let not_exist_subscribe = !is_exist_subscribe(
+        &context.subscribe_manager,
+        &context.topic.tenant,
+        &context.topic.topic_name,
+    );
+    if should_reject_delayed_publish(
+        offline_message_disabled,
+        not_exist_subscribe,
+        context.delay_info.is_some(),
+    ) {
+        record_messages_dropped_no_subscribers_incr();
+        return Err(MqttBrokerError::DelayedMessageRejectedNoSubscribers(
+            context.topic.topic_name.clone(),
+        ));
+    }
+
     // Whether or not offline messages are enabled
     // persistent storage must be used to retain the messages.
     save_retain_message(
@@ -78,19 +102,6 @@ pub async fn save_message(context: SaveMessageContext) -> Result<Option<String>,
     .await?;
 
     // offline message
-    let offline_message_disabled = !context
-        .cache_manager
-        .node_cache
-        .get_cluster_config()
-        .mqtt_runtime
-        .offline_message
-        .enable;
-
-    let not_exist_subscribe = !is_exist_subscribe(
-        &context.subscribe_manager,
-        &context.topic.tenant,
-        &context.topic.topic_name,
-    );
     if offline_message_disabled && not_exist_subscribe {
         record_messages_dropped_no_subscribers_incr();
         return Ok(None);
@@ -164,6 +175,14 @@ async fn save_simple_message(
     Ok(Some(format!("{offsets:?}")))
 }
 
+fn should_reject_delayed_publish(
+    offline_message_disabled: bool,
+    not_exist_subscribe: bool,
+    is_delayed_publish: bool,
+) -> bool {
+    offline_message_disabled && not_exist_subscribe && is_delayed_publish
+}
+
 pub async fn build_mqtt_protocol_data(
     client_id: &str,
     publish: &Publish,
@@ -185,5 +204,18 @@ pub async fn build_mqtt_protocol_data(
             retain: publish.retain,
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_reject_delayed_publish;
+
+    #[test]
+    fn reject_delayed_publish_only_when_offline_storage_is_disabled_and_no_subscribers_exist() {
+        assert!(should_reject_delayed_publish(true, true, true));
+        assert!(!should_reject_delayed_publish(false, true, true));
+        assert!(!should_reject_delayed_publish(true, false, true));
+        assert!(!should_reject_delayed_publish(true, true, false));
     }
 }

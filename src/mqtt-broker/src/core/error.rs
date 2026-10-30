@@ -168,6 +168,11 @@ pub enum MqttBrokerError {
     #[error("Empty topic name in delay message")]
     EmptyDelayTopicName,
 
+    #[error(
+        "Delayed message for topic {0} was rejected because offline message storage is disabled and no subscribers are available"
+    )]
+    DelayedMessageRejectedNoSubscribers(String),
+
     #[error("Invalid schema type {0}")]
     InvalidSchemaType(String),
 
