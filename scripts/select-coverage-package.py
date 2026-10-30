@@ -38,8 +38,17 @@ import sys
 
 
 INTEGRATION_ONLY = {"robustmq-test", "grpc-clients"}
-NON_CODE_PREFIXES = ("docs/", "grafana/")
-IGNORED_PREFIXES = (".github/", "config/", "scripts/")
+NON_CODE_PREFIXES = ("docs/", "grafana/", "config/certs/")
+IGNORED_FILES = {
+    ".github/workflows/coverage-unit.yml",
+    ".github/workflows/security-audit.yml",
+    "config/server.toml.template",
+    "scripts/cluster.sh",
+    "scripts/coverage-unit.sh",
+    "scripts/ig-test.sh",
+    "scripts/select-coverage-package.py",
+    "scripts/test_select_coverage_package.py",
+}
 WORKSPACE_FILES = {
     "Cargo.toml",
     "Cargo.lock",
@@ -70,8 +79,7 @@ def select_packages(
     relevant_paths = [
         path
         for path in changed_paths
-        if not path.startswith(NON_CODE_PREFIXES)
-        and not path.startswith(IGNORED_PREFIXES)
+        if not path.startswith(NON_CODE_PREFIXES) and path not in IGNORED_FILES
     ]
     if not relevant_paths:
         return []

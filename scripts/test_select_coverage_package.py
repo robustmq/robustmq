@@ -156,6 +156,16 @@ class SelectCoveragePackagesTest(unittest.TestCase):
 
         self.assertEqual(selected, ["system-info"])
 
+    def test_unknown_config_or_script_path_uses_workspace_scope(self):
+        for path in (
+            "config/new-build-config.toml",
+            "scripts/new-test-runner.sh",
+            ".github/workflows/new-workflow.yml",
+        ):
+            with self.subTest(path=path):
+                selected = selector.select_packages([path], self.packages)
+                self.assertIsNone(selected)
+
     def test_skips_when_only_config_and_script_files_change(self):
         selected = selector.select_packages(
             ["scripts/cluster.sh", "config/server.toml.template"], self.packages
