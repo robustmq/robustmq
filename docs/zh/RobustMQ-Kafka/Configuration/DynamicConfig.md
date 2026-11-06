@@ -1,12 +1,13 @@
 # 动态配置机制
 
-除了 topic 级配置([Topic 配置](./TopicConfig.md)),RobustMQ 还有一类 **集群动态配置**:作用于整个集群、持久化在 meta 层、可在线热改、跨重启保留。它不写在 `config/server.toml` 里(那是[静态配置](./BrokerConfig.md))。
+除了 topic 级配置([Topic 配置](./TopicConfig.md)),RobustMQ 还有一类**集群动态配置**,通过 admin HTTP API 设置并存储在 Meta Service 中。配置的运行时生效方式和 Broker 重启后的恢复行为取决于 `config_type`;仅仅持久化到 Meta,并不意味着每个值都会被每个 Broker 运行时组件重新加载。它不写在 `config/server.toml` 里(那是[静态配置](./BrokerConfig.md))。
 
 ## 工作原理
 
 1. 通过 admin HTTP 接口写入一段配置,指定 `config_type`(Kafka 集群开关用 `KafkaDynamic`)。
-2. 配置被持久化到 meta 层(基于 Raft),保证跨重启保留。
-3. 变更广播到各节点的内存缓存(`node_cache`),后续请求直接读缓存,无需再查 meta。
+2. 配置内容持久化到 Meta Service。
+3. 配置更新应用到 Broker 的内存配置缓存 `NodeCacheManager`,并通过缓存更新传播到其他 Broker。
+4. Broker 启动时,`build_cluster_config()` 会从 Meta 加载 `MqttProtocol`、`MqttSlowSubscribeConfig`、`MqttFlappingDetect`、`MqttOfflineMessage`、`MqttSchema`、`MqttSystemMonitor` 和 `KafkaDynamic`。当前 Broker 启动加载流程不会加载 `MqttLimit`、`ClusterLimit` 和 `MetaRuntime`,因此这些类型持久化的值不会在重启后恢复到 Broker 的 `NodeCacheManager` 配置中。这些类型的运行时效果也取决于使用方是否会动态读取更新后的配置。
 
 ## 以 `auto.create.topics.enable` 为例
 
@@ -16,7 +17,7 @@
 |---|---|
 | 默认值 | `true`(与 Kafka broker 默认一致) |
 | 是否可热改 | 是 |
-| 持久化 | meta 层,跨重启保留 |
+| 持久化与 Broker 重启 | 存储在 Meta,并由 Broker 在启动时重新加载 |
 
 ### 判定逻辑
 
@@ -54,7 +55,7 @@ curl -X POST http://<admin-host>:<http_port>/api/cluster/config/set \
 |---|---|---|---|
 | 作用域 | 单节点进程 | 整个集群 | 单个 topic |
 | 存储 | `config/server.toml` | meta 层 | meta 层 |
-| 热改 | 否(需重启) | 是 | 是 |
+| 运行时生效 | 启动时读取静态配置 | 取决于 `config_type` 及对应运行时组件 | 是 |
 | 入口 | 文件 | admin HTTP | Kafka 协议 |
 
 相关文档:[Broker 配置](./BrokerConfig.md) · [Topic 配置](./TopicConfig.md)。

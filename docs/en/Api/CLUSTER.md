@@ -203,7 +203,7 @@ GET /api/cluster/config/get?broker_id=2
 ### 2. Set Cluster Configuration
 
 - **Endpoint**: `POST /api/cluster/config/set`
-- **Description**: Dynamically update cluster configuration. Changes take effect immediately and are persisted to Meta storage.
+- **Description**: Persist a cluster configuration value in Meta storage and apply it to the current Broker's in-memory configuration. The runtime effect and propagation behavior depend on the `config_type` and the components that consume it. The Broker startup loader currently restores `MqttProtocol`, `MqttSlowSubscribeConfig`, `MqttFlappingDetect`, `MqttOfflineMessage`, `MqttSchema`, `MqttSystemMonitor`, and `KafkaDynamic`; it does not restore `MqttLimit`, `ClusterLimit`, or `MetaRuntime` into `NodeCacheManager`.
 - **Request Parameters**:
 
 | Field | Type | Required | Description |
@@ -357,14 +357,40 @@ GET /api/cluster/config/get?broker_id=2
 |-------|------|---------|-------------|
 | `max_network_connection` | u64 | `100000000` | Maximum total network connections |
 | `max_network_connection_rate` | u32 | `10000` | Maximum network connection rate (connections/second) |
+| `max_connection_per_ip` | u64 | `5000` | Maximum concurrent connections from one IP address |
 | `max_admin_http_uri_rate` | u32 | `50` | Maximum Admin HTTP request rate (requests/second) |
 
 ```json
 {
   "config_type": "ClusterLimit",
-  "config": "{\"max_network_connection\":100000000,\"max_network_connection_rate\":10000,\"max_admin_http_uri_rate\":50}"
+  "config": "{\"max_network_connection\":100000000,\"max_network_connection_rate\":10000,\"max_connection_per_ip\":5000,\"max_admin_http_uri_rate\":50}"
 }
 ```
+
+---
+
+#### `MetaRuntime` — Meta Service Runtime Settings
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `heartbeat_timeout_ms` | u64 | `30000` | Broker heartbeat timeout (ms) |
+| `heartbeat_check_time_ms` | u64 | `1000` | Meta heartbeat check interval (ms) |
+| `raft_write_timeout_sec` | u64 | `30` | Raft write timeout (seconds) |
+| `offset_raft_group_num` | u32 | `1` | Number of offset Raft groups |
+| `data_raft_group_num` | u32 | `1` | Number of data Raft groups |
+| `group_offset_expire_sec` | u64 | `604800` | Consumer group offset retention (seconds) |
+| `segment_leader_rebalance_interval_ms` | u64 | `60000` | Segment leader rebalance interval (ms) |
+| `segment_leader_rebalance_max_moves` | u32 | `50` | Maximum leader moves per rebalance |
+| `meta_worker_threads` | usize | `0` (automatic) | Meta runtime worker thread count |
+
+```json
+{
+  "config_type": "MetaRuntime",
+  "config": "{\"heartbeat_timeout_ms\":30000,\"heartbeat_check_time_ms\":1000,\"raft_write_timeout_sec\":30,\"offset_raft_group_num\":1,\"data_raft_group_num\":1,\"group_offset_expire_sec\":604800,\"segment_leader_rebalance_interval_ms\":60000,\"segment_leader_rebalance_max_moves\":50,\"meta_worker_threads\":0}"
+}
+```
+
+`KafkaDynamic` is also accepted; see [Dynamic Configuration](../RobustMQ-Kafka/Configuration/DynamicConfig.md) for its schema and behavior.
 
 ---
 

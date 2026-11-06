@@ -49,7 +49,7 @@ pub trait StorageAdapter {
 
 ![Driver 路由逻辑](../../images/arch_pluggable_driver.png)
 
-路由逻辑：Broker 写入消息时，先从 `BrokerCacheManager` 读取目标 Topic 的 `storage_type` 字段，再从 `driver_list`（`DashMap<String, ArcStorageAdapter>`）查找已初始化的 Driver 实例。未命中则调用 `init_driver` 按类型创建实例，写入缓存后返回。Driver 实例是 `Arc<dyn StorageAdapter>` 类型，可在多个请求之间共享，不会重复初始化。
+路由逻辑：Broker 写入消息时，先从 `NodeCacheManager` 读取目标 Topic 的 `storage_type` 字段，再从 `driver_list`（`DashMap<String, ArcStorageAdapter>`）查找已初始化的 Driver 实例。未命中则调用 `init_driver` 按类型创建实例，写入缓存后返回。Driver 实例是 `Arc<dyn StorageAdapter>` 类型，可在多个请求之间共享，不会重复初始化。
 
 同一集群内不同 Topic 可以使用不同存储后端（混合存储），切换存储类型只需修改 Topic 配置，不需要改 Broker 代码。
 
