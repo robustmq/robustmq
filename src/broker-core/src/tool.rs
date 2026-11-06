@@ -61,3 +61,20 @@ pub async fn wait_cluster_running(cache_manager: &Arc<NodeCacheManager>) -> Resu
         sleep(Duration::from_secs(1)).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::wait_cluster_running;
+    use crate::cache::NodeCacheManager;
+    use common_base::node_status::NodeStatus;
+    use common_config::broker::default_broker_config;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn returns_immediately_when_cluster_is_running() {
+        let cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        cache.set_status(NodeStatus::Running).await;
+
+        assert_eq!(wait_cluster_running(&cache).await, Ok(()));
+    }
+}
