@@ -240,3 +240,143 @@ async fn get_kafka_dynamic(
 
     Ok(None)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{update_cluster_dynamic_config, ClusterDynamicConfig};
+    use crate::cache::NodeCacheManager;
+    use bytes::Bytes;
+    use common_config::broker::default_broker_config;
+    use std::str::FromStr;
+    use std::sync::Arc;
+
+    #[test]
+    fn dynamic_config_names_match_stored_keys() {
+        let cases = [
+            (
+                ClusterDynamicConfig::MqttSlowSubscribeConfig,
+                "MqttSlowSubscribeConfig",
+            ),
+            (
+                ClusterDynamicConfig::MqttFlappingDetect,
+                "MqttFlappingDetect",
+            ),
+            (ClusterDynamicConfig::MqttProtocol, "MqttProtocol"),
+            (
+                ClusterDynamicConfig::MqttOfflineMessage,
+                "MqttOfflineMessage",
+            ),
+            (ClusterDynamicConfig::MqttSystemMonitor, "MqttSystemMonitor"),
+            (ClusterDynamicConfig::MqttSchema, "MqttSchema"),
+            (ClusterDynamicConfig::MqttLimit, "MqttLimit"),
+            (ClusterDynamicConfig::ClusterLimit, "ClusterLimit"),
+            (ClusterDynamicConfig::MetaRuntime, "MetaRuntime"),
+            (ClusterDynamicConfig::KafkaDynamic, "KafkaDynamic"),
+        ];
+
+        for (config, expected_key) in cases {
+            assert_eq!(config.to_string(), expected_key);
+            assert_eq!(
+                ClusterDynamicConfig::from_str(expected_key)
+                    .unwrap()
+                    .to_string(),
+                expected_key
+            );
+        }
+    }
+
+    #[test]
+    fn updates_each_supported_dynamic_config() {
+        let cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let cases = [
+            (
+                ClusterDynamicConfig::ClusterLimit,
+                r#"{"max_network_connection":17}"#,
+                "cluster_limit.max_network_connection",
+                "17",
+            ),
+            (
+                ClusterDynamicConfig::MqttSlowSubscribeConfig,
+                r#"{"enable":true,"record_time":23}"#,
+                "mqtt_runtime.slow_subscribe.record_time",
+                "23",
+            ),
+            (
+                ClusterDynamicConfig::MqttFlappingDetect,
+                r#"{"enable":true,"window_time":29}"#,
+                "mqtt_runtime.flapping_detect.window_time",
+                "29",
+            ),
+            (
+                ClusterDynamicConfig::MqttProtocol,
+                r#"{"topic_alias_max":31}"#,
+                "mqtt_runtime.protocol.topic_alias_max",
+                "31",
+            ),
+            (
+                ClusterDynamicConfig::MqttOfflineMessage,
+                r#"{"max_messages_num":37}"#,
+                "mqtt_runtime.offline_message.max_messages_num",
+                "37",
+            ),
+            (
+                ClusterDynamicConfig::MqttSystemMonitor,
+                r#"{"enable":true,"system_topic_interval_ms":41}"#,
+                "mqtt_runtime.system_monitor.system_topic_interval_ms",
+                "41",
+            ),
+            (
+                ClusterDynamicConfig::MqttSchema,
+                r#"{"enable":true,"log_level":"debug"}"#,
+                "mqtt_runtime.schema.log_level",
+                r#""debug""#,
+            ),
+            (
+                ClusterDynamicConfig::MqttLimit,
+                r#"{"cluster":{"max_topics":43},"tenant":{"max_topics":47}}"#,
+                "mqtt_runtime.limit.cluster.max_topics",
+                "43",
+            ),
+            (
+                ClusterDynamicConfig::MetaRuntime,
+                r#"{"heartbeat_timeout_ms":53}"#,
+                "meta_runtime.heartbeat_timeout_ms",
+                "53",
+            ),
+            (
+                ClusterDynamicConfig::KafkaDynamic,
+                r#"{"auto_create_topics_enable":false}"#,
+                "kafka_runtime.auto_create_topics_enable",
+                "false",
+            ),
+        ];
+
+        for (kind, payload, field_path, expected) in cases {
+            update_cluster_dynamic_config(&cache, kind, Bytes::from(payload)).unwrap();
+            let value = serde_json::to_value(cache.get_cluster_config()).unwrap();
+            let actual = field_path
+                .split('.')
+                .fold(&value, |value, field| &value[field]);
+            let expected = serde_json::from_str::<serde_json::Value>(expected).unwrap();
+            assert_eq!(actual, &expected, "unexpected value for {field_path}");
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_dynamic_config_without_changing_cached_config() {
+        let cache = Arc::new(NodeCacheManager::new(default_broker_config()));
+        let original = serde_json::to_value(cache.get_cluster_config()).unwrap();
+
+        let result = update_cluster_dynamic_config(
+            &cache,
+            ClusterDynamicConfig::KafkaDynamic,
+            Bytes::from_static(b"not-json"),
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            serde_json::to_value(cache.get_cluster_config()).unwrap(),
+            original
+        );
+    }
+}

@@ -1,12 +1,13 @@
 # Dynamic Configuration
 
-Beyond topic-level config ([Topic Configuration](./TopicConfig.md)), RobustMQ has a category of **cluster dynamic config**: it applies to the whole cluster, is persisted in the meta layer, can be changed online, and survives restarts. It does not live in `config/server.toml` (that is [static config](./BrokerConfig.md)).
+Beyond topic-level config ([Topic Configuration](./TopicConfig.md)), RobustMQ has **cluster dynamic config** entries stored in the Meta Service and exposed through the admin HTTP API. Runtime application and restoration after a Broker restart depend on the `config_type`; persistence in Meta alone does not mean every value is reloaded into every Broker runtime component. These entries do not live in `config/server.toml` (that is [static config](./BrokerConfig.md)).
 
 ## How it works
 
 1. Write a config blob through the admin HTTP API, specifying a `config_type` (`KafkaDynamic` for Kafka cluster switches).
-2. The config is persisted into the meta layer (Raft-backed), guaranteeing it survives restarts.
-3. The change is broadcast to each node's in-memory cache (`node_cache`); subsequent requests read the cache without querying meta again.
+2. The config blob is persisted in Meta Service storage.
+3. The update is applied to the Broker's in-memory `NodeCacheManager` configuration and propagated to other Brokers through cache updates.
+4. On Broker startup, `build_cluster_config()` reloads `MqttProtocol`, `MqttSlowSubscribeConfig`, `MqttFlappingDetect`, `MqttOfflineMessage`, `MqttSchema`, `MqttSystemMonitor`, and `KafkaDynamic` from Meta. The accepted types `MqttLimit`, `ClusterLimit`, and `MetaRuntime` are not currently loaded by this Broker startup path, so their persisted values are not restored into the Broker's `NodeCacheManager` configuration after restart. Runtime effects for these types also depend on whether the consuming subsystem reads updated configuration dynamically.
 
 ## Example: `auto.create.topics.enable`
 
@@ -16,7 +17,7 @@ This is currently the most representative Kafka cluster dynamic config item: **w
 |---|---|
 | Default | `true` (matches Kafka's broker default) |
 | Hot-changeable | Yes |
-| Persistence | Meta layer, survives restarts |
+| Persistence and Broker restart | Stored in Meta and reloaded by the Broker at startup |
 
 ### Decision logic
 
@@ -54,7 +55,7 @@ curl -X POST http://<admin-host>:<http_port>/api/cluster/config/set \
 |---|---|---|---|
 | Scope | Single node process | Whole cluster | A single topic |
 | Storage | `config/server.toml` | Meta layer | Meta layer |
-| Hot-change | No (restart) | Yes | Yes |
+| Runtime effect | Static config is read at startup | Depends on `config_type` and its runtime consumers | Yes |
 | Entry point | File | admin HTTP | Kafka protocol |
 
 Related: [Broker Configuration](./BrokerConfig.md) · [Topic Configuration](./TopicConfig.md).

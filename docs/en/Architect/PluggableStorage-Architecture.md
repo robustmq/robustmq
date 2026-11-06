@@ -49,7 +49,7 @@ pub trait StorageAdapter {
 
 ![Driver Routing](../../images/arch_pluggable_driver.png)
 
-Routing logic: when the Broker writes a message, it first reads the target Topic's `storage_type` field from `BrokerCacheManager`, then looks up an already-initialized Driver instance in `driver_list` (`DashMap<String, ArcStorageAdapter>`). On a cache miss, `init_driver` creates an instance by type, stores it in the map, and returns it. Driver instances are typed as `Arc<dyn StorageAdapter>` and are shared across requests without re-initialization.
+Routing logic: when the Broker writes a message, it first reads the target Topic's `storage_type` field from `NodeCacheManager`, then looks up an already-initialized Driver instance in `driver_list` (`DashMap<String, ArcStorageAdapter>`). On a cache miss, `init_driver` creates an instance by type, stores it in the map, and returns it. Driver instances are typed as `Arc<dyn StorageAdapter>` and are shared across requests without re-initialization.
 
 Different Topics within the same cluster can use different storage backends (mixed storage). Switching the storage type for a Topic requires only a configuration change; no Broker code modification is needed.
 

@@ -51,7 +51,7 @@ The entry point component called directly by the Broker:
 |-------|------|-------------|
 | `driver_list` | `DashMap<String, ArcStorageAdapter>` | Caches initialized drivers by storage type |
 | `engine_storage_handler` | `Arc<StorageEngineHandler>` | Underlying engine handler |
-| `broker_cache` | `Arc<BrokerCacheManager>` | Topic metadata cache, queried during routing |
+| `broker_cache` | `Arc<NodeCacheManager>` | Local Topic metadata cache, queried during routing |
 | `offset_manager` | `Arc<OffsetManager>` | Consumer group Offset management |
 | `message_seq` | `AtomicU64` | Global write sequence number, used for round-robin partition selection |
 
@@ -67,7 +67,7 @@ Implements the `StorageAdapter` trait and delegates calls to `StorageEngineHandl
 
 When the Broker receives a message, it calls `StorageDriverManager::write`, which proceeds as follows:
 
-1. Look up the Topic's partition count and storage type from `BrokerCacheManager`
+1. Look up the Topic's partition count and storage type from `NodeCacheManager`
 2. Fetch-and-increment `message_seq`, then select the target Shard by modulo: `topic_id_{seq % partition_count}`
 3. Look up the matching Driver in `driver_list`; if not found, initialize it on demand and cache it
 4. Call the Driver's `write` method and return the resulting Offset
@@ -84,7 +84,7 @@ When a Topic is created, the Broker requests Shard configuration from Meta Servi
 
 1. The client requests Topic creation; the Broker validates parameters and calls the Meta Service gRPC interface
 2. Meta Service writes the Topic and Shard configuration into the metadata Raft Group
-3. Meta Service notifies the Broker via `UpdateCache` to refresh the local `BrokerCacheManager`
+3. Meta Service notifies the Broker via `UpdateCache` to refresh the local `NodeCacheManager`
 4. The Storage Engine receives the Shard creation directive and initializes the corresponding Active Segment
 
 ![Topic Creation Flow](../../images/arch_topic_create.png)

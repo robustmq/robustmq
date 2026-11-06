@@ -293,9 +293,15 @@ impl NodeCacheManager {
 #[cfg(test)]
 mod tests {
     use crate::cache::NodeCacheManager;
+    use common_base::node_status::NodeStatus;
     use common_base::tools::now_second;
     use common_config::broker::default_broker_config;
+    use common_config::storage::StorageType;
     use metadata_struct::meta::node::BrokerNode;
+    use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::mqtt::share_group::{ShareGroup, ShareGroupMember};
+    use metadata_struct::mqtt::topic::Topic;
+    use metadata_struct::tenant::{Tenant, TenantConfig};
 
     #[tokio::test]
     async fn start_time_operations() {
@@ -329,5 +335,161 @@ mod tests {
         // get again
         let nodes = cache_manager.node_list();
         assert!(nodes.is_empty());
+    }
+
+    #[tokio::test]
+    async fn tenant_operations() {
+        let cache_manager = NodeCacheManager::new(default_broker_config());
+        let tenant = Tenant {
+            tenant_name: "tenant-a".to_string(),
+            desc: "Tenant A".to_string(),
+            config: TenantConfig::default(),
+            create_time: 1,
+        };
+
+        assert!(!cache_manager.tenant_exists("tenant-a"));
+        cache_manager.add_tenant(tenant.clone());
+        assert!(cache_manager.tenant_exists("tenant-a"));
+        assert_eq!(cache_manager.get_tenant("tenant-a"), Some(tenant));
+
+        cache_manager.remove_tenant("tenant-a");
+        assert!(!cache_manager.tenant_exists("tenant-a"));
+        assert_eq!(cache_manager.get_tenant("tenant-a"), None);
+    }
+
+    #[tokio::test]
+    async fn session_operations_keep_tenant_index_in_sync() {
+        let cache_manager = NodeCacheManager::new(default_broker_config());
+        let session = MqttSession::new(
+            "tenant-a".to_string(),
+            "client-1".to_string(),
+            60,
+            false,
+            None,
+            true,
+        );
+
+        assert!(cache_manager.list_sessions_by_tenant("tenant-a").is_empty());
+        cache_manager.add_session(session.clone());
+        assert_eq!(
+            cache_manager.get_session("tenant-a", "client-1"),
+            Some(session.clone())
+        );
+        assert_eq!(
+            cache_manager.list_sessions_by_tenant("tenant-a"),
+            vec![session]
+        );
+
+        cache_manager.delete_session("tenant-a", "client-1");
+        assert_eq!(cache_manager.get_session("tenant-a", "client-1"), None);
+        assert!(cache_manager.list_sessions_by_tenant("tenant-a").is_empty());
+    }
+
+    #[tokio::test]
+    async fn topic_operations_keep_tenant_index_in_sync() {
+        let cache_manager = NodeCacheManager::new(default_broker_config());
+        let topic = Topic::new("tenant-a", "events", StorageType::EngineMemory);
+
+        cache_manager.add_topic(&topic);
+        assert!(cache_manager.topic_exists("tenant-a", "events"));
+        assert_eq!(
+            cache_manager.get_topic_by_name("tenant-a", "events"),
+            Some(topic.clone())
+        );
+        assert_eq!(
+            cache_manager.list_topics_by_tenant("tenant-a"),
+            vec![topic.clone()]
+        );
+        assert_eq!(
+            cache_manager.get_all_topic_name(),
+            vec!["events".to_string()]
+        );
+        assert_eq!(cache_manager.topic_count(), 1);
+        assert_eq!(cache_manager.topic_count_by_tenant("tenant-a"), 1);
+
+        cache_manager.delete_topic("tenant-a", "events");
+        assert!(!cache_manager.topic_exists("tenant-a", "events"));
+        assert!(cache_manager.list_topics_by_tenant("tenant-a").is_empty());
+        assert_eq!(cache_manager.topic_count(), 0);
+        assert_eq!(cache_manager.topic_count_by_tenant("tenant-a"), 0);
+    }
+
+    #[tokio::test]
+    async fn share_group_operations_remove_only_matching_members() {
+        let cache_manager = NodeCacheManager::new(default_broker_config());
+        let group = ShareGroup {
+            uuid: "group-id".to_string(),
+            tenant: "tenant-a".to_string(),
+            group_name: "workers".to_string(),
+            leader_broker: 1,
+            ..Default::default()
+        };
+        let member = ShareGroupMember {
+            tenant: "tenant-a".to_string(),
+            group_name: "workers".to_string(),
+            broker_id: 1,
+            connect_id: 10,
+            sid: "sid-a".to_string(),
+            ..Default::default()
+        };
+        let other_member = ShareGroupMember {
+            sid: "sid-b".to_string(),
+            ..member.clone()
+        };
+
+        assert!(cache_manager
+            .get_share_group("tenant-a", "workers")
+            .is_none());
+        cache_manager.add_share_group(group.clone());
+        assert_eq!(
+            cache_manager
+                .get_share_group("tenant-a", "workers")
+                .unwrap()
+                .uuid,
+            group.uuid
+        );
+
+        cache_manager.add_share_group_member(&member);
+        cache_manager.add_share_group_member(&other_member);
+        assert_eq!(
+            cache_manager
+                .get_share_group_members("tenant-a", "workers")
+                .len(),
+            2
+        );
+
+        cache_manager.remove_share_group_member(&member);
+        let members = cache_manager.get_share_group_members("tenant-a", "workers");
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].sid, "sid-b");
+
+        cache_manager.remove_share_group("tenant-a", "workers");
+        assert!(cache_manager
+            .get_share_group("tenant-a", "workers")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn status_epoch_and_cluster_config_operations() {
+        let initial_config = default_broker_config();
+        let cache_manager = NodeCacheManager::new(initial_config.clone());
+
+        assert_eq!(cache_manager.get_broker_epoch(), 0);
+        cache_manager.set_broker_epoch(42);
+        assert_eq!(cache_manager.get_broker_epoch(), 42);
+        assert_eq!(cache_manager.get_status().await, NodeStatus::Starting);
+        assert!(!cache_manager.is_stop().await);
+
+        cache_manager.set_status(NodeStatus::Stopping).await;
+        assert_eq!(cache_manager.get_status().await, NodeStatus::Stopping);
+        assert!(cache_manager.is_stop().await);
+
+        let mut updated_config = initial_config;
+        updated_config.cluster_name = "updated-cluster".to_string();
+        cache_manager.set_cluster_config(updated_config.clone());
+        assert_eq!(
+            cache_manager.get_cluster_config().cluster_name,
+            updated_config.cluster_name
+        );
     }
 }

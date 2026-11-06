@@ -203,7 +203,7 @@ GET /api/cluster/config/get?broker_id=2
 ### 2. 设置集群配置
 
 - **接口**: `POST /api/cluster/config/set`
-- **描述**: 动态更新集群配置，修改立即生效并持久化到 Meta 存储
+- **描述**: 将集群配置持久化到 Meta 存储，并应用到当前 Broker 的内存配置。实际生效和传播行为取决于 `config_type` 及其使用组件。当前 Broker 启动加载流程会恢复 `MqttProtocol`、`MqttSlowSubscribeConfig`、`MqttFlappingDetect`、`MqttOfflineMessage`、`MqttSchema`、`MqttSystemMonitor` 和 `KafkaDynamic`；不会将 `MqttLimit`、`ClusterLimit` 或 `MetaRuntime` 恢复到 `NodeCacheManager`。
 - **请求参数**:
 
 | 字段 | 类型 | 必填 | 说明 |
@@ -357,14 +357,40 @@ GET /api/cluster/config/get?broker_id=2
 |------|------|--------|------|
 | `max_network_connection` | u64 | `100000000` | 最大网络连接总数 |
 | `max_network_connection_rate` | u32 | `10000` | 最大网络连接速率（连接/秒） |
+| `max_connection_per_ip` | u64 | `5000` | 单个 IP 地址允许的最大并发连接数 |
 | `max_admin_http_uri_rate` | u32 | `50` | Admin HTTP 接口最大请求速率（次/秒） |
 
 ```json
 {
   "config_type": "ClusterLimit",
-  "config": "{\"max_network_connection\":100000000,\"max_network_connection_rate\":10000,\"max_admin_http_uri_rate\":50}"
+  "config": "{\"max_network_connection\":100000000,\"max_network_connection_rate\":10000,\"max_connection_per_ip\":5000,\"max_admin_http_uri_rate\":50}"
 }
 ```
+
+---
+
+#### `MetaRuntime` — Meta Service 运行参数
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `heartbeat_timeout_ms` | u64 | `30000` | Broker 心跳超时时间（ms） |
+| `heartbeat_check_time_ms` | u64 | `1000` | Meta 心跳检查间隔（ms） |
+| `raft_write_timeout_sec` | u64 | `30` | Raft 写入超时时间（秒） |
+| `offset_raft_group_num` | u32 | `1` | Offset Raft Group 数量 |
+| `data_raft_group_num` | u32 | `1` | Data Raft Group 数量 |
+| `group_offset_expire_sec` | u64 | `604800` | 消费组 Offset 保留时间（秒） |
+| `segment_leader_rebalance_interval_ms` | u64 | `60000` | Segment Leader 重平衡间隔（ms） |
+| `segment_leader_rebalance_max_moves` | u32 | `50` | 每次重平衡最多迁移的 Leader 数量 |
+| `meta_worker_threads` | usize | `0`（自动） | Meta runtime 工作线程数 |
+
+```json
+{
+  "config_type": "MetaRuntime",
+  "config": "{\"heartbeat_timeout_ms\":30000,\"heartbeat_check_time_ms\":1000,\"raft_write_timeout_sec\":30,\"offset_raft_group_num\":1,\"data_raft_group_num\":1,\"group_offset_expire_sec\":604800,\"segment_leader_rebalance_interval_ms\":60000,\"segment_leader_rebalance_max_moves\":50,\"meta_worker_threads\":0}"
+}
+```
+
+`KafkaDynamic` 也受支持，其字段结构和行为见[动态配置说明](../RobustMQ-Kafka/Configuration/DynamicConfig.md)。
 
 ---
 

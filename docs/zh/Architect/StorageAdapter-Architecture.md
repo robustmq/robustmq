@@ -51,7 +51,7 @@ Broker 直接调用的入口组件：
 |------|------|------|
 | `driver_list` | `DashMap<String, ArcStorageAdapter>` | 按存储类型缓存已初始化的 Driver |
 | `engine_storage_handler` | `Arc<StorageEngineHandler>` | 底层引擎处理器 |
-| `broker_cache` | `Arc<BrokerCacheManager>` | Topic 元数据缓存，路由时查询 |
+| `broker_cache` | `Arc<NodeCacheManager>` | 本地 Topic 元数据缓存，路由时查询 |
 | `offset_manager` | `Arc<OffsetManager>` | 消费组 Offset 管理 |
 | `message_seq` | `AtomicU64` | 全局写入序号，用于轮询分区选择 |
 
@@ -67,7 +67,7 @@ Driver 按需初始化并缓存，避免重复创建。
 
 Broker 收到消息后，调用 `StorageDriverManager::write` 进入写入流程：
 
-1. 从 `BrokerCacheManager` 查找 Topic 的分区数和存储类型配置
+1. 从 `NodeCacheManager` 查找 Topic 的分区数和存储类型配置
 2. 用 `message_seq.fetch_add(1)` 取自增序号，对分区数取模，选出目标 Shard（`topic_id_{seq % partition_count}`）
 3. 从 `driver_list` 查找对应存储类型的 Driver，不存在则按需初始化并缓存
 4. 调用 Driver 的 `write` 方法写入，返回该消息的 Offset
@@ -84,7 +84,7 @@ Broker 收到消息后，调用 `StorageDriverManager::write` 进入写入流程
 
 1. 客户端请求创建 Topic，Broker 校验参数后调用 Meta Service gRPC 接口
 2. Meta Service 在 metadata Raft Group 中写入 Topic 和 Shard 配置
-3. Meta Service 通过 `UpdateCache` 通知 Broker 刷新本地 `BrokerCacheManager`
+3. Meta Service 通过 `UpdateCache` 通知 Broker 刷新本地 `NodeCacheManager`
 4. Storage Engine 收到 Shard 创建指令，初始化对应的 Active Segment
 
 ![Topic 创建流程](../../images/arch_topic_create.png)
