@@ -1,6 +1,6 @@
 # ISR 协议集成测试设计
 
-> 集成测试放在 `tests/tests/engine/isr_replication.rs`，独立于单元测试。
+> ISR 集成测试位于 `src/storage-engine/tests/isr/`，并由 storage-engine package 的 test target 编译。
 > 测试分两层：**进程内（in-proc）** 不依赖外部服务，直接运行；**集群级（cluster）** 需要起多 broker，标 `#[ignore]` 手动运行。
 
 ---
@@ -9,8 +9,8 @@
 
 | 层级 | 运行方式 | 依赖 | 覆盖范围 |
 |---|---|---|---|
-| **in-proc** | `cargo test` 直接运行 | 仅 in-proc mock | 复制流程、截断逻辑、ISR 选举 |
-| **cluster** | `cargo test -- --ignored` | 起真实 3-broker 集群 | leader failover、网络分区、崩溃恢复 |
+| **in-proc** | `cargo test -p storage-engine --test mod` 直接运行 | 仅 in-proc mock | 复制流程、截断逻辑、ISR 维护、HW/acks、reconcile apply |
+| **cluster** | `cargo test -p storage-engine --test mod -- --ignored` | 起真实 broker+meta 集群 | 广播丢失后的 reconcile（当前仅有占位测试） |
 
 ---
 
@@ -21,7 +21,7 @@
 **验证**：leader 写入 → follower fetch 拉取 → HW 推进 → follower LEO 追上 leader
 
 **环境构造**：
-- leader: `MemoryStorageEngine`，role=LeaderActive，leader_epoch=1，写 3 条记录（offset 0/1/2）
+- leader: `MemoryStorageEngine`，缓存 segment 的 `leader=1`、`leader_epoch=1`，写 3 条记录（offset 0/1/2）
 - follower: 空 `MemoryStorageEngine`
 - transport: in-proc，`fetch_one_shard` 直接调 leader
 
@@ -57,15 +57,15 @@
 
 ---
 
-### T3: ISR shrink/expand 逻辑（isr_maintain_logic）
+### T3: ISR shrink/expand 逻辑（isr_manager）
 
 **验证**：`compute_new_isr` 按时间 lag 正确踢出/加回 follower
 
 **环境构造**：进程内，`SegmentReplicaState`，构造 follower_progress
 
 **步骤**：
-1. ISR=[1,2]，follower 2 的 `last_caught_up_ts` 超过 lag 阈值 → compute_new_isr 返回 [1]（shrink）
-2. follower 2 追上（update_follower_progress leo=leader_leo）→ compute_new_isr 返回 [1,2]（expand）
+1. ISR=[1,2]，follower 2 的 `last_fetch_ts` 超过 lag 阈值 → compute_new_isr 返回 [1]（shrink）
+2. follower 2 追上（`update_follower_progress` 收到 `fetch_offset >= leader_leo`，刷新 `last_fetch_ts`）→ compute_new_isr 返回 [1,2]（expand）
 
 **期望**：shrink/expand 逻辑正确，不会误踢 leader
 
@@ -80,7 +80,7 @@
 2. LEO 相同，比 leader_epoch
 3. 全部 unavailable → None
 
-**期望**：见 isr_recovery.rs 已有 5 个单测
+**期望**：见 `meta-service/src/core/isr_recovery.rs` 的单元测试；storage-engine 的 `maintain.rs` 只调用并验证该选择函数。
 
 ---
 
@@ -152,18 +152,22 @@
 
 ---
 
-## 文件组织
+## 实际测试文件与观察到的目标
 
 ```
-tests/
-└── tests/
-    └── engine/
-        ├── mod.rs                 # 注册 isr_replication
-        └── isr_replication.rs    # 本文档对应的测试文件
+src/storage-engine/tests/mod.rs
+└── isr/
+    ├── mod.rs      # modules imported by package integration-test target `mod`
+    ├── maintain.rs    # T3/T4: 7 tests
+    ├── replication.rs # T1/T2: 2 async tests
+    ├── commit.rs      # T5: 3 async tests
+    └── reconcile.rs    # T6: 2 in-proc tests + 1 ignored cluster placeholder
 ```
 
 ## 依赖说明
 
-in-proc 测试依赖：`storage-engine`（已有）+ `meta-service`（选举函数）+ `rocksdb-engine::test`
+in-proc 测试依赖：`storage-engine` + `meta-service`（选举函数）+ `rocksdb-engine::test`。
 
-cluster 测试额外依赖：需要 broker/meta grpc 地址配置（通过环境变量 `BROKER_ADDR`）
+cluster 测试额外依赖：需要运行中的 broker+meta 集群；ignored test 的注释要求 `scripts/run-cluster.sh`，因此它不属于默认测试运行。
+
+`cargo test -p storage-engine --test mod -- --list` observed 15 ISR tests: 14 default in-proc tests and 1 ignored cluster placeholder. `-- --ignored` selects the ignored test, but it is still a TODO placeholder and cannot serve as end-to-end coverage evidence. Cargo's target name is `mod`, not `isr`.

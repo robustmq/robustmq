@@ -27,7 +27,7 @@ Pure in-memory storage based on `DashMap`, supporting four index types:
 | Key index | `DashMap<shard, DashMap<key, offset>>` | Query by Key (Key is unique) |
 | Timestamp index | `DashMap<shard, DashMap<timestamp, offset>>` | Look up Offset by time |
 
-Data is lost when the process restarts. Supports dual-replica configuration (acks=1): the Leader writes and then asynchronously replicates to the second replica.
+Data is lost when the process restarts. In a replicated shard, the Leader writes locally and Followers pull the data asynchronously; the producer's `acks` value controls whether the write waits for replication.
 
 ---
 
@@ -35,7 +35,7 @@ Data is lost when the process restarts. Supports dual-replica configuration (ack
 
 Stores messages using a dedicated Column Family (`DB_COLUMN_FAMILY_BROKER`), with an in-memory write lock per Shard to prevent concurrent write conflicts.
 
-Data is not synchronized between nodes. In cluster mode, different Broker nodes cannot share data, making this engine unsuitable for production clusters.
+The data is persisted locally and is not shared through RocksDB between nodes. In cluster mode, replication is provided by the storage-engine ISR protocol rather than by a shared RocksDB instance; this engine is intended for local persistence rather than the File Segment engine's production-cluster workload.
 
 ---
 
@@ -61,7 +61,7 @@ The offset index uses a sparse index strategy: one index point per 1000 records,
 
 ### Consistency Protocol: ISR
 
-Each Active Segment has one Leader, which maintains an ISR (In-Sync Replicas) list. A successful write means data has been replicated to all ISR replicas — no data gaps, reads succeed 100% of the time.
+Each Active Segment has one Leader, which maintains an ISR (In-Sync Replicas) list. Followers pull records from the Leader. The durability guarantee depends on the requested `acks` value: `acks=1` returns after the local write, while `acks=all` waits for the high watermark (HW) to reach the written offset and also requires the configured minimum ISR size.
 
 Followers pull data from the Leader in batches (Pull mode). In high-QPS scenarios, this reduces network requests from millions to hundreds.
 
@@ -69,15 +69,17 @@ acks configuration:
 
 | acks | Semantics |
 |------|-----------|
-| `all` | Wait for all ISR replicas to confirm |
-| `quorum` | Wait for a majority to confirm |
-| `1` | Wait only for Leader to confirm |
+| `0` | Do not wait for a producer response |
+| `1` | Wait only for the Leader's local write |
+| `all` / `-1` | Require `min_in_sync_replicas`, then wait for the ISR-derived HW |
+
+`quorum` is not a supported value in the current Kafka produce protocol. The storage engine treats every value other than `-1` as a non-`acks=all` write; protocol validation accepts only `0`, `1`, and `-1`.
 
 ### Active Segment and Sealed Segment
 
 **Active Segment**: The currently-written segment. Has a Leader and ISR mechanism; Followers continuously Pull and replicate.
 
-**Sealed Segment**: When a Segment fills up (e.g., 1GB) or reaches a time threshold, it is sealed. The Leader waits for all ISR Followers to fully catch up and verifies consistency. Once all replicas are complete and confirmed, the Segment is marked Sealed and the Leader role is released. Sealed Segments have no Leader — all replicas are equal and reads can come from any replica.
+**Sealed Segment**: When a segment reaches its configured end condition, the storage engine asynchronously requests a seal from Meta Service. Meta Service transitions the segment out of the write state; sealed and historical segments are read-only and do not participate in the active-segment leader rotation. The current seal request path does not perform a separate synchronous wait for every ISR follower, so sealing must not be interpreted as an `acks=all` confirmation barrier. Reads are served from the replicas that retain the sealed segment.
 
 Result: Leader count equals Shard count (not total Segment count). 1000 Shards require only 1000 Leaders. Historical data reads are distributed across all Storage Nodes.
 

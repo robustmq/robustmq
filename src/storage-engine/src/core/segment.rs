@@ -167,3 +167,115 @@ pub async fn create_local_segment(
     info!("Segment {} created successfully", segment_iden.name());
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::segment_validator;
+    use crate::core::cache::StorageCacheManager;
+    use crate::core::test_tool::test_init_conf;
+    use crate::filesegment::SegmentIdentity;
+    use broker_core::cache::NodeCacheManager;
+    use common_config::config::BrokerConfig;
+    use common_config::storage::StorageType;
+    use metadata_struct::storage::segment::{EngineSegment, SegmentStatus};
+    use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+    use std::sync::Arc;
+
+    fn cache_manager() -> Arc<StorageCacheManager> {
+        test_init_conf();
+        Arc::new(StorageCacheManager::new(Arc::new(NodeCacheManager::new(
+            BrokerConfig::default(),
+        ))))
+    }
+
+    fn shard(storage_type: StorageType) -> EngineShard {
+        EngineShard {
+            shard_name: "s1".to_string(),
+            config: EngineShardConfig {
+                storage_type,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    fn segment(status: SegmentStatus) -> EngineSegment {
+        EngineSegment {
+            shard_name: "s1".to_string(),
+            segment_seq: 0,
+            status,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn validator_rejects_unreadable_segment() {
+        let cache = cache_manager();
+        let iden = SegmentIdentity::new("s1", 0);
+        let err = segment_validator(
+            &cache,
+            &shard(StorageType::EngineMemory),
+            &segment(SegmentStatus::PreDelete),
+            &iden,
+        )
+        .unwrap_err();
+
+        assert!(
+            matches!(err, crate::core::error::StorageEngineError::SegmentStatusError(name, status) if name == "s1,0" && status == "PreDelete")
+        );
+    }
+
+    #[test]
+    fn validator_requires_metadata_for_engine_segment() {
+        let cache = cache_manager();
+        let iden = SegmentIdentity::new("s1", 0);
+        let err = segment_validator(
+            &cache,
+            &shard(StorageType::EngineSegment),
+            &segment(SegmentStatus::Write),
+            &iden,
+        )
+        .unwrap_err();
+
+        assert!(
+            matches!(err, crate::core::error::StorageEngineError::SegmentFileMetaNotExists(name) if name == "s1,0")
+        );
+    }
+
+    #[test]
+    fn validator_accepts_engine_segment_with_metadata() {
+        let cache = cache_manager();
+        let iden = SegmentIdentity::new("s1", 0);
+        cache.set_segment_meta(
+            metadata_struct::storage::segment_meta::EngineSegmentMetadata {
+                shard_name: "s1".to_string(),
+                segment_seq: 0,
+                ..Default::default()
+            },
+        );
+
+        segment_validator(
+            &cache,
+            &shard(StorageType::EngineSegment),
+            &segment(SegmentStatus::Write),
+            &iden,
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn validator_accepts_non_file_segments_without_metadata() {
+        let cache = cache_manager();
+        let iden = SegmentIdentity::new("s1", 0);
+
+        for storage_type in [StorageType::EngineMemory, StorageType::EngineRocksDB] {
+            segment_validator(
+                &cache,
+                &shard(storage_type),
+                &segment(SegmentStatus::SealUp),
+                &iden,
+            )
+            .unwrap();
+        }
+    }
+}

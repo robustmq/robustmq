@@ -10,17 +10,17 @@
 
 | 模块 | 职责 |
 |---|---|
-| `role.rs` | 角色状态机：接收 LeaderAndIsr 通知，驱动本节点在 Leader / Follower / Initializing 之间切换 |
-| `state.rs` | 运行时状态：`SegmentReplicaState`（角色、epoch）、`FollowerProgress`（LEO、追上时间戳） |
-| `fetch.rs` | Leader 端 fetch handler：五重 epoch 校验 + 更新 follower_progress + 推进 HW |
+| `core/dynamic_cache.rs` + `isr/apply.rs` | 接收 LeaderAndIsr 元数据更新，按 `(segment_epoch, leader_epoch)` 过滤旧通知，并切换 leader/follower fetcher |
+| `core/cache.rs` + `isr/follower.rs` | 运行时副本进度：`SegmentReplicaState` 是 `DashMap`，`FollowerProgress` 保存 broker epoch、LEO 和 `last_fetch_ts` |
+| `handle_fetch.rs` | Leader 端 fetch handler：epoch/broker fence + 更新 follower progress + 推进 HW |
 | `fetcher.rs` | Follower 端拉取线程：按 leader 批量 fetch → append → 更新 local HW |
 | `fetcher_manager.rs` | 线程池管理：`leader_node % N` 路由，负责 start / stop fetcher |
 | `leader_epoch.rs` | `LeaderEpochCache`：`epoch → start_offset` 映射，持久化到 RocksDB，truncation 的基准 |
-| `offsets_for_leader_epoch.rs` | KIP-101 truncation RPC 处理端：返回某 epoch 在本地的 end_offset |
-| `hw.rs` | HW 推进：`min(ISR·LEO)` 取最小，强制单调 `max(old, new)` |
-| `isr_maintain.rs` | ISR 维护后台任务：每秒扫 follower_progress，shrink 超时副本，expand 追上副本 |
+| `handle_epoch.rs` | KIP-101 `OffsetsForLeaderEpoch` RPC 处理端：返回某 epoch 在本地的 end_offset |
+| `follower.rs` | HW 推进：按 ISR follower LEO 计算，持久化并唤醒 `acks=all` 等待者 |
+| `isr_manager.rs` | ISR 维护后台任务：按配置周期扫描 follower progress，收缩失去近期 caught-up fetch 的副本，加入近期 caught-up 的副本 |
 | `reconcile.rs` | 元数据兜底：定时 + urgent 两路，批量拉 meta 对比 segment_epoch，补齐本地遗漏的 LeaderAndIsr |
-| `startup.rs` | 启动恢复：扫描真实 LEO、修正 HW checkpoint、修剪 LeaderEpochCache |
+| `recover.rs` | 启动恢复：加载 offset state，按本地 LEO/log start 修剪 `LeaderEpochCache` |
 | `log.rs` | `ReplicaLog` trait：三引擎共享的本地存储抽象（append / truncate / latest_offset） |
 
 ---
@@ -40,12 +40,12 @@ ISR 协议围绕三个独立的计数器运转，每类请求必须携带对应 
 ### 2.2 High Watermark — 定义"已提交"
 
 ```
-HW = max(old_HW,  min(LEO  for each node in ISR))
+HW = max(old_HW, min(leader_LEO, recorded follower LEOs in ISR))
 ```
 
-- `offset < HW` 的数据**永不丢失**，`acks=all` 写入阻塞等 HW 越过 `last_offset`
-- HW 推进**只发生在 fetch handler**，写入路径只更新 LEO
-- HW 计算**只计入 `last_known_leader_epoch == current_leader_epoch` 的 follower**，防止旧 follower 拉低 HW
+- `offset < HW` 的数据**永不丢失**；仅有 progress 记录的 ISR followers 约束本次 min，缺失记录不会阻塞 HW
+- HW 推进发生在 leader 本地写入完成后，也发生在 leader 处理 follower fetch 后；每次推进都会持久化 shard 的 high watermark 并唤醒等待者
+- 当前 `FollowerProgress` 只记录 `follower_broker_epoch`、`leo` 和 `last_fetch_ts`；HW 计算不额外过滤 leader epoch
 - **单调性**：外套 `max(old, new)`，扩 ISR 时新成员 LEO 低也不会让 HW 倒退
 
 ### 2.3 KIP-101 Truncation — 日志对齐
@@ -57,7 +57,7 @@ HW = max(old_HW,  min(LEO  for each node in ISR))
 3. Follower `truncate_to(min(local_LEO, end_offset))`，修剪本地 cache
 4. 从 `end_offset` 开始正常 fetch
 
-`LeaderEpochCache` 必须**持久化**（RocksDB），每次 leader 上任前同步写入新 epoch 条目，才转 LeaderActive。
+`LeaderEpochCache` 持久化在 storage-engine 的 RocksDB column family。成为 leader 时，`isr/apply.rs::apply_as_leader` 幂等写入当前 epoch；代码没有独立的 `LeaderActive` runtime state。
 
 ---
 
@@ -67,19 +67,19 @@ HW = max(old_HW,  min(LEO  for each node in ISR))
 
 ![写入与复制](diagrams/isr-02-write-replicate.png)
 
-关键约束：epoch 校验、`append_at`、LEO 更新必须在**同一把锁**内完成，不允许锁中间让出。
+当前实现：`core/write.rs::batch_write` 校验缓存中的 active segment，执行本地引擎写入，再调用 `advance_hw`；代码没有设计文档草案中的 shard/segment 双锁原子区。
 
 ### 3.2 Leader 切换
 
 ![Leader 切换](diagrams/isr-03-leader-switch.png)
 
-新 leader 上任**必须先持久化 LeaderEpochCache（同步写）才转 LeaderActive**；follower 必须先走 OffsetsForLeaderEpoch 对齐日志，再开始 fetch。
+新 leader 处理通知时由 `apply_as_leader` 持久化当前 epoch cache，并清理或 seed follower progress；follower 在 leader epoch 变化时由 `needs_truncation` 标记，`fetch_round` 会先执行 `OffsetsForLeaderEpoch`，然后才发普通 Fetch。
 
 ### 3.3 ISR 维护 + Reconcile 兜底
 
 ![ISR 维护与 Reconcile](diagrams/isr-04-maintain-reconcile.png)
 
-- **isr_maintain**（1s 间隔，仅 leader）：follower 超时 → shrink；追上 `leo ≥ leader_leo` → expand
+- **isr_manager**（默认 1s，仅 leader）：只有在最近一次 fetch 已追上 leader LEO 的 follower 才会刷新 `last_fetch_ts`；超过 `replica_lag_time_max_ms` 的副本被移出 ISR，近期 caught-up 的副本可被加入
 - **reconcile**（30s 间隔 + urgent 触发）：每 shard 只比对 active segment，批量一次 RPC，segment_epoch 变化才 apply，把遗漏的 LeaderAndIsr 通知补齐
 
 ---
@@ -95,7 +95,7 @@ HW = max(old_HW,  min(LEO  for each node in ISR))
 | **LeaderAndIsr 通知丢失** | reconcile 定时兜底：每 30s 批量拉 meta active segment，发现 segment_epoch 变化则补做角色切换 |
 | **同一节点进程重启（broker_epoch 变化）** | meta UpdateSegmentIsr 校验 broker_epoch，拒绝旧进程残留的 ISR 变更请求 |
 | **扩 ISR 时新成员 LEO 低于 HW** | HW 外套 `max(old, new)` 保证单调，新成员不会拉低已提交水位 |
-| **Memory 引擎重启** | LeaderEpochCache 不持久化，等价全新副本；从 leader `log_start_offset` 开始全量重拉 |
+| **Memory 引擎重启** | 消息数据在进程重启后丢失；LeaderEpochCache 仍由 storage-engine 的 RocksDB column family 保存，空 epoch cache 的 follower 会清空本地数据并从 offset 0 重新拉取 |
 
 ---
 
@@ -104,8 +104,8 @@ HW = max(old_HW,  min(LEO  for each node in ISR))
 | | Memory | RocksDB | FileSegment |
 |---|---|---|---|
 | segment 数 | 恒为 1 | 恒为 1 | 写满后递增 |
-| LeaderEpochCache | **不持久化**，重启即丢 | RocksDB key 前缀 | sidecar 文件 |
-| 重启等价语义 | 全新副本，全量重拉 | EpochCache truncation 对齐 | 同 RocksDB |
+| LeaderEpochCache | storage-engine RocksDB column family | storage-engine RocksDB column family | storage-engine RocksDB column family |
+| 重启等价语义 | 消息数据全新副本，全量重拉 | EpochCache truncation 对齐 | EpochCache truncation 对齐 |
 
 协议代码与引擎解耦：ISR 控制面只调 `ReplicaLog` trait，引擎差异封闭在 trait 实现内。
 

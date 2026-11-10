@@ -319,4 +319,15 @@ mod tests {
         let new_isr = compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10000, 200);
         assert_eq!(new_isr, Some(vec![1]));
     }
+
+    #[test]
+    fn lag_window_boundary_keeps_follower_in_isr() {
+        let st = state();
+        update_follower_progress(&st, 2, 1, 100, 100, 100).unwrap();
+
+        assert_eq!(
+            compute_new_isr(&st, &[1, 2], &[1, 2], 1, 100, 10_000, 110),
+            None
+        );
+    }
 }
