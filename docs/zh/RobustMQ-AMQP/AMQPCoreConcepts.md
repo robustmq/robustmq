@@ -65,7 +65,7 @@ Binding 把 exchange 和 queue(或 exchange 和 exchange)关联起来,并携带�
 | Basic.Consume 的消费者 | 共享消费组成员 |
 | 队列消息拉取/推送的协调者 | meta-service 选举出的组 leader 节点 |
 | Exchange / Queue / Binding 元数据 | Raft 复制的集群元数据 |
-| 消息存储 | File Segment 引擎(与 Kafka / MQTT 共享) |
+| 消息存储 | 通过统一 `StorageDriverManager` 路径使用 `EngineRocksDB`; Kafka、MQTT 可按 Topic 使用不同存储类型 |
 
 ## 延伸阅读
 

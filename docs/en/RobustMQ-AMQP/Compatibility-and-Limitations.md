@@ -32,8 +32,8 @@ This page summarizes where RobustMQ's AMQP implementation stands relative to sta
 - **Message/queue TTL**: `x-message-ttl`, `x-expires`, etc. have no effect.
 - **Queue capacity limits**: `x-max-length`, `x-max-length-bytes` have no effect.
 - **Priority queues**: `x-max-priority` has no effect.
-- **Lazy queues**: every message goes through File Segment storage uniformly, with no memory/disk two-tier distinction.
-- **Federation / Shovel / mirrored-queue clustering** and other RabbitMQ ecosystem plugin features: none of these are implemented — RobustMQ's high availability comes from the Raft metadata layer and the File Segment storage engine itself, a fundamentally different mechanism, so RabbitMQ-plugin-style configuration doesn't carry over.
+- **Lazy queues**: every message goes through the configured RocksDB queue storage path, with no memory/disk two-tier distinction.
+- **Federation / Shovel / mirrored-queue clustering** and other RabbitMQ ecosystem plugin features: none of these are implemented. RobustMQ's queue storage uses the shared Storage Adapter path and configured shard replication rather than RabbitMQ plugin-style queue mirroring.
 
 ## Migration Advice
 

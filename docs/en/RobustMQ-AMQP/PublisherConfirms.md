@@ -13,7 +13,7 @@ A producer switches a channel into confirm mode with `Confirm.Select`; the broke
 ## Publish Sequence Numbers and Confirms
 
 - Once in confirm mode, every `Basic.Publish` on the channel is assigned a **publish sequence number**, starting at 1 and increasing monotonically (a separate counter from the `delivery-tag` used by `Basic.Ack`/`Nack` on the consume side — one tracks publishing, the other consumption).
-- Once a message has been routed and successfully written to storage (File Segment), the broker replies `Basic.Ack` carrying that sequence number.
+- Once a message has been routed and successfully written through `StorageDriverManager` to the configured queue storage (`EngineRocksDB` in the current AMQP path), the broker replies `Basic.Ack` carrying that sequence number.
 - `multiple=true` acknowledges every message with a sequence number less than or equal to this one (batched acking, fewer round trips).
 - If a message fails to route (no matching queue) or fails to persist, the broker replies `Basic.Nack`.
 
@@ -45,7 +45,7 @@ channel.addConfirmListener(
 
 ## Limitations
 
-- Publisher Confirms only guarantee that a message was successfully written to storage on the handling node — they don't cover cross-node replica acknowledgement (RobustMQ's high availability comes from the File Segment storage engine and the Raft metadata layer, not per-message multi-replica synchronous writes).
+- Publisher Confirms only guarantee that a message was successfully written to the configured storage on the handling node — they don't cover cross-node replica acknowledgement or per-message multi-replica synchronous writes.
 - Transactions (`Tx.Select`/`Tx.Commit`) currently **do not** provide real atomic-commit semantics — they only reply with acknowledgement frames. Don't rely on them for reliability guarantees; use Publisher Confirms instead.
 
 ## Further Reading

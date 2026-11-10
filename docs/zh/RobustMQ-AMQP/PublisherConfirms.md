@@ -13,7 +13,7 @@ Publisher Confirm(发布确认)是 AMQP 0-9-1 的扩展协议(`Confirm` 类),让
 ## 发布序号与确认
 
 - 进入 confirm 模式后,该 channel 上每一条 `Basic.Publish` 都会被分配一个从 1 开始单调递增的 **publish sequence number**(与 `Basic.Ack`/`Nack` 的 `delivery-tag` 是不同的计数器,分别对应发布方向和消费方向)。
-- 消息被路由、写入存储(File Segment)成功后,Broker 回一个 `Basic.Ack`,携带对应的序号。
+- 消息被路由并通过 `StorageDriverManager` 成功写入配置的队列存储(当前 AMQP 路径为 `EngineRocksDB`)后,Broker 回一个 `Basic.Ack`,携带对应的序号。
 - `multiple=true` 表示确认小于等于该序号的所有消息(批量确认,减少往返)。
 - 如果消息因为路由失败(没有匹配的队列)或写入失败,Broker 回 `Basic.Nack`。
 
@@ -45,7 +45,7 @@ channel.addConfirmListener(
 
 ## 局限性
 
-- Publisher Confirm 只保证消息被本节点成功写入存储,不涉及跨节点副本确认(RobustMQ 的高可用由 File Segment 存储引擎和 Raft 元数据层负责,不是每条消息级别的多副本同步写)。
+- Publisher Confirm 只保证消息被处理节点成功写入配置的存储,不涉及跨节点副本确认或每条消息级别的多副本同步写。
 - 事务(`Tx.Select`/`Tx.Commit`)目前**不提供**真实的原子提交语义,只回复确认帧,不建议依赖它做可靠性保证,请使用 Publisher Confirm。
 
 ## 延伸阅读

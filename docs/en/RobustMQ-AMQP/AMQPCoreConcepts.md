@@ -65,7 +65,7 @@ Once `Confirm.Select` is enabled, every `Basic.Publish` on that channel receives
 | A `Basic.Consume` consumer | A shared consume group member |
 | Queue pull/push coordinator | The group leader node elected by meta-service |
 | Exchange / Queue / Binding metadata | Raft-replicated cluster metadata |
-| Message storage | The File Segment engine (shared with Kafka / MQTT) |
+| Message storage | `EngineRocksDB` through the shared `StorageDriverManager` path; Kafka and MQTT may use different Topic storage types |
 
 ## Further Reading
 
