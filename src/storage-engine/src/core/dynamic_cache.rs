@@ -285,13 +285,17 @@ async fn parse_segment_meta(
 
 #[cfg(test)]
 mod tests {
-    use super::is_outdated_segment_notify;
+    use super::{is_outdated_segment_notify, parse_segment_meta, parse_shard};
     use crate::core::cache::StorageCacheManager;
     use crate::core::test_tool::test_init_conf;
     use crate::filesegment::SegmentIdentity;
     use broker_core::cache::NodeCacheManager;
     use common_config::config::BrokerConfig;
+    use common_config::storage::StorageType;
     use metadata_struct::storage::segment::EngineSegment;
+    use metadata_struct::storage::segment_meta::EngineSegmentMetadata;
+    use metadata_struct::storage::shard::{EngineShard, EngineShardConfig};
+    use protocol::broker::broker::BrokerUpdateCacheActionType;
     use std::sync::Arc;
 
     fn make_cache() -> Arc<StorageCacheManager> {
@@ -316,6 +320,17 @@ mod tests {
             segment_seq: 0,
             segment_epoch,
             leader_epoch,
+            ..Default::default()
+        }
+    }
+
+    fn shard(storage_type: StorageType) -> EngineShard {
+        EngineShard {
+            shard_name: "s1".to_string(),
+            config: EngineShardConfig {
+                storage_type,
+                ..Default::default()
+            },
             ..Default::default()
         }
     }
@@ -345,5 +360,94 @@ mod tests {
             &iden,
             &segment_le(6, 9)
         ));
+    }
+
+    #[tokio::test]
+    async fn shard_notifications_update_and_queue_deletes() {
+        let cache = make_cache();
+        let created = shard(StorageType::EngineMemory);
+        parse_shard(
+            &cache,
+            BrokerUpdateCacheActionType::Create,
+            &created.encode().unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            cache.shards.get("s1").unwrap().config.storage_type,
+            StorageType::EngineMemory
+        );
+
+        let mut updated = created.clone();
+        updated.config.storage_type = StorageType::EngineRocksDB;
+        parse_shard(
+            &cache,
+            BrokerUpdateCacheActionType::Update,
+            &updated.encode().unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            cache.shards.get("s1").unwrap().config.storage_type,
+            StorageType::EngineRocksDB
+        );
+
+        parse_shard(
+            &cache,
+            BrokerUpdateCacheActionType::Delete,
+            &updated.encode().unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let (shards, segments) = cache.take_pending_deletes();
+        assert_eq!(shards, vec!["s1"]);
+        assert!(segments.is_empty());
+    }
+
+    #[tokio::test]
+    async fn segment_metadata_is_cached_only_for_file_shards() {
+        let cache = make_cache();
+        cache.set_shard(shard(StorageType::EngineSegment));
+        let meta = EngineSegmentMetadata {
+            shard_name: "s1".to_string(),
+            segment_seq: 3,
+            start_offset: 10,
+            start_timestamp: 20,
+            end_timestamp: 30,
+            ..Default::default()
+        };
+
+        parse_segment_meta(
+            &cache,
+            BrokerUpdateCacheActionType::Create,
+            &meta.encode().unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            cache
+                .get_segment_meta(&SegmentIdentity::new("s1", 3))
+                .unwrap()
+                .start_offset,
+            10
+        );
+
+        cache.set_shard(shard(StorageType::EngineMemory));
+        let ignored = EngineSegmentMetadata {
+            segment_seq: 4,
+            ..meta
+        };
+        parse_segment_meta(
+            &cache,
+            BrokerUpdateCacheActionType::Update,
+            &ignored.encode().unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(cache
+            .get_segment_meta(&SegmentIdentity::new("s1", 4))
+            .is_none());
     }
 }

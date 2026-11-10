@@ -27,7 +27,7 @@ RobustMQ 提供三种存储引擎，通过 Storage Adapter 对上层 Broker 屏�
 | Key 索引 | `DashMap<shard, DashMap<key, offset>>` | 按 Key 查询（Key 唯一） |
 | 时间戳索引 | `DashMap<shard, DashMap<timestamp, offset>>` | 按时间查 Offset |
 
-进程重启后数据丢失。支持双副本配置（acks=1），Leader 写入后异步复制到第二副本。
+进程重启后数据丢失。在副本 Shard 中，Leader 先本地写入，Follower 通过 Pull 异步拉取；生产者的 `acks` 值决定写入是否等待副本确认。
 
 ---
 
@@ -35,7 +35,7 @@ RobustMQ 提供三种存储引擎，通过 Storage Adapter 对上层 Broker 屏�
 
 使用专用 Column Family（`DB_COLUMN_FAMILY_BROKER`）存储消息，内存中维护写锁避免并发冲突。
 
-数据不在节点间同步，集群模式下不同 Broker 节点无法共享数据，不适合生产集群。
+数据持久化在本地，RocksDB 不在节点间共享数据。集群中的副本同步由 storage-engine 的 ISR 协议提供，而不是共享 RocksDB；该引擎适合本地持久化，不承担 File Segment 引擎面向生产集群的主要场景。
 
 ---
 
@@ -61,7 +61,7 @@ offset 索引采用稀疏索引策略：每 1000 条建一个索引点，记录�
 
 ### 一致性协议：ISR
 
-每个 Active Segment 有一个 Leader，维护 ISR（In-Sync Replicas）列表。写入成功意味着数据已复制到 ISR 所有副本，无数据空洞，读取 100% 成功。
+每个 Active Segment 有一个 Leader，维护 ISR（In-Sync Replicas）列表，Follower 从 Leader 拉取记录。持久性取决于请求的 `acks` 值：`acks=1` 在本地写入后返回，`acks=all` 则要求 ISR 数量满足配置的最小值，并等待高水位（HW）达到写入位置。
 
 Follower 通过 Pull 模式主动批量拉取，高 QPS 场景下网络请求从百万级降到百级。
 
@@ -69,15 +69,17 @@ acks 配置：
 
 | acks | 语义 |
 |------|------|
-| `all` | 等待所有 ISR 副本确认 |
-| `quorum` | 等待多数派确认 |
-| `1` | 只等 Leader 确认 |
+| `0` | 不等待生产者响应 |
+| `1` | 只等待 Leader 本地写入 |
+| `all` / `-1` | 要求 `min_in_sync_replicas`，然后等待基于 ISR 计算的 HW |
+
+当前 Kafka Produce 协议不支持 `quorum`。协议层只接受 `0`、`1`、`-1`；storage-engine 对除 `-1` 以外的值都走非 `acks=all` 写入路径。
 
 ### Active Segment 与 Sealed Segment
 
 **Active Segment**：正在写入的活跃段，有 Leader 和 ISR 机制，Follower 持续 Pull 复制。
 
-**Sealed Segment**：写满（如 1GB）或达到时间阈值后封存。Leader 等待所有 ISR Follower 完全追上并验证一致性，确认所有副本完整后标记为 Sealed，释放 Leader 角色。Sealed Segment 没有 Leader，所有副本平等，可从任意副本读取。
+**Sealed Segment**：Segment 达到配置的结束条件后，storage-engine 异步向 Meta Service 请求封存。Meta Service 将其从可写状态切换出去；封存后的历史 Segment 只读，不参与 Active Segment 的 Leader 轮换。当前封存请求路径不会同步等待所有 ISR Follower 追上，因此不能把封存理解为 `acks=all` 的确认屏障。读取由仍保留该封存 Segment 的副本提供。
 
 结果：Leader 数量 = Shard 数量（而非 Segment 总数），1000 个 Shard 只需 1000 个 Leader。历史数据读取压力分散到所有 Storage Node。
 
