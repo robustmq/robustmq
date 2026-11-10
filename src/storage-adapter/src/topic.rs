@@ -210,3 +210,56 @@ async fn init_single_inner_topic(
     info!("Inner topic '{}' created successfully", topic_name);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::{test_add_topic, test_build_storage_driver_manager};
+    use common_base::uuid::unique_id;
+    use common_config::broker::{default_broker_config, init_broker_conf_by_config};
+    use grpc_clients::pool::ClientPool;
+    use metadata_struct::mqtt::topic::TopicConfig;
+
+    #[test]
+    fn topic_replication_matches_cluster_size() {
+        init_broker_conf_by_config(default_broker_config());
+        let meta_node_count = broker_config().meta_addrs.len();
+
+        assert_eq!(
+            topic_replication_num(3),
+            if meta_node_count == 1 { 1 } else { 3 }
+        );
+    }
+
+    #[test]
+    fn shard_config_copies_topic_storage_settings() {
+        let topic = Topic::new(DEFAULT_TENANT, "inner-topic", StorageType::EngineRocksDB)
+            .with_replication(3)
+            .with_config(TopicConfig {
+                max_segment_size: Some(2048),
+                max_record_num: Some(100),
+                retention_sec: 60,
+            });
+
+        let config = shard_config_for(&topic);
+
+        assert_eq!(config.replica_num, 3);
+        assert_eq!(config.storage_type, StorageType::EngineRocksDB);
+        assert_eq!(config.max_segment_size, Some(2048));
+        assert_eq!(config.max_record_num, Some(100));
+        assert_eq!(config.retention_sec, 60);
+        assert!(config.is_inner_topic);
+    }
+
+    #[tokio::test]
+    async fn existing_inner_topic_ensures_local_storage_is_provisioned() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let topic_name = unique_id();
+        test_add_topic(&manager, &topic_name);
+        let client_pool = Arc::new(ClientPool::new(1));
+
+        init_single_inner_topic(&manager.broker_cache, &manager, &client_pool, &topic_name)
+            .await
+            .unwrap();
+    }
+}
