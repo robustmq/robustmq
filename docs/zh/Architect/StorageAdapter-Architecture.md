@@ -12,15 +12,15 @@ Storage Adapter 位于 Broker 和 Storage Engine 之间，将不同协议的存�
 |------|---------|------|
 | MQTT | Topic | Shard |
 | Kafka | Partition | Shard |
-| AMQP（规划中）| Queue | Shard |
+| AMQP | Queue | Shard |
 
 一个 Topic 对应一组 Shard（多分区），命名规则：
 
 ```
-{topic_id}_{partition_seq}
+{topic_id}-{partition}
 ```
 
-每个 Shard 独立配置存储类型（`EngineMemory` / `EngineRocksDB` / `EngineSegment`），Shard 和 Segment 元数据由 Meta Service 统一管理。
+每个 Topic 选择一种存储类型（`EngineMemory`、`EngineRocksDB` 或 `EngineSegment`），该配置会复制到该 Topic 所有 Shard 的配置中。Shard 和 Segment 元数据由 Meta Service 统一管理。
 
 ---
 
@@ -32,16 +32,21 @@ Storage Adapter 位于 Broker 和 Storage Engine 之间，将不同协议的存�
 
 | 方法 | 说明 |
 |------|------|
-| `create_shard` | 创建 Shard |
-| `delete_shard` | 删除 Shard |
-| `write` | 写入单条消息，返回 Offset |
-| `batch_write` | 批量写入消息 |
-| `read_by_offset` | 按 Offset 读取 |
-| `read_by_tag` | 按 Tag 读取 |
-| `read_by_key` | 按 Key 读取 |
-| `get_offset_by_timestamp` | 按时间戳查 Offset |
-| `get_offset_by_group` | 查询消费组 Offset |
-| `commit_offset` | 提交消费组 Offset |
+| `create_shard(&AdapterShardInfo)` | 通过存储引擎处理器创建 Shard |
+| `list_shard(Option<String>)` | 列出全部 Shard 或指定 Shard |
+| `delete_shard(&str)` | 删除 Shard |
+| `write(&str, &[AdapterWriteRecord], i8)` | 将一个批次写入一个 Shard，并返回响应行 |
+| `read_by_offset` | 从指定 Shard 的 Offset 开始读取记录 |
+| `read_by_tag` | 从指定 Shard 读取带 Tag 的记录 |
+| `read_by_keys` | 从指定 Shard 按多个 Key 读取记录 |
+| `delete_by_keys` / `delete_by_offsets` | 按 Key 或 Offset 删除记录（由引擎能力决定） |
+| `delete_records_before` | 执行 DeleteRecords 语义并返回实际低水位 |
+| `get_offset_by_timestamp` | 按时间戳和策略查找 Offset |
+| `close` | 关闭适配器 |
+
+消费组 Offset 操作（`get_offset_by_group`、`commit_group_offset`、
+`delete_group_offset`）属于 `StorageDriverManager`，由 `common-group::OffsetManager`
+提供，不是 `StorageAdapter` trait 的方法。
 
 ### StorageDriverManager
 
@@ -67,12 +72,12 @@ Driver 按需初始化并缓存，避免重复创建。
 
 Broker 收到消息后，调用 `StorageDriverManager::write` 进入写入流程：
 
-1. 从 `NodeCacheManager` 查找 Topic 的分区数和存储类型配置
-2. 用 `message_seq.fetch_add(1)` 取自增序号，对分区数取模，选出目标 Shard（`topic_id_{seq % partition_count}`）
+1. 从 `NodeCacheManager` 查找 Topic 的分区数、存储类型和 `storage_name_list`
+2. 用 `message_seq.fetch_add(1)` 取自增序号，对分区数取模，从 `storage_name_list` 选出一个目标 Shard
 3. 从 `driver_list` 查找对应存储类型的 Driver，不存在则按需初始化并缓存
-4. 调用 Driver 的 `write` 方法写入，返回该消息的 Offset
+4. 调用 Driver 的 `write` 方法，将完整输入切片写入并返回响应行
 
-批量写入（`batch_write`）逻辑相同，对每条消息独立选 Shard 后批量提交。
+一个 `write` 调用不会把批次拆到多个分区：批次中的所有记录都会写入同一个目标 Shard。Kafka 可以通过 `write_to_partition` 绕过轮询，显式解析目标分区后把完整批次写入该分区。
 
 ![Storage Adapter 写入流程](../../images/arch_adapter_write.png)
 
@@ -80,12 +85,12 @@ Broker 收到消息后，调用 `StorageDriverManager::write` 进入写入流程
 
 ## Topic 创建流程
 
-创建 Topic 时，Broker 向 Meta Service 申请 Shard 配置，Meta Service 负责分配分区序号和 Segment 资源，再将 Shard 元数据下发给 Storage Engine 初始化存储结构：
+创建 Topic 时，协议 Broker 先向 Meta Service 写入 Topic 元数据，再通过 Adapter 为每个存储 Shard 创建资源：
 
-1. 客户端请求创建 Topic，Broker 校验参数后调用 Meta Service gRPC 接口
-2. Meta Service 在 metadata Raft Group 中写入 Topic 和 Shard 配置
-3. Meta Service 通过 `UpdateCache` 通知 Broker 刷新本地 `NodeCacheManager`
-4. Storage Engine 收到 Shard 创建指令，初始化对应的 Active Segment
+1. 客户端请求创建 Topic，协议 Broker 构造包含分区数、副本数、存储类型和 Topic 限制的 `Topic`。
+2. `create_topic_full` 将 Topic 发送给 Meta Service；Meta Service 持久化并把变更传播到 Broker 缓存。
+3. 本地缓存观察到 Topic 后，`StorageDriverManager::create_storage_resource` 遍历 `storage_name_list`。
+4. 每个 Shard 通过 storage-engine handler 创建，由 Meta Service 持久化 Shard 并创建 segment 0。`EngineSegment` 还需要 Segment 元数据，Memory 和 RocksDB Shard 不需要。
 
 ![Topic 创建流程](../../images/arch_topic_create.png)
 
@@ -93,12 +98,15 @@ Broker 收到消息后，调用 `StorageDriverManager::write` 进入写入流程
 
 ## Offset 管理
 
-`OffsetManager` 支持两种存储策略：
+`OffsetManager` 在每个 Broker 内使用内存 `DashMap` 保存消费组 Offset。`commit_group_offset`
+会同步更新本地缓存并标记消费组为脏数据；`get_offset` 优先读取本地缓存，未命中时才访问 Meta Service。
+后台任务每 20 ms 检查脏消费组并异步刷入 Meta Service，因此本地读取立即可见，但持久化是异步的。
+如果刷入失败，错误会被记录，但脏组集合已先被清空，所以该循环不会立即重试同一更新；需要后续提交或组心跳再次标记该组为脏。
 
-| 策略 | 实现 | 说明 |
-|------|------|------|
-| 缓存存储（`enable_cache=true`） | `OffsetCacheManager` | RocksDB 本地缓存，低延迟 |
-| 持久化存储 | `OffsetStorageManager` | 写入 Meta Service，强一致 |
+`GroupConsumer` 默认在成功读取后自动提交，也可以使用 `new_manual` 后显式调用 `commit`。
+`PriorityGroupConsumer` 为 critical、urgent、normal 分别维护消费组 Offset，并按该顺序读取。
+
+Broker 配置中的 `offset_enable_cache` 属于 storage-engine 的 Offset 处理，不是这里消费组 Offset 的实现开关。
 
 ---
 

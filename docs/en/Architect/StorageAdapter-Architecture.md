@@ -12,15 +12,15 @@ Storage concepts from each protocol are mapped to Shard:
 |----------|-----------------|-----------|
 | MQTT | Topic | Shard |
 | Kafka | Partition | Shard |
-| AMQP (planned) | Queue | Shard |
+| AMQP | Queue | Shard |
 
 One Topic maps to a group of Shards (multiple partitions). Naming convention:
 
 ```
-{topic_id}_{partition_seq}
+{topic_id}-{partition}
 ```
 
-Each Shard has its storage type configured independently (`EngineMemory` / `EngineRocksDB` / `EngineSegment`). Shard and Segment metadata are managed centrally by the Meta Service.
+Each Topic selects one storage type (`EngineMemory`, `EngineRocksDB`, or `EngineSegment`), and that setting is copied into the configuration of every Shard belonging to the Topic. Shard and Segment metadata are managed centrally by the Meta Service.
 
 ---
 
@@ -32,16 +32,21 @@ The unified interface that all storage backends implement:
 
 | Method | Description |
 |--------|-------------|
-| `create_shard` | Create a Shard |
-| `delete_shard` | Delete a Shard |
-| `write` | Write a single message, return Offset |
-| `batch_write` | Write a batch of messages |
-| `read_by_offset` | Read by Offset |
-| `read_by_tag` | Read by Tag |
-| `read_by_key` | Read by Key |
-| `get_offset_by_timestamp` | Look up Offset by timestamp |
-| `get_offset_by_group` | Query consumer group Offset |
-| `commit_offset` | Commit consumer group Offset |
+| `create_shard(&AdapterShardInfo)` | Create a Shard through the storage engine handler |
+| `list_shard(Option<String>)` | List all Shards or one named Shard |
+| `delete_shard(&str)` | Delete a Shard |
+| `write(&str, &[AdapterWriteRecord], i8)` | Write one batch to one Shard and return response rows |
+| `read_by_offset` | Read records from one Shard starting at an Offset |
+| `read_by_tag` | Read tagged records from one Shard |
+| `read_by_keys` | Read records for multiple keys from one Shard |
+| `delete_by_keys` / `delete_by_offsets` | Delete records by keys or offsets where the engine supports it |
+| `delete_records_before` | Apply DeleteRecords semantics and return the achieved low watermark |
+| `get_offset_by_timestamp` | Look up an Offset by timestamp and strategy |
+| `close` | Close the adapter |
+
+Consumer-group offset operations (`get_offset_by_group`, `commit_group_offset`, and
+`delete_group_offset`) are methods on `StorageDriverManager` and are backed by
+`common-group::OffsetManager`; they are not part of the `StorageAdapter` trait.
 
 ### StorageDriverManager
 
@@ -67,12 +72,15 @@ Implements the `StorageAdapter` trait and delegates calls to `StorageEngineHandl
 
 When the Broker receives a message, it calls `StorageDriverManager::write`, which proceeds as follows:
 
-1. Look up the Topic's partition count and storage type from `NodeCacheManager`
-2. Fetch-and-increment `message_seq`, then select the target Shard by modulo: `topic_id_{seq % partition_count}`
+1. Look up the Topic's partition count, storage type, and `storage_name_list` from `NodeCacheManager`
+2. Fetch-and-increment `message_seq`, then select one target Shard by modulo: `storage_name_list[seq % partition_count]`
 3. Look up the matching Driver in `driver_list`; if not found, initialize it on demand and cache it
-4. Call the Driver's `write` method and return the resulting Offset
+4. Call the Driver's `write` method with the complete input slice and return the resulting response rows
 
-Batch writes (`batch_write`) follow the same logic: each message independently selects a Shard, then all writes are submitted together.
+The batch is not split across partitions: every record in one `write` call is sent to
+the one selected Shard. Kafka can bypass round-robin selection with
+`write_to_partition`, which resolves the requested partition and sends the complete
+batch there.
 
 ![Storage Adapter Write Path](../../images/arch_adapter_write.png)
 
@@ -80,12 +88,13 @@ Batch writes (`batch_write`) follow the same logic: each message independently s
 
 ## Topic Creation Flow
 
-When a Topic is created, the Broker requests Shard configuration from Meta Service. Meta Service allocates partition sequence numbers and Segment resources, then notifies the Storage Engine to initialize the backing storage structures:
+When a Topic is created, the protocol broker sends the Topic metadata to Meta Service
+and then provisions each storage Shard through the adapter:
 
-1. The client requests Topic creation; the Broker validates parameters and calls the Meta Service gRPC interface
-2. Meta Service writes the Topic and Shard configuration into the metadata Raft Group
-3. Meta Service notifies the Broker via `UpdateCache` to refresh the local `NodeCacheManager`
-4. The Storage Engine receives the Shard creation directive and initializes the corresponding Active Segment
+1. The client requests Topic creation; the protocol broker builds a `Topic` with its partition count, replication, storage type, and topic limits.
+2. `create_topic_full` sends the Topic to Meta Service, which persists it and propagates it to the broker cache.
+3. After the local cache observes the Topic, `StorageDriverManager::create_storage_resource` iterates over `storage_name_list`.
+4. Each Shard is created through the storage-engine handler, which asks Meta Service to persist the Shard and creates segment 0. `EngineSegment` additionally requires segment metadata; Memory and RocksDB shards do not.
 
 ![Topic Creation Flow](../../images/arch_topic_create.png)
 
@@ -93,12 +102,21 @@ When a Topic is created, the Broker requests Shard configuration from Meta Servi
 
 ## Offset Management
 
-`OffsetManager` supports two storage strategies:
+`OffsetManager` keeps consumer-group offsets in an in-memory `DashMap` on each
+broker. `commit_group_offset` updates that local cache synchronously and marks the
+group dirty. `get_offset` reads the local cache first and falls back to Meta Service
+on a cache miss. A background task checks dirty groups every 20 ms and flushes them
+to Meta Service; the local cache is therefore immediately visible while persistence
+is asynchronous. If a flush fails, the error is logged after the dirty-group set has
+been cleared, so the same update is not immediately retried by that loop; a later
+commit or group heartbeat must mark the group dirty again.
 
-| Strategy | Implementation | Description |
-|----------|---------------|-------------|
-| Cache storage (`enable_cache=true`) | `OffsetCacheManager` | Local RocksDB cache, low latency |
-| Persistent storage | `OffsetStorageManager` | Written to Meta Service, strong consistency |
+`GroupConsumer` can auto-commit after a successful read, or use `new_manual` and
+commit explicitly. `PriorityGroupConsumer` maintains separate critical, urgent, and
+normal group offsets and reads in that order.
+
+The `offset_enable_cache` broker setting belongs to storage-engine offset handling;
+it is not the implementation switch for consumer-group offsets described here.
 
 ---
 

@@ -1,6 +1,6 @@
 # 系统架构
 
-RobustMQ 的 AMQP 能力并不是一个独立的消息队列服务,而是构建在 RobustMQ 统一内核之上的一层 **AMQP 0-9-1 协议兼容层**。它复用 RobustMQ 的网络框架、File Segment 存储引擎与基于 Raft 的元数据服务,对外呈现为一个标准的 AMQP 0-9-1 Broker——官方 RabbitMQ 客户端可以直接连接。
+RobustMQ 的 AMQP 能力并不是一个独立的消息队列服务,而是构建在 RobustMQ 统一内核之上的一层 **AMQP 0-9-1 协议兼容层**。它复用 RobustMQ 的网络框架、统一 Storage Adapter 路径、配置的存储引擎(当前队列 Topic 使用 RocksDB)与基于 Raft 的元数据服务,对外呈现为一个标准的 AMQP 0-9-1 Broker——官方 RabbitMQ 客户端可以直接连接。
 
 其最重要的设计取向是**复用共享消费组基础设施**:AMQP 队列的"竞争消费者"模型和 MQTT/NATS 的共享订阅是同一套机制,因此 AMQP 没有重新实现一套队列引擎,而是把每个队列映射为一个共享消费组,由集群选出的 leader 节点负责这个队列的消息拉取与投递。
 
@@ -39,11 +39,11 @@ AMQP 语义的实现所在,按 AMQP 的 Class 划分模块:
 - **Leader 选举与解析**(`resolve_queue_leader`):第一次访问某个队列时,通过 meta-service 创建/查询该队列的共享消费组并拿到 leader 节点;结果直接由创建/查询接口返回,不需要额外一次读回确认。
 - **跨节点转发**:`Basic.Get` 落在非 leader 节点时,通过一次 gRPC(`FetchAmqpQueueMessage`)转发到 leader;`Basic.Consume` 的推送同理通过 `SendShareGroupMessage` 把消息投递到消费者所在的实际连接。
 
-### 5. 存储层(File Segment 引擎)
+### 5. 存储层(Storage Adapter 与 RocksDB 队列 Shard)
 
-通过 `StorageDriverManager` 访问与 Kafka、MQTT 共享的 File Segment 引擎:
+通过 `StorageDriverManager` 访问与 Kafka、MQTT 共用的适配器接口:
 
-- 每个 AMQP 队列对应一个内部 topic,承载消息的物理分片(shard)按段(segment)追加写入。
+- 每个 AMQP 队列对应一个内部 Topic,物理 Shard 当前使用 `EngineRocksDB`; Kafka、MQTT Topic 可以使用不同存储类型。
 - 消费位点(已确认 / 未确认)通过独立的 offset 存储与未确认索引(unacked index)管理,支撑 `Basic.Ack`/`Nack`/`Recover` 的语义。
 
 ### 6. 元数据层(meta-service · Raft)
@@ -65,9 +65,9 @@ AMQP 语义的实现所在,按 AMQP 的 Class 划分模块:
 
 | 维度 | 原生 RabbitMQ | RobustMQ |
 |---|---|---|
-| 队列引擎 | Erlang 进程 + Mnesia | 共享消费组 + File Segment 存储引擎 |
+| 队列引擎 | Erlang 进程 + Mnesia | 共享消费组 + 通过 Storage Adapter 访问的 RocksDB 队列 Shard |
 | 队列协调者 | 队列所在节点(镜像/仲裁队列有独立选主) | meta-service 选举的共享消费组 leader |
-| 多协议 | 仅 AMQP(需 Shovel/Federation 插件跨协议) | AMQP / Kafka / MQTT 共享同一份数据 |
+| 多协议 | 仅 AMQP(需 Shovel/Federation 插件跨协议) | AMQP / Kafka / MQTT 共享统一 Topic/Shard 与适配器模型,各 Topic 可选择自己的存储类型 |
 | 管理 HTTP API | 内置 `rabbitmqadmin` / management 插件 | 暂无独立管理 API,通过 AMQP 协议本身管理 |
 | 事务 / 死信队列 | 支持 | 暂不支持(见[兼容性与限制](./Compatibility-and-Limitations.md)) |
 

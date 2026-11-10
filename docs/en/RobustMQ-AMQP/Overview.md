@@ -9,7 +9,7 @@ The core design choice behind RobustMQ AMQP is to **reuse RobustMQ's existing sh
 - **A queue is a shared consume group**: each AMQP queue internally maps to a shared consume group; consumers registered via `Basic.Consume` are members of that group.
 - **The group leader is elected by meta-service**: message pulling and delivery for a queue is driven by the leader node the cluster elected based on load; a `Basic.Get` on a non-leader node is forwarded to the leader via a single gRPC round trip.
 - **Exchange / Queue / Binding metadata is persisted in Raft**: declared exchanges, queues, and bindings are cluster-wide metadata replicated through meta-service's Raft layer — they survive restarts and are visible from any node.
-- **Message storage is the File Segment engine**: AMQP shares the same underlying storage as Kafka and MQTT (append-only segments, offset index); each AMQP queue maps to an internal topic/shard.
+- **Message storage uses the shared adapter path**: AMQP queues map to an internal topic/shard and currently use `EngineRocksDB`; Kafka and MQTT select their own Topic storage types, so the protocols do not automatically share one physical data copy.
 
 See [System Architecture](./SystemArchitecture.md) for details.
 

@@ -22,7 +22,7 @@ There is currently **no** `tls_port` field — AMQP does not support TLS; see [S
 The AMQP broker reuses the following RobustMQ-wide settings — there's nothing AMQP-specific to configure for these:
 
 - **User authentication data**: shared with MQTT and Kafka's user table — see [Authentication (SASL)](../Security/Authentication-SASL.md).
-- **Storage engine parameters** (File Segment's segment size, cleanup policy, etc.): configured once at the broker level, independent of protocol — see [Storage](../Storage.md).
+- **Storage engine parameters** (including Topic retention and record limits): carried by the Topic/Shard configuration; the current AMQP queue path uses `EngineRocksDB` — see [Storage](../Storage.md).
 - **meta-service/Raft cluster configuration**: cluster topology, election parameters, etc. are protocol-agnostic.
 
 ## Example: A Full Multi-Protocol Snippet

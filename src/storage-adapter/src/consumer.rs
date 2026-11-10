@@ -345,3 +345,146 @@ impl GroupConsumer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::{test_add_topic, test_build_storage_driver_manager};
+    use common_base::uuid::unique_id;
+    use metadata_struct::{adapter::adapter_record::AdapterWriteRecord, tenant::DEFAULT_TENANT};
+
+    fn read_config() -> AdapterReadConfig {
+        AdapterReadConfig {
+            max_record_num: 10,
+            max_size: 1024 * 1024,
+        }
+    }
+
+    #[tokio::test]
+    async fn manual_consumer_repeats_until_commit_then_advances() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let topic_name = unique_id();
+        test_add_topic(&manager, &topic_name);
+        manager
+            .write(
+                DEFAULT_TENANT,
+                &topic_name,
+                &[
+                    AdapterWriteRecord::new(&topic_name, b"one".as_ref()),
+                    AdapterWriteRecord::new(&topic_name, b"two".as_ref()),
+                ],
+                1,
+            )
+            .await
+            .unwrap();
+
+        let group_name = unique_id();
+        manager
+            .commit_group_offset(DEFAULT_TENANT, &group_name, &[])
+            .await
+            .unwrap();
+        let consumer = GroupConsumer::new_manual(manager.clone(), group_name);
+        let first = consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap();
+        assert_eq!(first.len(), 2);
+
+        let repeated = consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap();
+        assert_eq!(repeated.len(), 2);
+
+        consumer.commit().await.unwrap();
+        assert!(consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn auto_consumer_commits_and_tag_reads_filter_records() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let topic_name = unique_id();
+        test_add_topic(&manager, &topic_name);
+        manager
+            .write(
+                DEFAULT_TENANT,
+                &topic_name,
+                &[
+                    AdapterWriteRecord::new(&topic_name, b"critical".as_ref())
+                        .with_tags(vec!["urgent".to_string()]),
+                    AdapterWriteRecord::new(&topic_name, b"normal".as_ref())
+                        .with_tags(vec!["normal".to_string()]),
+                ],
+                1,
+            )
+            .await
+            .unwrap();
+
+        let group_name = unique_id();
+        manager
+            .commit_group_offset(DEFAULT_TENANT, &group_name, &[])
+            .await
+            .unwrap();
+        let consumer = GroupConsumer::new(manager, group_name);
+        let urgent = consumer
+            .next_messages_by_tags(DEFAULT_TENANT, &topic_name, "urgent", &read_config())
+            .await
+            .unwrap();
+        assert_eq!(urgent.len(), 1);
+        assert_eq!(urgent[0].data.as_ref(), b"critical");
+
+        // The auto-commit after the first read advances the group to the next offset.
+        let normal = consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap();
+        assert_eq!(normal.len(), 1);
+        assert_eq!(normal[0].data.as_ref(), b"normal");
+        assert!(consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn by_start_offset_is_clamped_to_available_storage() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let topic_name = unique_id();
+        test_add_topic(&manager, &topic_name);
+        manager
+            .write(
+                DEFAULT_TENANT,
+                &topic_name,
+                &[
+                    AdapterWriteRecord::new(&topic_name, b"zero".as_ref()),
+                    AdapterWriteRecord::new(&topic_name, b"one".as_ref()),
+                    AdapterWriteRecord::new(&topic_name, b"two".as_ref()),
+                ],
+                1,
+            )
+            .await
+            .unwrap();
+
+        let group_name = unique_id();
+        manager
+            .commit_group_offset(DEFAULT_TENANT, &group_name, &[])
+            .await
+            .unwrap();
+        let consumer = GroupConsumer::new_manual(manager, group_name);
+        consumer
+            .set_start_offset_strategy(StartOffsetStrategy::ByStartOffset(1))
+            .await;
+        let records = consumer
+            .next_messages(DEFAULT_TENANT, &topic_name, &read_config())
+            .await
+            .unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].data.as_ref(), b"one");
+        assert_eq!(records[1].data.as_ref(), b"two");
+    }
+}
