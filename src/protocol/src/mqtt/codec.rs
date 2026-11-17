@@ -463,3 +463,243 @@ pub fn parse_mqtt_packet_to_name(packet: MqttPacket) -> String {
     };
     name.to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mqtt_codec_round_trips_ping_for_mqtt4_and_mqtt5() {
+        for protocol_version in [4, 5] {
+            let mut codec = MqttCodec::new(Some(protocol_version));
+            let wrapper = MqttPacketWrapper {
+                protocol_version,
+                packet: MqttPacket::PingReq(crate::mqtt::common::PingReq),
+            };
+            let mut buffer = BytesMut::new();
+
+            codec.encode_data(wrapper, &mut buffer).unwrap();
+            assert_eq!(buffer.as_ref(), &[0xC0, 0x00]);
+            assert_eq!(
+                codec.decode_data(&mut buffer).unwrap(),
+                Some(MqttPacket::PingReq(crate::mqtt::common::PingReq))
+            );
+            assert!(buffer.is_empty());
+        }
+    }
+
+    #[test]
+    fn mqtt_codec_requires_connect_before_decoding_other_packets() {
+        let mut codec = MqttCodec::new(None);
+        let mut buffer = BytesMut::from(&[0xC0, 0x00][..]);
+
+        assert!(matches!(
+            codec.decode_data(&mut buffer),
+            Err(MQTTProtocolError::InvalidProtocolName)
+        ));
+    }
+
+    #[test]
+    fn packet_length_and_names_match_encoded_packets() {
+        let wrapper = MqttPacketWrapper {
+            protocol_version: 5,
+            packet: MqttPacket::PingResp(crate::mqtt::common::PingResp),
+        };
+        assert_eq!(calc_mqtt_packet_size(wrapper.clone()), 2);
+        assert_eq!(calc_mqtt_packet_len(wrapper.clone()).unwrap(), 2);
+        assert_eq!(parse_mqtt_packet_to_name(wrapper.packet), "pong");
+    }
+
+    #[test]
+    fn mqtt_codec_encodes_every_mqtt5_packet_variant() {
+        use crate::mqtt::common::{
+            Auth, AuthReason, ConnAck, Connect, ConnectReturnCode, Disconnect,
+            DisconnectReasonCode, Filter, PubAck, PubAckReason, PubComp, PubCompReason, PubRec,
+            PubRecReason, PubRel, PubRelReason, Publish, QoS, RetainHandling, SubAck, Subscribe,
+            SubscribeReasonCode, UnsubAck, UnsubAckReason, Unsubscribe,
+        };
+        use bytes::Bytes;
+
+        let packets = vec![
+            (
+                MqttPacket::Connect(
+                    5,
+                    Connect {
+                        keep_alive: 10,
+                        client_id: "client".to_string(),
+                        clean_session: true,
+                    },
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+                0x10,
+            ),
+            (
+                MqttPacket::ConnAck(
+                    ConnAck {
+                        session_present: false,
+                        code: ConnectReturnCode::Success,
+                    },
+                    None,
+                ),
+                0x20,
+            ),
+            (
+                MqttPacket::Publish(
+                    Publish::new(
+                        Bytes::from_static(b"topic"),
+                        Bytes::from_static(b"payload"),
+                        false,
+                    ),
+                    None,
+                ),
+                0x30,
+            ),
+            (
+                MqttPacket::PubAck(
+                    PubAck {
+                        pkid: 1,
+                        reason: Some(PubAckReason::Success),
+                    },
+                    None,
+                ),
+                0x40,
+            ),
+            (
+                MqttPacket::PubRec(
+                    PubRec {
+                        pkid: 1,
+                        reason: Some(PubRecReason::Success),
+                    },
+                    None,
+                ),
+                0x50,
+            ),
+            (
+                MqttPacket::PubRel(
+                    PubRel {
+                        pkid: 1,
+                        reason: Some(PubRelReason::Success),
+                    },
+                    None,
+                ),
+                0x62,
+            ),
+            (
+                MqttPacket::PubComp(
+                    PubComp {
+                        pkid: 1,
+                        reason: Some(PubCompReason::Success),
+                    },
+                    None,
+                ),
+                0x70,
+            ),
+            (
+                MqttPacket::Subscribe(
+                    Subscribe {
+                        packet_identifier: 1,
+                        filters: vec![Filter {
+                            path: "topic/#".to_string(),
+                            qos: QoS::AtMostOnce,
+                            no_local: false,
+                            preserve_retain: false,
+                            retain_handling: RetainHandling::OnEverySubscribe,
+                        }],
+                    },
+                    None,
+                ),
+                0x82,
+            ),
+            (
+                MqttPacket::SubAck(
+                    SubAck {
+                        pkid: 1,
+                        return_codes: vec![SubscribeReasonCode::QoS0],
+                    },
+                    None,
+                ),
+                0x90,
+            ),
+            (
+                MqttPacket::Unsubscribe(
+                    Unsubscribe {
+                        pkid: 1,
+                        filters: vec!["topic/#".to_string()],
+                    },
+                    None,
+                ),
+                0xA2,
+            ),
+            (
+                MqttPacket::UnsubAck(
+                    UnsubAck {
+                        pkid: 1,
+                        reasons: vec![UnsubAckReason::Success],
+                    },
+                    None,
+                ),
+                0xB0,
+            ),
+            (MqttPacket::PingReq(crate::mqtt::common::PingReq), 0xC0),
+            (MqttPacket::PingResp(crate::mqtt::common::PingResp), 0xD0),
+            (
+                MqttPacket::Disconnect(
+                    Disconnect {
+                        reason_code: Some(DisconnectReasonCode::NormalDisconnection),
+                    },
+                    None,
+                ),
+                0xE0,
+            ),
+            (
+                MqttPacket::Auth(
+                    Auth {
+                        reason: Some(AuthReason::Success),
+                    },
+                    None,
+                ),
+                0xF0,
+            ),
+        ];
+
+        for (packet, first_byte) in packets {
+            let mut codec = MqttCodec::new(Some(5));
+            let mut buffer = BytesMut::new();
+            let packet_name = parse_mqtt_packet_to_name(packet.clone());
+            codec
+                .encode_data(
+                    MqttPacketWrapper {
+                        protocol_version: 5,
+                        packet: packet.clone(),
+                    },
+                    &mut buffer,
+                )
+                .unwrap();
+            assert_eq!(buffer[0], first_byte);
+            assert!(!buffer.is_empty());
+
+            if !matches!(packet, MqttPacket::Auth(_, _)) {
+                let mut decoder = MqttCodec::new(Some(5));
+                let decoded = decoder.decode_data(&mut buffer).unwrap().unwrap();
+                assert_eq!(parse_mqtt_packet_to_name(decoded), packet_name);
+                assert!(buffer.is_empty());
+            }
+        }
+
+        let mut codec = MqttCodec::new(Some(6));
+        let mut buffer = BytesMut::new();
+        codec
+            .encode_data(
+                MqttPacketWrapper {
+                    protocol_version: 6,
+                    packet: MqttPacket::PingReq(crate::mqtt::common::PingReq),
+                },
+                &mut buffer,
+            )
+            .unwrap();
+        assert!(buffer.is_empty());
+    }
+}

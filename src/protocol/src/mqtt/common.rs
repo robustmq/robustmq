@@ -456,6 +456,80 @@ pub fn qos(num: u8) -> Option<QoS> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variable_length_integers_round_trip_across_all_widths() {
+        for value in [
+            0,
+            127,
+            128,
+            16_383,
+            16_384,
+            2_097_151,
+            2_097_152,
+            268_435_455,
+        ] {
+            let mut buffer = BytesMut::new();
+            let encoded_len = write_remaining_length(&mut buffer, value).unwrap();
+            let (decoded_len, decoded) = length(buffer.iter()).unwrap();
+            assert_eq!(encoded_len, decoded_len);
+            assert_eq!(value, decoded);
+            assert_eq!(encoded_len, len_len(value));
+        }
+    }
+
+    #[test]
+    fn framing_helpers_reject_incomplete_and_oversized_packets() {
+        assert!(matches!(
+            check([0xC0].iter(), 1_000_000),
+            Err(MQTTProtocolError::InsufficientBytes(_))
+        ));
+
+        let oversized = [0x30, 0x7F];
+        assert!(matches!(
+            check(oversized.iter(), 10),
+            Err(MQTTProtocolError::PayloadSizeLimitExceeded(127))
+        ));
+
+        assert!(matches!(
+            length([0x80, 0x80, 0x80, 0x80, 0x01].iter()),
+            Err(MQTTProtocolError::MalformedRemainingLength)
+        ));
+        assert!(matches!(
+            write_remaining_length(&mut BytesMut::new(), 268_435_456),
+            Err(MQTTProtocolError::PayloadTooLong)
+        ));
+    }
+
+    #[test]
+    fn mqtt_strings_and_packet_type_helpers_cover_success_and_errors() {
+        let mut buffer = BytesMut::new();
+        write_mqtt_string(&mut buffer, "hello");
+        let mut bytes = buffer.freeze();
+        assert_eq!(read_mqtt_string(&mut bytes).unwrap(), "hello");
+
+        let invalid_utf8 = Bytes::from_static(&[0, 1, 0xFF]);
+        assert!(matches!(
+            read_mqtt_string(&mut invalid_utf8.clone()),
+            Err(MQTTProtocolError::TopicNotUtf8)
+        ));
+
+        assert_eq!(
+            FixedHeader::new(0xC0, 1, 0).packet_type().unwrap(),
+            PacketType::PingReq
+        );
+        assert!(matches!(
+            FixedHeader::new(0xF0, 1, 0).packet_type(),
+            Err(MQTTProtocolError::InvalidPacketType(15))
+        ));
+        assert_eq!(qos(0), Some(QoS::AtMostOnce));
+        assert_eq!(qos(3), None);
+    }
+}
+
 impl From<QoS> for u8 {
     fn from(value: QoS) -> Self {
         match value {

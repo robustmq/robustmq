@@ -199,3 +199,51 @@ fn code(value: SubscribeReasonCode) -> u8 {
         SubscribeReasonCode::TopicSubscribed => 151,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn suback_round_trips_reason_codes_and_properties() {
+        let suback = SubAck {
+            pkid: 7,
+            return_codes: vec![
+                SubscribeReasonCode::QoS0,
+                SubscribeReasonCode::NotAuthorized,
+                SubscribeReasonCode::WildcardSubscriptionsNotSupported,
+            ],
+        };
+        let properties = Some(SubAckProperties {
+            reason_string: Some("policy denied".to_string()),
+            user_properties: vec![("tenant".to_string(), "test".to_string())],
+        });
+        let mut buffer = BytesMut::new();
+
+        let written = write(&suback, &properties, &mut buffer).unwrap();
+
+        assert_eq!(written, buffer.len());
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (decoded, decoded_properties) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(decoded, suback);
+        assert_eq!(decoded_properties, properties);
+    }
+
+    #[test]
+    fn suback_read_rejects_missing_codes_and_unknown_reason_codes() {
+        let missing_code = Bytes::from_static(&[0x90, 0x03, 0x00, 0x01, 0x00]);
+        let fixed_header = parse_fixed_header(missing_code.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, missing_code),
+            Err(MQTTProtocolError::MalformedPacket)
+        ));
+
+        let unknown_code = Bytes::from_static(&[0x90, 0x04, 0x00, 0x01, 0x00, 0x03]);
+        let fixed_header = parse_fixed_header(unknown_code.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, unknown_code),
+            Err(MQTTProtocolError::InvalidSubscribeReasonCode(3))
+        ));
+    }
+}
