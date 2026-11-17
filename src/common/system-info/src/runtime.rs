@@ -122,6 +122,18 @@ mod tests {
         tokio::select! {
             biased;
             _ = &mut collection => panic!("runtime collector stopped before receiving a signal"),
+            _ = tokio::time::sleep(Duration::from_millis(20)) => {}
+        }
+        stop_send.send(false).unwrap();
+        tokio::select! {
+            biased;
+            _ = &mut collection => panic!("runtime collector stopped on a false signal"),
+            _ = tokio::time::sleep(Duration::from_millis(20)) => {}
+        }
+
+        tokio::select! {
+            biased;
+            _ = &mut collection => panic!("runtime collector stopped before receiving a signal"),
             _ = tokio::time::sleep(Duration::from_millis(120)) => {}
         }
         stop_send.send(true).unwrap();
