@@ -67,7 +67,7 @@ AMQP 语义的实现所在,按 AMQP 的 Class 划分模块:
 |---|---|---|
 | 队列引擎 | Erlang 进程 + Mnesia | 共享消费组 + 通过 Storage Adapter 访问的 RocksDB 队列 Shard |
 | 队列协调者 | 队列所在节点(镜像/仲裁队列有独立选主) | meta-service 选举的共享消费组 leader |
-| 多协议 | 仅 AMQP(需 Shovel/Federation 插件跨协议) | AMQP / Kafka / MQTT 共享统一 Topic/Shard 与适配器模型,各 Topic 可选择自己的存储类型 |
+| 多协议 | 仅 AMQP(需 Shovel/Federation 插件跨协议) | 共享存储基础设施;跨协议访问需要显式且兼容的租户/Topic 映射及处理器语义 |
 | 管理 HTTP API | 内置 `rabbitmqadmin` / management 插件 | 暂无独立管理 API,通过 AMQP 协议本身管理 |
 | 事务 / 死信队列 | 支持 | 暂不支持(见[兼容性与限制](./Compatibility-and-Limitations.md)) |
 

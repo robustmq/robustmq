@@ -177,3 +177,51 @@ fn code(reason: UnsubAckReason) -> u8 {
         UnsubAckReason::PacketIdentifierInUse => 0x91,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsuback_round_trips_reasons_and_properties() {
+        let unsuback = UnsubAck {
+            pkid: 12,
+            reasons: vec![
+                UnsubAckReason::Success,
+                UnsubAckReason::NoSubscriptionExisted,
+                UnsubAckReason::PacketIdentifierInUse,
+            ],
+        };
+        let properties = Some(UnsubAckProperties {
+            reason_string: Some("processed".to_string()),
+            user_properties: vec![("source".to_string(), "unit-test".to_string())],
+        });
+        let mut buffer = BytesMut::new();
+
+        let written = write(&unsuback, &properties, &mut buffer).unwrap();
+
+        assert_eq!(written, buffer.len());
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (decoded, decoded_properties) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(decoded, unsuback);
+        assert_eq!(decoded_properties, properties);
+    }
+
+    #[test]
+    fn unsuback_read_rejects_missing_reasons_and_unknown_codes() {
+        let missing_reason = Bytes::from_static(&[0xB0, 0x03, 0x00, 0x01, 0x00]);
+        let fixed_header = parse_fixed_header(missing_reason.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, missing_reason),
+            Err(MQTTProtocolError::MalformedPacket)
+        ));
+
+        let unknown_reason = Bytes::from_static(&[0xB0, 0x04, 0x00, 0x01, 0x00, 0x01]);
+        let fixed_header = parse_fixed_header(unknown_reason.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, unknown_reason),
+            Err(MQTTProtocolError::InvalidSubscribeReasonCode(1))
+        ));
+    }
+}

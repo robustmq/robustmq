@@ -31,7 +31,7 @@ RobustMQ AMQP already lets standard AMQP 0-9-1 clients (e.g. the RabbitMQ Java C
 
 ## How to Read the Current State
 
-RobustMQ's AMQP implementation follows a "get the core message path solid first, then fill in the management plane" pace: publish, routing, consumption, and acknowledgement are already real semantics, while declare arguments (TTL/DLX/priority, etc.), fine-grained permissions, and transport encryption — the management-plane and edge capabilities — are still being planned. If your use case depends heavily on these, read [Compatibility & Limitations](./Compatibility-and-Limitations.md) first to assess the impact.
+RobustMQ's AMQP implementation follows a "get the core message path solid first, then fill in the management plane" pace: publish, routing, consumption, and acknowledgement are already real semantics, while declare arguments (TTL/DLX/priority, etc.), fine-grained permissions, and transport encryption — the management-plane and edge capabilities — are still being planned. Queue storage itself uses the configured Storage Adapter backend (currently `EngineRocksDB` for AMQP queue topics). If your use case depends heavily on the deferred features, read [Compatibility & Limitations](./Compatibility-and-Limitations.md) first to assess the impact.
 
 ## Further Reading
 

@@ -199,7 +199,7 @@ async fn main() -> Result<(), async_nats::Error> {
 
 ## Next Steps
 
-- [NATS Core](./NatsCore.md) — Wildcards, Queue Groups, Headers, and full protocol reference
+- [NATS Core](./NatsCore.md) — Wildcards, Queue Groups, Headers, and the currently supported command subset
 - [SDK Integration](./SDK.md) — SDKs and official docs for all languages
 - [JetStream](./JetStream.md) — Persistent message streams (in development)
 - [mq9](https://mq9.robustmq.com/docs/overview) — AI Agent communication protocol built on NATS

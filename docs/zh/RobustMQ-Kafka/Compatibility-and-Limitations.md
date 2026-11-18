@@ -1,6 +1,6 @@
 # 兼容性与限制
 
-本文诚实列出 RobustMQ Kafka **支持 / 部分支持 / 不支持**的能力,并给出**根因**。绝大多数限制都可以追溯到同一个设计取向:**Kafka 与 MQTT 共享同一份协议中立的存储**(见 [系统架构](./SystemArchitecture.md))。逐 API 的版本与状态见 [协议兼容矩阵](./Protocol.md)。
+本文诚实列出 RobustMQ Kafka **支持 / 部分支持 / 不支持**的能力,并给出**根因**。部分存储权衡源于协议中立记录的设计(见 [系统架构](./SystemArchitecture.md));这种格式可以支持显式映射的其它协议视图,但不会自动打通不同协议的命名空间。逐 API 的版本与状态见 [协议兼容矩阵](./Protocol.md)。
 
 ## 总览
 
@@ -90,7 +90,7 @@
 |---|---|---|
 | 存储单元 | 原样压缩的 RecordBatch(zero-copy) | 协议中立的解码记录,Fetch 时重组 |
 | Controller / Coordinator | KRaft / ZooKeeper | meta-service Raft Leader |
-| 多协议 | 仅 Kafka | Kafka / MQTT 共享同一份数据 |
+| 多协议 | 仅 Kafka | 协议中立存储可以支持显式映射的其它协议视图,但仍受映射与处理器语义约束 |
 | 事务 | 支持 | 不支持 |
 | ACL / 配额 | 强制 | 可管理,不强制 |
 | 副本 / leader 运维 | 手动可控 | 存储层自动管理 |

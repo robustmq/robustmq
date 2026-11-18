@@ -18,15 +18,15 @@ Listens on per-protocol ports, handles connection establishment and TLS handshak
 
 ### Protocol Layer
 
-Protocol-specific encoding and decoding logic. Parses byte streams into protocol frames and serializes protocol frames back into byte streams. Contains no business logic.
+Protocol-specific encoding and decoding logic. Parses byte streams into protocol frames and serializes protocol frames back into byte streams. Contains no business logic. The shared implementation is in `src/protocol`, with protocol-specific broker behavior in the corresponding `*-broker` crates. See [Protocol Codec Architecture](./Protocol-Architecture.md) for the internal dispatch and wrapper model.
 
 | Protocol | Status |
 |----------|--------|
 | MQTT 3.1 / 3.1.1 / 5.0 | Production-ready |
-| Kafka | In development |
-| NATS | In development |
-| AMQP | Planned |
-| mq9 | In development |
+| Kafka | Implemented; compatibility work ongoing |
+| NATS | Implemented; compatibility work ongoing |
+| AMQP | Implemented; compatibility work ongoing |
+| mq9 | Implemented as NATS subject semantics; compatibility work ongoing |
 
 ### Protocol Logic Layer
 
@@ -40,9 +40,9 @@ Business capabilities shared across all protocols, called by each protocol logic
 |------------|-------------|
 | Message expiry | Cleans up messages according to per-Topic TTL configuration |
 | Delayed publish | Delivers messages at a specified future time |
-| Authentication | Username/password, TLS certificate, and token verification |
-| ACL | Read/write access control at the resource level |
-| Schema validation | Validates message payload format |
+| Authentication | Protocol-specific authentication using the shared security infrastructure where supported |
+| ACL | Protocol-specific access-control checks where implemented |
+| Schema validation | Payload validation for protocol paths that opt into schema checks |
 | Metrics | Prometheus metrics collection |
 
 ### Storage Adapter
@@ -70,7 +70,9 @@ As a result, adding a new protocol does not touch existing protocol code, and ch
 
 ## Cross-Protocol Message Routing
 
-Each protocol currently stores messages in its own Shards; there is no automatic routing between protocols. Cross-protocol message sharing is implemented at the Shard level through the Storage Adapter: consumers from different protocols can subscribe to the same Shard (i.e., the same Topic/Partition mapping) to consume the same data.
+All protocols use the same Storage Adapter and storage-engine infrastructure, but protocol routing is not an automatic bridge. Topics are created with a protocol-specific source (`MQTT`, `Kafka`, `NATS`, `AMQP`, or `MQ9`), and each protocol applies its own lookup and subscription rules. A protocol can access an existing topic when its handler resolves the same tenant/topic mapping, but this does not make every protocol's subject, queue, and topic interchangeable. In particular, NATS subscription discovery only considers topics created as `NATS` topics, while mq9 uses its own NATS subject namespace and persistence path.
+
+The accurate architectural guarantee is shared storage infrastructure and reusable records, not automatic cross-protocol delivery or topic bridging.
 
 ---
 

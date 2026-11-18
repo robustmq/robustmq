@@ -1,6 +1,6 @@
 # Compatibility & Limitations
 
-This document honestly lists what RobustMQ Kafka **supports / partially supports / does not support**, with **root causes**. Almost every limitation traces back to one design principle: **Kafka and MQTT share the same protocol-neutral storage** (see [System Architecture](./SystemArchitecture.md)). For per-API versions and status, see the [Protocol Compatibility Matrix](./Protocol.md).
+This document honestly lists what RobustMQ Kafka **supports / partially supports / does not support**, with **root causes**. Several storage trade-offs trace back to the design principle of protocol-neutral records (see [System Architecture](./SystemArchitecture.md)); that storage format enables explicitly mapped alternate views but does not provide automatic interoperability between protocol namespaces. For per-API versions and status, see the [Protocol Compatibility Matrix](./Protocol.md).
 
 ## Overview
 
@@ -90,7 +90,7 @@ The following **storage / replica operations** APIs return an explicit error (ra
 |---|---|---|
 | Storage unit | Compressed RecordBatch as-is (zero-copy) | Protocol-neutral decoded records, reframed on Fetch |
 | Controller / Coordinator | KRaft / ZooKeeper | meta-service Raft leader |
-| Multi-protocol | Kafka only | Kafka / MQTT share the same data |
+| Multi-protocol | Kafka only | Protocol-neutral storage can support explicitly mapped alternate views; mappings and handler semantics still apply |
 | Transactions | Supported | Not supported |
 | ACL / quotas | Enforced | Manageable, not enforced |
 | Replica / leader ops | Manually controllable | Auto-managed by the storage layer |

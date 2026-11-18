@@ -31,7 +31,7 @@ RobustMQ AMQP 已经能让标准 AMQP 0-9-1 客户端(如 RabbitMQ Java Client)�
 
 ## 如何理解当前状态
 
-RobustMQ AMQP 的实现遵循"先把核心消息路径打通,再补齐管理面能力"的节奏:发布、路由、消费、确认这条主链路已经是真实语义,而声明参数(TTL/DLX/优先级等)、精细化权限、传输加密等管理面/边缘能力还在规划中。如果你的场景强依赖这些能力,请先阅读 [兼容性与限制](./Compatibility-and-Limitations.md) 评估影响。
+RobustMQ AMQP 的实现遵循"先把核心消息路径打通,再补齐管理面能力"的节奏:发布、路由、消费、确认这条主链路已经是真实语义,而声明参数(TTL/DLX/优先级等)、精细化权限、传输加密等管理面/边缘能力还在规划中。队列存储本身使用配置的 Storage Adapter 后端（当前 AMQP 队列 Topic 使用 `EngineRocksDB`）。如果你的场景强依赖尚未实现的能力,请先阅读 [兼容性与限制](./Compatibility-and-Limitations.md) 评估影响。
 
 ## 延伸阅读
 

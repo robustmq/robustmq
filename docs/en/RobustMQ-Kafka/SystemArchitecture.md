@@ -2,7 +2,7 @@
 
 RobustMQ's Kafka capability is not a standalone Kafka service, but a **Kafka protocol compatibility layer** built on top of the unified RobustMQ kernel. It reuses RobustMQ's networking framework, the File Segment storage engine, and the Raft-based metadata service, and presents itself to the outside world as a standard Kafka broker — native Kafka clients and the official command-line tools connect to it directly.
 
-Its most important design choice is **"one data, multiple protocol views"**: Kafka and MQTT share the same topic store and metadata. The storage layer therefore holds **protocol-neutral, decoded message records** rather than any single protocol's private byte format. This choice drives many implementation decisions later on (for example, why it does not adopt Kafka's "store the compressed batch verbatim" model).
+Its most important design choice is **"one data, multiple protocol views"**: the storage layer holds **protocol-neutral, decoded message records** rather than any single protocol's private byte format. This supports compatible alternate views, but topic visibility remains handler-specific: a Kafka topic is not automatically exposed as an MQTT, NATS, or AMQP topic without a compatible tenant/name mapping and semantics.
 
 ## Layered Architecture
 
@@ -39,7 +39,7 @@ Accessed through `StorageDriverManager`:
 - **offset→position index + mmap reads**: locate the physical position by offset.
 - **ISR replication**: multi-replica replication, with `leader_epoch` fencing.
 
-Storage holds decoded records: Kafka `Produce` explodes the batch on write, and `Fetch` reframes a `RecordBatch` on read. The same topic is therefore also readable/writable by other protocols such as MQTT — the foundation of cross-protocol interoperability.
+Storage holds decoded records: Kafka `Produce` explodes the batch on write, and `Fetch` reframes a `RecordBatch` on read. This is the foundation for cross-protocol interoperability when another handler resolves the same compatible tenant/topic mapping; it is not an automatic bridge between protocol namespaces.
 
 ### 5. Metadata Layer (meta-service · Raft)
 
@@ -60,7 +60,7 @@ Cluster metadata is managed by the Raft-based meta-service:
 |---|---|---|
 | Storage unit | stores the compressed RecordBatch verbatim (zero-copy Fetch) | protocol-neutral decoded records, reframed on Fetch |
 | Controller | KRaft / ZooKeeper | meta-service Raft leader |
-| Multi-protocol | Kafka only | Kafka / MQTT share the same data |
+| Multi-protocol | Kafka only | Protocol-neutral storage can support explicitly mapped alternate views; interoperability is handler- and mapping-dependent |
 | Transactions | supported | not yet supported (see [Compatibility & Limitations](./Compatibility-and-Limitations.md)) |
 
 > For per-API support status, see the [Protocol Compatibility Matrix](./Protocol.md).

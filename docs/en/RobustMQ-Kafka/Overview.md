@@ -4,13 +4,13 @@ RobustMQ Kafka is a **Kafka protocol compatibility layer** built on top of the u
 
 ## Design principle: one data, multiple protocol views
 
-The core design principle of RobustMQ Kafka is **"one data, multiple protocol views"**: Kafka and MQTT share the same topic storage and metadata. The storage layer therefore keeps **protocol-neutral, decoded message records** rather than Kafka's private compressed batch format. This principle drives many implementation choices (for example, why Kafka's "store batches as-is + zero-copy" model is not used).
+The core design principle of RobustMQ Kafka is **"one data, multiple protocol views"**: the storage engine keeps **protocol-neutral, decoded message records** rather than Kafka's private compressed batch format. This makes compatible alternate protocol views possible, but it does not automatically make every Kafka topic an MQTT, NATS, or AMQP destination. Each handler still resolves tenant, topic name, and protocol source according to its own rules.
 
 Key facts:
 
 - **Controller / Coordinator = the meta-service Raft leader**: no ZooKeeper or KRaft. The controller, group coordinator, and transaction coordinator in Kafka semantics all resolve to the current Raft leader, located via a gRPC lookup cached with a ~3s TTL.
 - **Storage engine = File Segment**: segment append / seal / scroll, `offset → position` index with mmap reads, ISR multi-replica with `leader_epoch` fencing.
-- **Decode on write**: `Produce` unpacks the RecordBatch into the store on write, and `Fetch` reframes records back into a `RecordBatch`, so the same topic can be read and written by other protocols too.
+- **Decode on write**: `Produce` unpacks the RecordBatch into the store on write, and `Fetch` reframes records back into a `RecordBatch`. This is the storage-level foundation for compatible cross-protocol views when an explicit topic mapping exists.
 
 See [System Architecture](./SystemArchitecture.md) for details.
 

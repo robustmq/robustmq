@@ -134,3 +134,39 @@ mod properties {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsubscribe_round_trips_filters_and_properties() {
+        let unsubscribe = Unsubscribe {
+            pkid: 9,
+            filters: vec!["events/#".to_string(), "alerts".to_string()],
+        };
+        let properties = Some(UnsubscribeProperties {
+            user_properties: vec![("source".to_string(), "unit-test".to_string())],
+        });
+        let mut buffer = BytesMut::new();
+
+        let written = write(&unsubscribe, &properties, &mut buffer).unwrap();
+
+        assert_eq!(written, buffer.len());
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (decoded, decoded_properties) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(decoded, unsubscribe);
+        assert_eq!(decoded_properties, properties);
+    }
+
+    #[test]
+    fn unsubscribe_read_rejects_unknown_properties() {
+        let packet = Bytes::from_static(&[0xA2, 0x05, 0x00, 0x01, 0x01, 0x01, 0x00]);
+        let fixed_header = parse_fixed_header(packet.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, packet),
+            Err(MQTTProtocolError::InvalidPacketType(1))
+        ));
+    }
+}

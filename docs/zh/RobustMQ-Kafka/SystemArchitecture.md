@@ -2,7 +2,7 @@
 
 RobustMQ 的 Kafka 能力并不是一个独立的 Kafka 服务,而是构建在 RobustMQ 统一内核之上的一层 **Kafka 协议兼容层**。它复用 RobustMQ 的网络框架、File Segment 存储引擎与基于 Raft 的元数据服务,对外呈现为一个标准的 Kafka Broker——原生 Kafka 客户端、官方命令行工具都可以直接连接。
 
-其最重要的设计取向是**"一份数据、多协议视图"**:Kafka 与 MQTT 共享同一份 topic 存储和元数据,因此存储层保存的是**协议中立的、已解码的消息记录**,而不是某个协议私有的字节格式。这一取向决定了后文诸多实现选择(例如为什么不采用 Kafka 的"原样存储压缩批次")。
+其最重要的设计取向是**"一份数据、多协议视图"**:存储层保存的是**协议中立的、已解码的消息记录**,而不是某个协议私有的字节格式。这支持兼容的其它协议视图,但 Topic 的可见性仍由各处理器分别决定:如果没有兼容的租户/名称映射和语义,Kafka Topic 不会自动暴露为 MQTT、NATS 或 AMQP Topic。
 
 ## 分层架构
 
@@ -39,7 +39,7 @@ Kafka 语义的实现所在:
 - **offset→position 索引 + mmap 读**:按 offset 定位物理位置。
 - **ISR 多副本**:多副本复制,`leader_epoch` 做 fencing。
 
-存储保存的是解码后的记录:Kafka `Produce` 写入时把批次解开入库,`Fetch` 时再重组为 `RecordBatch`。因此同一个 topic 也能被 MQTT 等其它协议读写——这正是多协议互通的基础。
+存储保存的是解码后的记录:Kafka `Produce` 写入时把批次解开入库,`Fetch` 时再重组为 `RecordBatch`。当其它处理器解析到相同且兼容的租户/Topic 映射时,这为跨协议互通提供基础；它不是协议命名空间之间的自动桥接。
 
 ### 5. 元数据层(meta-service · Raft)
 
@@ -60,7 +60,7 @@ Kafka 语义的实现所在:
 |---|---|---|
 | 存储单元 | 原样存储压缩后的 RecordBatch(Fetch zero-copy) | 协议中立的解码记录,Fetch 时重组 |
 | Controller | KRaft / ZooKeeper | meta-service Raft Leader |
-| 多协议 | 仅 Kafka | Kafka / MQTT 共享同一份数据 |
+| 多协议 | 仅 Kafka | 协议中立存储可以支持显式映射的其它协议视图,实际互通取决于处理器与映射 |
 | 事务 | 支持 | 暂不支持(见[兼容性与限制](./Compatibility-and-Limitations.md)) |
 
 > 关于逐 API 的支持状态,见 [协议兼容矩阵](./Protocol.md)。

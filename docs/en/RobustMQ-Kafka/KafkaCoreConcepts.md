@@ -34,7 +34,7 @@ RobustMQ has a **fundamental difference** from native Kafka here:
 | Fetch | zero-copy, returns the original batch | Reads records and **reframes** them into a RecordBatch |
 | Compression | Preserves the producer's compression encoding | Consumer side always returns **uncompressed** records |
 
-The reason: Kafka and MQTT share the same topic data, so the storage layer must use a neutral format not bound to any single protocol. The cost is giving up Kafka's zero-copy and compression pass-through (see [Compatibility & Limitations](./Compatibility-and-Limitations.md)).
+The reason: the storage layer is designed to keep protocol-neutral records so compatible alternate views can be implemented without storing one protocol's private batch format. This does not automatically make Kafka and MQTT topic namespaces interchangeable; the handlers still need a compatible mapping. The cost is giving up Kafka's zero-copy and compression pass-through (see [Compatibility & Limitations](./Compatibility-and-Limitations.md)).
 
 ## Producer
 

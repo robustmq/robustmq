@@ -216,3 +216,65 @@ impl RobustMQPacket {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mqtt::{
+        codec::MqttPacketWrapper,
+        common::{MqttPacket, PingReq},
+    };
+
+    #[test]
+    fn protocol_helpers_cover_all_supported_protocols() {
+        let protocols = [
+            (RobustMQProtocol::MQTT3, 3, "MQTT3"),
+            (RobustMQProtocol::MQTT4, 4, "MQTT4"),
+            (RobustMQProtocol::MQTT5, 5, "MQTT5"),
+            (RobustMQProtocol::KAFKA, 0, "KAFKA"),
+            (RobustMQProtocol::AMQP, 11, "AMQP"),
+            (RobustMQProtocol::StorageEngine, 10, "StorageEngine"),
+            (RobustMQProtocol::NATS, 12, "NATS"),
+        ];
+
+        for (protocol, number, name) in protocols {
+            assert_eq!(protocol.to_u8(), number);
+            assert_eq!(protocol.to_str(), name);
+        }
+
+        assert_eq!(RobustMQProtocol::from_u8(4), RobustMQProtocol::MQTT4);
+        assert_eq!(RobustMQProtocol::from_u8(5), RobustMQProtocol::MQTT5);
+        assert_eq!(RobustMQProtocol::from_u8(12), RobustMQProtocol::NATS);
+        assert_eq!(RobustMQProtocol::from_u8(255), RobustMQProtocol::MQTT3);
+        assert!(RobustMQProtocol::MQTT5.is_mqtt());
+        assert!(RobustMQProtocol::MQTT5.is_mqtt5());
+        assert!(RobustMQProtocol::KAFKA.is_kafka());
+        assert!(RobustMQProtocol::AMQP.is_amqp());
+        assert!(RobustMQProtocol::StorageEngine.is_engine());
+        assert!(RobustMQProtocol::NATS.is_nats());
+    }
+
+    #[test]
+    fn mqtt_packet_wrapper_round_trips_and_non_mqtt_packets_are_filtered() {
+        let wrapper = MqttPacketWrapper {
+            protocol_version: 5,
+            packet: MqttPacket::PingReq(PingReq),
+        };
+        let robust = RobustMQPacketWrapper::from_mqtt(wrapper.clone());
+
+        assert_eq!(robust.protocol, RobustMQProtocol::MQTT5);
+        assert_eq!(robust.to_mqtt().protocol_version, 5);
+        assert_eq!(robust.to_mqtt().packet, wrapper.packet);
+
+        let packet = RobustMQPacket::MQTT(wrapper.packet);
+        assert!(packet.get_mqtt_packet().is_some());
+        assert!(packet.get_kafka_packet().is_none());
+        assert!(packet.get_amqp_packet().is_none());
+        assert!(packet.get_nats_packet().is_none());
+
+        assert_eq!(
+            RobustMQWrapperExtend::NATS(NatsWrapperExtend {}).to_mqtt_protocol(),
+            3
+        );
+    }
+}

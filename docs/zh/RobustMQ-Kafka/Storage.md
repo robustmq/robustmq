@@ -1,6 +1,6 @@
 # 存储引擎
 
-RobustMQ Kafka 的消息持久化由统一的 **File Segment 存储引擎**承担。与原生 Kafka 最本质的区别是:存储层保存的是**协议中立的、已解码的消息记录**,而不是 Kafka 私有的压缩字节批次。这使得同一份数据可以被 Kafka 与 MQTT 等多种协议共享读写。
+RobustMQ Kafka 的消息持久化由统一的 **File Segment 存储引擎**承担。与原生 Kafka 最本质的区别是:存储层保存的是**协议中立的、已解码的消息记录**,而不是 Kafka 私有的压缩字节批次。这使物理存储可以被多个协议复用,但其它协议只有在解析到兼容的租户/Topic 映射且语义允许时才能读取这些记录。
 
 ![RobustMQ Kafka 存储结构](../../images/kafka-storage.svg)
 
@@ -59,8 +59,8 @@ offset(u64) | total_len(u32) | metadata_len(u32) | metadata
 | 存储单元 | 原样存储压缩后的 RecordBatch | 协议中立的解码记录 |
 | Fetch 路径 | zero-copy 直接下发原始批次 | 读出记录后重组为 v2 无压缩 RecordBatch |
 | 压缩 | 保留客户端压缩编码 | 存储层不保留原压缩批次 |
-| 多协议 | 仅 Kafka | Kafka / MQTT 共享同一份数据 |
+| 多协议 | 仅 Kafka | 共享物理存储,其它协议视图需要显式且兼容的映射 |
 
-**为什么这样设计?** 因为 RobustMQ 的目标是"一份数据、多协议视图":若原样保存 Kafka 私有的压缩批次,MQTT 等协议就无法读懂同一份数据。以"重组"换取"多协议互通"是有意的权衡——代价是放弃 Kafka 的 zero-copy 与压缩透传。
+**为什么这样设计?** 因为 RobustMQ 的目标是"一份数据、多协议视图":若原样保存 Kafka 私有的压缩批次,兼容的其它协议视图就无法读取同一份记录。以"重组"换取存储层互操作能力是有意的权衡——前提是协议映射一致,代价是放弃 Kafka 的 zero-copy 与压缩透传。
 
 > 相关:低水位推进与记录删除见 [DeleteRecords](./DeleteRecords.md);整体分层见 [系统架构](./SystemArchitecture.md)。

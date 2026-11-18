@@ -67,7 +67,7 @@ Cluster metadata is managed by the Raft-based meta-service:
 |---|---|---|
 | Queue engine | Erlang processes + Mnesia | Shared consume group + RocksDB queue shards through Storage Adapter |
 | Queue coordinator | The node the queue lives on (mirrored/quorum queues have their own leader election) | The shared consume group's leader, elected by meta-service |
-| Multi-protocol | AMQP only (needs Shovel/Federation plugins to cross protocols) | AMQP / Kafka / MQTT share the unified Topic/Shard and adapter model, while each Topic selects its storage type |
+| Multi-protocol | AMQP only (needs Shovel/Federation plugins to cross protocols) | Shared storage infrastructure; cross-protocol access requires an explicit compatible tenant/topic mapping and handler semantics |
 | Management HTTP API | Built-in `rabbitmqadmin` / management plugin | No separate management API yet; managed via the AMQP protocol itself |
 | Transactions / dead-letter queues | Supported | Not yet supported (see [Compatibility & Limitations](./Compatibility-and-Limitations.md)) |
 

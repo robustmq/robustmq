@@ -93,7 +93,7 @@ UNSUB <sid> [max-msgs]\r\n
 | 参数 | 说明 |
 |------|------|
 | `sid` | 要取消的订阅 ID |
-| `max-msgs` | 可选，再收到 N 条消息后自动取消订阅 |
+| `max-msgs` | 为保持线协议兼容而解析，但当前 Broker 不会自动取消订阅；需要单独发送 `UNSUB` |
 
 ### HPUB — 发布带 Header 的消息
 
@@ -138,7 +138,9 @@ nats pub sensor.temperature.room2 '{"value":24.1,"unit":"celsius"}'
 
 **特性：**
 - 当前在线的所有订阅者都会收到消息
-- 订阅者不在线时，消息直接丢失（at-most-once）
+- Core NATS 采用 at-most-once 投递。Fanout 订阅者从订阅时快照的位点开始，
+  不会回放快照之前发布的消息。Queue Group 消费者使用独立的共享消费路径，
+  在没有已提交消费组位点时从当前可用的最早位点开始。
 - 无需前置配置，pub 和 sub 直接使用
 
 ---
@@ -229,7 +231,7 @@ nats sub "test.>" --server nats://localhost:4222
 # 用户名密码鉴权
 nats sub "test.>" --server nats://user:password@localhost:4222
 
-# Token 鉴权
+# Token 字段（为兼容而解析，当前不参与鉴权）
 nats sub "test.>" --server nats://mytoken@localhost:4222
 
 # TLS
@@ -258,7 +260,7 @@ nats sub "test.>" --server nats://localhost:4222 --tlscert client.crt --tlskey c
 | `jetstream` | bool | 是否支持 JetStream |
 | `client_id` | uint64 | 服务端分配的内部客户端 ID |
 | `client_ip` | string | 客户端 IP 地址 |
-| `nonce` | string | 用于 NKey 鉴权的随机数 |
+| `nonce` | string | 服务端 nonce 字段；尚未实现 NKey 鉴权 |
 | `cluster` | string | 集群名称 |
 | `domain` | string | NATS 域名 |
 | `connect_urls` | []string | 集群其他节点地址，用于客户端重连 |
@@ -283,13 +285,16 @@ nats sub "test.>" --server nats://localhost:4222 --tlscert client.crt --tlskey c
 | `protocol` | int | 协议版本，`1` 表示支持动态 INFO 更新 |
 | `user` | string | 用户名（用户名密码鉴权） |
 | `pass` | string | 密码 |
-| `auth_token` | string | Token 鉴权 |
-| `echo` | bool | 是否将自己发布的消息回传给自己的订阅，默认 `true` |
-| `sig` | string | 对 `nonce` 的签名，NKey 鉴权时使用 |
-| `jwt` | string | 用户 JWT，用于权限控制 |
-| `nkey` | string | NKey 公钥 |
-| `no_responders` | bool | 是否启用无订阅者时立即返回错误的功能 |
+| `auth_token` | string | 为兼容而解析的字段，当前鉴权校验不会使用 |
+| `echo` | bool | 保存到连接状态的选项，当前未实现完整的自发布消息过滤 |
+| `sig` | string | 为兼容而解析的字段，尚未实现 NKey 鉴权 |
+| `jwt` | string | 为兼容而解析的字段，尚未实现 JWT 权限控制 |
+| `nkey` | string | 为兼容而解析的字段，尚未实现 NKey 鉴权 |
+| `no_responders` | bool | 保存到连接状态的选项，当前不会主动返回无订阅者错误 |
 | `headers` | bool | 是否支持消息 Header |
+
+启用 NATS 鉴权时，Broker 当前通过配置的安全管理器校验 `user`/`pass`。
+其他 CONNECT 鉴权字段会被解码器接受，但不会提供替代的鉴权机制。
 
 ---
 

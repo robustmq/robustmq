@@ -34,7 +34,7 @@ RobustMQ 与原生 Kafka 在这里有一个**根本差异**:
 | Fetch | zero-copy 直接回传原批次 | 读取记录后**重组**为 RecordBatch |
 | 压缩 | 保留生产端压缩编码 | 消费侧固定返回**未压缩**记录 |
 
-这样做的原因是:Kafka 与 MQTT 共享同一份 topic 数据,存储层必须使用一种不绑定任何单一协议的中立格式。代价是放弃了 Kafka 的 zero-copy 与压缩透传(见 [兼容性与限制](./Compatibility-and-Limitations.md))。
+这样做的原因是:存储层需要保存协议中立的记录,从而在不保存某个协议私有批次格式的前提下支持兼容的其它视图。但这不会自动让 Kafka 与 MQTT 的 Topic 命名空间互换,各处理器仍需要兼容的映射。代价是放弃 Kafka 的 zero-copy 与压缩透传(见 [兼容性与限制](./Compatibility-and-Limitations.md))。
 
 ## Producer(生产者)
 

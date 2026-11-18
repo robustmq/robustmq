@@ -1,6 +1,6 @@
 # SDK 接入
 
-RobustMQ 完整兼容 NATS 协议，使用官方 NATS 客户端 SDK 直接连接，无需任何修改。
+RobustMQ 支持本文档列出的 NATS Core 指令子集，并使用标准 NATS 线协议。官方 NATS 客户端 SDK 可以直接连接并使用已支持的操作，但 JetStream 以及 Token/JWT/NKey 鉴权等子集之外的能力尚不可用。
 
 ## 各语言 SDK
 

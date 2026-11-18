@@ -4,13 +4,13 @@ RobustMQ Kafka 是构建在 RobustMQ 统一内核之上的 **Kafka 协议兼容�
 
 ## 设计取向:一份数据、多协议视图
 
-RobustMQ Kafka 最核心的设计取向是 **"一份数据、多协议视图"**:Kafka 与 MQTT 共享同一份 topic 存储和元数据。因此存储层保存的是**协议中立的、已解码的消息记录**,而不是 Kafka 私有的压缩批次格式。这一取向决定了许多实现选择(例如为什么不采用 Kafka 的"原样存批次 + zero-copy")。
+RobustMQ Kafka 最核心的设计取向是 **"一份数据、多协议视图"**:存储引擎保存的是**协议中立的、已解码的消息记录**,而不是 Kafka 私有的压缩批次格式。这使兼容的其它协议视图成为可能,但不会自动把每个 Kafka Topic 变成 MQTT、NATS 或 AMQP 的目标。各协议处理器仍会按照自身规则解析租户、Topic 名称和协议来源。
 
 几个关键事实:
 
 - **Controller / 协调器 = meta-service 的 Raft Leader**:不使用 ZooKeeper 或 KRaft。Kafka 语义中的 controller、消费组协调器、事务协调器都定位到当前 Raft Leader,经约 3 秒 TTL 缓存的 gRPC 查询获得。
 - **存储引擎 = File Segment**:段的 append / seal / scroll、`offset → position` 索引 + mmap 读、ISR 多副本 + `leader_epoch` fencing。
-- **写入即解码**:`Produce` 写入时把 RecordBatch 解开入库,`Fetch` 时再重组为 `RecordBatch`,因此同一 topic 也能被其它协议读写。
+- **写入即解码**:`Produce` 写入时把 RecordBatch 解开入库,`Fetch` 时再重组为 `RecordBatch`。这为存在显式 Topic 映射时的跨协议视图提供了存储基础。
 
 详见 [系统架构](./SystemArchitecture.md)。
 

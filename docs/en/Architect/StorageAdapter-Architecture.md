@@ -6,21 +6,37 @@ The Storage Adapter sits between the Broker and the Storage Engine. It maps stor
 
 ## Shard Abstraction
 
-Storage concepts from each protocol are mapped to Shard:
+Storage concepts from each protocol are mapped to logical Topics and then to
+physical Shards. The mapping is protocol-specific:
 
 | Protocol | Original Concept | Mapped To |
 |----------|-----------------|-----------|
 | MQTT | Topic | Shard |
 | Kafka | Partition | Shard |
-| AMQP | Queue | Shard |
+| AMQP | Queue (backed by an internal Topic) | Shard |
+| NATS Core | Subject (logical Topic) | Generated `EngineMemory` shard set |
+| mq9 | Mail/subject (logical Topic) | Generated `EngineRocksDB` shard set |
 
-One Topic maps to a group of Shards (multiple partitions). Naming convention:
+MQTT, Kafka, AMQP, NATS Core, and mq9 all end up with a Topic-specific
+`storage_name_list` in the current creation path. NATS/mq9 also contain helper
+code that creates `$sys.inner.*` topics, but the subsequent `with_partition(...)`
+call regenerates the subject Topic's shard names, so the subject does not
+currently use that helper-created pool. The logical Topic therefore maps to its
+own generated shard set in the executed path.
+
+For topic-specific shard sets, the naming convention is:
 
 ```
 {topic_id}-{partition}
 ```
 
-Each Topic selects one storage type (`EngineMemory`, `EngineRocksDB`, or `EngineSegment`), and that setting is copied into the configuration of every Shard belonging to the Topic. Shard and Segment metadata are managed centrally by the Meta Service.
+Each Topic selects one storage type (`EngineMemory`, `EngineRocksDB`, or
+`EngineSegment`), and that setting is copied into the configuration of every
+Shard belonging to the Topic. In the current protocol implementations, NATS
+Core uses `EngineMemory`, mq9 and AMQP queue topics use `EngineRocksDB`, and
+Kafka topics use `EngineSegment`; MQTT uses the storage type selected by its
+Topic configuration (RocksDB by default). Shard and Segment metadata are
+managed centrally by the Meta Service.
 
 ---
 

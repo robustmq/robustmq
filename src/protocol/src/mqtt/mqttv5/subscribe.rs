@@ -220,3 +220,63 @@ mod properties {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn subscribe_round_trips_filter_options_and_properties() {
+        let subscribe = Subscribe {
+            packet_identifier: 42,
+            filters: vec![Filter {
+                path: "events/#".to_string(),
+                qos: QoS::ExactlyOnce,
+                no_local: true,
+                preserve_retain: true,
+                retain_handling: RetainHandling::Never,
+            }],
+        };
+        let properties = Some(SubscribeProperties {
+            subscription_identifier: Some(321),
+            user_properties: vec![("source".to_string(), "unit-test".to_string())],
+        });
+        let mut buffer = BytesMut::new();
+
+        let written = write(&subscribe, &properties, &mut buffer).unwrap();
+
+        assert_eq!(written, buffer.len());
+        assert_eq!(buffer[0], 0x82);
+        let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
+        let (decoded, decoded_properties) =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(decoded, subscribe);
+        assert_eq!(decoded_properties, properties);
+    }
+
+    #[test]
+    fn subscribe_read_rejects_empty_filters_and_invalid_options() {
+        let empty = Bytes::from_static(&[0x82, 0x03, 0x00, 0x01, 0x00]);
+        let fixed_header = parse_fixed_header(empty.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, empty),
+            Err(MQTTProtocolError::EmptySubscription)
+        ));
+
+        let invalid_qos =
+            Bytes::from_static(&[0x82, 0x07, 0x00, 0x01, 0x00, 0x00, 0x01, b'a', 0x03]);
+        let fixed_header = parse_fixed_header(invalid_qos.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, invalid_qos),
+            Err(MQTTProtocolError::InvalidQoS(3))
+        ));
+
+        let invalid_retain_handling =
+            Bytes::from_static(&[0x82, 0x07, 0x00, 0x01, 0x00, 0x00, 0x01, b'a', 0x30]);
+        let fixed_header = parse_fixed_header(invalid_retain_handling.iter()).unwrap();
+        assert!(matches!(
+            read(fixed_header, invalid_retain_handling),
+            Err(MQTTProtocolError::InvalidRetainForwardRule(3))
+        ));
+    }
+}
