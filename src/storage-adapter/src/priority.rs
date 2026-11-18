@@ -17,3 +17,24 @@ use metadata_struct::mq9::Priority;
 pub fn storage_priority_tag(prefix: &str, priority: &Priority) -> String {
     format!("{}_{}", prefix, priority)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn storage_priority_tag_uses_priority_wire_name() {
+        assert_eq!(
+            storage_priority_tag("tenant_user", &Priority::Critical),
+            "tenant_user_critical"
+        );
+        assert_eq!(
+            storage_priority_tag("tenant_user", &Priority::Urgent),
+            "tenant_user_urgent"
+        );
+        assert_eq!(
+            storage_priority_tag("tenant_user", &Priority::Normal),
+            "tenant_user_normal"
+        );
+    }
+}

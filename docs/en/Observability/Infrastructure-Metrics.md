@@ -137,7 +137,7 @@ RobustMQ provides comprehensive infrastructure monitoring metrics to help operat
 | `raft_last_applied` | Gauge | `machine` | Latest log index applied to the state machine |
 
 **Label Descriptions:**
-- `machine`: State machine type (e.g., `metadata`, `offset`, `mqtt`)
+- `machine`: Raft state-machine shard name, including its shard suffix (for example, `metadata_0`, `offset_0`, or `data_0`)
 - `rpc_type`: RPC type (only reported in multi-node cluster setups)
 
 ## System & Process Resource Metrics

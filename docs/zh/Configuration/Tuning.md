@@ -258,12 +258,11 @@ receive_max = 65535           # 客户端申报的接收窗口
 |------|------|---------|
 | `tokio_runtime_busy_ratio{runtime="broker"}` | broker-runtime 线程繁忙比 | > 80% 持续 5 分钟 |
 | `tokio_runtime_queue_depth{runtime="broker"}` | broker-runtime 任务队列积压 | > 1000 |
-| `robustmq_process_fd` | 进程当前打开的 FD 数量 | > ulimit 的 80% |
-| `robustmq_raft_apply_lag{state_machine="mqtt"}` | Raft 日志应用延迟（待追赶条目数） | > 1000 持续增长 |
-| `robustmq_process_cpu_usage` | 进程 CPU 使用率（百分比） | > 85% |
-| `robustmq_process_memory` | 进程内存使用量 | 超出机器物理内存 70% |
+| `raft_apply_lag{machine="data_0"}` | 指定状态机分片的 Raft 日志应用延迟（待追赶条目数） | > 1000 且持续增长 |
+| `system_process_cpu_usage` | Broker 进程 CPU 使用率（百分比，按核数归一化） | > 85% |
+| `system_process_memory_usage` | Broker 进程内存占系统总内存的比例 | > 70% |
 
-在 Grafana 中可以通过 **RobustMQ MQTT Broker Dashboard** 实时查看以上指标。详情参考 [Grafana 配置指南](../Observability/Grafana配置指南.md)。
+在 Grafana 中可以通过 **RobustMQ MQTT Broker Dashboard** 实时查看以上指标。`system-info` 提供的文件描述符辅助函数不会导出为 Prometheus 指标；请使用 `ulimit -n` 等操作系统工具检查进程和主机限制。详情参考 [Grafana 配置指南](../Observability/Grafana配置指南.md)。
 
 ---
 

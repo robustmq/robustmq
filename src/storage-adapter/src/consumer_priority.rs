@@ -208,3 +208,88 @@ impl PriorityGroupConsumer {
         format!("{}-{}", group, priority)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        priority::storage_priority_tag,
+        storage::{test_add_topic, test_build_storage_driver_manager},
+    };
+    use common_base::uuid::unique_id;
+    use metadata_struct::{adapter::adapter_record::AdapterWriteRecord, tenant::DEFAULT_TENANT};
+
+    fn read_config(max_record_num: u64) -> AdapterReadConfig {
+        AdapterReadConfig {
+            max_record_num,
+            max_size: 1024 * 1024,
+        }
+    }
+
+    async fn seed_group_cache(manager: &Arc<StorageDriverManager>, group: &str) {
+        for priority in [Priority::Critical, Priority::Urgent, Priority::Normal] {
+            manager
+                .commit_group_offset(DEFAULT_TENANT, &format!("{group}-{priority}"), &[])
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn priority_tag_reads_are_ordered_and_limited() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let topic_name = unique_id();
+        test_add_topic(&manager, &topic_name);
+        let base_tag = "mailbox";
+        manager
+            .write(
+                DEFAULT_TENANT,
+                &topic_name,
+                &[
+                    AdapterWriteRecord::new(&topic_name, b"normal".as_ref())
+                        .with_tags(vec![storage_priority_tag(base_tag, &Priority::Normal)]),
+                    AdapterWriteRecord::new(&topic_name, b"critical".as_ref())
+                        .with_tags(vec![storage_priority_tag(base_tag, &Priority::Critical)]),
+                    AdapterWriteRecord::new(&topic_name, b"urgent".as_ref())
+                        .with_tags(vec![storage_priority_tag(base_tag, &Priority::Urgent)]),
+                ],
+                1,
+            )
+            .await
+            .unwrap();
+
+        let group_name = unique_id();
+        seed_group_cache(&manager, &group_name).await;
+        let consumer = PriorityGroupConsumer::new(manager, group_name);
+        let records = consumer
+            .next_messages_by_tags(DEFAULT_TENANT, &topic_name, base_tag, &read_config(2))
+            .await
+            .unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].data.as_ref(), b"critical");
+        assert_eq!(records[1].data.as_ref(), b"urgent");
+    }
+
+    #[tokio::test]
+    async fn stage_and_commit_apply_offsets_to_all_priority_consumers() {
+        let manager = test_build_storage_driver_manager().await.unwrap();
+        let group_name = unique_id();
+        seed_group_cache(&manager, &group_name).await;
+        let consumer = PriorityGroupConsumer::new_manual(manager.clone(), group_name.clone());
+        let offsets = HashMap::from([(String::from("shard"), 7)]);
+
+        consumer.stage_offsets(DEFAULT_TENANT, "topic", &offsets);
+        consumer.commit().await.unwrap();
+
+        for priority in [Priority::Critical, Priority::Urgent, Priority::Normal] {
+            let group = format!("{group_name}-{priority}");
+            let committed = manager
+                .get_offset_by_group(DEFAULT_TENANT, &group)
+                .await
+                .unwrap();
+            assert_eq!(committed.len(), 1);
+            assert_eq!(committed[0].shard_name, "shard");
+            assert_eq!(committed[0].offset, 8);
+        }
+    }
+}
