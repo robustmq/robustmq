@@ -9,7 +9,7 @@ RobustMQ AMQP 最核心的设计取向是**复用 RobustMQ 已有的共享消费
 - **队列 = 共享消费组**:每个 AMQP 队列在内部对应一个共享消费组,`Basic.Consume` 注册的消费者就是这个组的成员。
 - **组 Leader 由 meta-service 选举**:每个队列的消息拉取与投递,由集群按负载选出的 leader 节点驱动;`Basic.Get` 在非 leader 节点上会通过一次 gRPC 转发到 leader 完成。
 - **Exchange / Queue / Binding 元数据持久化在 Raft**:声明的 exchange、queue、binding 是集群级元数据,通过 meta-service 的 Raft 层复制,重启不丢失,任意节点可见。
-- **消息存储 = File Segment 引擎**:与 Kafka、MQTT 共享同一套底层存储(段追加写、offset 索引),AMQP 的每个 queue 对应一个内部 topic/shard。
+- **消息存储使用统一 Storage Adapter**:每个 AMQP queue 对应一个 `TopicSource::AMQP` 的内部 Topic,当前由 `EngineRocksDB` Shard 承载。它与 Kafka、MQTT 共享存储基础设施,但不一定使用相同的物理引擎或协议命名空间。
 
 详见 [系统架构](./SystemArchitecture.md)。
 

@@ -1,6 +1,6 @@
 # System Architecture
 
-RobustMQ's AMQP capability isn't a standalone message queue service — it's an **AMQP 0-9-1 protocol compatibility layer** built on top of the RobustMQ unified kernel. It reuses RobustMQ's networking framework, the File Segment storage engine, and the Raft-based metadata service, presenting itself externally as a standard AMQP 0-9-1 broker that official RabbitMQ clients can connect to directly.
+RobustMQ's AMQP capability isn't a standalone message queue service — it's an **AMQP 0-9-1 protocol compatibility layer** built on top of the RobustMQ unified kernel. It reuses RobustMQ's networking framework, the unified Storage Adapter, and the Raft-based metadata service, presenting itself externally as a standard AMQP 0-9-1 broker that official RabbitMQ clients can connect to directly.
 
 Its most important design choice is **reusing the shared consume-group infrastructure**: an AMQP queue's "competing consumers" model is the same mechanism as MQTT/NATS shared subscriptions, so AMQP doesn't implement a separate queue engine — instead, every queue maps to a shared consume group, driven by the cluster-elected leader node responsible for pulling and delivering that queue's messages.
 
@@ -39,11 +39,11 @@ The key layer that realizes AMQP's queue model as a shared consume group:
 - **Leader election and resolution** (`resolve_queue_leader`): the first time a queue is accessed, meta-service creates/looks up its shared consume group and returns the leader node; the result comes directly from the create/lookup call itself, with no extra read-back needed to confirm it.
 - **Cross-node forwarding**: a `Basic.Get` landing on a non-leader node is forwarded to the leader via one gRPC call (`FetchAmqpQueueMessage`); `Basic.Consume` push delivery similarly uses `SendShareGroupMessage` to deliver a message to whichever node the consumer's actual connection lives on.
 
-### 5. Storage Layer (File Segment Engine)
+### 5. Storage Layer (unified Storage Adapter)
 
 Accessed via `StorageDriverManager`, shared with Kafka and MQTT:
 
-- Every AMQP queue maps to an internal topic whose physical shard is append-written in segments.
+- Every AMQP queue maps to an internal `TopicSource::AMQP` topic whose backing shard currently uses `EngineRocksDB`.
 - Consume position (acked/unacked) is tracked via a separate offset store and an unacked index, backing `Basic.Ack`/`Nack`/`Recover` semantics.
 
 ### 6. Metadata Layer (meta-service · Raft)
@@ -65,9 +65,9 @@ Cluster metadata is managed by the Raft-based meta-service:
 
 | Dimension | Native RabbitMQ | RobustMQ |
 |---|---|---|
-| Queue engine | Erlang processes + Mnesia | Shared consume group + File Segment storage engine |
+| Queue engine | Erlang processes + Mnesia | Shared consume group + unified Storage Adapter (`EngineRocksDB` queue topics) |
 | Queue coordinator | The node the queue lives on (mirrored/quorum queues have their own leader election) | The shared consume group's leader, elected by meta-service |
-| Multi-protocol | AMQP only (needs Shovel/Federation plugins to cross protocols) | AMQP / Kafka / MQTT share the same data |
+| Multi-protocol | AMQP only (needs Shovel/Federation plugins to cross protocols) | Shared storage infrastructure; cross-protocol access requires an explicit compatible tenant/topic mapping and handler semantics |
 | Management HTTP API | Built-in `rabbitmqadmin` / management plugin | No separate management API yet; managed via the AMQP protocol itself |
 | Transactions / dead-letter queues | Supported | Not yet supported (see [Compatibility & Limitations](./Compatibility-and-Limitations.md)) |
 

@@ -6,21 +6,34 @@ Storage Adapter 位于 Broker 和 Storage Engine 之间，将不同协议的存�
 
 ## Shard 抽象
 
-各协议的存储概念统一映射为 Shard：
+各协议的存储概念先映射为逻辑 Topic，再映射为物理 Shard。不同协议的
+映射方式并不完全相同：
 
 | 协议 | 原始概念 | 映射 |
 |------|---------|------|
 | MQTT | Topic | Shard |
 | Kafka | Partition | Shard |
-| AMQP（规划中）| Queue | Shard |
+| AMQP | Queue（由内部 Topic 承载） | Shard |
+| NATS Core | Subject（逻辑 Topic） | 生成的 `EngineMemory` Shard 集合 |
+| mq9 | Mail/Subject（逻辑 Topic） | 生成的 `EngineRocksDB` Shard 集合 |
 
-一个 Topic 对应一组 Shard（多分区），命名规则：
+在当前创建路径中，MQTT、Kafka、AMQP、NATS Core 和 mq9 最终都会为 Topic
+生成对应的 `storage_name_list`。NATS/mq9 虽然包含创建 `$sys.inner.*` Topic
+的辅助代码，但后续的 `with_partition(...)` 会重新生成 Subject Topic 的
+Shard 名称，因此当前 Subject 并不会使用该辅助代码创建的 Shard 池。实际
+执行路径下，逻辑 Topic 映射到自身生成的 Shard 集合。
+
+对于按 Topic 创建的 Shard 集合，命名规则为：
 
 ```
 {topic_id}_{partition_seq}
 ```
 
-每个 Shard 独立配置存储类型（`EngineMemory` / `EngineRocksDB` / `EngineSegment`），Shard 和 Segment 元数据由 Meta Service 统一管理。
+每个 Shard 独立配置存储类型（`EngineMemory` / `EngineRocksDB` /
+`EngineSegment`）。当前协议实现中，NATS Core 使用 `EngineMemory`，mq9 和
+AMQP 队列 Topic 使用 `EngineRocksDB`，Kafka Topic 使用 `EngineSegment`；
+MQTT 使用 Topic 配置选择的存储类型（默认是 RocksDB）。Shard 和 Segment
+元数据由 Meta Service 统一管理。
 
 ---
 

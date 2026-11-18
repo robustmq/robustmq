@@ -1,6 +1,6 @@
 # SDK Integration
 
-RobustMQ is fully compatible with the NATS protocol. Use any official NATS client SDK to connect directly — no changes required.
+RobustMQ supports the documented NATS Core command subset and speaks the standard NATS wire format. Official NATS client SDKs can connect for the supported operations, but features outside that subset (for example JetStream and token/JWT/NKey authentication) are not available yet.
 
 ## SDKs by Language
 

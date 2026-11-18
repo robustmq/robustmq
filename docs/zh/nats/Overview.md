@@ -8,7 +8,7 @@ NATS 定位是"连接技术"（connective technology），适用于云、边缘�
 
 NATS 有两层架构：
 
-- **Core NATS**：纯 pub/sub，完全不持久化，at-most-once 投递，极致性能
+- **Core NATS**：纯 pub/sub，不提供持久化存储，at-most-once 投递，极致性能
 - **JetStream**：持久化层，提供 Stream、Consumer、at-least-once / exactly-once 语义
 
 ---
@@ -39,15 +39,24 @@ ai.tool.search.web                # Web 搜索工具
 
 ### 统一存储
 
-RobustMQ 的 NATS 实现共享统一存储层，与 MQTT、Kafka、AMQP 使用同一套存储架构。NATS 写入的消息，可以被其他协议直接消费，无需桥接或数据复制。
+RobustMQ 的 NATS 实现与 MQTT、Kafka、AMQP 使用同一套存储基础设施，但各
+协议处理器仍然会根据租户、名称和 `TopicSource` 解析 Topic。NATS Subject
+不会自动等同于 MQTT Topic、Kafka Topic 或 AMQP Queue。只有在处理器解析出
+兼容的映射且协议语义允许时，才可以跨协议访问；系统没有为所有协议提供
+默认的无桥接互通。
 
 存储层支持三种引擎，NATS 根据场景选择：
 
 | 存储引擎 | 特性 | 适用场景 |
 |---------|------|---------|
-| Memory | 纯内存，微秒级延迟 | Core NATS 的实时 pub/sub |
-| RocksDB | 持久化，TTL 自动清理 | mq9 邮箱，离线消息 |
-| File Segment | 大吞吐，顺序写入 | 高吞吐日志场景 |
+| Memory | 纯内存，微秒级延迟 | NATS Core Subject Topic |
+| RocksDB | 持久化，TTL 自动清理 | mq9 Subject Topic，以及按配置使用 RocksDB 的 AMQP/MQTT Topic |
+| File Segment | 大吞吐，顺序写入 | Kafka Topic，以及配置为 Segment 存储的其他 Topic |
+
+NATS Core Subject 和 mq9 邮箱是逻辑 Topic。在当前创建路径中，每个 Topic
+都会生成自己的 `storage_name_list`；虽然辅助代码会创建 `$sys.inner.*`
+Topic，但后续 `with_partition(...)` 会重新生成 Subject Topic 的 Shard
+名称，因此 Subject 当前不会使用该辅助 Shard 池。
 
 ### 支持范围
 
@@ -58,7 +67,7 @@ RobustMQ 的 NATS 实现共享统一存储层，与 MQTT、Kafka、AMQP 使用�
 | Queue Group（竞争消费）| ✅ 已支持 |
 | Subject 通配符（`*` 和 `>`）| ✅ 已支持 |
 | 消息 Header（HPUB/HMSG）| ✅ 已支持 |
-| 连接鉴权 | ✅ 已支持 |
+| 连接鉴权 | ✅ 已支持（启用鉴权时使用用户名密码） |
 | TLS | ✅ 已支持 |
 | JetStream | 🚧 开发中 |
 
@@ -74,7 +83,11 @@ mq9 的设计参考了 JetStream 的扩展方式：不引入新的协议指令�
 
 ## 与原生 NATS 的兼容性
 
-RobustMQ 实现了完整的 NATS Core 协议，任何标准的 NATS 客户端（Go、Python、Rust、Java、JavaScript）都可以直接连接使用，无需修改代码。
+RobustMQ 当前实现的 NATS Core 指令子集包括：`INFO`、`CONNECT`、`PUB`、
+`HPUB`、`SUB`、`UNSUB`、`MSG`、`HMSG`、`PING`、`PONG`、`+OK` 和 `-ERR`。
+标准客户端可以使用这些操作直接连接，但这不等同于完整的 NATS Core 功能
+集。Token、JWT 和 NKey 字段会被解析以保持线协议兼容，但启用鉴权时实际
+仍通过用户名密码校验；JetStream 尚未实现。
 
 ```bash
 # 使用官方 NATS CLI 直接连接 RobustMQ
@@ -88,6 +101,9 @@ nats sub "hello.world" --server nats://localhost:4222
 
 RobustMQ 是多协议统一消息引擎，NATS 是其中一个原生协议，与 MQTT、Kafka、AMQP 并列。
 
-一条消息通过 MQTT 写入，可以用 NATS 消费；NATS 写入的消息，可以用 Kafka 消费。底层一份数据，协议只是读写接口，零桥接，零复制。
+共享存储层使兼容的跨协议视图成为可能，但映射是显式的，并非自动互通。
+例如，NATS Core 的订阅发现当前只选择 `TopicSource::NATS` 的 Topic，不会
+把所有 MQTT、Kafka 或 AMQP Topic 自动当作 NATS Subject。若业务需要跨协议
+访问，必须使用双方处理器都支持的 Topic/租户映射。
 
 这在边缘场景和 AI 场景中有实际价值：IoT 设备通过 MQTT 上报数据，边缘 Agent 通过 NATS/mq9 协调任务，分析系统通过 Kafka 消费——同一个 broker，同一份存储，零运维成本。

@@ -65,6 +65,7 @@ const items = [
             { text: "Storage Engine", link: "/en/Architect/StorageEngine-Architecture" },
             { text: "Connector", link: "/en/Architect/Connector-Architecture" },
             { text: "Multi-Protocol", link: "/en/Architect/MultiProtocol-Architecture" },
+            { text: "Protocol Codec", link: "/en/Architect/Protocol-Architecture" },
             { text: "Pluggable Storage", link: "/en/Architect/PluggableStorage-Architecture" },
         ],
     },

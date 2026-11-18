@@ -1,15 +1,25 @@
 # Storage
 
-AMQP queue messages are stored using the exact same underlying engine as Kafka and MQTT — **File Segment** — with no separate storage implementation built for AMQP. This is a direct expression of the "one data copy, multiple protocol views" architecture.
+AMQP queue messages use the unified `StorageDriverManager`, but the physical
+backend is selected by the queue Topic configuration. Queue topics created by
+the current AMQP implementation use **`EngineRocksDB`**; Kafka topics use
+`EngineSegment`, while MQTT topics use their own topic configuration. The
+protocols share storage infrastructure, not one mandatory physical engine or
+one automatic protocol namespace.
 
 ## A Unified Storage Driver
 
-All three protocol brokers — AMQP, Kafka, MQTT — write through the same `StorageDriverManager`, which bottoms out in the `storage-engine` crate's File Segment engine. A queue is, at the storage layer, a shard: messages are appended sequentially to a log and located by offset.
+AMQP, Kafka, and MQTT write through the same `StorageDriverManager`, which
+selects a driver from each Topic's storage type. An AMQP queue is represented
+by a `TopicSource::AMQP` Topic and its backing shard; records are written and
+read through the adapter rather than through an AMQP-specific storage API.
 
 This means:
 
-- AMQP's durability guarantees, on-disk layout, and compaction/cleanup strategy are identical to Kafka/MQTT's — the same operational and monitoring know-how applies.
-- There are no AMQP-specific storage configuration knobs — storage tuning (segment size, flush policy, etc.) is configured once at the broker level, independent of protocol.
+- AMQP's durability and cleanup behavior follow the selected backend and Topic
+  configuration; they are not identical to Kafka's File Segment layout.
+- There is no separate AMQP storage API. Backend-specific settings are applied
+  through the unified Topic and storage configuration.
 
 ## Publish Means Persisted
 
@@ -25,7 +35,7 @@ The following storage-related features common to message-queue systems are **not
 | Max queue length | ❌ | No queue capacity cap, and no overflow-drop/reject policy |
 | Dead-letter exchange (DLX) | ❌ | Rejected or discarded messages are simply deleted, never forwarded to a dead-letter exchange |
 | Priority queues | ❌ | No priority-based scheduling |
-| Lazy queues | ❌ | No memory-vs-disk two-tier storage distinction; every message goes through File Segment uniformly |
+| Lazy queues | ❌ | No RabbitMQ-style memory-vs-disk two-tier queue mode; the queue uses its configured backend uniformly |
 
 ## Further Reading
 

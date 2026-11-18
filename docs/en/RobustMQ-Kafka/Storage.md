@@ -1,6 +1,6 @@
 # Storage Engine
 
-RobustMQ Kafka persists messages through the unified **File Segment storage engine**. The most fundamental difference from native Kafka: the storage layer keeps **protocol-neutral, decoded records**, not Kafka's private compressed byte batches. This lets the same data be read and written by multiple protocols — Kafka and MQTT — over one store.
+RobustMQ Kafka persists messages through the unified **File Segment storage engine**. The most fundamental difference from native Kafka: the storage layer keeps **protocol-neutral, decoded records**, not Kafka's private compressed byte batches. This makes a shared physical store possible, but another protocol can use those records only when its handler resolves a compatible tenant/topic mapping and semantics.
 
 ![RobustMQ Kafka storage layout](../../images/kafka-storage.svg)
 
@@ -59,8 +59,8 @@ This is the crux of the difference from native Kafka:
 | Storage unit | stores the compressed RecordBatch as-is | protocol-neutral decoded records |
 | Fetch path | zero-copy, ships the raw batch | reads records, reframes into a v2 uncompressed RecordBatch |
 | Compression | preserves client compression | does not retain the original compressed batch |
-| Multi-protocol | Kafka only | Kafka / MQTT share one store |
+| Multi-protocol | Kafka only | Shared physical storage; alternate protocol views require explicit compatible mappings |
 
-**Why this design?** RobustMQ's goal is "one data, multiple protocol views." If it stored Kafka's private compressed batches as-is, protocols like MQTT could not read the same data. Reframing per Fetch is a deliberate trade — it buys multi-protocol interop at the cost of Kafka's zero-copy and compression pass-through.
+**Why this design?** RobustMQ's goal is "one data, multiple protocol views." If it stored Kafka's private compressed batches as-is, a compatible alternate protocol view could not read the same records. Reframing per Fetch is a deliberate trade — it enables that storage-level interoperability when mappings align, at the cost of Kafka's zero-copy and compression pass-through.
 
 > Related: low-watermark advancement and record deletion in [DeleteRecords](./DeleteRecords.md); overall layering in [System Architecture](./SystemArchitecture.md).

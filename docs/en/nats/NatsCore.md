@@ -93,7 +93,7 @@ UNSUB <sid> [max-msgs]\r\n
 | Parameter | Description |
 |-----------|-------------|
 | `sid` | Subscription ID to cancel |
-| `max-msgs` | Optional: auto-unsubscribe after receiving N more messages |
+| `max-msgs` | Parsed for wire compatibility, but the current broker does not enforce automatic unsubscribe; use a separate `UNSUB` to cancel |
 
 ### HPUB — Publish a Message With Headers
 
@@ -138,7 +138,11 @@ nats pub sensor.temperature.room2 '{"value":24.1,"unit":"celsius"}'
 
 **Characteristics:**
 - All currently online subscribers receive every message
-- Messages published with no active subscriber are dropped immediately (at-most-once)
+- Core NATS delivery is at-most-once. Fanout subscribers start from the offsets
+  snapshotted when they subscribe, so they do not replay messages published
+  before that snapshot. Queue-group consumers use a separate shared-consumer
+  path and, when no committed group offset exists, start from the earliest
+  available offset.
 - No setup required — publish and subscribe directly
 
 ---
@@ -229,7 +233,7 @@ nats sub "test.>" --server nats://localhost:4222
 # Username/password authentication
 nats sub "test.>" --server nats://user:password@localhost:4222
 
-# Token authentication
+# Token field (parsed for compatibility; not used for authentication)
 nats sub "test.>" --server nats://mytoken@localhost:4222
 
 # TLS
@@ -258,7 +262,7 @@ The server pushes an `INFO` JSON payload immediately after a client connects. Fu
 | `jetstream` | bool | Whether JetStream is supported |
 | `client_id` | uint64 | Internal client ID assigned by the server |
 | `client_ip` | string | Client IP address |
-| `nonce` | string | Random nonce for NKey authentication |
+| `nonce` | string | Server nonce field; NKey authentication is not implemented |
 | `cluster` | string | Cluster name |
 | `domain` | string | NATS domain |
 | `connect_urls` | []string | Other cluster node addresses for client reconnection |
@@ -283,13 +287,18 @@ The client sends a `CONNECT` JSON payload on connection. Complete fields:
 | `protocol` | int | Protocol version; `1` indicates support for dynamic INFO updates |
 | `user` | string | Username (username/password auth) |
 | `pass` | string | Password |
-| `auth_token` | string | Token authentication |
-| `echo` | bool | Whether to echo messages published by this client back to its own subscriptions; default `true` |
-| `sig` | string | Signature of the `nonce`, used for NKey authentication |
-| `jwt` | string | User JWT for access control |
-| `nkey` | string | NKey public key |
-| `no_responders` | bool | Enable immediate error response when no subscribers exist for a subject |
+| `auth_token` | string | Parsed compatibility field; not used by the current authentication check |
+| `echo` | bool | Stored connection option; complete self-echo filtering is not implemented |
+| `sig` | string | Parsed compatibility field; NKey authentication is not implemented |
+| `jwt` | string | Parsed compatibility field; JWT authorization is not implemented |
+| `nkey` | string | Parsed compatibility field; NKey authentication is not implemented |
+| `no_responders` | bool | Stored connection option; immediate no-responder errors are not currently emitted |
 | `headers` | bool | Whether the client supports message headers |
+
+When NATS authentication is enabled, the broker currently validates the
+`user`/`pass` pair through the configured security manager. Other CONNECT
+authentication fields are accepted by the decoder but do not provide an
+alternative authentication mechanism.
 
 ---
 

@@ -1,15 +1,22 @@
 # 存储(Storage)
 
-AMQP 队列的消息存储和 Kafka、MQTT 共用同一套底层引擎——**File Segment**,没有为 AMQP 单独实现一套存储。这也是"一份数据,多种协议视图"架构的具体体现。
+AMQP 队列消息使用统一的 `StorageDriverManager`,但物理后端由队列 Topic
+配置决定。当前 AMQP 实现创建的队列 Topic 使用 **`EngineRocksDB`**；Kafka
+Topic 使用 `EngineSegment`，MQTT 则使用自身的 Topic 配置。各协议共享存储
+基础设施，但不是强制使用同一个物理引擎，也不是自动共享协议命名空间。
 
 ## 统一的存储驱动
 
-AMQP、Kafka、MQTT 三个协议 Broker 都通过同一个 `StorageDriverManager` 写入数据,底层落到 `storage-engine` crate 的 File Segment 引擎。一个队列(Queue)在存储层就是一个分片(shard),消息以顺序追加日志的形式写入,通过 offset 定位。
+AMQP、Kafka、MQTT 三个协议 Broker 都通过同一个 `StorageDriverManager`
+写入数据，由每个 Topic 的存储类型选择具体 Driver。AMQP 队列在存储层表现
+为一个 `TopicSource::AMQP` Topic 及其底层 Shard，读写都通过统一 Adapter，
+而不是 AMQP 专用存储 API。
 
 这意味着:
 
-- AMQP 消息的持久化能力、磁盘布局、压缩/清理策略,都与 Kafka/MQTT 完全一致,复用同一套运维和监控经验。
-- 不存在"AMQP 专属"的存储配置项——存储相关的调优(如 segment 大小、刷盘策略)在 Broker 层面统一配置,不区分协议。
+- AMQP 的持久化和清理行为遵循所选后端及 Topic 配置，并不等同于 Kafka 的
+  File Segment 布局。
+- 不存在独立的 AMQP 存储 API；后端相关设置通过统一 Topic 和存储配置生效。
 
 ## 发布即持久化
 
@@ -25,7 +32,7 @@ AMQP、Kafka、MQTT 三个协议 Broker 都通过同一个 `StorageDriverManager
 | 队列最大长度(max-length) | ❌ | 没有队列容量上限,也没有超限丢弃/拒绝策略 |
 | 死信队列(DLX) | ❌ | 拒绝或丢弃的消息直接删除,不会转发到死信交换机 |
 | 消息优先级队列 | ❌ | 未实现优先级调度 |
-| 惰性队列(Lazy Queue) | ❌ | 没有"内存 vs 磁盘"两级存储的区分,所有消息统一走 File Segment |
+| 惰性队列(Lazy Queue) | ❌ | 没有 RabbitMQ 风格的内存/磁盘两级队列模式,队列统一使用其配置的后端 |
 
 ## 延伸阅读
 

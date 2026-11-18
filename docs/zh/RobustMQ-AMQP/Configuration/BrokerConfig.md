@@ -22,7 +22,7 @@ tcp_port = 5672
 AMQP Broker 复用了 RobustMQ 统一的以下配置,不需要单独为 AMQP 配置:
 
 - **用户认证数据**:与 MQTT、Kafka 共用同一份用户表,参见 [认证(SASL)](../Security/Authentication-SASL.md)。
-- **存储引擎参数**(File Segment 的 segment 大小、清理策略等):在 Broker 级别统一配置,不区分协议,参见 [存储](../Storage.md)。
+- **存储配置**:通过统一的 Topic/存储设置选择；当前 AMQP 队列 Topic 使用 `EngineRocksDB`，参见 [存储](../Storage.md)。
 - **meta-service/Raft 集群配置**:集群拓扑、选举参数等与协议无关。
 
 ## 示例:多协议共存的完整片段

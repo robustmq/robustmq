@@ -32,8 +32,8 @@
 - **消息/队列 TTL**:`x-message-ttl`、`x-expires` 等参数不生效。
 - **队列容量上限**:`x-max-length`、`x-max-length-bytes` 不生效。
 - **优先级队列**:`x-max-priority` 不生效。
-- **惰性队列(Lazy Queue)**:所有消息统一走 File Segment 存储,无内存/磁盘两级区分。
-- **Federation / Shovel / 集群镜像队列**等 RabbitMQ 生态插件特性:均未实现,RobustMQ 的高可用通过 Raft 元数据层与 File Segment 存储引擎本身提供,机制不同,不能按 RabbitMQ 插件配置方式迁移。
+- **惰性队列(Lazy Queue)**:没有 RabbitMQ 风格的内存/磁盘两级队列模式,队列统一使用其配置的后端。
+- **Federation / Shovel / 集群镜像队列**等 RabbitMQ 生态插件特性:均未实现,RobustMQ 的高可用通过 Raft 元数据层与配置的存储后端提供,机制不同,不能按 RabbitMQ 插件配置方式迁移。
 
 ## 迁移建议
 

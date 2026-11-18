@@ -8,7 +8,7 @@ NATS positions itself as "connective technology" for communication across cloud,
 
 NATS has a two-layer architecture:
 
-- **Core NATS**: Pure pub/sub with no persistence, at-most-once delivery, extreme performance
+- **Core NATS**: Pure pub/sub with no durable persistence, at-most-once delivery, extreme performance
 - **JetStream**: Persistence layer with Streams, Consumers, and at-least-once / exactly-once delivery semantics
 
 ---
@@ -39,15 +39,25 @@ ai.tool.search.web                # Web Search Tool
 
 ### Unified Storage
 
-RobustMQ's NATS implementation shares the unified storage layer with MQTT, Kafka, and AMQP. Messages written via NATS can be consumed directly by other protocols — no bridging or data copying required.
+RobustMQ's NATS implementation uses the same storage infrastructure as MQTT,
+Kafka, and AMQP, but protocol handlers still resolve topics by tenant, name, and
+`TopicSource`. A NATS subject is not automatically the same logical topic as an
+MQTT topic, Kafka topic, or AMQP queue. Cross-protocol access is possible only
+when the handlers resolve a compatible mapping and the protocol semantics allow
+it; there is no blanket bridge between every protocol.
 
 The storage layer supports three engines, selected based on the scenario:
 
 | Storage Engine | Characteristics | Use Cases |
 |---------------|----------------|-----------|
-| Memory | Pure in-memory, microsecond latency | Core NATS real-time pub/sub |
-| RocksDB | Persistent, TTL auto-cleanup | mq9 mailboxes, offline messages |
-| File Segment | High throughput, sequential writes | High-volume log scenarios |
+| Memory | Pure in-memory, microsecond latency | NATS Core subject topics |
+| RocksDB | Persistent, TTL auto-cleanup | mq9 subject topics and AMQP/MQTT topics where configured |
+| File Segment | High throughput, sequential writes | Kafka topics and other topics configured for segment storage |
+
+NATS Core subjects and mq9 mailboxes are logical Topics. In the current topic
+creation path, each Topic receives a generated `storage_name_list`; the helper
+that creates `$sys.inner.*` topics does not become the subject Topic's backing
+pool because `with_partition(...)` regenerates the subject shard names.
 
 ### Supported Scope
 
@@ -58,7 +68,7 @@ The storage layer supports three engines, selected based on the scenario:
 | Queue Groups (competing consumers) | ✅ Available |
 | Subject wildcards (`*` and `>`) | ✅ Available |
 | Message Headers (HPUB/HMSG) | ✅ Available |
-| Connection authentication | ✅ Available |
+| Connection authentication | ✅ Username/password when enabled |
 | TLS | ✅ Available |
 | JetStream | 🚧 In development |
 
@@ -74,7 +84,13 @@ See [mq9 Overview](https://mq9.robustmq.com/docs/overview) for details.
 
 ## Compatibility With Native NATS
 
-RobustMQ implements the complete NATS Core protocol. Any standard NATS client (Go, Python, Rust, Java, JavaScript) can connect directly — no code changes required.
+RobustMQ implements the currently supported NATS Core command subset: `INFO`,
+`CONNECT`, `PUB`, `HPUB`, `SUB`, `UNSUB`, `MSG`, `HMSG`, `PING`, `PONG`, `+OK`,
+and `-ERR`. Standard clients can connect for these operations, but compatibility
+is not equivalent to the complete NATS Core feature set. In particular, token,
+JWT, and NKey fields are parsed for wire compatibility but authentication is
+currently performed through username/password checks when authentication is
+enabled; JetStream is not implemented.
 
 ```bash
 # Connect to RobustMQ using the official NATS CLI
@@ -88,6 +104,10 @@ nats sub "hello.world" --server nats://localhost:4222
 
 RobustMQ is a multi-protocol unified messaging engine. NATS is one of its native protocols, sitting alongside MQTT, Kafka, and AMQP.
 
-A message written via MQTT can be consumed via NATS; a message written via NATS can be consumed via Kafka. One storage layer underneath, protocols are just read/write interfaces — no bridging, no copying.
+A shared storage layer makes compatible cross-protocol views possible, but the
+mapping is explicit rather than automatic. For example, NATS Core subscription
+discovery currently selects topics whose source is `NATS`; it does not treat all
+MQTT, Kafka, or AMQP topics as NATS subjects. A deployment that needs a message
+to cross protocols must use a topic/tenant mapping supported by both handlers.
 
 This has practical value in edge and AI scenarios: IoT devices send data over MQTT, edge Agents coordinate tasks over NATS/mq9, analytics systems consume over Kafka — one broker, one storage layer, zero extra operational overhead.

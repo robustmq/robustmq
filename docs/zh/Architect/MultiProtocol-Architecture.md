@@ -18,15 +18,15 @@ RobustMQ 在同一个 Broker 进程内支持 MQTT、Kafka、NATS、AMQP、mq9 �
 
 ### 协议层
 
-各协议独立的编解码逻辑。负责将字节流解析为协议帧，将协议帧序列化为字节流。不包含任何业务逻辑。
+各协议独立的编解码逻辑。负责将字节流解析为协议帧，将协议帧序列化为字节流，不包含业务逻辑。共享实现位于 `src/protocol`，各协议的业务行为位于对应的 `*-broker` crate。内部的协议分发和包装模型见[协议编解码架构](./Protocol-Architecture.md)。
 
 | 协议 | 状态 |
 |------|------|
 | MQTT 3.1 / 3.1.1 / 5.0 | 生产可用 |
-| Kafka | 开发中 |
-| NATS | 开发中 |
-| AMQP | 规划中 |
-| mq9 | 开发中 |
+| Kafka | 已实现，兼容性持续完善 |
+| NATS | 已实现，兼容性持续完善 |
+| AMQP | 已实现，兼容性持续完善 |
+| mq9 | 以 NATS Subject 语义实现，兼容性持续完善 |
 
 ### 协议逻辑层
 
@@ -40,9 +40,9 @@ RobustMQ 在同一个 Broker 进程内支持 MQTT、Kafka、NATS、AMQP、mq9 �
 |------|------|
 | 消息过期 | 按 Topic 配置的 TTL 清理消息 |
 | 延迟发布 | 指定时间后投递的消息 |
-| 安全认证 | 用户名密码、TLS 证书、Token 验证 |
-| ACL | 资源级别的读写权限控制 |
-| Schema 校验 | 消息 payload 格式校验 |
+| 安全认证 | 各协议按需使用共享安全基础设施提供的认证能力 |
+| ACL | 在已实现的协议路径中执行资源级别的权限校验 |
+| Schema 校验 | 仅在接入 Schema 检查的协议路径中校验 payload 格式 |
 | 监控指标 | Prometheus 指标采集 |
 
 ### Storage Adapter
@@ -70,7 +70,9 @@ RobustMQ 在同一个 Broker 进程内支持 MQTT、Kafka、NATS、AMQP、mq9 �
 
 ## 协议间消息路由
 
-当前各协议的消息存储在各自的 Shard 中，协议间不做自动路由。跨协议消息共享通过 Storage Adapter 在 Shard 层面实现：不同协议的消费者可以订阅同一个 Shard（即同一个 Topic/Partition 映射），实现跨协议消费同一份数据。
+所有协议使用同一套 Storage Adapter 和存储引擎基础设施，但这并不等于自动桥接。Topic 创建时会记录协议来源(`MQTT`、`Kafka`、`NATS`、`AMQP` 或 `MQ9`)，各协议仍按自己的查找和订阅规则处理。某个协议只有在其处理逻辑解析到相同的租户/Topic 映射时，才能访问已经存在的 Topic；不同协议的 Subject、Queue、Topic 并不会自动互换。尤其是 NATS 的订阅发现只处理来源为 `NATS` 的 Topic，mq9 则使用独立的 NATS Subject 命名空间和持久化路径。
+
+准确的架构保证是共享存储基础设施和可复用的消息记录，而不是自动的跨协议投递或 Topic 桥接。
 
 ---
 
