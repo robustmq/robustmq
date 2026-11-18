@@ -259,12 +259,11 @@ Tuning should be guided by metrics, not guesswork. Key metrics and their signifi
 |--------|---------|----------------|
 | `tokio_runtime_busy_ratio{runtime="broker"}` | broker-runtime thread busy ratio | > 80% for 5 minutes |
 | `tokio_runtime_queue_depth{runtime="broker"}` | broker-runtime task queue backlog | > 1000 |
-| `robustmq_process_fd` | Number of file descriptors open by the process | > 80% of ulimit |
-| `robustmq_raft_apply_lag{state_machine="mqtt"}` | Raft log apply lag (unapplied entries) | > 1000 and growing |
-| `robustmq_process_cpu_usage` | Process CPU usage (percent) | > 85% |
-| `robustmq_process_memory` | Process memory usage | > 70% of physical RAM |
+| `raft_apply_lag{machine="data_0"}` | Raft log apply lag for the selected state-machine shard (unapplied entries) | > 1000 and growing |
+| `system_process_cpu_usage` | Broker process CPU usage (percent, normalized by core count) | > 85% |
+| `system_process_memory_usage` | Broker process memory usage as a percentage of total system memory | > 70% |
 
-All of the above metrics are visible in real-time on the **RobustMQ MQTT Broker Dashboard** in Grafana. See the [Grafana Configuration Guide](../Observability/Grafana-Configuration-Guide.md) for details.
+All of the above metrics are visible in real-time on the **RobustMQ MQTT Broker Dashboard** in Grafana. The `system-info` file-descriptor helpers are not exported as Prometheus metrics; monitor the process and host limits with OS tools such as `ulimit -n`. See the [Grafana Configuration Guide](../Observability/Grafana-Configuration-Guide.md) for dashboard details.
 
 ---
 
