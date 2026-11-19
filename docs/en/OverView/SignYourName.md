@@ -40,6 +40,7 @@ RobustMQ wants to invite you to sign your name for us — this signature will al
 @LiiangDD
 @hefrankeleyn
 @LoboXu
+@maikmai
 
 ## How to Sign Your Name
 
