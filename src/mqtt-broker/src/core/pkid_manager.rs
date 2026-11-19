@@ -243,3 +243,170 @@ pub async fn clean_pkid_data(
 
     loop_select_ticket(ac_fn, PKID_CLEAN_INTERVAL_MS, &stop_send).await;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{PkidAckEnum, PkidManager, ReceiveQosPkidData};
+    use crate::core::cache::QosAckPacketInfo;
+    use common_base::tools::{now_millis, now_second};
+    use protocol::mqtt::common::QoS;
+    use std::sync::atomic::Ordering;
+    use tokio::sync::mpsc;
+
+    fn qos_data(pkid: u16, create_time: u64) -> ReceiveQosPkidData {
+        ReceiveQosPkidData {
+            ack_enum: PkidAckEnum::PubAck,
+            pkid,
+            create_time,
+        }
+    }
+
+    fn ack_data(create_time: u128) -> QosAckPacketInfo {
+        let (sx, _rx) = mpsc::channel(1);
+        QosAckPacketInfo { sx, create_time }
+    }
+
+    #[test]
+    fn qos_packet_data_supports_add_get_remove_and_client_cleanup() {
+        let manager = PkidManager::new();
+        manager.add_qos_pkid_data("client-1", qos_data(7, 10));
+        manager.add_qos_pkid_data("client-1", qos_data(8, 11));
+
+        assert_eq!(manager.get_qos_pkid_data_len_by_client_id("client-1"), 2);
+        assert_eq!(manager.get_qos_pkid_data("client-1", 7).unwrap().pkid, 7);
+        assert!(manager.get_qos_pkid_data("missing", 7).is_none());
+
+        manager.remove_qos_pkid_data("client-1", 7);
+        assert!(manager.get_qos_pkid_data("client-1", 7).is_none());
+        assert_eq!(manager.get_qos_pkid_data_len_by_client_id("client-1"), 1);
+
+        manager.remove_by_client_id("client-1");
+        assert_eq!(manager.get_qos_pkid_data_len_by_client_id("client-1"), 0);
+    }
+
+    #[tokio::test]
+    async fn publish_packet_ids_are_qos_aware_and_skip_zero_or_collisions() {
+        let manager = PkidManager::new();
+        assert_eq!(
+            manager
+                .generate_publish_to_client_pkid("client-1", &QoS::AtMostOnce)
+                .await,
+            1
+        );
+
+        let first = manager
+            .generate_publish_to_client_pkid("client-1", &QoS::AtLeastOnce)
+            .await;
+        let second = manager
+            .generate_publish_to_client_pkid("client-1", &QoS::ExactlyOnce)
+            .await;
+        assert_ne!(first, second);
+        assert_ne!(first, 0);
+        assert_ne!(second, 0);
+
+        manager
+            .publish_to_client_pkid_generate
+            .store(65535, Ordering::SeqCst);
+        let wrapped = manager
+            .generate_publish_to_client_pkid("client-2", &QoS::AtLeastOnce)
+            .await;
+        assert_eq!(wrapped, 1);
+    }
+
+    #[test]
+    fn publish_ack_data_is_removed_without_affecting_similar_client_ids() {
+        let manager = PkidManager::new();
+        manager.add_publish_to_client_qos_ack_data("client-1", 2, ack_data(10));
+        manager.add_publish_to_client_qos_ack_data("client-10", 2, ack_data(11));
+        manager
+            .publish_to_client_pkid_cache
+            .entry("client-1".to_string())
+            .or_default()
+            .insert("2".to_string(), 10);
+
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-1", 2)
+            .is_some());
+        manager.remove_publish_to_client_pkid("client-1", 2);
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-1", 2)
+            .is_none());
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-10", 2)
+            .is_some());
+        assert!(!manager
+            .publish_to_client_pkid_cache
+            .contains_key("client-1"));
+    }
+
+    #[test]
+    fn expired_packet_data_is_pruned_from_all_stores() {
+        let manager = PkidManager::new();
+        let now_sec = now_second();
+        let now_ms = now_millis();
+
+        manager.add_qos_pkid_data("client-1", qos_data(1, now_sec.saturating_sub(61)));
+        manager.add_qos_pkid_data("client-1", qos_data(2, now_sec));
+        manager
+            .publish_to_client_pkid_cache
+            .entry("client-1".to_string())
+            .or_default()
+            .insert("1".to_string(), now_sec.saturating_sub(61));
+        manager
+            .publish_to_client_pkid_cache
+            .entry("client-1".to_string())
+            .or_default()
+            .insert("2".to_string(), now_sec);
+        manager.add_publish_to_client_qos_ack_data(
+            "client-1",
+            1,
+            ack_data(now_ms.saturating_sub(61_000)),
+        );
+        manager.add_publish_to_client_qos_ack_data("client-1", 2, ack_data(now_ms));
+
+        manager.clean_expired_pkid_data(60);
+
+        assert!(manager.get_qos_pkid_data("client-1", 1).is_none());
+        assert!(manager.get_qos_pkid_data("client-1", 2).is_some());
+        let cache = manager
+            .publish_to_client_pkid_cache
+            .get("client-1")
+            .unwrap();
+        assert!(!cache.contains_key("1"));
+        assert!(cache.contains_key("2"));
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-1", 1)
+            .is_none());
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-1", 2)
+            .is_some());
+    }
+
+    #[test]
+    fn remove_by_client_id_clears_all_packet_state_for_that_client_only() {
+        let manager = PkidManager::new();
+        manager.add_qos_pkid_data("client-1", qos_data(1, 10));
+        manager.add_publish_to_client_qos_ack_data("client-1", 1, ack_data(10));
+        manager
+            .publish_to_client_pkid_cache
+            .entry("client-1".to_string())
+            .or_default()
+            .insert("1".to_string(), 10);
+        manager.add_qos_pkid_data("client-10", qos_data(1, 10));
+        manager.add_publish_to_client_qos_ack_data("client-10", 1, ack_data(10));
+
+        manager.remove_by_client_id("client-1");
+
+        assert_eq!(manager.get_qos_pkid_data_len_by_client_id("client-1"), 0);
+        assert!(!manager
+            .publish_to_client_pkid_cache
+            .contains_key("client-1"));
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-1", 1)
+            .is_none());
+        assert_eq!(manager.get_qos_pkid_data_len_by_client_id("client-10"), 1);
+        assert!(manager
+            .get_publish_to_client_qos_ack_data("client-10", 1)
+            .is_some());
+    }
+}

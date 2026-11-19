@@ -65,7 +65,7 @@ is_self_protection_status = false
 |--------|------|--------|------|
 | `default_user` | `string` | `"admin"` | 系统默认用户名 |
 | `default_password` | `string` | `"robustmq"` | 系统默认密码 |
-| `durable_sessions_enable` | `bool` | `false` | 是否启用持久会话（`false` 为临时会话，性能更好） |
+| `durable_sessions_enable` | `bool` | `false` | 设置 MQTT 连接事件元数据中使用的会话持久化标记。它不会覆盖 Clean Session/Clean Start 或 Session Expiry；会话记录仍通过 Meta Service 处理。 |
 | `secret_free_login` | `bool` | `false` | 是否允许免密登录 |
 | `is_self_protection_status` | `bool` | `false` | 是否处于自我保护状态（连接过载时拒绝新连接） |
 

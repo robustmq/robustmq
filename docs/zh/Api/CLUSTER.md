@@ -661,7 +661,7 @@ Content-Type: application/json
 |------|------|------|
 | `default_user` | string | 默认用户名 |
 | `default_password` | string | 默认密码 |
-| `durable_sessions_enable` | bool | 是否启用持久化会话 |
+| `durable_sessions_enable` | bool | 存储在 MQTT 连接事件元数据中的会话持久化标记。不会覆盖 Clean Session/Clean Start 或 Session Expiry；离线消息由独立配置控制。 |
 | `secret_free_login` | bool | 是否允许免密登录 |
 | `is_self_protection_status` | bool | 是否处于自我保护状态 |
 

@@ -657,7 +657,7 @@ All MQTT configuration is grouped under `mqtt_runtime`; see [MQTT Configuration]
 |-------|------|-------------|
 | `default_user` | string | Default username |
 | `default_password` | string | Default password |
-| `durable_sessions_enable` | bool | Whether to enable durable sessions |
+| `durable_sessions_enable` | bool | Session durability marker stored in MQTT connection-event metadata. It does not override Clean Session/Clean Start or Session Expiry; offline-message storage is configured separately. |
 | `secret_free_login` | bool | Whether to allow password-free login |
 | `is_self_protection_status` | bool | Whether the node is in self-protection mode |
 

@@ -36,3 +36,17 @@ impl MqttService {
         response_packet_mqtt_ping_resp()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::response_packet_mqtt_ping_resp;
+    use protocol::mqtt::common::{MqttPacket, PingResp};
+
+    #[test]
+    fn response_packet_is_mqtt_ping_response() {
+        assert_eq!(
+            response_packet_mqtt_ping_resp(),
+            MqttPacket::PingResp(PingResp {})
+        );
+    }
+}

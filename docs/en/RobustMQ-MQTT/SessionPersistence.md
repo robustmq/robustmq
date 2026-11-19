@@ -2,7 +2,9 @@
 
 ## What is MQTT Session Persistence?
 
-MQTT Session Persistence is a feature that allows MQTT clients to maintain their session state and message queues even when they disconnect from the broker. This ensures that messages sent to offline clients are preserved and delivered when they reconnect.
+MQTT session persistence allows a client session to outlive one network connection. RobustMQ stores session records in the Meta Service while processing CONNECT and DISCONNECT events, and can restore an eligible session when the client reconnects with the same client ID.
+
+Session persistence is controlled by the MQTT protocol flags and expiry properties. The `durable_sessions_enable` configuration value does not override those protocol rules; it is copied into session metadata used by connection events. Offline-message storage is a separate setting controlled by `[mqtt_runtime.offline_message]`.
 
 ## When to Use MQTT Session Persistence?
 
@@ -16,21 +18,22 @@ Session persistence is particularly useful in scenarios where:
 
 ## Features of Session Persistence
 
-### Default Persistence in RobustMQ
+### How RobustMQ Retains Sessions
 
-Unlike many MQTT brokers, **RobustMQ MQTT enables session persistence by default**. Session data is automatically stored in the Meta Service, providing:
+RobustMQ writes session state to the Meta Service during session processing. Whether that state is retained after disconnect depends on the protocol version:
 
-- **Automatic Session Management**: No additional configuration required
-- **High Availability**: Session data is replicated across Meta Service nodes
-- **Persistent Message Queues**: Messages are stored until clients reconnect
-- **Session State Preservation**: Subscription information and QoS settings are maintained
+- **MQTT 3.x**: `Clean Session = 1` deletes the session on disconnect. `Clean Session = 0` keeps it for a later reconnect.
+- **MQTT 5.0**: `Clean Start = 1` starts a new session. At disconnect, a Session Expiry Interval of `0` deletes the session; a non-zero interval keeps it until it expires. If the DISCONNECT packet omits the property, the stored session expiry interval is used.
+- **Offline messages**: Messages for an offline client are controlled independently by `[mqtt_runtime.offline_message]`. They are not implied by the session flag alone.
+
+The Meta Service provides the broker's shared session storage. Replication and availability therefore follow the Meta Service deployment rather than a local MQTT-only switch.
 
 ### Key Characteristics
 
-- **Clean Start = false**: Clients must set `Clean Start = false` to maintain persistent sessions
+- **Clean Start / Clean Session**: Clients must use `Clean Start = false` (MQTT 5.0) or `Clean Session = false` (MQTT 3.x/3.1.1) when they want an existing session to be resumed
 - **Client ID Requirement**: Persistent sessions require a unique client ID
-- **Message Retention**: Messages are retained according to QoS levels and retention policies
-- **Automatic Recovery**: Sessions are automatically restored after broker restarts
+- **Session Expiry**: MQTT 5.0 sessions remain available only for their configured expiry interval
+- **Automatic Recovery**: An eligible stored session is loaded when the client reconnects with the same tenant and client ID
 
 ## Using Session Persistence with MQTTX
 
@@ -44,7 +47,7 @@ mqttx sub -t 'sensor/temperature' -i 'robustmq_client' --no-clean -h '117.72.92.
 
 ### 2. Disconnect and Verify Session Persistence
 
-Disconnect the client. The session will be preserved in RobustMQ's Meta Service. You can verify this through the RobustMQ Dashboard at [http://demo.robustmq.com/](http://demo.robustmq.com/).
+Disconnect the client. Because the example uses `Clean Session = false`, the session remains eligible for recovery according to its expiry interval. You can verify the session state through the RobustMQ Dashboard at [http://demo.robustmq.com/](http://demo.robustmq.com/).
 
 ### 3. Send Messages to Offline Client
 
@@ -62,7 +65,7 @@ Reconnect using the same client ID and `--no-clean` option:
 mqttx sub -t 'sensor/temperature' -i 'robustmq_client' --no-clean -h '117.72.92.117' -p 1883
 ```
 
-The client will receive all messages that were published while it was offline:
+If offline-message storage is enabled and the messages are eligible for offline delivery, the client will receive messages published while it was offline:
 
 ```
 [2024-12-19] [10:30:15] › …  Connecting...

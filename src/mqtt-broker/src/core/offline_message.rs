@@ -209,7 +209,9 @@ pub async fn build_mqtt_protocol_data(
 
 #[cfg(test)]
 mod tests {
-    use super::should_reject_delayed_publish;
+    use super::{build_mqtt_protocol_data, should_reject_delayed_publish};
+    use bytes::Bytes;
+    use protocol::mqtt::common::{Publish, PublishProperties};
 
     #[test]
     fn reject_delayed_publish_only_when_offline_storage_is_disabled_and_no_subscribers_exist() {
@@ -217,5 +219,51 @@ mod tests {
         assert!(!should_reject_delayed_publish(false, true, true));
         assert!(!should_reject_delayed_publish(true, false, true));
         assert!(!should_reject_delayed_publish(true, true, false));
+    }
+
+    #[tokio::test]
+    async fn build_mqtt_protocol_data_preserves_publish_properties() {
+        let publish = Publish {
+            retain: true,
+            ..Publish::new("topic", "payload", true)
+        };
+        let properties = PublishProperties {
+            payload_format_indicator: Some(1),
+            response_topic: Some("response/topic".to_string()),
+            correlation_data: Some(Bytes::from_static(b"correlation")),
+            content_type: Some("application/json".to_string()),
+            user_properties: vec![("trace".to_string(), "abc".to_string())],
+            ..Default::default()
+        };
+
+        let data = build_mqtt_protocol_data("client", &publish, &Some(properties)).await;
+
+        assert_eq!(data.client_id, "client");
+        assert!(data.retain);
+        assert_eq!(data.format_indicator, Some(1));
+        assert_eq!(data.response_topic.as_deref(), Some("response/topic"));
+        assert_eq!(
+            data.correlation_data,
+            Some(Bytes::from_static(b"correlation"))
+        );
+        assert_eq!(data.content_type.as_deref(), Some("application/json"));
+        assert_eq!(
+            data.user_properties,
+            vec![("trace".to_string(), "abc".to_string())]
+        );
+    }
+
+    #[tokio::test]
+    async fn build_mqtt_protocol_data_uses_defaults_without_properties() {
+        let publish = Publish::new("topic", "payload", false);
+        let data = build_mqtt_protocol_data("client", &publish, &None).await;
+
+        assert_eq!(data.client_id, "client");
+        assert!(!data.retain);
+        assert_eq!(data.format_indicator, None);
+        assert_eq!(data.response_topic, None);
+        assert_eq!(data.correlation_data, None);
+        assert_eq!(data.content_type, None);
+        assert!(data.user_properties.is_empty());
     }
 }
