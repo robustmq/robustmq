@@ -127,22 +127,23 @@ QoS only designs the theoretical mechanism for reliable message delivery, while 
 
 ### Session Types
 
-#### Temporary Session
+#### Clean (non-persistent) Session
 
-- **Characteristics**: Only lasts as long as the network connection
-- **Use Cases**: Simple applications that don't need persistence
-- **Advantages**: Low resource usage, simple connection
+- **Characteristics**: A clean connect starts a new session, and the session is removed when the protocol rules require cleanup
+- **Use Cases**: Clients that do not need subscriptions or messages to survive a disconnect
+- **Advantages**: No stale session state is resumed
 
 #### Persistent Session
 
-- **Characteristics**: Exists across multiple network connections
-- **Use Cases**: Applications that need offline message storage
-- **Advantages**: Supports offline messages, connection recovery
+- **Characteristics**: A non-clean connect can resume an existing session across network connections
+- **Use Cases**: Applications that need subscription recovery or offline message delivery
+- **Advantages**: Session state can be restored until its expiry
 
 ### Session Recovery
 
-- **Clean Session = true**: Create new session
-- **Clean Session = false**: Restore existing session
+- **MQTT 3.x**: `Clean Session = true` starts a new session and deletes it on disconnect; `false` allows an existing session to be resumed
+- **MQTT 5.0**: `Clean Start = true` starts a new session; Session Expiry Interval controls whether the session is deleted or retained at disconnect
+- **Offline messages**: Configure `[mqtt_runtime.offline_message]` separately; a persistent session alone does not guarantee that every message is queued
 
 ## Retained Messages
 

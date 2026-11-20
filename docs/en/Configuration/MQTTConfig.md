@@ -65,7 +65,7 @@ is_self_protection_status = false
 |---------------|------|---------|-------------|
 | `default_user` | `string` | `"admin"` | Default system username |
 | `default_password` | `string` | `"robustmq"` | Default system password |
-| `durable_sessions_enable` | `bool` | `false` | Enable durable sessions (`false` = transient, memory-only, better performance) |
+| `durable_sessions_enable` | `bool` | `false` | Set the session durability marker used in MQTT connection-event metadata. It does not override Clean Session/Clean Start or Session Expiry; session records are processed through Meta Service. |
 | `secret_free_login` | `bool` | `false` | Whether to allow passwordless login |
 | `is_self_protection_status` | `bool` | `false` | Whether the node is in self-protection mode (rejects new connections under overload) |
 

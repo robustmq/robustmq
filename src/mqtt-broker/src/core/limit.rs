@@ -104,3 +104,180 @@ pub fn qos_flight_message_num_limit(
         .get_qos_pkid_data_len_by_client_id(&connection.client_id);
     len > connection.client_max_receive_maximum as usize
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::{
+        pkid_manager::{PkidAckEnum, ReceiveQosPkidData},
+        tool::test_build_mqtt_cache_manager,
+    };
+    use common_config::{broker::default_broker_config, storage::StorageType};
+    use metadata_struct::{
+        mqtt::{connection::MQTTConnection, session::MqttSession},
+        tenant::{Tenant, TenantConfig},
+        topic::Topic,
+    };
+
+    fn connection(client_id: &str, tenant: &str, max_receive: u16) -> MQTTConnection {
+        MQTTConnection {
+            client_id: client_id.to_string(),
+            tenant: tenant.to_string(),
+            client_max_receive_maximum: max_receive,
+            ..Default::default()
+        }
+    }
+
+    fn tenant(name: &str, max_connections: u64, max_sessions: u64, max_topics: u64) -> Tenant {
+        Tenant {
+            tenant_name: name.to_string(),
+            config: TenantConfig {
+                max_connections_per_node: max_connections,
+                max_sessions,
+                max_topics,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    fn session(tenant: &str, client_id: &str) -> MqttSession {
+        MqttSession::new(
+            tenant.to_string(),
+            client_id.to_string(),
+            60,
+            false,
+            None,
+            true,
+        )
+    }
+
+    #[tokio::test]
+    async fn connection_limit_checks_node_and_tenant_quota() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_connections_per_node = 1;
+        cache_manager.node_cache.set_cluster_config(config);
+
+        cache_manager.add_connection(1, connection("client-1", "tenant-a", 1));
+        assert!(!connection_total_num_limit(&cache_manager, "tenant-a").await);
+
+        cache_manager.add_connection(2, connection("client-2", "tenant-a", 1));
+        assert!(connection_total_num_limit(&cache_manager, "tenant-a").await);
+
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_connections_per_node = 10;
+        cache_manager.node_cache.set_cluster_config(config);
+        cache_manager
+            .node_cache
+            .add_tenant(tenant("tenant-a", 1, 10, 10));
+        cache_manager.add_connection(1, connection("client-1", "tenant-a", 1));
+        assert!(!connection_total_num_limit(&cache_manager, "tenant-a").await);
+        cache_manager.add_connection(2, connection("client-2", "tenant-a", 1));
+        assert!(connection_total_num_limit(&cache_manager, "tenant-a").await);
+        assert!(!connection_total_num_limit(&cache_manager, "tenant-b").await);
+    }
+
+    #[tokio::test]
+    async fn session_limit_checks_node_and_tenant_quota() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_sessions = 1;
+        cache_manager.node_cache.set_cluster_config(config);
+
+        cache_manager.add_session("client-1", &session("tenant-a", "client-1"));
+        assert!(!session_total_num_limit(&cache_manager, "tenant-a").await);
+        cache_manager.add_session("client-2", &session("tenant-a", "client-2"));
+        assert!(session_total_num_limit(&cache_manager, "tenant-a").await);
+
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_sessions = 10;
+        cache_manager.node_cache.set_cluster_config(config);
+        cache_manager
+            .node_cache
+            .add_tenant(tenant("tenant-a", 10, 1, 10));
+        cache_manager.add_session("client-1", &session("tenant-a", "client-1"));
+        assert!(!session_total_num_limit(&cache_manager, "tenant-a").await);
+        cache_manager.add_session("client-2", &session("tenant-a", "client-2"));
+        assert!(session_total_num_limit(&cache_manager, "tenant-a").await);
+        assert!(!session_total_num_limit(&cache_manager, "tenant-b").await);
+    }
+
+    #[tokio::test]
+    async fn topic_limit_checks_node_and_tenant_quota() {
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_topics = 1;
+        cache_manager.node_cache.set_cluster_config(config);
+        cache_manager.node_cache.add_topic(&Topic::new(
+            "tenant-a",
+            "topic-1",
+            StorageType::EngineRocksDB,
+        ));
+        assert!(!topic_total_num_limit(&cache_manager, "tenant-a").await);
+        cache_manager.node_cache.add_topic(&Topic::new(
+            "tenant-a",
+            "topic-2",
+            StorageType::EngineRocksDB,
+        ));
+        assert!(topic_total_num_limit(&cache_manager, "tenant-a").await);
+
+        let cache_manager = test_build_mqtt_cache_manager().await;
+        let mut config = default_broker_config();
+        config.mqtt_runtime.limit.cluster.max_topics = 10;
+        cache_manager.node_cache.set_cluster_config(config);
+        cache_manager
+            .node_cache
+            .add_tenant(tenant("tenant-a", 10, 10, 1));
+        cache_manager.node_cache.add_topic(&Topic::new(
+            "tenant-a",
+            "topic-1",
+            StorageType::EngineRocksDB,
+        ));
+        assert!(!topic_total_num_limit(&cache_manager, "tenant-a").await);
+        cache_manager.node_cache.add_topic(&Topic::new(
+            "tenant-a",
+            "topic-2",
+            StorageType::EngineRocksDB,
+        ));
+        assert!(topic_total_num_limit(&cache_manager, "tenant-a").await);
+        assert!(!topic_total_num_limit(&cache_manager, "tenant-b").await);
+    }
+
+    #[test]
+    fn qos_flight_limit_uses_strictly_greater_than_client_quota() {
+        let cache_manager = futures::executor::block_on(test_build_mqtt_cache_manager());
+        let connection = connection("client-1", "tenant-a", 2);
+        assert!(!qos_flight_message_num_limit(&cache_manager, &connection));
+
+        cache_manager.pkid_manager.add_qos_pkid_data(
+            "client-1",
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::PubAck,
+                pkid: 1,
+                create_time: 0,
+            },
+        );
+        cache_manager.pkid_manager.add_qos_pkid_data(
+            "client-1",
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::PubRec,
+                pkid: 2,
+                create_time: 0,
+            },
+        );
+        assert!(!qos_flight_message_num_limit(&cache_manager, &connection));
+
+        cache_manager.pkid_manager.add_qos_pkid_data(
+            "client-1",
+            ReceiveQosPkidData {
+                ack_enum: PkidAckEnum::PubComp,
+                pkid: 3,
+                create_time: 0,
+            },
+        );
+        assert!(qos_flight_message_num_limit(&cache_manager, &connection));
+    }
+}

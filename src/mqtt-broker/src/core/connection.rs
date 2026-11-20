@@ -315,10 +315,16 @@ fn get_session_expiry_interval(
 
 #[cfg(test)]
 mod test {
-    use super::{build_connection, response_information, REQUEST_RESPONSE_PREFIX_NAME};
+    use super::{
+        build_connection, get_session_expiry_interval, is_delete_session, response_information,
+        REQUEST_RESPONSE_PREFIX_NAME,
+    };
     use crate::core::tool::test_build_mqtt_cache_manager;
     use common_config::broker::default_broker_config;
+    use metadata_struct::mqtt::connection::{ConnectionConfig, MQTTConnection};
+    use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::{Connect, ConnectProperties};
+    use protocol::mqtt::common::{DisconnectProperties, MqttProtocol};
 
     #[tokio::test]
     pub async fn build_connection_test() {
@@ -427,5 +433,48 @@ mod test {
         };
         let res = response_information(&Some(connect_properties));
         assert!(res.is_none());
+    }
+
+    #[test]
+    fn session_expiry_prefers_disconnect_property() {
+        let session = MqttSession::new("tenant".into(), "client".into(), 60, false, None, true);
+        assert_eq!(get_session_expiry_interval(&session, &None), 60);
+        assert_eq!(
+            get_session_expiry_interval(
+                &session,
+                &Some(DisconnectProperties {
+                    session_expiry_interval: Some(5),
+                    ..Default::default()
+                }),
+            ),
+            5
+        );
+    }
+
+    #[test]
+    fn session_delete_rules_match_mqtt_version() {
+        let clean = MQTTConnection::new(ConnectionConfig {
+            tenant: "tenant".into(),
+            connect_id: 1,
+            client_id: "client".into(),
+            receive_maximum: 10,
+            max_packet_size: 1024,
+            topic_alias_max: 10,
+            request_problem_info: 0,
+            keep_alive: 60,
+            source_ip_addr: "127.0.0.1:1883".into(),
+            source_ip: "127.0.0.1".into(),
+            clean_session: true,
+        });
+        let persistent = MQTTConnection {
+            clean_session: false,
+            ..clean.clone()
+        };
+
+        assert!(is_delete_session(&clean, &MqttProtocol::Mqtt3, 60));
+        assert!(is_delete_session(&clean, &MqttProtocol::Mqtt4, 60));
+        assert!(!is_delete_session(&persistent, &MqttProtocol::Mqtt4, 60));
+        assert!(is_delete_session(&persistent, &MqttProtocol::Mqtt5, 0));
+        assert!(!is_delete_session(&persistent, &MqttProtocol::Mqtt5, 60));
     }
 }
