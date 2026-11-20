@@ -386,4 +386,22 @@ mod tests {
         println!("{}", expected);
         assert_eq!(res, expected);
     }
+
+    #[test]
+    fn file_bridge_plugin_rejects_non_file_connector() {
+        let connector = MQTTConnector {
+            connector_name: "not-file".to_string(),
+            connector_type: ConnectorType::default(),
+            failure_strategy: FailureHandlingStrategy::Discard,
+            tenant: DEFAULT_TENANT.to_string(),
+            topic_name: "topic".to_string(),
+            status: Default::default(),
+            etl_rule: ETLRule::default(),
+            broker_id: None,
+            create_time: now_second(),
+            update_time: now_second(),
+        };
+
+        assert!(FileBridgePlugin::new(connector).is_err());
+    }
 }

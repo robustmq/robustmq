@@ -50,7 +50,7 @@
 - `connector_type`: Connector type
 - `config`: Connector configuration (JSON string)
 - `topic_name`: Associated MQTT topic
-- `status`: Connector status (Idle, Running, Stopped)
+- `status`: Connector status (Idle, Running, Stop)
 - `broker_id`: Broker node ID running the connector
 - `create_time`: Creation time
 - `update_time`: Update time
@@ -737,7 +737,7 @@ Messages written to the dead letter queue are in JSON format as `DeadLetterRecor
 |-------|-------------|
 | `Idle` | Idle, not assigned to a Broker |
 | `Running` | Running |
-| `Stopped` | Stopped |
+| `Stop` | Stopped; excluded from scheduling |
 
 ### Failure Handling Strategy (strategy)
 

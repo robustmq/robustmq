@@ -422,3 +422,87 @@ pub fn update_last_active(
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::BridgePluginThread;
+    use common_base::tools::now_second;
+    use metadata_struct::connector::{
+        config_local_file::LocalFileConnectorConfig, rule::ETLRule, ConnectorType,
+        FailureHandlingStrategy, MQTTConnector,
+    };
+    use metadata_struct::tenant::DEFAULT_TENANT;
+    use tokio::sync::mpsc;
+
+    fn manager_with_thread() -> Arc<ConnectorManager> {
+        let manager = Arc::new(ConnectorManager::new());
+        manager.add_connector(&MQTTConnector {
+            connector_name: "connector".to_string(),
+            connector_type: ConnectorType::LocalFile(LocalFileConnectorConfig::default()),
+            failure_strategy: FailureHandlingStrategy::Discard,
+            tenant: DEFAULT_TENANT.to_string(),
+            topic_name: "topic".to_string(),
+            status: MQTTStatus::Running,
+            etl_rule: ETLRule::default(),
+            broker_id: Some(1),
+            create_time: now_second(),
+            update_time: now_second(),
+        });
+        let (stop_send, _) = mpsc::channel(1);
+        manager.add_connector_thread(
+            DEFAULT_TENANT,
+            "connector",
+            BridgePluginThread {
+                connector_name: "connector".to_string(),
+                last_send_time: 0,
+                send_success_total: 0,
+                send_fail_total: 0,
+                stop_send,
+                last_msg: None,
+            },
+        );
+        manager
+    }
+
+    #[test]
+    fn read_error_classifier_stops_only_for_missing_topic() {
+        assert!(should_stop_by_read_error(
+            &CommonError::TopicNotFoundInBrokerCache("tenant".to_string(), "topic".to_string())
+        ));
+        assert!(should_stop_by_read_error(&CommonError::CommonError(
+            "Topic topic not found in broker cache".to_string()
+        )));
+        assert!(!should_stop_by_read_error(&CommonError::CommonError(
+            "storage temporarily unavailable".to_string()
+        )));
+    }
+
+    #[test]
+    fn update_last_active_tracks_success_and_failure_counts() {
+        let manager = manager_with_thread();
+        update_last_active(
+            &manager,
+            DEFAULT_TENANT,
+            "connector",
+            "file",
+            now_millis(),
+            3,
+            true,
+        );
+        update_last_active(
+            &manager,
+            DEFAULT_TENANT,
+            "connector",
+            "file",
+            now_millis(),
+            2,
+            false,
+        );
+
+        let thread = manager.get_connector_thread("connector").unwrap();
+        assert_eq!(thread.send_success_total, 3);
+        assert_eq!(thread.send_fail_total, 2);
+        assert!(thread.last_send_time > 0);
+    }
+}

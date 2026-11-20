@@ -18,16 +18,15 @@ The architecture uses Meta for scheduling and Broker for execution:
 
 ## Lifecycle
 
-A Connector has four states, maintained centrally by Meta Service:
+A Connector has three states, maintained centrally by Meta Service:
 
 | State | Meaning |
 |-------|---------|
 | `Idle` | Unassigned; waiting for the scheduler to assign it to a Broker |
 | `Running` | Assigned to a Broker; the Broker-side thread is active |
-| `Stopped` | Manually stopped by the user; excluded from scheduling |
-| `Error` | Failed during execution; awaiting retry or manual intervention |
+| `Stop` | Stopped; excluded from scheduling until explicitly changed |
 
-State transitions: created as `Idle` → assigned by the scheduler becomes `Running` → heartbeat timeout or Broker down resets to `Idle` → re-enters scheduling.
+State transitions: created as `Idle` → assigned by the scheduler becomes `Running` → heartbeat timeout or Broker down resets it to `Idle` → re-enters scheduling. A stopped Connector uses `Stop` and is not selected while the scheduler only assigns `Idle` Connectors.
 
 ![Connector Lifecycle](../../images/arch_connector_lifecycle.png)
 
@@ -63,10 +62,11 @@ Execution flow for each Connector thread:
 
 1. Check the stop signal; exit the loop if received
 2. Call `read_by_offset` on the Storage Adapter to fetch a batch of messages
-3. If no messages are available, sleep briefly and retry
-4. Call `ConnectorSink::send_batch` to write the messages to the external system
-5. On success: commit the Offset and update the heartbeat timestamp
-6. On failure: apply the `failure_action` policy — discard, retry, or route to the dead-letter queue
+3. After a successful storage read, update the local heartbeat timestamp (including when the batch is empty)
+4. If no messages are available, sleep briefly and retry
+5. Call `ConnectorSink::send_batch` to write the messages to the external system
+6. On `send_batch` success: commit the consumed offsets, then apply the configured failure policy to any per-record failures returned by the sink
+7. On `send_batch` error: apply the configured failure policy; retry without committing, or commit after the failure is terminally handled
 
 ![Connector Consume Loop](../../images/arch_connector_loop.png)
 
@@ -101,7 +101,7 @@ When `send_batch` fails, the configured policy determines behavior:
 
 ## Heartbeat Mechanism
 
-**Broker side**: Updates the local heartbeat timestamp on each successful message read. A heartbeat reporting thread periodically batches and sends these updates to Meta Service.
+**Broker side**: Updates the local heartbeat timestamp after each successful storage read, before checking whether the returned batch is empty. A heartbeat reporting thread periodically batches and sends these updates to Meta Service.
 
 **Meta side**: `ConnectorScheduler` periodically checks heartbeats. Connectors that have timed out are reset to Idle and await rescheduling to a healthy Broker.
 
@@ -112,8 +112,8 @@ When `send_batch` fails, the configured policy determines behavior:
 Each Connector maintains its own consume progress using `connector_name` as the consumer group name:
 
 - Tracks the maximum offset per Shard on each read
-- Commits offset after `send_batch` succeeds (at-least-once semantics)
-- Does not commit offset on failure
+- Commits offsets after `send_batch` returns successfully, before per-record failures returned by the sink are handled
+- For a batch-level send error, retries do not commit offsets; offsets are committed only when the configured failure policy reports the batch as terminally handled (for example, discard or successful dead-letter write)
 - After a Connector migrates to another Broker, consumption resumes from the last committed offset
 
 ---

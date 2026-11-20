@@ -18,16 +18,15 @@ Connector 将 Broker 中的消息实时同步到外部数据系统，运行在 B
 
 ## 生命周期
 
-Connector 有四个状态，由 Meta Service 统一维护：
+Connector 有三个状态，由 Meta Service 统一维护：
 
 | 状态 | 含义 |
 |------|------|
 | `Idle` | 未分配，等待调度器分配到某个 Broker |
 | `Running` | 已分配到 Broker，Broker 侧线程正在运行 |
-| `Stopped` | 用户手动停止，不参与调度 |
-| `Error` | 运行出错，等待重试或人工介入 |
+| `Stop` | 已停止；在状态被显式修改前不参与调度 |
 
-状态流转：创建时为 `Idle` → 调度器分配后为 `Running` → 心跳超时或 Broker 下线后重置为 `Idle` → 重新参与调度。
+状态流转：创建时为 `Idle` → 调度器分配后为 `Running` → 心跳超时或 Broker 下线后重置为 `Idle` → 重新参与调度。停止的 Connector 使用 `Stop` 状态；调度器只分配 `Idle` 状态的 Connector，因此它不会被重新调度。
 
 ![Connector 生命周期](../../images/arch_connector_lifecycle.png)
 
@@ -63,10 +62,11 @@ Broker 的 `start_connector_thread` 每秒执行两项检查：
 
 1. 检查停止信号，收到则退出循环
 2. 调用 `read_by_offset` 从 Storage Adapter 批量拉取消息
-3. 若无消息，sleep 后重试
-4. 调用 `ConnectorSink::send_batch` 将消息写入外部系统
-5. 写入成功：提交 Offset，更新心跳时间
-6. 写入失败：按 `failure_action` 策略决定丢弃、重试或写死信队列
+3. Storage 读取成功后更新本地心跳时间（即使返回的批次为空）
+4. 若无消息，sleep 后重试
+5. 调用 `ConnectorSink::send_batch` 将消息写入外部系统
+6. `send_batch` 成功：提交已消费的 Offset，然后按策略处理 Sink 返回的逐条失败记录
+7. `send_batch` 返回错误：按策略处理；重试时不提交 Offset，失败被最终处理后才提交
 
 ![Connector 消费循环](../../images/arch_connector_loop.png)
 
@@ -101,7 +101,7 @@ Broker 的 `start_connector_thread` 每秒执行两项检查：
 
 ## 心跳机制
 
-**Broker 侧**：每次成功读取消息时更新本地心跳时间，由心跳上报线程定期批量上报给 Meta Service。
+**Broker 侧**：每次 Storage 读取成功后、检查批次是否为空之前，更新本地心跳时间。心跳上报线程会定期批量上报给 Meta Service。
 
 **Meta 侧**：`ConnectorScheduler` 周期性检查心跳，超时的 Connector 重置为 Idle，等待重新调度到健康的 Broker。
 
@@ -112,8 +112,8 @@ Broker 的 `start_connector_thread` 每秒执行两项检查：
 每个 Connector 以 `connector_name` 作为消费组名，独立维护消费进度：
 
 - 每次读取时按 Shard 记录最大 offset
-- `send_batch` 成功后提交 offset（at-least-once 语义）
-- 失败时不提交
+- `send_batch` 返回成功后提交 Offset，然后处理 Sink 返回的逐条失败记录
+- 批次级发送错误发生重试时不提交 Offset；只有配置的失败策略判定该批次已最终处理（例如丢弃或成功写入死信队列）后才提交
 - Connector 迁移到其他 Broker 后，从上次提交的 offset 继续
 
 ---
