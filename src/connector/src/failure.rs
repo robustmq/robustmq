@@ -173,3 +173,86 @@ async fn send_to_dead_letter_queue(
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use metadata_struct::connector::{
+        DeadMessageQueueStrategy, DiscardAfterRetryStrategy, FailureHandlingStrategy,
+    };
+    use storage_adapter::storage::test_build_storage_driver_manager;
+
+    fn failure_context() -> FailureRecordInfo {
+        FailureRecordInfo {
+            tenant: "tenant".to_string(),
+            connector_name: "connector".to_string(),
+            connector_type: "file".to_string(),
+            source_topic: "source".to_string(),
+            error_message: "send failed".to_string(),
+            records: Vec::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn discard_finishes_without_retry() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+
+        assert!(
+            failure_message_process(
+                &storage,
+                &FailureHandlingStrategy::Discard,
+                0,
+                &failure_context(),
+            )
+            .await
+        );
+    }
+
+    #[tokio::test]
+    async fn discard_after_retry_waits_until_retry_limit() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        let strategy = FailureHandlingStrategy::DiscardAfterRetry(DiscardAfterRetryStrategy {
+            retry_total_times: 2,
+            wait_time_ms: 0,
+        });
+
+        assert!(!failure_message_process(&storage, &strategy, 0, &failure_context()).await);
+        assert!(!failure_message_process(&storage, &strategy, 1, &failure_context()).await);
+        assert!(failure_message_process(&storage, &strategy, 2, &failure_context()).await);
+    }
+
+    #[tokio::test]
+    async fn empty_dead_letter_batch_finishes_without_storage_write() {
+        let storage = test_build_storage_driver_manager().await.unwrap();
+        let strategy = FailureHandlingStrategy::DeadMessageQueue(DeadMessageQueueStrategy {
+            tenant: "dlq-tenant".to_string(),
+            topic_name: "dead-letter".to_string(),
+            retry_total_times: 0,
+            wait_time_ms: 0,
+        });
+
+        assert!(failure_message_process(&storage, &strategy, 0, &failure_context()).await);
+    }
+
+    #[test]
+    fn dead_letter_record_round_trips_through_json() {
+        let record = DeadLetterRecord {
+            connector_name: "connector".to_string(),
+            source_topic: "source".to_string(),
+            error_message: "send failed".to_string(),
+            retry_times: 3,
+            record: StorageRecord {
+                metadata: Default::default(),
+                protocol_data: None,
+                data: bytes::Bytes::from_static(b"payload"),
+            },
+        };
+
+        let encoded = serde_json::to_vec(&record).unwrap();
+        let decoded: DeadLetterRecord = serde_json::from_slice(&encoded).unwrap();
+
+        assert_eq!(decoded.connector_name, "connector");
+        assert_eq!(decoded.retry_times, 3);
+        assert_eq!(decoded.record.data, bytes::Bytes::from_static(b"payload"));
+    }
+}

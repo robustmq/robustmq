@@ -190,4 +190,46 @@ mod tests {
             "my\\,measurement"
         );
     }
+
+    #[test]
+    fn record_to_line_includes_escaped_tags_fields_and_timestamp() {
+        let record = StorageRecord {
+            metadata: metadata_struct::storage::record::StorageRecordMetadata {
+                header: Some(vec![metadata_struct::storage::record::StorageHeader {
+                    name: "tag key".to_string(),
+                    value: "tag,value".to_string(),
+                }]),
+                key: Some(bytes::Bytes::from_static(b"measurement name")),
+                tags: Some(vec!["tag\"value".to_string()]),
+                create_t: 42,
+                ..Default::default()
+            },
+            protocol_data: None,
+            data: bytes::Bytes::from_static(b"payload"),
+        };
+
+        let line = Sender::record_to_line(&record).unwrap();
+
+        assert_eq!(
+            line,
+            "measurement\\ name,tag\\ key=tag\\,value pkid=42i,data=\"[112,97,121,108,111,97,100]\",tags=\"[\\\"tag\\\\\\\"value\\\"]\" 42"
+        );
+    }
+
+    #[test]
+    fn new_builds_url_with_precision() {
+        let config = GreptimeDBConnectorConfig::new(
+            "localhost:4000".to_string(),
+            "public".to_string(),
+            "user".to_string(),
+            "password".to_string(),
+        );
+
+        let sender = Sender::new(&config).unwrap();
+
+        assert_eq!(
+            sender.url,
+            "http://localhost:4000/v1/influxdb/api/v2/write?db=public&precision=s"
+        );
+    }
 }

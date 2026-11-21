@@ -50,7 +50,7 @@
 - `connector_type`: 连接器类型
 - `config`: 连接器配置（JSON 字符串）
 - `topic_name`: 关联的 MQTT 主题
-- `status`: 连接器状态（Idle, Running, Stopped）
+- `status`: 连接器状态（Idle, Running, Stop）
 - `broker_id`: 运行连接器的 Broker 节点 ID
 - `create_time`: 创建时间
 - `update_time`: 更新时间
@@ -737,7 +737,7 @@
 |---|------|
 | `Idle` | 空闲，未分配到 Broker |
 | `Running` | 运行中 |
-| `Stopped` | 已停止 |
+| `Stop` | 已停止，不参与调度 |
 
 ### 失败处理策略 (strategy)
 
